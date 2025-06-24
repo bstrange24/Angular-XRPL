@@ -1,0 +1,303 @@
+// src/app/components/navbar/navbar.component.ts
+import { Component, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, RouterModule } from '@angular/router';
+import { StorageService } from '../../services/storage.service';
+import { XrplService } from '../../services/xrpl.service';
+import { AppConstants } from '../../core/app.constants';
+import { DatePipe } from '@angular/common';
+import { interval, Subscription } from 'rxjs';
+import { formatInTimeZone } from 'date-fns-tz';
+
+@Component({
+     selector: 'app-navbar',
+     standalone: true,
+     imports: [CommonModule, RouterModule],
+     providers: [DatePipe],
+     templateUrl: './navbar.component.html',
+})
+export class NavbarComponent implements OnInit {
+     selectedNetwork: string = 'Devnet';
+     networkColor: string = '#1a1c21';
+     navbarColor: string = '#1a1c21';
+     isNetworkDropdownOpen: boolean = false;
+     isEscrowsDropdownOpen: boolean = false;
+     isUtilsDropdownOpen: boolean = false;
+     isEscrowsDropdownActive: boolean = false;
+     currentDateTime: string = ''; // Store formatted date/time
+     private timerSubscription: Subscription | null = null; // For real-time updates
+
+     constructor(private storageService: StorageService, private xrplService: XrplService, private router: Router, private datePipe: DatePipe) {}
+
+     ngOnInit() {
+          // Initialize network
+          const { environment } = this.storageService.getNet();
+          this.selectedNetwork = environment.charAt(0).toUpperCase() + environment.slice(1);
+          this.networkColor = this.storageService.getNetworkColor(environment);
+
+          // Initialize active link
+          const activeNavLink = this.storageService.getActiveNavLink();
+          const activeEscrowLink = this.storageService.getActiveEscrowLink();
+          this.isEscrowsDropdownActive = !!activeEscrowLink;
+
+          // Initialize date/time and set up timer for real-time updates
+          this.updateDateTime();
+          this.timerSubscription = interval(100).subscribe(() => {
+               this.updateDateTime();
+          });
+     }
+
+     ngOnDestroy() {
+          // Clean up timer subscription to prevent memory leaks
+          if (this.timerSubscription) {
+               this.timerSubscription.unsubscribe();
+          }
+     }
+
+     updateDateTime() {
+          const now = new Date();
+          // this.currentDateTime = formatInTimeZone(now, 'America/New_York', 'M/d/yyyy HH:mm:ss');
+          this.currentDateTime = formatInTimeZone(now, 'America/New_York', 'M/d/yyyy h:mm:ss aa');
+     }
+
+     toggleNetworkDropdown() {
+          this.isNetworkDropdownOpen = !this.isNetworkDropdownOpen;
+          this.isEscrowsDropdownOpen = false;
+          this.isUtilsDropdownOpen = false;
+     }
+
+     toggleEscrowsDropdown(event: Event) {
+          event.preventDefault();
+          this.isEscrowsDropdownOpen = !this.isEscrowsDropdownOpen;
+          this.isNetworkDropdownOpen = false;
+          this.isUtilsDropdownOpen = false;
+     }
+
+     toggleUtilsDropdown(event: Event) {
+          event.preventDefault();
+          this.isUtilsDropdownOpen = !this.isUtilsDropdownOpen;
+          this.isNetworkDropdownOpen = false;
+          this.isEscrowsDropdownOpen = false;
+     }
+
+     selectNetwork(network: string) {
+          this.selectedNetwork = network.charAt(0).toUpperCase() + network.slice(1);
+          this.networkColor = this.storageService.getNetworkColor(network.toLowerCase());
+          this.storageService.setNet(this.storageService['networkServers'][network.toLowerCase()], network.toLowerCase());
+          this.isNetworkDropdownOpen = false;
+     }
+
+     setActiveLink(link: string) {
+          this.storageService.setActiveNavLink(link);
+          this.isEscrowsDropdownActive = false;
+          this.isEscrowsDropdownOpen = false;
+          this.isUtilsDropdownOpen = false;
+     }
+
+     setActiveEscrowLink(link: string) {
+          this.storageService.setActiveEscrowLink(link);
+          this.isEscrowsDropdownActive = true;
+          this.isEscrowsDropdownOpen = false;
+          this.isUtilsDropdownOpen = false;
+     }
+
+     clearFields(event: Event) {
+          event.preventDefault();
+          this.storageService.inputsCleared.emit();
+          this.isUtilsDropdownOpen = false;
+
+          (document.getElementById('theForm') as HTMLFormElement)?.reset();
+
+          const account1addressField = document.getElementById('account1address') as HTMLInputElement | null;
+          const seed1Field = document.getElementById('account1seed') as HTMLInputElement | null;
+
+          const account2addressField = document.getElementById('account2address') as HTMLInputElement | null;
+          const seed2Field = document.getElementById('account2seed') as HTMLInputElement | null;
+
+          const mnemonic1Field = document.getElementById('account1mnemonic') as HTMLInputElement | null;
+          const mnemonic2Field = document.getElementById('account2mnemonic') as HTMLInputElement | null;
+
+          const secretNumbers1Field = document.getElementById('account1secretNumbers') as HTMLInputElement | null;
+          const secretNumbers2Field = document.getElementById('account2secretNumbers') as HTMLInputElement | null;
+
+          if (document.getElementById('issuerName')) {
+               const issuerNameField = document.getElementById('issuerName') as HTMLInputElement | null;
+               const issuerAddressField = document.getElementById('issuerAddress') as HTMLInputElement | null;
+               const issuerSeedField = document.getElementById('issuerSeed') as HTMLInputElement | null;
+
+               if (issuerNameField) issuerNameField.value = AppConstants.EMPTY_STRING;
+               if (issuerAddressField) issuerAddressField.value = AppConstants.EMPTY_STRING;
+               if (issuerSeedField) issuerSeedField.value = AppConstants.EMPTY_STRING;
+          }
+
+          if (account1addressField) account1addressField.value = AppConstants.EMPTY_STRING;
+          if (seed1Field) seed1Field.value = AppConstants.EMPTY_STRING;
+          if (account2addressField) account2addressField.value = AppConstants.EMPTY_STRING;
+          if (seed2Field) seed2Field.value = AppConstants.EMPTY_STRING;
+          if (mnemonic1Field) mnemonic1Field.value = AppConstants.EMPTY_STRING;
+          if (mnemonic2Field) mnemonic2Field.value = AppConstants.EMPTY_STRING;
+          if (secretNumbers1Field) secretNumbers1Field.value = AppConstants.EMPTY_STRING;
+          if (secretNumbers2Field) secretNumbers2Field.value = AppConstants.EMPTY_STRING;
+
+          const xrpBalance1Field = document.getElementById('xrpBalance1Field') as HTMLInputElement | null;
+          const xrpBalanceField = document.getElementById('xrpBalanceField') as HTMLInputElement | null;
+          const ownerCountField = document.getElementById('ownerCountField') as HTMLInputElement | null;
+          const totalXrpReservesField = document.getElementById('totalXrpReservesField') as HTMLInputElement | null;
+          const totalExecutionTime = document.getElementById('totalExecutionTime') as HTMLInputElement | null;
+
+          if (xrpBalance1Field) xrpBalance1Field.value = AppConstants.EMPTY_STRING;
+          if (xrpBalanceField) xrpBalanceField.value = AppConstants.EMPTY_STRING;
+          if (ownerCountField) ownerCountField.value = AppConstants.EMPTY_STRING;
+          if (totalXrpReservesField) totalXrpReservesField.value = AppConstants.EMPTY_STRING;
+          if (totalExecutionTime) totalExecutionTime.value = AppConstants.EMPTY_STRING;
+
+          AppConstants.INPUT_IDS.forEach(id => {
+               const element = document.getElementById(id) as HTMLInputElement | null;
+               console.log('id:' + id + ' element: ' + element);
+               if (element) this.storageService.removeValue(id || '');
+          });
+     }
+
+     async disconnectClient(event: Event) {
+          event.preventDefault();
+          await this.xrplService.disconnect();
+          this.isUtilsDropdownOpen = false;
+     }
+
+     gatherAccountInfo(event: Event) {
+          event.preventDefault();
+          this.isUtilsDropdownOpen = false;
+
+          const resultField = document.getElementById('resultField') as HTMLInputElement | null;
+          if (resultField) {
+               resultField.classList.remove('error', 'success');
+          }
+
+          const account1name = document.getElementById('account1name') as HTMLInputElement | null;
+          const account1address = document.getElementById('account1address') as HTMLInputElement | null;
+          const account1seed = document.getElementById('account1seed') as HTMLInputElement | null;
+
+          const account2name = document.getElementById('account2name') as HTMLInputElement | null;
+          const account2address = document.getElementById('account2address') as HTMLInputElement | null;
+          const account2seed = document.getElementById('account2seed') as HTMLInputElement | null;
+
+          const account1mnemonic = document.getElementById('account1mnemonic') as HTMLInputElement | null;
+          const account2mnemonic = document.getElementById('account2mnemonic') as HTMLInputElement | null;
+
+          const account1secretNumbers = document.getElementById('account1secretNumbers') as HTMLInputElement | null;
+          const account2secretNumbers = document.getElementById('account2secretNumbers') as HTMLInputElement | null;
+
+          let seedOrMnemonicOrSecret1 = (account1seed?.value?.trim() || account1mnemonic?.value?.trim() || account1secretNumbers?.value?.trim()) ?? '';
+          let accountData = (account1name?.value ?? '') + '\n' + (account1address?.value ?? '') + '\n' + seedOrMnemonicOrSecret1 + '\n';
+          let seedOrMnemonicOrSecret2 = account2seed?.value?.trim() || account2mnemonic?.value?.trim() || account2secretNumbers?.value?.trim() || '';
+          accountData += (account2name?.value ?? '') + '\n' + (account2address?.value ?? '') + '\n' + seedOrMnemonicOrSecret2 + '\n';
+
+          if (document.getElementById('issuerName')) {
+               const issuerName = document.getElementById('issuerName') as HTMLInputElement | null;
+               const issuerAddress = document.getElementById('issuerAddress') as HTMLInputElement | null;
+               const issuerSeed = document.getElementById('issuerSeed') as HTMLInputElement | null;
+               const issuerSecretNumbers = document.getElementById('issuerSecretNumbers') as HTMLInputElement | null;
+               const issuerMnemonic = document.getElementById('issuerMnemonic') as HTMLInputElement | null;
+               let seedOrMnemonicOrSecret3 = issuerSeed?.value?.trim() || issuerMnemonic?.value?.trim() || issuerSecretNumbers?.value?.trim() || '';
+               accountData += (issuerName?.value ?? '') + '\n' + (issuerAddress?.value ?? '') + '\n' + seedOrMnemonicOrSecret3 + '\n';
+          }
+          if (resultField) {
+               resultField.innerHTML = accountData;
+          }
+     }
+
+     distributeAccountInfo(event: Event) {
+          event.preventDefault();
+          // Implement as needed
+          this.isUtilsDropdownOpen = false;
+
+          const account1name = document.getElementById('account1name') as HTMLInputElement | null;
+          const account1address = document.getElementById('account1address') as HTMLInputElement | null;
+          const account1seed = document.getElementById('account1seed') as HTMLInputElement | null;
+
+          const account2name = document.getElementById('account2name') as HTMLInputElement | null;
+          const account2address = document.getElementById('account2address') as HTMLInputElement | null;
+          const account2seed = document.getElementById('account2seed') as HTMLInputElement | null;
+
+          const account1mnemonic = document.getElementById('account1mnemonic') as HTMLInputElement | null;
+          const account2mnemonic = document.getElementById('account2mnemonic') as HTMLInputElement | null;
+
+          const account1secretNumbers = document.getElementById('account1secretNumbers') as HTMLInputElement | null;
+          const account2secretNumbers = document.getElementById('account2secretNumbers') as HTMLInputElement | null;
+
+          const issuerName = document.getElementById('issuerName') as HTMLInputElement | null;
+          const issuerAddress = document.getElementById('issuerAddress') as HTMLInputElement | null;
+          const issuerSeed = document.getElementById('issuerSeed') as HTMLInputElement | null;
+          const issuerSecretNumbers = document.getElementById('issuerSecretNumbers') as HTMLInputElement | null;
+          const issuerMnemonic = document.getElementById('issuerMnemonic') as HTMLInputElement | null;
+
+          const resultField = document.getElementById('resultField') as HTMLInputElement | null;
+          if (!resultField) {
+               return;
+          }
+          let accountInfo = resultField.innerHTML.split('\n');
+          if (account1name) account1name.value = accountInfo[0];
+          if (account1address) account1address.value = accountInfo[1];
+
+          if (accountInfo[2].split(' ').length > 1) {
+               if (account1mnemonic) account1mnemonic.value = accountInfo[2];
+               if (account1seed) account1seed.value = AppConstants.EMPTY_STRING;
+               if (account1secretNumbers) account1secretNumbers.value = AppConstants.EMPTY_STRING;
+          } else if (accountInfo[2].includes(',')) {
+               if (account1secretNumbers) account1secretNumbers.value = accountInfo[2];
+               if (account1seed) account1seed.value = AppConstants.EMPTY_STRING;
+               if (account1mnemonic) account1mnemonic.value = AppConstants.EMPTY_STRING;
+          } else {
+               if (account1seed) account1seed.value = accountInfo[2];
+               if (account1secretNumbers) account1secretNumbers.value = AppConstants.EMPTY_STRING;
+               if (account1mnemonic) account1mnemonic.value = AppConstants.EMPTY_STRING;
+          }
+
+          if (account2name) account2name.value = accountInfo[3];
+          if (account2address) account2address.value = accountInfo[4];
+
+          if (accountInfo[5].split(' ').length > 1) {
+               if (account2mnemonic) account2mnemonic.value = accountInfo[5];
+               if (account2seed) account2seed.value = AppConstants.EMPTY_STRING;
+               if (account2secretNumbers) account2secretNumbers.value = AppConstants.EMPTY_STRING;
+          } else if (accountInfo[5].includes(',')) {
+               if (account2secretNumbers) account2secretNumbers.value = accountInfo[5];
+               if (account2seed) account2seed.value = AppConstants.EMPTY_STRING;
+               if (account2mnemonic) account2mnemonic.value = AppConstants.EMPTY_STRING;
+          } else {
+               if (account2seed) account2seed.value = accountInfo[5];
+               if (account2secretNumbers) account2secretNumbers.value = AppConstants.EMPTY_STRING;
+               if (account2mnemonic) account2mnemonic.value = AppConstants.EMPTY_STRING;
+          }
+
+          if (accountInfo[8].length >= 9) {
+               if (issuerName) issuerName.value = accountInfo[6];
+               if (issuerAddress) issuerAddress.value = accountInfo[7];
+
+               if (accountInfo[8].split(' ').length > 1) {
+                    if (issuerMnemonic) issuerMnemonic.value = accountInfo[8];
+                    if (issuerSeed) issuerSeed.value = AppConstants.EMPTY_STRING;
+                    if (issuerSecretNumbers) issuerSecretNumbers.value = AppConstants.EMPTY_STRING;
+               } else if (accountInfo[8].includes(',')) {
+                    if (issuerSecretNumbers) issuerSecretNumbers.value = accountInfo[8];
+                    if (issuerSeed) issuerSeed.value = AppConstants.EMPTY_STRING;
+                    if (issuerMnemonic) issuerMnemonic.value = AppConstants.EMPTY_STRING;
+               } else {
+                    if (issuerSeed) issuerSeed.value = accountInfo[8];
+                    if (issuerSecretNumbers) issuerSecretNumbers.value = AppConstants.EMPTY_STRING;
+                    if (issuerMnemonic) issuerMnemonic.value = AppConstants.EMPTY_STRING;
+               }
+          }
+          this.saveInputValues();
+     }
+
+     saveInputValues() {
+          console.log('Entering saveInputValues');
+          AppConstants.INPUT_IDS.forEach(id => {
+               const element = document.getElementById(id) as HTMLInputElement | null;
+               console.log('id:' + id + ' element: ' + element);
+               if (element) this.storageService.setInputValue(id, element.value || '');
+          });
+          console.log('Leaving saveInputValues');
+     }
+}

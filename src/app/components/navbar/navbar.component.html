@@ -1,0 +1,55 @@
+<div class="nav-container">
+     <div class="network-dropdown network network-{{ selectedNetwork | lowercase }}">
+          <button class="btn dropdown-toggle" type="button" id="networkDropdownButton" (click)="toggleNetworkDropdown()" [style.backgroundColor]="networkColor">
+               <div class="dropdown-toggle-text">{{ selectedNetwork }}</div>
+               <svg class="arrow" [ngClass]="{ open: isNetworkDropdownOpen }" viewBox="0 0 12 12" width="12" height="12">
+                    <path fill="black" d="M2 4l4 4 4-4H2z" />
+               </svg>
+          </button>
+          <div class="dropdown-menu" [ngStyle]="{ display: isNetworkDropdownOpen ? 'block' : 'none' }">
+               <a class="dropdown-item devnet" href="#" (click)="selectNetwork('devnet'); $event.preventDefault()" [ngClass]="{ active: selectedNetwork === 'Devnet' }"> Devnet </a>
+               <a class="dropdown-item testnet" href="#" (click)="selectNetwork('testnet'); $event.preventDefault()" [ngClass]="{ active: selectedNetwork === 'Testnet' }"> Testnet </a>
+               <a class="dropdown-item mainnet" href="#" (click)="selectNetwork('mainnet'); $event.preventDefault()" [ngClass]="{ active: selectedNetwork === 'Mainnet' }"> Mainnet </a>
+          </div>
+     </div>
+
+     <!-- Add date/time display below network dropdown -->
+     <div class="current-datetime">{{ currentDateTime }}</div>
+
+     <nav id="navbar" class="navbar" [style.backgroundColor]="navbarColor">
+          <div class="navbar-container">
+               <div class="navbar-links">
+                    <a routerLink="/account" routerLinkActive="active" (click)="setActiveLink('/account')">Account Info</a>
+                    <a routerLink="/trustlines" routerLinkActive="active" (click)="setActiveLink('/trustlines')">Manage Trustlines</a>
+                    <a routerLink="/send-xrp" routerLinkActive="active" (click)="setActiveLink('/send-xrp')">Send XRP</a>
+                    <a routerLink="/create-payment-channel" routerLinkActive="active" (click)="setActiveLink('/create-payment-channel')"> Payment Channel </a>
+
+                    <div class="dropdown escrows-dropdown" [ngClass]="{ active: isEscrowsDropdownActive }">
+                         <a href="#" class="dropdown-toggle" aria-label="Toggle Escrows dropdown" (click)="toggleEscrowsDropdown($event)">Escrows ▾</a>
+                         <div class="dropdown-menu">
+                              <a routerLink="/create-time-escrow" routerLinkActive="active" (click)="setActiveEscrowLink('/create-time-escrow')">Create Time Escrow</a>
+                              <a routerLink="/create-conditional-escrow" routerLinkActive="active" (click)="setActiveEscrowLink('/create-conditional-escrow')">Create Conditional Escrow</a>
+                         </div>
+                    </div>
+
+                    <a routerLink="/send-checks" routerLinkActive="active" (click)="setActiveLink('/send-checks')">Checks</a>
+                    <a routerLink="/create-tickets" routerLinkActive="active" (click)="setActiveLink('/create-tickets')">Tickets</a>
+                    <a routerLink="/create-offer" routerLinkActive="active" (click)="setActiveLink('/create-offer')">Offers</a>
+                    <a routerLink="/send-currency" routerLinkActive="active" (click)="setActiveLink('/send-currency')">Currency</a>
+                    <a routerLink="/create-nft" routerLinkActive="active" (click)="setActiveLink('/create-nft')">NFTs</a>
+                    <a routerLink="/create-amm" routerLinkActive="active" (click)="setActiveLink('/create-amm')">AMM</a>
+                    <!-- <a routerLink="/fiat-on-off-ramp" routerLinkActive="active" (click)="setActiveLink('/fiat-on-off-ramp')"> Fiat On/Off Ramp </a> -->
+
+                    <div class="dropdown utils-dropdown" [ngClass]="{ active: isUtilsDropdownOpen }">
+                         <a href="#" class="dropdown-toggle" aria-label="Toggle Utils dropdown" (click)="toggleUtilsDropdown($event)">Utils ▾</a>
+                         <div class="dropdown-menu">
+                              <a href="#" class="noColor" (click)="clearFields($event)">Clear Input Fields</a>
+                              <a href="#" class="noColor" (click)="disconnectClient($event)">Close XRPL Connection</a>
+                              <a href="#" class="noColor" (click)="gatherAccountInfo($event)">Gather Account Info</a>
+                              <a href="#" class="noColor" (click)="distributeAccountInfo($event)">Distribute Account Info</a>
+                         </div>
+                    </div>
+               </div>
+          </div>
+     </nav>
+</div>

@@ -1,0 +1,386 @@
+<div id="navbar-container">
+     <app-navbar></app-navbar>
+</div>
+<form id="theForm">
+     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+
+     <fieldset>
+          <legend style="color: white">Transaction Information</legend>
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                              <label for="accountName1Field">Name</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                         <label for="account1">Account 1</label>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                              <label for="accountAddress1Field">Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                              <label for="accountSeed1Field">Seed</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                    </td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                              <label for="xrpBalanceField">Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
+                    </td>
+               </tr>
+
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                              <label for="ownerCountField">Owner Count</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                              <label for="totalXrpReservesField">Total XRP Reserves</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                              <label for="totalExecutionTime">Total Execution Time in ms</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Sequence number of the offer.">
+                              <label for="offerSequenceField">Offer Sequence</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="offerSequenceField" size="40" placeholder="Comma seperated list of sequence numbers" [(ngModel)]="offerSequenceField" name="offerSequenceField" />
+                    </td>
+                    <td></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check to make this a market order.">
+                              <label for="isMarketOrder">Market Order</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" />
+                    </td>
+               </tr>
+          </table>
+
+          <!-- <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right; padding-bottom: 10px">
+                         <span class="tooltip" tooltip-data="Taker Gets.">
+                              <label for="weWantCurrencyField">Taker Gets</label>
+                         </span>
+                    </td>
+                    <td style="text-align: left">
+                         <span class="tooltip" tooltip-data="This is what I want to buy.">
+                              <label for="weWantCurrencyField">This is what I'm buying (weWant)</label>
+                         </span>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                              <label for="weWantCurrencyField">Currency Code</label>
+                         </span>
+                    </td>
+                    <td>
+                         <select class="timeUnit" id="weWantCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField">
+                              <option value="XRP">XRP</option>
+                              <option value="RLUSD">RLUSD</option>
+                              <option value="USD">USD</option>
+                              <option value="USDC">USDC</option>
+                              <option value="DOG">DOG</option>
+                         </select>
+                         <p></p>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                              <label for="weWantIssuerField">Issuer</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weWantIssuerField" size="40" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                              <label for="weWantAmountField">Amount</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weWantAmountField" size="40" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of currencies I hold">
+                              <label for="weWantTokenBalance">Currency Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weWantTokenBalanceField" size="40" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
+                    </td>
+               </tr>
+          </table> -->
+
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right; padding-bottom: 10px">
+                         <span class="tooltip" tooltip-data="Taker Gets.">
+                              <label for="weWantCurrencyField">Taker Gets</label>
+                         </span>
+                    </td>
+                    <td style="text-align: left">
+                         <span class="tooltip" tooltip-data="This is what I want to buy.">
+                              <label for="weWantCurrencyField">This is what I'm buying (weWant)</label>
+                         </span>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                              <label for="weWantCurrencyField">Currency Code</label>
+                         </span>
+                    </td>
+                    <td>
+                         <select class="timeUnit" id="weWantCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()">
+                              <option value="XRP">XRP</option>
+                              <option value="RLUSD">RLUSD</option>
+                              <option value="USD">USD</option>
+                              <option value="USDC">USDC</option>
+                              <option value="DOG">DOG</option>
+                         </select>
+                         <p></p>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                              <label for="weWantIssuerField">Issuer</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weWantIssuerField" size="40" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                              <label for="weWantAmountField">Amount</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weWantAmountField" size="40" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of currencies I hold">
+                              <label for="weWantTokenBalance">Currency Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weWantTokenBalanceField" size="40" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
+                    </td>
+               </tr>
+          </table>
+
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right; padding-bottom: 10px">
+                         <span class="tooltip" tooltip-data="Taker Pays.">
+                              <label for="weSpendCurrencyField">Taker Pays</label>
+                         </span>
+                    </td>
+                    <td style="text-align: left; padding-bottom: 10px">
+                         <span class="tooltip" tooltip-data="This is what I am selling.">
+                              <label for="weSpendCurrencyField">This is what I'm selling (weSpend)</label>
+                         </span>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                              <label for="weSpendCurrencyField">Currency Code</label>
+                         </span>
+                    </td>
+                    <td>
+                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
+                              <option value="XRP">XRP</option>
+                              <option value="RLUSD">RLUSD</option>
+                              <option value="USD">USD</option>
+                              <option value="USDC">USDC</option>
+                              <option value="DOG">DOG</option>
+                         </select>
+                         <p></p>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                              <label for="weSpendIssuerField">Issuer</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weSpendIssuerField" size="40" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                              <label for="weSpendAmountField">Amount</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weSpendAmountField" size="40" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
+                              <label for="weSpendTokenBalance">Currency Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weSpendTokenBalanceField" size="40" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
+                    </td>
+               </tr>
+          </table>
+
+          <!-- <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right; padding-bottom: 10px">
+                         <span class="tooltip" tooltip-data="Taker Pays.">
+                              <label for="weSpendCurrencyField">Taker Pays</label>
+                         </span>
+                    </td>
+                    <td style="text-align: left; padding-bottom: 10px">
+                         <span class="tooltip" tooltip-data="This is what I am selling.">
+                              <label for="weSpendCurrencyField">This is what I'm selling (weSpend)</label>
+                         </span>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                              <label for="weSpendCurrencyField">Currency Code</label>
+                         </span>
+                    </td>
+                    <td>
+                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField">
+                              <option value="XRP">XRP</option>
+                              <option value="RLUSD">RLUSD</option>
+                              <option value="USD">USD</option>
+                              <option value="USDC">USDC</option>
+                              <option value="DOG">DOG</option>
+                         </select>
+                         <p></p>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                              <label for="weWantIssuerField">Issuer</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weSpendIssuerField" size="40" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                              <label for="amountField">Amount</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weSpendAmountField" size="40" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
+                              <label for="weSpendTokenBalance">Currency Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="weSpendTokenBalanceField" size="40" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
+                    </td>
+               </tr>
+          </table> -->
+
+          <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+
+          <table style="text-align: left; width: 100%">
+               <th></th>
+               <tr>
+                    <td colspan="2">
+                         <button type="button" (click)="getOffers()">Get Offers</button>
+                         <button type="button" (click)="getOrderBook()">Get Order Book</button>
+                         <button type="button" (click)="getTokenBalance()">Get Token Balance</button>
+                         <button type="button" (click)="invertOrder()">Invert Order</button>
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2">
+                         <button type="button" (click)="createOffer()">Create Offer</button>
+                         <button type="button" (click)="cancelOffer()">Cancel Offer</button>
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2">
+                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                    </td>
+               </tr>
+          </table>
+     </fieldset>
+</form>

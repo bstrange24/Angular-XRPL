@@ -1,0 +1,150 @@
+/* Escrow Info Section */
+.escrow-info {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.escrow-info summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+.escrow-info summary:hover {
+     background: #3a3c41;
+}
+
+.escrow-info summary::marker {
+     content: '▶ ';
+}
+
+.escrow-info[open] summary::marker {
+     content: '▼ ';
+}
+
+.escrow-fieldset {
+     border: 1px solid #686868;
+     border-radius: 10px;
+     padding: 20px;
+     background: #1a1c21;
+     margin: 0;
+}
+
+.escrow-fieldset legend {
+     color: white;
+     font-size: 14px;
+     padding: 0 10px;
+     font-weight: bold;
+}
+
+.escrow-table {
+     display: flex;
+     flex-direction: column;
+     gap: 2px;
+     background: #2a2c31;
+     border-radius: 8px;
+     overflow: hidden;
+     margin-bottom: 20px;
+}
+
+.escrow-row {
+     display: flex;
+     width: 100%;
+     transition: background 0.3s ease;
+}
+
+.escrow-row:hover:not(.escrow-header) {
+     background: #3a3c41;
+}
+
+.escrow-header {
+     font-weight: bold;
+     background: #1a1c21;
+     color: #4caf50;
+}
+
+.escrow-cell {
+     flex: 1;
+     padding: 12px;
+     color: white;
+     font-size: 13px;
+     text-align: left;
+     border-bottom: 1px solid #686868;
+}
+
+.escrow-header .escrow-cell {
+     border-bottom: 2px solid #4caf50;
+}
+
+/* Specific column widths */
+.escrow-cell:nth-child(1) {
+     flex: 3;
+}
+
+/* Time Condition: Widest */
+.escrow-cell:nth-child(2) {
+     flex: 1;
+}
+
+/* Can Finish?: Narrow */
+.escrow-cell:nth-child(3) {
+     flex: 1;
+}
+
+/* Can Cancel?: Narrow */
+
+/* Style code tags for emphasis */
+.escrow-cell code {
+     background: #3a3c41;
+     padding: 2px 4px;
+     border-radius: 4px;
+     font-family: monospace;
+     color: #4caf50;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+     .escrow-table {
+          display: block;
+     }
+
+     .escrow-row {
+          flex-direction: column;
+          border-bottom: 1px solid #686868;
+          margin-bottom: 10px;
+     }
+
+     .escrow-cell {
+          flex: none;
+          padding: 8px;
+          border-bottom: none;
+     }
+
+     .escrow-header .escrow-cell {
+          border-bottom: none;
+     }
+
+     .escrow-cell::before {
+          content: attr(data-label);
+          font-weight: bold;
+          display: inline-block;
+          width: 120px;
+          color: #4caf50;
+     }
+
+     .escrow-cell:nth-child(1)::before {
+          content: 'Time Condition: ';
+     }
+
+     .escrow-cell:nth-child(2)::before {
+          content: 'Can Finish?: ';
+     }
+
+     .escrow-cell:nth-child(3)::before {
+          content: 'Can Cancel?: ';
+     }
+}

@@ -1,0 +1,263 @@
+<div id="navbar-container">
+     <app-navbar></app-navbar>
+</div>
+<form id="theForm">
+     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+
+     <fieldset>
+          <legend style="color: white">Transaction Information</legend>
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                              <label for="accountName1Field">Name</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" #accountName1Field id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                         <label for="account1">Account 1</label>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                              <label for="accountAddress1Field">Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" #accountAddress1Field id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                         <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                         <label for="account2">Account 2</label>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                              <label for="accountSeed1Field">Seed</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" #accountSeed1Field id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                    </td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                              <label for="xrpBalance1Field">Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                              <label for="ownerCountField">Owner Count</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                              <label for="totalXrpReservesField">Total XRP Reserves</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                              <label for="totalExecutionTime">Total Execution Time in ms</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                    </td>
+               </tr>
+          </table>
+
+          <!-- <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                              <label for="accountName2Field">Name</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountName2Field" size="40" [(ngModel)]="account2.name" name="accountName2Field" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                              <label for="accountAddress2Field">Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountAddress2Field" size="40" [(ngModel)]="account2.address" name="accountAddress2Field" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                              <label for="accountSeed2Field">Seed</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountSeed2Field" size="40" [(ngModel)]="account2.seed" name="accountSeed2Field" />
+                    </td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                              <label for="xrpBalance2Field">Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="xrpBalance2Field" size="40" [(ngModel)]="account2.balance" name="xrpBalance2Field" />
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
+                              <label for="tickSizeField">Tick Size</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="tickSizeField" size="40" placeholder="Value must be between 3 and 15" [(ngModel)]="tickSize" name="tickSizeField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Defines how much extra to charge when people hold your issued tokens (only applies to issuers). It's a ratio multiplied by 1,000,000,000">
+                              <label for="transferRateField">Transfer Rate</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="transferRateField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferRate" name="transferRateField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to save the message key in the account Information">
+                              <label>Save Message Key</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <input type="checkbox" id="isMessageKey" [(ngModel)]="isMessageKey" name="isMessageKey" />
+                         <label for="isMessageKey"></label>
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Web identity.">
+                              <label for="domainField">Domain</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="domainField" size="40" [(ngModel)]="domain" name="domainField" />
+                         <br />
+                    </td>
+               </tr>
+          </table> -->
+
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amount of XRP to send.">
+                              <label for="amountField">XRP Amount</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
+                              <label for="destinationField">Destination</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
+                              <label for="destinationTagField">Destination Tag</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
+                              <label for="memoField">Memo</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                              <label>Enable Multi-Sign Address</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                         <label for="isMultiSignAddressData"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma seperated list">
+                              <label for="multiSignAddress">Multi Sign Transaction</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea class="memoField" style="width: 300px" id="multiSignAddress" placeholder="Comma seperated list of address for multi sign" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                         <br />
+                    </td>
+               </tr>
+          </table>
+
+          <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+
+          <table style="text-align: left; width: 100%">
+               <th></th>
+               <tr>
+                    <td colspan="2">
+                         <button type="button" (click)="sendXrp()">Send XRP</button>
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2">
+                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                    </td>
+               </tr>
+          </table>
+     </fieldset>
+</form>

@@ -1,0 +1,1734 @@
+import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Injectable } from '@angular/core';
+import * as xrpl from 'xrpl';
+import { XrplService } from '../services/xrpl.service';
+import { AppConstants } from '../core/app.constants';
+import { StorageService } from '../services/storage.service';
+
+@Injectable({
+     providedIn: 'root',
+})
+export class UtilsService {
+     @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
+     selectedAccount: 'account1' | 'account2' | null = null;
+     transactionInput = '';
+     result: string = '';
+     isError: boolean = false;
+     isSuccess: boolean = false;
+     account1 = { name: '', address: '', seed: '', balance: '' };
+     account2 = { name: '', address: '', seed: '', balance: '' };
+     ownerCount = '';
+     totalXrpReserves = '';
+     executionTime = '';
+     isMultiSign = false;
+     multiSignAddress = '';
+     isUpdateMetaData = false;
+     tickSize = '';
+     transferRate = '';
+     isMessageKey = false;
+     domain = '';
+     memo = '';
+     spinner = false;
+
+     constructor(private xrplService: XrplService, private storageService: StorageService) {}
+
+     ledgerEntryTypeFields = {
+          AccountRoot: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'Balance', format: (v: any) => this.formatXRPLAmount(v || '0') },
+                    { key: 'Sequence', format: (v: any) => v || null },
+                    { key: 'OwnerCount', format: (v: any) => v || '0' },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'Domain', format: (v: any) => v || null },
+                    { key: 'EmailHash', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+                    { key: 'FirstNFTokenSequence', format: (v: any) => v || null },
+                    { key: 'MintedNFTokens', format: (v: any) => v || '0' },
+                    { key: 'Flags', format: (v: any) => v || '0' },
+               ],
+               label: 'Account',
+               pluralLabel: 'Accounts',
+          },
+          Escrow: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'Amount', format: (v: any) => this.formatXRPLAmount(v || '0') },
+                    { key: 'Destination', format: (v: any) => v || null },
+                    { key: 'DestinationTag', format: (v: any) => v || null },
+                    { key: 'Sequence', format: (v: any) => v || null },
+                    { key: 'CancelAfter', format: (v: any) => (v ? this.convertXRPLTime(v) : null) },
+                    { key: 'FinishAfter', format: (v: any) => (v ? this.convertXRPLTime(v) : null) },
+                    { key: 'Condition', format: (v: any) => v || null },
+                    { key: 'memo', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Escrow',
+               pluralLabel: 'Escrows',
+          },
+          Offer: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'TakerPays', format: (v: any) => (typeof v === 'object' ? `${v.value} ${v.currency}` : this.formatXRPLAmount(v || '0')) },
+                    { key: 'TakerGets', format: (v: any) => (typeof v === 'object' ? `${v.value} ${v.currency}` : this.formatXRPLAmount(v || '0')) },
+                    { key: 'Expiration', format: (v: any) => (v ? this.convertXRPLTime(v) : null) },
+                    { key: 'OfferSequence', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Offer',
+               pluralLabel: 'Offers',
+          },
+          RippleState: {
+               fields: [
+                    { key: 'Balance', format: (v: any) => (typeof v === 'object' ? this.formatXRPLAmount(v) : v || null) },
+                    { key: 'Flags', format: (v: any) => v || '0' },
+                    { key: 'HighLimit', format: (v: any) => (typeof v === 'object' ? this.formatXRPLAmount(v) : v || null) },
+                    { key: 'HighNode', format: (v: any) => v || null },
+                    { key: 'LedgerEntryType', format: (v: any) => v || null },
+                    { key: 'LowLimit', format: (v: any) => (typeof v === 'object' ? this.formatXRPLAmount(v) : v || null) },
+                    { key: 'LowNode', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'RippleState',
+               pluralLabel: 'RippleStates',
+          },
+          PayChannel: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'Destination', format: (v: any) => v || null },
+                    { key: 'Amount', format: (v: any) => this.formatXRPLAmount(v || '0') },
+                    { key: 'Balance', format: (v: any) => this.formatXRPLAmount(v || '0') },
+                    { key: 'SettleDelay', format: (v: any) => v || null },
+                    { key: 'Expiration', format: (v: any) => (v ? this.convertXRPLTime(v) : null) },
+                    { key: 'CancelAfter', format: (v: any) => (v ? this.convertXRPLTime(v) : null) },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Payment Channel',
+               pluralLabel: 'Payment Channels',
+          },
+          Check: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'Destination', format: (v: any) => v || null },
+                    { key: 'Expiration', format: (v: any) => (v ? this.convertXRPLTime(v) : null) },
+                    { key: 'SendMax', format: (v: any) => (typeof v === 'object' ? `${v.value} ${v.currency}` : this.formatXRPLAmount(v || '0')) },
+                    { key: 'Sequence', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Check',
+               pluralLabel: 'Checks',
+          },
+          DepositPreauth: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'Authorize', format: (v: any) => v || null },
+                    { key: 'Flags', format: (v: any) => v || null },
+                    { key: 'OwnerNode', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Deposit Preauthorization',
+               pluralLabel: 'Deposit Preauthorizations',
+          },
+          Ticket: {
+               fields: [
+                    { key: 'Account', format: (v: any) => v || null },
+                    { key: 'Flags', format: (v: any) => this.decodeNFTFlags(Number(v)) },
+                    { key: 'TicketSequence', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Ticket',
+               pluralLabel: 'Tickets',
+          },
+          DirectoryNode: {
+               fields: [
+                    { key: 'Flags', format: (v: any) => v || '0' },
+                    { key: 'Owner', format: (v: any) => v || null },
+                    { key: 'Indexes', format: (v: any) => (Array.isArray(v) ? v.join(', ') : v || null) },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+                    { key: 'RootIndex', format: (v: any) => v || null },
+               ],
+               label: 'Directory',
+               pluralLabel: 'Directories',
+          },
+          AMM: {
+               fields: [
+                    // { key: 'Asset1', format: (v: any)=> `${v.currency} (Issuer: ${v.issuer || null})` },
+                    // { key: 'Asset2', format: (v: any)=> `${v.currency} (Issuer: ${v.issuer || null})` },
+                    { key: 'LPTokenBalance', format: (v: any) => `${v.value} ${v.currency}` },
+                    { key: 'TradingFee', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Automated Market Maker',
+               pluralLabel: 'Automated Market Makers',
+          },
+          NFTokenPage: {
+               fields: [
+                    { key: 'Flags', format: (v: any) => v || '0' },
+                    { key: 'LedgerEntryType', format: (v: any) => v || null },
+                    { key: 'NFTokens', format: (v: any) => (Array.isArray(v) ? v : null) },
+                    { key: 'index', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+               ],
+               label: 'NFTokenPage',
+               pluralLabel: 'NFTokenPages',
+          },
+          SignerList: {
+               fields: [
+                    { key: 'Flags', format: (v: any) => v || null },
+                    { key: 'SignerQuorum', format: (v: any) => v || null },
+                    { key: 'SignerEntries', format: (v: any) => (Array.isArray(v) ? v.map(e => e.SignerEntry.Account).join(', ') : null) },
+                    { key: 'SignerListID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnID', format: (v: any) => v || null },
+                    { key: 'PreviousTxnLgrSeq', format: (v: any) => v || null },
+                    { key: 'index', format: (v: any) => v || null },
+               ],
+               label: 'Signer List',
+               pluralLabel: 'Signer Lists',
+          },
+          NFT: {
+               fields: [
+                    // { key: 'Flags', format: (v: any)=> v || '0' },
+                    { key: 'Flags', format: (v: any) => this.decodeNFTFlags(Number(v)) },
+                    { key: 'Issuer', format: (v: any) => v || null },
+                    { key: 'NFTokenID', format: (v: any) => v || null },
+                    { key: 'NFTokenTaxon', format: (v: any) => (v === 0 ? null : v || null) },
+                    { key: 'URI', format: (v: any) => v || null },
+                    { key: 'nft_serial', format: (v: any) => v || null },
+               ],
+               label: 'NFT',
+               pluralLabel: 'NFTs',
+          },
+     };
+
+     validatInput(input: string | undefined | null): boolean {
+          return typeof input === 'string' && !!input.trim();
+     }
+
+     isValidTransactionHash(input: string): boolean {
+          return /^[0-9A-Fa-f]{64}$/.test(input);
+     }
+
+     isValidCTID(input: string): boolean {
+          return /^C[0-9A-Fa-f]+$/.test(input);
+     }
+
+     formatXRPLAmount = (value: any): string => {
+          if (value == null || isNaN(value)) {
+               return 'Invalid amount';
+          }
+
+          if (typeof value === 'object' && value.currency && value.value) {
+               return `${value.value} ${value.currency}${value.issuer ? ` (Issuer: ${value.issuer})` : ''}`;
+          }
+          return `${(parseInt(value) / 1000000).toFixed(6)} XRP`;
+     };
+
+     convertXRPLTime(rippleTime: any) {
+          // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
+          const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
+          const date = new Date((rippleTime + rippleEpoch) * 1000);
+          const formatter = this.dateFormatter();
+          return formatter.format(date);
+     }
+
+     decodeHex = (hex: any): string => {
+          try {
+               if (!this.validatInput(hex)) {
+                    return '';
+               }
+               return Buffer.from(hex, 'hex').toString('ascii');
+          } catch (error: any) {
+               console.error(`Error decoding hex: ${hex}`, error);
+               return hex; // Return raw hex if decoding fails
+          }
+     };
+
+     labelCurrencyCode(code: String) {
+          if (code.length === 40) {
+               return `LP-${code.slice(0, 40).toUpperCase()}`;
+          } else {
+               return code;
+          }
+     }
+
+     decodeCurrencyCode(hexCode: String) {
+          const buffer = Buffer.from(hexCode, 'hex');
+          const trimmed = buffer.subarray(0, buffer.findIndex(byte => byte === 0) === -1 ? 20 : buffer.findIndex(byte => byte === 0));
+          return new TextDecoder().decode(trimmed);
+     }
+
+     encodeCurrencyCode(code: any) {
+          const encoder = new TextEncoder();
+          const codeBytes = encoder.encode(code);
+
+          if (codeBytes.length > 20) throw new Error('Currency code too long');
+
+          // Pad to 20 bytes
+          const padded = new Uint8Array(20);
+          padded.set(codeBytes);
+
+          return Buffer.from(padded).toString('hex').toUpperCase(); // 40-char hex string
+     }
+
+     decodeNFTFlags(flags: any) {
+          if (typeof flags !== 'number') return '';
+
+          const flagMap = {
+               1: 'Burnable',
+               2: 'Only XRP',
+               8: 'Transferable',
+               16: 'Mutable',
+          };
+
+          const result = [];
+          for (const [bit, name] of Object.entries(flagMap)) {
+               if (flags & Number(bit)) result.push(name);
+          }
+
+          return result.length ? result.join(', ') : 'None';
+     }
+
+     parseTransferRateToPercentage(transferRate: string) {
+          const rate = parseInt(transferRate, 10);
+          if (isNaN(rate) || rate < 1000000000) {
+               return 0; // Default rate is 0% fee (1.0x multiplier)
+          }
+          return (rate / 1_000_000_000 - 1) * 100;
+     }
+
+     convertToEstTime(UtcDataTime: string): string {
+          const utcDate = new Date(UtcDataTime);
+          const formatter = this.dateFormatter();
+          return formatter.format(utcDate);
+     }
+
+     dateFormatter() {
+          // Format the date in EST (America/New_York handles EST/EDT automatically)
+          return new Intl.DateTimeFormat('en-US', {
+               timeZone: 'America/New_York', // EST/EDT
+               timeZoneName: 'short', // Includes EST or EDT
+               year: 'numeric',
+               month: 'numeric',
+               day: 'numeric', // day: '2-digit',
+               hour: 'numeric', // hour: '2-digit',
+               minute: '2-digit',
+               second: '2-digit',
+               hour12: true, // Use 24-hour format; set to true for 12-hour with AM/PM
+               // fractionalSecondDigits: 3, // Include milliseconds (3 digits)
+          });
+     }
+
+     addTime(amount: any, unit: 'seconds' | 'minutes' | 'hours' | 'days' = 'seconds', date = new Date()) {
+          const multiplierMap = {
+               seconds: 1,
+               minutes: 60,
+               hours: 3600,
+               days: 86400,
+          };
+
+          const multiplier = multiplierMap[unit];
+          if (!multiplier) {
+               throw new Error(`Invalid unit: ${unit}. Use 'seconds', 'minutes', 'hours', or 'days'.`);
+          }
+
+          const addedSeconds = amount * multiplier;
+          const unixTimestamp = Math.floor(date.getTime() / 1000) + addedSeconds;
+
+          // Convert from Unix Epoch (1970) to Ripple Epoch (2000)
+          const rippleEpoch = unixTimestamp - 946684800;
+          return rippleEpoch;
+     }
+
+     convertUserInputToInt(input: string): number {
+          // Placeholder: Implement your convertUserInputToInt from utils.js
+          const value = parseInt(input.trim());
+          return isNaN(value) ? 0 : value;
+     }
+
+     convertUserInputToFloat(input: string): number {
+          // Placeholder: Implement your convertUserInputToFloat from utils.js
+          const value = parseFloat(input.trim());
+          return isNaN(value) ? 0 : value;
+     }
+
+     getTransferRate(percentage: number): number {
+          // Placeholder: Implement your getTransferRate from utils.js
+          // Example: Convert percentage to XRPL TransferRate
+          return Math.round((1 + percentage / 100) * 1_000_000_000);
+     }
+
+     stripHTML(text: any) {
+          const div = document.createElement('div');
+          div.innerHTML = text;
+          return div.textContent || div.innerText || '';
+     }
+
+     getFlagName(value: string) {
+          return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `Flag ${value}`;
+     }
+
+     getFlagUpdates(currentFlags: any) {
+          const setFlags: any[] = [];
+          const clearFlags: any[] = [];
+
+          AppConstants.FLAGS.forEach(flag => {
+               const checkbox = document.getElementById(flag.name) as HTMLInputElement;
+               if (!checkbox || !flag.xrplName) return;
+
+               const desired = checkbox.checked;
+               const actual = !!currentFlags[flag.xrplName];
+
+               if (desired && !actual) setFlags.push(flag.value);
+               if (!desired && actual) clearFlags.push(flag.value);
+          });
+
+          return { setFlags, clearFlags };
+     }
+
+     renderAccountDetails(accountInfo: any, accountObjects: any) {
+          const container = document.getElementById('resultField') as HTMLInputElement;
+          if (!container) {
+               console.error('Error: #resultField not found');
+               return;
+          }
+          container.innerHTML = ''; // Clear content
+
+          // Add search bar
+          const searchBar = document.createElement('input');
+          searchBar.type = 'text';
+          searchBar.id = 'resultSearch';
+          searchBar.placeholder = 'Search account info...';
+          searchBar.className = 'result-search';
+          searchBar.style.boxSizing = 'border-box';
+          container.appendChild(searchBar);
+
+          // Group account objects by LedgerEntryType while preserving order
+          interface AccountObject {
+               LedgerEntryType: string;
+               [key: string]: any;
+          }
+
+          interface ObjectsByTypeGroup {
+               type: string;
+               objects: (AccountObject & { originalIndex: number })[];
+               order: number;
+          }
+
+          type ObjectsByType = {
+               [type: string]: ObjectsByTypeGroup;
+          };
+
+          const objectsByType: ObjectsByType = accountObjects.result.account_objects.reduce((acc: ObjectsByType, obj: AccountObject, idx: number) => {
+               const type = obj.LedgerEntryType;
+               if (!acc[type]) {
+                    acc[type] = { type, objects: [], order: idx };
+               }
+               acc[type].objects.push({ ...obj, originalIndex: idx });
+               return acc;
+          }, {});
+
+          // Convert grouped objects to subSections
+          const subSections = Object.values(objectsByType)
+               .sort((a, b) => {
+                    // Prioritize RippleState, then maintain original order
+                    if (a.type === 'RippleState' && b.type !== 'RippleState') return -1;
+                    if (a.type !== 'RippleState' && b.type === 'RippleState') return 1;
+                    return a.order - b.order;
+               })
+               .map((group: any) => {
+                    const typeMap: { [key: string]: string[] } = {
+                         RippleState: ['Balance', 'HighLimit', 'LowLimit'],
+                         Offer: ['TakerPays', 'TakerGets'],
+                         SignerList: ['SignerEntries'],
+                         Check: ['Amount', 'DestinationTag', 'SourceTag'],
+                         Escrow: ['Amount', 'Condition', 'DestinationTag', 'SourceTag'],
+                         PayChannel: ['Amount', 'Balance', 'PublicKey', 'DestinationTag', 'SourceTag'],
+                         NFTokenPage: ['NFTokens'],
+                         Ticket: [],
+                         DepositPreauth: [],
+                         AMMBid: ['BidMin', 'BidMax', 'AuthAccounts'],
+                         AMM: ['LPTokenBalance', 'TradingFee', 'Asset', 'Asset2'],
+                    };
+                    const nestedFields = typeMap[group.type as keyof typeof typeMap] || [];
+
+                    interface SubItemContent {
+                         key: string;
+                         value: string;
+                    }
+
+                    interface SubItemSubItem {
+                         key: string;
+                         content: SubItemContent[];
+                    }
+
+                    interface SubItem {
+                         id: string;
+                         content: SubItemContent[];
+                         subItems: SubItemSubItem[];
+                    }
+
+                    const subItems: SubItem[] = group.objects.map((obj: Record<string, any>, idx: number): SubItem => {
+                         const subItemContent: SubItemContent[] = Object.entries(obj)
+                              .filter(([k]) => !nestedFields.includes(k) && k !== 'originalIndex')
+                              .map(([key, value]) => ({
+                                   key,
+                                   value: key.includes('PreviousTxnID') || key.includes('index') || key === 'Account' || key.includes('PublicKey') ? `<code>${value}</code>` : value,
+                              }));
+
+                         const subItemSubItems: SubItemSubItem[] = nestedFields
+                              .filter((field: string) => obj[field])
+                              .map((field: string) => {
+                                   let content: SubItemContent[];
+                                   if (field === 'SignerEntries') {
+                                        content = obj[field].map((entry: any, i: number) => ({
+                                             key: `Signer ${i + 1}`,
+                                             value: `<code>${entry.SignerEntry.Account}</code> (Weight: ${entry.SignerEntry.SignerWeight})`,
+                                        }));
+                                   } else if (field === 'NFTokens') {
+                                        content = obj[field].map((nft: any, i: number) => ({
+                                             key: `NFT ${i + 1}`,
+                                             value: `<code>${nft.NFToken.NFTokenID}</code> \nURI: ${this.decodeHex(nft.NFToken.URI)}`,
+                                        }));
+                                   } else if (field === 'AuthAccounts') {
+                                        content = obj[field].map((acc: any, i: number) => ({
+                                             key: `Account ${i + 1}`,
+                                             value: `<code>${acc.AuthAccount.Account}</code>`,
+                                        }));
+                                   } else if (typeof obj[field] === 'object') {
+                                        content = Object.entries(obj[field]).map(([k, v]) => ({
+                                             key: k,
+                                             value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : String(v),
+                                        }));
+                                   } else {
+                                        content = [{ key: field, value: obj[field] }];
+                                   }
+                                   return { key: field, content };
+                              });
+
+                         return {
+                              id: `${group.type} ${idx + 1}`,
+                              content: subItemContent,
+                              subItems: subItemSubItems,
+                         };
+                    });
+
+                    return {
+                         type: group.type,
+                         id: group.type, // e.g., "RippleState"
+                         content: [], // No direct content for group
+                         subItems,
+                    };
+               });
+
+          type Section = {
+               title: string;
+               content: { key: string; value: any }[];
+               subSections?: any[];
+          };
+
+          const sections: { [key: string]: Section } = {
+               account: {
+                    title: 'Account Data',
+                    content: [
+                         { key: 'Account', value: `<code>${accountInfo.result.account_data.Account}</code>` },
+                         { key: 'Balance', value: (parseInt(accountInfo.result.account_data.Balance) / 1_000_000).toFixed(6) + ' XRP' },
+                         { key: 'OwnerCount', value: accountInfo.result.account_data.OwnerCount },
+                         { key: 'Sequence', value: accountInfo.result.account_data.Sequence },
+                    ],
+               },
+               metadata: {
+                    title: 'Account Meta Data',
+                    content: [
+                         { key: 'BurnedNFTokens', value: accountInfo.result.account_data.BurnedNFTokens },
+                         { key: 'MintedNFTokens', value: accountInfo.result.account_data.MintedNFTokens },
+                         {
+                              key: 'Domain',
+                              value: accountInfo.result.account_data.Domain ? Buffer.from(accountInfo.result.account_data.Domain, 'hex').toString('ascii') : 'Not Set',
+                         },
+                         { key: 'TickSize', value: accountInfo.result.account_data.TickSize },
+                         {
+                              key: 'TransferRate',
+                              value: accountInfo.result.account_data.TransferRate ? ((accountInfo.result.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(6) + '%' : 'Not Set',
+                         },
+                         { key: 'TransferRate', value: (accountInfo.result.account_data.TransferRate / 1_000_000_000).toFixed(9) },
+                         { key: 'FirstNFTokenSequence', value: accountInfo.result.account_data.FirstNFTokenSequence },
+                    ],
+               },
+               flags: {
+                    title: 'Flag Details',
+                    content: Object.entries(accountInfo.result.account_flags).map(([key, value]) => ({
+                         key,
+                         value: value ? '<span class="flag-true">True</span>' : 'False',
+                    })),
+               },
+               objects: {
+                    title: 'Account Objects',
+                    content: [],
+                    subSections,
+               },
+          };
+
+          // Render sections
+          for (const section of Object.values(sections)) {
+               if (section.content.length || section.subSections?.length) {
+                    const details = document.createElement('details');
+                    details.className = 'result-section';
+                    if (section.title === 'Account Data') {
+                         details.setAttribute('open', 'open');
+                    }
+                    const summary = document.createElement('summary');
+                    summary.textContent = section.title;
+                    details.appendChild(summary);
+
+                    if (section.content.length) {
+                         const table = document.createElement('div');
+                         table.className = 'result-table';
+                         const header = document.createElement('div');
+                         header.className = 'result-row result-header';
+                         header.innerHTML = `
+                          <div class="result-cell key">Key</div>
+                          <div class="result-cell value">Value</div>
+                      `;
+                         table.appendChild(header);
+
+                         for (const item of section.content) {
+                              const row = document.createElement('div');
+                              row.className = 'result-row';
+                              row.innerHTML = `
+                              <div class="result-cell key">${item.key}</div>
+                              <div class="result-cell value">${item.value}</div>
+                          `;
+                              table.appendChild(row);
+                         }
+                         details.appendChild(table);
+                    }
+
+                    if (section.subSections) {
+                         for (const group of section.subSections) {
+                              const groupDetails = document.createElement('details');
+                              groupDetails.className = 'object-group'; // New class for groups
+                              const groupSummary = document.createElement('summary');
+                              groupSummary.textContent = group.id;
+                              groupDetails.appendChild(groupSummary);
+
+                              if (group.content.length) {
+                                   const groupTable = document.createElement('div');
+                                   groupTable.className = 'result-table';
+                                   const groupHeader = document.createElement('div');
+                                   groupHeader.className = 'result-row result-header';
+                                   groupHeader.innerHTML = `
+                                  <div class="result-cell key">Key</div>
+                                  <div class="result-cell value">Value</div>
+                              `;
+                                   groupTable.appendChild(groupHeader);
+
+                                   for (const item of group.content) {
+                                        const row = document.createElement('div');
+                                        row.className = 'result-row';
+                                        row.innerHTML = `
+                                      <div class="result-cell key">${item.key}</div>
+                                      <div class="result-cell value">${item.value}</div>
+                                  `;
+                                        groupTable.appendChild(row);
+                                   }
+                                   groupDetails.appendChild(groupTable);
+                              }
+
+                              for (const subItem of group.subItems) {
+                                   const objDetails = document.createElement('details');
+                                   objDetails.className = 'nested-object';
+                                   const objSummary = document.createElement('summary');
+                                   objSummary.textContent = subItem.id;
+                                   objDetails.appendChild(objSummary);
+
+                                   if (subItem.content.length) {
+                                        const objTable = document.createElement('div');
+                                        objTable.className = 'result-table';
+                                        const objHeader = document.createElement('div');
+                                        objHeader.className = 'result-row result-header';
+                                        objHeader.innerHTML = `
+                                      <div class="result-cell key">Key</div>
+                                      <div class="result-cell value">Value</div>
+                                  `;
+                                        objTable.appendChild(objHeader);
+
+                                        for (const item of subItem.content) {
+                                             const row = document.createElement('div');
+                                             row.className = 'result-row';
+                                             row.innerHTML = `
+                                          <div class="result-cell key">${item.key}</div>
+                                          <div class="result-cell value">${item.value}</div>
+                                      `;
+                                             objTable.appendChild(row);
+                                        }
+                                        objDetails.appendChild(objTable);
+                                   }
+
+                                   for (const nestedItem of subItem.subItems) {
+                                        const nestedDetails = document.createElement('details');
+                                        nestedDetails.className = 'nested-object';
+                                        const nestedSummary = document.createElement('summary');
+                                        nestedSummary.textContent = nestedItem.key;
+                                        nestedDetails.appendChild(nestedSummary);
+
+                                        const nestedTable = document.createElement('div');
+                                        nestedTable.className = 'result-table';
+                                        const nestedHeader = document.createElement('div');
+                                        nestedHeader.className = 'result-row result-header';
+                                        nestedHeader.innerHTML = `
+                                      <div class="result-cell key">Key</div>
+                                      <div class="result-cell value">Value</div>
+                                  `;
+                                        nestedTable.appendChild(nestedHeader);
+
+                                        for (const nestedContent of nestedItem.content) {
+                                             const nestedRow = document.createElement('div');
+                                             nestedRow.className = 'result-row';
+                                             nestedRow.innerHTML = `
+                                          <div class="result-cell key">${nestedContent.key}</div>
+                                          <div class="result-cell value">${nestedContent.value}</div>
+                                      `;
+                                             nestedTable.appendChild(nestedRow);
+                                        }
+                                        nestedDetails.appendChild(nestedTable);
+                                        objDetails.appendChild(nestedDetails);
+                                   }
+
+                                   groupDetails.appendChild(objDetails);
+                              }
+
+                              details.appendChild(groupDetails);
+                         }
+                    }
+
+                    container.appendChild(details);
+               }
+          }
+
+          // Add toggle event listeners and persist state
+          document.querySelectorAll('.result-section, .object-group, .nested-object').forEach(details => {
+               const summary = details.querySelector('summary');
+               if (summary) {
+                    const title = summary.textContent;
+                    const savedState = localStorage.getItem(`collapse_${title}`);
+                    if (savedState === 'closed') details.removeAttribute('open');
+                    else if (
+                         savedState === 'open' ||
+                         title === 'Account Data' ||
+                         title === 'RippleState' // Open RippleState group by default
+                    ) {
+                         details.setAttribute('open', 'open');
+                    }
+                    details.addEventListener('toggle', () => {
+                         localStorage.setItem(`collapse_${title}`, (details as HTMLDetailsElement).open ? 'open' : 'closed');
+                         container.offsetHeight;
+                         container.style.height = 'auto';
+                    });
+               }
+          });
+
+          // Search functionality
+          searchBar.addEventListener('input', e => {
+               const target = e.target as HTMLInputElement | null;
+               const search = target ? target.value.toLowerCase().trim() : '';
+               const sections = document.querySelectorAll('.result-section');
+
+               if (!search) {
+                    sections.forEach(section => {
+                         (section as HTMLElement).style.display = '';
+                         section.querySelectorAll('.result-row').forEach(row => ((row as HTMLElement).style.display = 'flex'));
+                         section.querySelectorAll('.object-group, .nested-object').forEach(nested => {
+                              (nested as HTMLElement).style.display = '';
+                              nested.querySelectorAll('.result-row').forEach(row => ((row as HTMLElement).style.display = 'flex'));
+                         });
+                         const summaryElement = section.querySelector('summary');
+                         const title = summaryElement ? summaryElement.textContent : '';
+                         if (title === 'Account Data') {
+                              section.setAttribute('open', 'open');
+                         } else {
+                              section.removeAttribute('open');
+                         }
+                    });
+                    return;
+               }
+
+               sections.forEach(section => {
+                    let hasVisibleContent = false;
+                    const directRows = section.querySelectorAll(':scope > .result-table > .result-row:not(.result-header)');
+                    directRows.forEach(row => {
+                         const keyCell = row.querySelector('.key');
+                         const valueCell = row.querySelector('.value');
+                         const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
+                         const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
+                         const isMatch = keyText.includes(search) || valueText.includes(search);
+                         (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
+                         if (isMatch) hasVisibleContent = true;
+                    });
+
+                    const groupDetails = section.querySelectorAll('.object-group');
+                    groupDetails.forEach(group => {
+                         let groupHasVisibleContent = false;
+                         const nestedDetails = group.querySelectorAll('.nested-object');
+                         nestedDetails.forEach(nested => {
+                              let nestedHasVisibleContent = false;
+                              const tableRows = nested.querySelectorAll('.result-table > .result-row:not(.result-header)');
+                              tableRows.forEach(row => {
+                                   const keyCell = row.querySelector('.key');
+                                   const valueCell = row.querySelector('.value');
+                                   const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
+                                   const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
+                                   const isMatch = keyText.includes(search) || valueText.includes(search);
+                                   (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
+                                   if (isMatch) nestedHasVisibleContent = true;
+                              });
+
+                              const deeperDetails = nested.querySelectorAll('.nested-object');
+                              deeperDetails.forEach(deeper => {
+                                   let deeperHasVisibleContent = false;
+                                   const deeperRows = deeper.querySelectorAll('.result-table > .result-row:not(.result-header)');
+                                   deeperRows.forEach(row => {
+                                        const keyCell = row.querySelector('.key');
+                                        const valueCell = row.querySelector('.value');
+                                        const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
+                                        const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
+                                        const isMatch = keyText.includes(search) || valueText.includes(search);
+                                        (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
+                                        if (isMatch) deeperHasVisibleContent = true;
+                                   });
+                                   (deeper as HTMLElement).style.display = deeperHasVisibleContent ? '' : 'none';
+                                   if (deeperHasVisibleContent) nestedHasVisibleContent = true;
+                              });
+
+                              (nested as HTMLElement).style.display = nestedHasVisibleContent ? '' : 'none';
+                              if (nestedHasVisibleContent) groupHasVisibleContent = true;
+                         });
+
+                         (group as HTMLElement).style.display = groupHasVisibleContent ? '' : 'none';
+                         if (groupHasVisibleContent) hasVisibleContent = true;
+                    });
+
+                    (section as HTMLElement).style.display = hasVisibleContent ? '' : 'none';
+                    if (hasVisibleContent) section.setAttribute('open', 'open');
+               });
+          });
+     }
+
+     renderTransactionsResults(transactions: { type: string; result: any } | { type: string; result: any }[], container: HTMLElement): void {
+          const txArray = Array.isArray(transactions) ? transactions : [transactions];
+          if (!container) {
+               console.error('Error: container not found');
+               return;
+          }
+
+          container.innerHTML = ''; // Clear content
+
+          // Add search bar (if not already present)
+          let searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
+          if (!searchBar) {
+               searchBar = document.createElement('input');
+               searchBar.type = 'text';
+               searchBar.id = 'resultSearch';
+               searchBar.placeholder = 'Search transactions...';
+               searchBar.className = 'result-search';
+               searchBar.style.boxSizing = 'border-box';
+               searchBar.setAttribute('aria-label', 'Search displayed transactions by type, hash, or other fields');
+               container.appendChild(searchBar);
+          }
+
+          // Define nested fields for transactions
+          const nestedFields = {
+               Payment: ['Amount', 'DeliverMax', 'DestinationTag', 'SourceTag', 'InvoiceID', 'PreviousFields', 'Balance', 'Sequence'],
+               OfferCreate: ['TakerGets', 'TakerPays'],
+               OfferCancel: [],
+               TrustSet: ['LimitAmount'],
+               AccountSet: ['ClearFlag', 'SetFlag', 'Domain', 'EmailHash', 'MessageKey', 'TransferRate', 'TickSize'],
+               AccountDelete: [],
+               SetRegularKey: ['RegularKey'],
+               SignerListSet: ['SignerEntries'],
+               EscrowCreate: ['Amount', 'Condition', 'DestinationTag', 'SourceTag'],
+               EscrowFinish: ['Condition', 'Fulfillment'],
+               EscrowCancel: [],
+               PaymentChannelCreate: ['Amount', 'DestinationTag', 'SourceTag', 'PublicKey'],
+               PaymentChannelFund: ['Amount'],
+               PaymentChannelClaim: ['Balance', 'Amount', 'Signature', 'PublicKey'],
+               CheckCreate: ['Amount', 'DestinationTag', 'SourceTag', 'InvoiceID'],
+               CheckCash: ['Amount', 'DeliverMin'],
+               CheckCancel: [],
+               DepositPreauth: ['Authorize', 'Unauthorize'],
+               TicketCreate: [],
+               NFTokenMint: ['NFTokenTaxon', 'Issuer', 'TransferFee', 'URI'],
+               NFTokenBurn: [],
+               NFTokenCreateOffer: ['Amount', 'Destination'],
+               NFTokenCancelOffer: ['NFTokenOffers'],
+               NFTokenAcceptOffer: [],
+               AMMCreate: ['Amount', 'Amount2', 'TradingFee'],
+               AMMFund: ['Amount', 'Amount2'],
+               AMMBid: ['BidMin', 'BidMax', 'AuthAccounts'],
+               AMMWithdraw: ['Amount', 'Amount2', 'LPTokenIn'],
+               AMMVote: [],
+               AMMDelete: [],
+               EnableAmendment: [],
+               SetFee: [],
+               UNLModify: [],
+               Clawback: ['Amount'],
+               XChainBridge: ['MinAccountCreateAmount', 'SignatureReward'],
+               XChainCreateClaimId: [],
+               XChainCommit: ['Amount', 'OtherChainDestination'],
+               XChainClaim: [],
+               XChainAccountCreateCommit: ['Amount', 'SignatureReward'],
+               XChainAddAccountCreateAttestation: [],
+               XChainAddClaimAttestation: [],
+               XChainCreateBridge: ['MinAccountCreateAmount', 'SignatureReward'],
+               XChainModifyBridge: ['MinAccountCreateAmount', 'SignatureReward'],
+               DIDSet: ['Data', 'URI', 'Attestation'],
+               DIDDelete: [],
+          };
+
+          if (txArray.length === 0) {
+               container.innerHTML += 'No transactions to display.';
+               return;
+          }
+
+          // Create Transactions section
+          const details = document.createElement('details');
+          details.className = 'result-section';
+          details.setAttribute('open', 'open');
+          const summary = document.createElement('summary');
+          // summary.textContent = txArray.length === 1 && txArray[0].result?.tx_json?.TransactionType ? txArray[0].result.tx_json.TransactionType : 'Transactions';
+          summary.textContent = txArray.length === 1 && txArray[0].result?.tx_json?.TransactionType ? 'Transactions' : 'Transactions';
+          details.appendChild(summary);
+
+          // Render each transaction
+          txArray.forEach((tx, index) => {
+               const result = tx.result || {};
+               const txType = result.tx_json?.TransactionType || 'Unknown';
+               const isSuccess = result.meta?.TransactionResult === 'tesSUCCESS';
+
+               const txDetails = document.createElement('details');
+               txDetails.className = `nested-object${isSuccess ? '' : ' error-transaction'}`;
+               const txSummary = document.createElement('summary');
+               txSummary.textContent = `${tx.result.tx_json.TransactionType} ${isSuccess ? '' : ' (Failed)'}`; // Indicate failure in summary
+               txDetails.appendChild(txSummary);
+
+               if (!isSuccess && result.meta?.TransactionResult) {
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'error-message';
+                    errorMessage.textContent = `Error: Transaction failed with result ${result.meta.TransactionResult}`;
+                    txDetails.appendChild(errorMessage);
+               }
+
+               // Transaction Details Table
+               const txTable = document.createElement('div');
+               txTable.className = 'result-table';
+               const txHeader = document.createElement('div');
+               txHeader.className = 'result-row result-header';
+               txHeader.innerHTML = `
+              <div class="result-cell key">Key</div>
+              <div class="result-cell value">Value</div>
+            `;
+               txTable.appendChild(txHeader);
+
+               const txContent = [
+                    { key: 'Transaction Type', value: txType },
+                    { key: 'Hash', value: result.hash ? `<code>${result.hash}</code>` : 'N/A' },
+                    { key: 'CTID', value: result.ctid || 'N/A' },
+                    { key: 'Date', value: result.close_time_iso ? new Date(result.close_time_iso).toLocaleString() : result.date || 'N/A' },
+                    { key: 'Result', value: result.meta?.TransactionResult ? (isSuccess ? result.meta.TransactionResult : `<span class="error-result">${result.meta.TransactionResult}</span>`) : 'N/A' },
+                    { key: 'Ledger Index', value: result.ledger_index || 'N/A' },
+                    { key: 'Validated', value: result.validated !== undefined ? result.validated.toString() : 'N/A' },
+               ];
+
+               txContent.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'result-row';
+                    row.innerHTML = `
+                <div class="result-cell key">${item.key}</div>
+                <div class="result-cell value">${item.value}</div>
+              `;
+                    txTable.appendChild(row);
+               });
+
+               // Transaction Data Table
+               const txDataContent = result.tx_json
+                    ? Object.entries(result.tx_json)
+                           .filter(([key]) => key !== 'TransactionType')
+                           .map(([key, value]) => ({
+                                key,
+                                value: this.formatValue(key, value, nestedFields[txType as keyof typeof nestedFields] || []),
+                           }))
+                    : [];
+
+               const txDataTable = document.createElement('div');
+               txDataTable.className = 'result-table';
+               const txDataHeader = document.createElement('div');
+               txDataHeader.className = 'result-row result-header';
+               txDataHeader.innerHTML = `
+              <div class="result-cell key">Key</div>
+              <div class="result-cell value">Value</div>
+            `;
+               txDataTable.appendChild(txDataHeader);
+
+               txDataContent.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'result-row';
+                    row.innerHTML = `
+                <div class="result-cell key">${item.key}</div>
+                <div class="result-cell value">${item.value}</div>
+              `;
+                    txDataTable.appendChild(row);
+               });
+
+               const txDataDetails = document.createElement('details');
+               txDataDetails.className = 'nested-object';
+               const txDataSummary = document.createElement('summary');
+               txDataSummary.textContent = 'Transaction Data';
+               txDataDetails.appendChild(txDataSummary);
+               txDataDetails.appendChild(txDataTable);
+
+               // Meta Data Table
+               const metaContent = result.meta
+                    ? [
+                           { key: 'Transaction Index', value: result.meta.TransactionIndex || 'N/A' },
+                           { key: 'Transaction Result', value: result.meta.TransactionResult || 'N/A' },
+                           { key: 'Delivered Amount', value: result.meta.delivered_amount ? this.formatAmount(result.meta.delivered_amount) : 'N/A' },
+                      ]
+                    : [];
+
+               const metaTable = document.createElement('div');
+               metaTable.className = 'result-table';
+               const metaHeader = document.createElement('div');
+               metaHeader.className = 'result-row result-header';
+               metaHeader.innerHTML = `
+              <div class="result-cell key">Key</div>
+              <div class="result-cell value">Value</div>
+            `;
+               metaTable.appendChild(metaHeader);
+
+               metaContent.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'result-row';
+                    row.innerHTML = `
+                <div class="result-cell key">${item.key}</div>
+                <div class="result-cell value">${item.value}</div>
+              `;
+                    metaTable.appendChild(row);
+               });
+
+               const metaDetails = document.createElement('details');
+               metaDetails.className = 'nested-object';
+               const metaSummary = document.createElement('summary');
+               metaSummary.textContent = 'Meta Data';
+               metaDetails.appendChild(metaSummary);
+               metaDetails.appendChild(metaTable);
+
+               // Affected Nodes
+               const affectedNodesContent = result.meta?.AffectedNodes
+                    ? result.meta.AffectedNodes.map((node: any, nodeIndex: number) => {
+                           const nodeType = Object.keys(node)[0];
+                           const entry = node[nodeType] || {};
+                           return {
+                                key: `${nodeType} ${nodeIndex + 1}`,
+                                content: [
+                                     { key: 'Ledger Entry Type', value: entry.LedgerEntryType || 'N/A' },
+                                     { key: 'Ledger Index', value: entry.LedgerIndex ? `<code>${entry.LedgerIndex}</code>` : 'N/A' },
+                                     ...(entry.PreviousTxnID ? [{ key: 'Previous Txn ID', value: `<code>${entry.PreviousTxnID}</code>` }] : []),
+                                     ...(entry.PreviousTxnLgrSeq ? [{ key: 'Previous Txn Lgr Seq', value: entry.PreviousTxnLgrSeq }] : []),
+                                     ...Object.entries(entry.FinalFields || {}).map(([k, v]) => ({
+                                          key: k,
+                                          value: this.formatValue(k, v),
+                                     })),
+                                     ...(entry.PreviousFields
+                                          ? [
+                                                 {
+                                                      key: 'Previous Fields',
+                                                      content: Object.entries(entry.PreviousFields).map(([k, v]) => ({
+                                                           key: k,
+                                                           value: this.formatValue(k, v),
+                                                      })),
+                                                 },
+                                            ]
+                                          : []),
+                                ],
+                           };
+                      })
+                    : [];
+
+               const affectedNodesDetails = document.createElement('details');
+               affectedNodesDetails.className = 'nested-object';
+               const affectedNodesSummary = document.createElement('summary');
+               affectedNodesSummary.textContent = 'Affected Nodes';
+               affectedNodesDetails.appendChild(affectedNodesSummary);
+
+               affectedNodesContent.forEach((node: { key: string; content: any[] }) => {
+                    const nodeDetails = document.createElement('details');
+                    nodeDetails.className = 'nested-object';
+                    const nodeSummary = document.createElement('summary');
+                    nodeSummary.textContent = node.key;
+                    nodeDetails.appendChild(nodeSummary);
+
+                    const nodeTable = document.createElement('div');
+                    nodeTable.className = 'result-table';
+                    const nodeHeader = document.createElement('div');
+                    nodeHeader.className = 'result-row result-header';
+                    nodeHeader.innerHTML = `
+                <div class="result-cell key">Key</div>
+                <div class="result-cell value">Value</div>
+              `;
+                    nodeTable.appendChild(nodeHeader);
+
+                    node.content.forEach(item => {
+                         const row = document.createElement('div');
+                         row.className = 'result-row';
+                         row.innerHTML = `
+                  <div class="result-cell key">${item.key}</div>
+                  <div class="result-cell value">${item.value || ''}</div>
+                `;
+                         if (item.content) {
+                              const nestedDetails = document.createElement('details');
+                              nestedDetails.className = 'nested-object';
+                              const nestedSummary = document.createElement('summary');
+                              nestedSummary.textContent = item.key;
+                              nestedDetails.appendChild(nestedSummary);
+
+                              const nestedTable = document.createElement('div');
+                              nestedTable.className = 'result-table';
+                              const nestedHeader = document.createElement('div');
+                              nestedHeader.className = 'result-row result-header';
+                              nestedHeader.innerHTML = `
+                    <div class="result-cell key">Key</div>
+                    <div class="result-cell value">Value</div>
+                  `;
+                              nestedTable.appendChild(nestedHeader);
+
+                              item.content.forEach((nestedItem: { key: string; value?: string }) => {
+                                   const nestedRow = document.createElement('div');
+                                   nestedRow.className = 'result-row';
+                                   nestedRow.innerHTML = `
+                      <div class="result-cell key">${nestedItem.key}</div>
+                      <div class="result-cell value">${nestedItem.value || ''}</div>
+                    `;
+                                   nestedTable.appendChild(nestedRow);
+                              });
+                              nestedDetails.appendChild(nestedTable);
+                              row.appendChild(nestedDetails);
+                         }
+                         nodeTable.appendChild(row);
+                    });
+                    nodeDetails.appendChild(nodeTable);
+                    affectedNodesDetails.appendChild(nodeDetails);
+               });
+
+               txDetails.appendChild(txTable);
+               txDetails.appendChild(txDataDetails);
+               txDetails.appendChild(metaDetails);
+               txDetails.appendChild(affectedNodesDetails);
+               details.appendChild(txDetails);
+          });
+
+          container.appendChild(details);
+
+          // Toggle event listeners
+          document.querySelectorAll('.result-section, .nested-object').forEach(details => {
+               const summary = details.querySelector('summary');
+               if (summary) {
+                    const title = summary.textContent;
+                    const savedState = localStorage.getItem(`collapse_${title}`);
+                    if (savedState === 'closed') details.removeAttribute('open');
+                    else details.setAttribute('open', 'open');
+                    details.addEventListener('toggle', () => {
+                         localStorage.setItem(`collapse_${title}`, (details as HTMLDetailsElement).open ? 'open' : 'closed');
+                         container.offsetHeight;
+                         container.style.height = 'auto';
+                    });
+               }
+          });
+     }
+
+     renderPaymentChannelDetails(data: any) {
+          const container = document.getElementById('resultField');
+          if (!container) {
+               console.error('Error: #resultField not found');
+               return;
+          }
+          container.classList.remove('error', 'success');
+          container.innerHTML = '';
+
+          // Add search bar
+          const searchBar = document.createElement('input');
+          searchBar.type = 'text';
+          searchBar.id = 'resultSearch';
+          searchBar.placeholder = 'Search results...';
+          searchBar.className = 'result-search';
+          searchBar.style.boxSizing = 'border-box';
+          container.appendChild(searchBar);
+
+          // Render sections
+          for (const section of data.sections) {
+               if (!section.content && !section.subItems) continue;
+
+               const details = document.createElement('details');
+               details.className = 'result-section';
+               if (section.openByDefault) {
+                    details.setAttribute('open', 'open');
+               }
+               const summary = document.createElement('summary');
+               summary.textContent = section.title;
+               details.appendChild(summary);
+
+               // Render direct content (e.g., Network in Connection Status)
+               if (section.content && section.content.length) {
+                    const table = document.createElement('div');
+                    table.className = 'result-table';
+                    const header = document.createElement('div');
+                    header.className = 'result-row result-header';
+                    header.innerHTML = `
+                      <div class="result-cell key" data-key="Key">Key</div>
+                      <div class="result-cell value" data-key="Value">Value</div>
+                  `;
+                    table.appendChild(header);
+
+                    for (const item of section.content) {
+                         const row = document.createElement('div');
+                         row.className = 'result-row';
+                         row.innerHTML = `
+                          <div class="result-cell key" data-key="Key">${item.key}</div>
+                          <div class="result-cell value" data-key="Value">${item.value}</div>
+                      `;
+                         table.appendChild(row);
+                    }
+                    details.appendChild(table);
+               }
+
+               // Render nested sub-items (e.g., Channels)
+               if (section.subItems && section.subItems.length) {
+                    for (const subItem of section.subItems) {
+                         const subDetails = document.createElement('details');
+                         subDetails.className = 'nested-object';
+                         if (subItem.openByDefault) {
+                              subDetails.setAttribute('open', 'open');
+                         }
+                         const subSummary = document.createElement('summary');
+                         subSummary.textContent = subItem.key;
+                         subDetails.appendChild(subSummary);
+
+                         const subTable = document.createElement('div');
+                         subTable.className = 'result-table';
+                         const subHeader = document.createElement('div');
+                         subHeader.className = 'result-row result-header';
+                         subHeader.innerHTML = `
+                          <div class="result-cell key" data-key="Key">Key</div>
+                          <div class="result-cell value" data-key="Value">Value}</div>
+                      `;
+                         subTable.appendChild(subHeader);
+
+                         for (const subContent of subItem.content) {
+                              const subRow = document.createElement('div');
+                              subRow.className = 'result-row';
+                              subRow.innerHTML = `
+                              <div class="result-cell key" data-key="Key">${subContent.key}</div>
+                              <div class="result-cell value" data-key="Value">${subContent.value || ''}</div>
+                          `;
+                              subTable.appendChild(subRow);
+                         }
+                         subDetails.appendChild(subTable);
+                         details.appendChild(subDetails);
+                    }
+               }
+
+               container.appendChild(details);
+          }
+
+          container.classList.add('success');
+     }
+
+     attachSearchListener(container: HTMLElement): void {
+          const searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
+          if (!searchBar) {
+               console.error('Error: #resultSearch not found');
+               return;
+          }
+
+          searchBar.addEventListener('input', e => {
+               const target = e.target as HTMLInputElement;
+               const search = target.value.toLowerCase().trim();
+               const sections = container.querySelectorAll('.result-section') as NodeListOf<HTMLElement>;
+
+               if (!search) {
+                    sections.forEach(section => {
+                         section.style.display = '';
+                         section.querySelectorAll('.result-row').forEach((row: Element) => ((row as HTMLElement).style.display = 'flex'));
+                         section.querySelectorAll('.nested-object').forEach(nested => {
+                              (nested as HTMLElement).style.display = '';
+                              nested.querySelectorAll('.result-row').forEach((row: Element) => ((row as HTMLElement).style.display = 'flex'));
+                         });
+                         const summaryElement = section.querySelector('summary');
+                         const title = summaryElement ? summaryElement.textContent : null;
+                         if (title === 'Transactions' || title?.includes('Transaction')) {
+                              section.setAttribute('open', 'open');
+                         } else {
+                              section.removeAttribute('open');
+                         }
+                    });
+                    return;
+               }
+
+               sections.forEach(section => {
+                    let hasVisibleContent = false;
+                    const directRows = section.querySelectorAll(':scope > .result-table > .result-row:not(.result-header)') as NodeListOf<HTMLElement>;
+                    directRows.forEach(row => {
+                         const keyCell = row.querySelector('.key') as HTMLElement;
+                         const valueCell = row.querySelector('.value') as HTMLElement;
+                         const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
+                         const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
+                         const isMatch = keyText.includes(search) || valueText.includes(search);
+                         row.style.display = isMatch ? 'flex' : 'none';
+                         if (isMatch) hasVisibleContent = true;
+                    });
+
+                    const nestedDetails = section.querySelectorAll('.nested-object') as NodeListOf<HTMLElement>;
+                    nestedDetails.forEach(nested => {
+                         let nestedHasVisibleContent = false;
+                         const tableRows = nested.querySelectorAll('.result-table > .result-row:not(.result-header)') as NodeListOf<HTMLElement>;
+                         tableRows.forEach(row => {
+                              const keyCell = row.querySelector('.key') as HTMLElement;
+                              const valueCell = row.querySelector('.value') as HTMLElement;
+                              const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
+                              const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
+                              const isMatch = keyText.includes(search) || valueText.includes(search);
+                              row.style.display = isMatch ? 'flex' : 'none';
+                              if (isMatch) nestedHasVisibleContent = true;
+                         });
+
+                         const deeperDetails = nested.querySelectorAll('.nested-object') as NodeListOf<HTMLElement>;
+                         deeperDetails.forEach(deeper => {
+                              let deeperHasVisibleContent = false;
+                              const deeperRows = deeper.querySelectorAll('.result-table > .result-row:not(.result-header)') as NodeListOf<HTMLElement>;
+                              deeperRows.forEach(row => {
+                                   const keyCell = row.querySelector('.key') as HTMLElement;
+                                   const valueCell = row.querySelector('.value') as HTMLElement;
+                                   const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
+                                   const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
+                                   const isMatch = keyText.includes(search) || valueText.includes(search);
+                                   row.style.display = isMatch ? 'flex' : 'none';
+                                   if (isMatch) deeperHasVisibleContent = true;
+                              });
+                              deeper.style.display = deeperHasVisibleContent ? '' : 'none';
+                              if (deeperHasVisibleContent) nestedHasVisibleContent = true;
+                         });
+
+                         nested.style.display = nestedHasVisibleContent ? '' : 'none';
+                         if (nestedHasVisibleContent) hasVisibleContent = true;
+                    });
+
+                    section.style.display = hasVisibleContent ? '' : 'none';
+                    if (hasVisibleContent) section.setAttribute('open', 'open');
+               });
+          });
+     }
+
+     async getAccountReserves(client: xrpl.Client, address: string) {
+          try {
+               // Get the current ledger index from the client
+               const account_info = await client.request({
+                    command: 'account_info',
+                    account: address,
+                    ledger_index: 'validated',
+               });
+
+               const accountData = account_info.result.account_data;
+               const ownerCount = accountData.OwnerCount;
+
+               const reserveData = await this.getXrplReserve(client);
+               if (!reserveData) {
+                    throw new Error('Failed to fetch XRPL reserve data');
+               }
+               const { reserveBaseXRP, reserveIncrementXRP } = reserveData;
+               const totalReserveXRP = reserveBaseXRP + ownerCount * reserveIncrementXRP;
+
+               return { ownerCount, totalReserveXRP };
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`, undefined);
+               return undefined;
+          }
+     }
+
+     async getXrplReserve(client: xrpl.Client) {
+          try {
+               // Get the current ledger index from the client
+               const server_info = await client.request({
+                    command: 'server_info',
+               });
+               console.debug(`Server Info ${JSON.stringify(server_info, null, 2)}`);
+               if (server_info.result.info && server_info.result.info.validated_ledger) {
+                    console.debug(`Base Fee: ${server_info.result.info.validated_ledger.base_fee_xrp} XRP`);
+                    console.debug(`Base Reserve: ${server_info.result.info.validated_ledger.reserve_base_xrp} XRP`);
+                    console.debug(`Total incremental owner count: ${server_info.result.info.validated_ledger.reserve_inc_xrp} XRP`);
+               } else {
+                    console.warn('validated_ledger is undefined in server_info');
+               }
+
+               const ledger_info = await client.request({
+                    command: 'server_state',
+                    ledger_index: 'current',
+               });
+
+               const ledgerData = ledger_info.result.state.validated_ledger;
+               if (!ledgerData) {
+                    throw new Error('validated_ledger is undefined in server_state');
+               }
+               const baseFee = ledgerData.base_fee;
+               const reserveBaseXRP = ledgerData.reserve_base;
+               const reserveIncrementXRP = ledgerData.reserve_inc;
+
+               console.debug(`baseFee: ${baseFee}`);
+               console.debug(`reserveBaseXRP: ${xrpl.dropsToXrp(reserveBaseXRP)}`);
+               console.debug(`Total incremental owner count: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
+               console.debug(`Total Reserve: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
+
+               return { reserveBaseXRP, reserveIncrementXRP };
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`, undefined);
+               return undefined;
+          }
+     }
+
+     async updateOwnerCountAndReserves(client: xrpl.Client, address: string): Promise<{ ownerCount: string; totalXrpReserves: string }> {
+          const reserves = await this.getAccountReserves(client, address);
+          let ownerCount = '0';
+          let totalXrpReserves = '0';
+          if (reserves) {
+               ownerCount = reserves.ownerCount.toString();
+               totalXrpReserves = String(xrpl.dropsToXrp(reserves.totalReserveXRP));
+               console.log(`Owner Count: ${ownerCount} Total XRP Reserves: ${totalXrpReserves}`);
+          }
+          return { ownerCount, totalXrpReserves };
+     }
+
+     async getOnlyTokenBalance(client: xrpl.Client, address: string, currency: string): Promise<string> {
+          // Placeholder: Implement your getOnlyTokenBalance from utils.js
+          // Example: Fetch account lines for token balance
+          try {
+               const response = await client.request({
+                    command: 'account_lines',
+                    account: address,
+                    ledger_index: 'validated',
+               });
+               const lines = response.result.lines || [];
+               const tokenLine = lines.find((line: any) => line.currency.toUpperCase() === currency.toUpperCase());
+               return tokenLine ? tokenLine.balance : '0';
+          } catch (error: any) {
+               console.error('Error fetching token balance:', error);
+               return '0';
+          }
+     }
+
+     async getTokenBalance(
+          client: xrpl.Client,
+          address: string,
+          currency: string
+     ): Promise<{
+          issuers: string[];
+          total: number;
+          xrpBalance: number;
+     }> {
+          try {
+               const gatewayBalances = await client.request({
+                    command: 'gateway_balances',
+                    account: address,
+                    ledger_index: 'validated',
+               });
+
+               console.log('gatewayBalances', gatewayBalances);
+
+               let tokenTotal = 0;
+               const issuers: string[] = [];
+
+               if (gatewayBalances.result.assets) {
+                    Object.entries(gatewayBalances.result.assets).forEach(([issuer, assets]) => {
+                         console.log(`Issuer: ${issuer}`);
+                         assets.forEach((asset: any) => {
+                              console.log(`  Currency: ${asset.currency}, Value: ${asset.value}`);
+                              let assetCurrency = asset.currency.length > 3 ? this.decodeCurrencyCode(asset.currency) : asset.currency;
+
+                              if (currency === assetCurrency) {
+                                   console.log(`  Match: ${currency} = ${assetCurrency}`);
+                                   const value = parseFloat(asset.value);
+                                   if (!isNaN(value)) {
+                                        tokenTotal += value;
+                                        if (!issuers.includes(issuer)) {
+                                             issuers.push(issuer);
+                                        }
+                                   }
+                              }
+                         });
+                    });
+               }
+
+               const roundedTotal = Math.round(tokenTotal * 100) / 100;
+               const xrpBalance = await client.getXrpBalance(address);
+               await this.updateOwnerCountAndReserves(client, address);
+
+               return {
+                    issuers,
+                    total: roundedTotal,
+                    xrpBalance,
+               };
+          } catch (error: any) {
+               console.error('Error fetching token balance:', error);
+               throw error; // Let the caller handle the error
+          }
+     }
+
+     // async getCurrencyBalance(address: string, currency: string, issuer?: string): Promise<string | null> {
+     //      try {
+     //           const client = await this.xrplService.getClient();
+     //           const balanceResponse = await client.request({
+     //                command: 'gateway_balances',
+     //                account: address,
+     //                ledger_index: 'validated',
+     //           });
+
+     //           let tokenTotal = 0;
+     //           if (balanceResponse.result.assets) {
+     //                Object.entries(balanceResponse.result.assets).forEach(([assetIssuer, assets]) => {
+     //                     if (!issuer || assetIssuer === issuer) {
+     //                          assets.forEach((asset: any) => {
+     //                               let assetCurrency = asset.currency.length > 3 ? this.decodeCurrencyCode(asset.currency) : asset.currency;
+     //                               if (currency === assetCurrency) {
+     //                                    const value = parseFloat(asset.value);
+     //                                    if (!isNaN(value)) {
+     //                                         tokenTotal += value;
+     //                                    }
+     //                               }
+     //                          });
+     //                     }
+     //                });
+     //           }
+     //           return tokenTotal > 0 ? (Math.round(tokenTotal * 100) / 100).toString() : '0';
+     //      } catch (error: any) {
+     //           console.error('Error fetching token balance:', error);
+     //           throw error;
+     //      }
+     // }
+
+     async getAccountObjects(address: string) {
+          try {
+               const client = await this.xrplService.getClient();
+               const accountObjects = await client.request({
+                    command: 'account_objects',
+                    account: address,
+                    ledger_index: 'validated',
+               });
+               console.debug(`account_objects: ${accountObjects}`);
+               return accountObjects;
+          } catch (error) {
+               console.error('Error fetching account objects:', error);
+               return [];
+          }
+     }
+
+     async getCurrencyBalance(currency: string, accountAddressField: HTMLElement) {
+          try {
+               const address = accountAddressField && 'value' in accountAddressField ? (accountAddressField as HTMLInputElement).value : '';
+               const response = await this.getAccountObjects(address);
+               let accountObjects: any[] = [];
+               if (response && !Array.isArray(response) && response.result && Array.isArray(response.result.account_objects)) {
+                    accountObjects = response.result.account_objects;
+               }
+
+               interface AccountObjectWithBalance {
+                    Balance: {
+                         value: string;
+                         currency: string;
+                         [key: string]: any;
+                    };
+                    [key: string]: any;
+               }
+
+               const matchingObjects: AccountObjectWithBalance[] = accountObjects.filter((obj: any): obj is AccountObjectWithBalance => obj.Balance && obj.Balance.currency === currency.toUpperCase());
+
+               const total = matchingObjects.reduce((sum, obj) => {
+                    return sum + parseFloat(obj.Balance.value);
+               }, 0);
+
+               return total;
+          } catch (error) {
+               console.error('Error fetching balance:', error);
+               return null;
+          }
+     }
+
+     private formatValue(key: string, value: any, nestedFields: string[] = []): string {
+          if (key === 'Account' || key.includes('PubKey') || key.includes('Signature') || key.includes('index')) {
+               return `<code>${value}</code>`;
+          }
+          if (nestedFields.includes(key)) {
+               return this.getFlagName(String(value));
+          }
+          if (typeof value === 'string' && value.length > 50) {
+               return `<code>${value.slice(0, 50)}...</code>`;
+          }
+          if (typeof value === 'object') {
+               return this.formatAmount(value);
+          }
+          return String(value);
+     }
+
+     private formatAmount(value: any): string {
+          if (typeof value === 'string' && /^\d+$/.test(value)) {
+               return (parseInt(value) / 1_000_000).toFixed(6) + ' XRP';
+          } else if (typeof value === 'object' && value.currency) {
+               return `${value.value} ${value.currency}${value.issuer ? ` (<code>${value.issuer}</code>)` : ''}`;
+          }
+          return JSON.stringify(value);
+     }
+
+     async getAccountInfo(seed: string, environment: string = 'devnet'): Promise<any> {
+          if (!seed) {
+               throw new Error('Account seed cannot be empty');
+          }
+          try {
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (seed.split(' ').length > 1) {
+                    wallet = xrpl.Wallet.fromMnemonic(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               } else {
+                    wallet = xrpl.Wallet.fromSeed(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               }
+               const accountInfo = await client.request({
+                    command: 'account_info',
+                    account: wallet.classicAddress,
+               });
+
+               const accountObjects = await client.request({
+                    command: 'account_objects',
+                    account: wallet.classicAddress,
+               });
+
+               return { accountInfo, accountObjects }; //response.result;
+          } catch (error: any) {
+               throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getTrustlines(seed: string, environment: string = 'devnet'): Promise<any> {
+          if (!seed) {
+               throw new Error('Account seed cannot be empty');
+          }
+          try {
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (seed.split(' ').length > 1) {
+                    wallet = xrpl.Wallet.fromMnemonic(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               } else {
+                    wallet = xrpl.Wallet.fromSeed(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               }
+               const trustLines = await client.request({
+                    command: 'account_lines',
+                    account: wallet.classicAddress,
+               });
+
+               // Filter out trust lines with Limit: 0
+               const activeTrustLines = trustLines.result.lines.filter((line: any) => parseFloat(line.limit) > 0);
+               console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLines);
+
+               if (activeTrustLines.length === 0) {
+                    console.log(`No active trust lines found for ${wallet.classicAddress}`);
+                    return [];
+               }
+
+               console.debug(`Trust lines for ${wallet.classicAddress}:`, activeTrustLines);
+               return activeTrustLines;
+          } catch (error: any) {
+               throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     refreshUiIAccountMetaData(accountInfo: any) {
+          const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement;
+          if (tickSizeField) {
+               if (accountInfo.account_data.TickSize && accountInfo.account_data.TickSize != '') {
+                    tickSizeField.value = accountInfo.account_data.TickSize;
+               } else {
+                    tickSizeField.value = '';
+               }
+          }
+
+          const transferRateField = document.getElementById('transferRateField') as HTMLInputElement;
+          if (transferRateField) {
+               if (accountInfo.account_data.TransferRate && accountInfo.account_data.TransferRate != '') {
+                    transferRateField.value = ((accountInfo.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(3);
+               } else {
+                    transferRateField.value = '';
+               }
+          }
+
+          const domainField = document.getElementById('domainField') as HTMLInputElement;
+          if (domainField) {
+               if (accountInfo.account_data.Domain && accountInfo.account_data.Domain != '') {
+                    domainField.value = this.decodeHex(accountInfo.account_data.Domain);
+               } else {
+                    domainField.value = '';
+               }
+          }
+
+          const isMessageKeyField = document.getElementById('isMessageKey') as HTMLInputElement;
+          if (isMessageKeyField) {
+               if (accountInfo.account_data.MessageKey && accountInfo.account_data.MessageKey != '') {
+                    isMessageKeyField.checked = true;
+               } else {
+                    isMessageKeyField.checked = false;
+               }
+          }
+     }
+
+     returnErrorMessage(message: string) {
+          this.isSuccess = false;
+          this.isError = true;
+          this.spinner = false;
+          this.result = `${message}`;
+     }
+
+     setError(message: string, spinner: { style: { display: string } } | undefined) {
+          this.isError = true;
+          this.isSuccess = false;
+          this.result = `${message}`;
+          this.spinner = false;
+     }
+
+     public setSuccess(message: string) {
+          this.result = `${message}`;
+          this.isError = false;
+          this.isSuccess = true;
+     }
+}
