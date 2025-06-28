@@ -1,8 +1,17 @@
 // vite.config.ts
 import { defineConfig } from 'vite';
+import angular from '@analogjs/vite-plugin-angular';
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill';
+import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill';
 
 export default defineConfig({
      plugins: [
+          angular(),
+          NodeGlobalsPolyfillPlugin({
+               buffer: true,
+               process: true,
+          }),
+          NodeModulesPolyfillPlugin(),
           {
                name: 'suppress-external-warnings',
                configureServer(server) {
@@ -15,10 +24,11 @@ export default defineConfig({
      ],
      resolve: {
           alias: {
-               buffer: 'buffer',
-               util: 'util',
+               util: 'util/',
                stream: 'stream-browserify',
-               process: 'process/browser', // Use process/browser for polyfill
+               buffer: 'buffer',
+               crypto: 'crypto-browserify',
+               process: 'process/browser',
           },
      },
      optimizeDeps: {

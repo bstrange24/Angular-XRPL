@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
@@ -11,6 +11,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { sign } from 'ripple-keypairs';
+import { Subscription } from 'rxjs';
 
 interface PaymentChannelObject {
      index: string;
@@ -31,6 +32,7 @@ interface PaymentChannelObject {
 })
 export class CreatePaymentChannelComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
+     @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
      private lastResult: string = '';
      transactionInput = '';
@@ -52,12 +54,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      isMultiSignTransaction = false;
      multiSignAddress = '';
      spinner = false;
+     spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngAfterViewInit() {
-          // this.account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '' };
-          // this.account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '' };
           this.cdr.detectChanges();
      }
 
@@ -94,17 +95,17 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      async getPaymentChannels() {
           console.log('Entering getPaymentChannels');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -119,12 +120,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     });
                }
 
-               const response = await client.request({
-                    command: 'account_objects',
-                    account: wallet.classicAddress,
-                    type: 'payment_channel',
-                    ledger_index: 'validated',
-               });
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Payment Channels\n\n`;
+
+               const response = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
+               console.debug('Payment channel:', response);
 
                const channels = response.result.account_objects as PaymentChannelObject[];
 
@@ -165,23 +164,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
 
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
+               this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -195,25 +180,27 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      async handlePaymentChannelAction() {
           console.log('Entering handlePaymentChannelAction');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           if (!this.utilsService.validatInput(this.amountField)) {
                return this.setError('ERROR: XRP Amount cannot be empty');
           }
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
-          }
+
           if (!this.utilsService.validatInput(this.destinationField)) {
                return this.setError('ERROR: Destination cannot be empty');
+          }
+
+          if (parseFloat(this.amountField) <= 0) {
+               return this.setError('ERROR: XRP Amount must be a positive number');
           }
 
           const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
@@ -233,6 +220,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
                     });
                }
+
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nModifying Payment Channels\n\n`;
 
                const amount = parseFloat(this.amountField);
                const totalReserves = parseFloat(this.totalXrpReserves || '0');
@@ -257,35 +246,17 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
-
-                         this.setFieldsOnError();
-                         this.handleTransactionResult({
-                              result: this.result,
-                              isError: this.isError,
-                              isSuccess: this.isSuccess,
-                         });
+                         this.setErrorProperties();
                          return;
                     }
 
-                    const channelID = response.result.hash;
                     this.resultField.nativeElement.innerHTML += `\nPayment channel created successfully.\n\n`;
-                    this.resultField.nativeElement.innerHTML += `Channel created with ID: ${channelID}\n`;
-
+                    this.resultField.nativeElement.innerHTML += `Channel created with ID: ${response.result.hash}\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'fund') {
                     if (!this.utilsService.validatInput(this.channelIDField)) {
                          return this.setError('Channel ID cannot be empty');
-                    }
-                    if (isNaN(parseFloat(this.amountField)) || parseFloat(this.amountField) <= 0) {
-                         return this.setError('Amount must be a valid number and greater than 0');
-                    }
-
-                    const amountFieldNum = parseFloat(this.amountField);
-                    const totalXrpReservesNum = parseFloat(this.totalXrpReserves || '0');
-                    const walletBalance = await client.getXrpBalance(wallet.classicAddress);
-                    if (amountFieldNum > walletBalance - totalXrpReservesNum) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
                     }
 
                     this.resultField.nativeElement.innerHTML += `Funding Payment Channel\n\n`;
@@ -300,29 +271,20 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
-
-                         this.setFieldsOnError();
-                         this.handleTransactionResult({
-                              result: this.result,
-                              isError: this.isError,
-                              isSuccess: this.isSuccess,
-                         });
+                         this.setErrorProperties();
                          return;
                     }
 
-                    this.resultField.nativeElement.innerHTML += `Payment channel ${this.channelIDField} funded successfully.\n\n`;
-
+                    this.resultField.nativeElement.innerHTML += `\nPayment channel funded successfully.\n\n`;
+                    this.resultField.nativeElement.innerHTML += `Channel funded with ID: ${response.result.hash}\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'claim') {
                     if (!this.utilsService.validatInput(this.channelIDField)) {
                          return this.setError('Channel ID cannot be empty');
                     }
-                    if (isNaN(parseFloat(this.amountField)) || parseFloat(this.amountField) <= 0) {
-                         return this.setError('Amount must be a valid number and greater than 0');
-                    }
+
                     this.resultField.nativeElement.innerHTML += `Claiming Payment Channel\n\n`;
-                    const balanceDrops = xrpl.xrpToDrops(this.amountField);
 
                     // let signature;
                     // if (validatInput(channelClaimSignature.value)) {
@@ -335,7 +297,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          TransactionType: 'PaymentChannelClaim',
                          Account: wallet.classicAddress,
                          Channel: this.channelIDField,
-                         Balance: balanceDrops,
+                         Balance: xrpl.xrpToDrops(this.amountField),
                          Signature: signature,
                          PublicKey: wallet.publicKey,
                     });
@@ -345,25 +307,20 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
-
-                         this.setFieldsOnError();
-                         this.handleTransactionResult({
-                              result: this.result,
-                              isError: this.isError,
-                              isSuccess: this.isSuccess,
-                         });
+                         this.setErrorProperties();
                          return;
                     }
 
                     this.resultField.nativeElement.innerHTML += `Payment channel claimed successfully.\n\n`;
-
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'close') {
                     if (!this.utilsService.validatInput(this.channelIDField)) {
                          return this.setError('Channel ID cannot be empty');
                     }
+
                     this.resultField.nativeElement.innerHTML += `Closing Payment Channel\n\n`;
+
                     const tx = await client.autofill({
                          TransactionType: 'PaymentChannelClaim',
                          Account: wallet.classicAddress,
@@ -375,39 +332,18 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
-
-                         this.setFieldsOnError();
-                         this.handleTransactionResult({
-                              result: this.result,
-                              isError: this.isError,
-                              isSuccess: this.isSuccess,
-                         });
+                         this.setErrorProperties();
                          return;
                     }
 
                     this.resultField.nativeElement.innerHTML += `Payment channel closed successfully.\n\n`;
-
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                }
 
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
+               this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -449,110 +385,100 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
+     private async updateXrpBalance(client: xrpl.Client, address: string) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
+          const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
+          this.account1.balance = balance.toString();
+     }
+
      async displayDataForAccount1() {
-          console.log('Entering displayDataForAccount1');
-          const startTime = Date.now();
           const account1name = this.storageService.getInputValue('account1name');
           const account1address = this.storageService.getInputValue('account1address');
+          const account2address = this.storageService.getInputValue('account2address');
           const account1seed = this.storageService.getInputValue('account1seed');
           const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
           const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account1name || '';
-          if (accountAddress1Field) accountAddress1Field.value = account1address || '';
-          if (accountSeed1Field) {
-               if (account1seed === '') {
-                    if (account1mnemonic === '') {
-                         accountSeed1Field.value = account1secretNumbers || '';
-                    } else {
-                         accountSeed1Field.value = account1mnemonic || '';
-                    }
+          this.account1.name = account1name || '';
+          this.account1.address = account1address || '';
+          if (account1seed === '') {
+               if (account1mnemonic === '') {
+                    this.account1.seed = account1secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account1seed || '';
+                    this.account1.seed = account1mnemonic || '';
                }
+          } else {
+               this.account1.seed = account1seed || '';
           }
 
-          try {
-               const client = await this.xrplService.getClient();
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account1address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account1address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account1.balance', this.account1.balance);
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
+          if (destinationField) {
+               this.destinationField = account2address;
           }
 
           this.getPaymentChannels();
      }
 
      async displayDataForAccount2() {
-          console.log('Entering displayDataForAccount2');
-          const startTime = Date.now();
           const account2name = this.storageService.getInputValue('account2name');
           const account2address = this.storageService.getInputValue('account2address');
+          const account1address = this.storageService.getInputValue('account1address');
           const account2seed = this.storageService.getInputValue('account2seed');
           const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
           const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account2name || '';
-          if (accountAddress1Field) accountAddress1Field.value = account2address || '';
-          if (accountSeed1Field) {
-               if (account2seed === '') {
-                    if (account2mnemonic === '') {
-                         accountSeed1Field.value = account2secretNumbers || '';
-                    } else {
-                         accountSeed1Field.value = account2mnemonic || '';
-                    }
+          this.account1.name = account2name || '';
+          this.account1.address = account2address || '';
+          if (account2seed === '') {
+               if (account2mnemonic === '') {
+                    this.account1.seed = account2secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account2seed || '';
+                    this.account1.seed = account2mnemonic || '';
                }
+          } else {
+               this.account1.seed = account2seed || '';
           }
 
-          try {
-               const client = await this.xrplService.getClient();
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account2address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account2address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account2.balance', this.account1.balance);
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
+          if (destinationField) {
+               this.destinationField = account1address;
           }
 
           this.getPaymentChannels();
      }
 
-     private setError(message: string) {
-          this.setFieldsOnError();
-          this.result = `${message}`;
-     }
-
-     private setFieldsOnError() {
-          this.isError = true;
+     private setErrorProperties() {
           this.isSuccess = false;
+          this.isError = true;
           this.spinner = false;
      }
 
-     public setSuccess(message: string) {
-          this.result = `${message}`;
-          this.isError = false;
+     private setError(message: string) {
+          this.setErrorProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
+     }
+
+     private setSuccessProperties() {
           this.isSuccess = true;
+          this.isError = false;
+          this.spinner = true;
+          this.result = '';
+     }
+
+     private setSuccess(message: string) {
+          this.setSuccessProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
      }
 }

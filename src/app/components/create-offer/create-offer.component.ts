@@ -1,17 +1,16 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
-import { CheckCreate, TransactionMetadataBase } from 'xrpl';
+import { TrustSet, OfferCreate, TransactionMetadataBase, Client, OfferCreateFlags } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { Subject } from 'rxjs';
-import { debounceTime } from 'rxjs/operators';
+import BigNumber from 'bignumber.js';
 
 @Component({
      selector: 'app-create-offer',
@@ -22,16 +21,15 @@ import { debounceTime } from 'rxjs/operators';
 })
 export class CreateOfferComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
+     @ViewChild('accountForm') accountForm!: NgForm;
      // private weWantCurrencySubject = new Subject<string>();
      // private weSpendCurrencySubject = new Subject<string>();
      selectedAccount: 'account1' | 'account2' | null = null;
      private lastResult: string = AppConstants.EMPTY_STRING;
-     private intervalId: any;
      transactionInput = AppConstants.EMPTY_STRING;
      result: string = AppConstants.EMPTY_STRING;
      currencyFieldDropDownValue: string = 'XRP';
      checkExpirationTime: string = 'seconds';
-
      weSpendCurrencyField: string = 'XRP';
      offerSequenceField: string = AppConstants.EMPTY_STRING;
      weWantCurrencyField: string = 'DOG';
@@ -41,7 +39,6 @@ export class CreateOfferComponent implements AfterViewChecked {
      weSpendIssuerField: string = AppConstants.EMPTY_STRING;
      weSpendAmountField: string = AppConstants.EMPTY_STRING;
      weSpendTokenBalanceField: string = AppConstants.EMPTY_STRING;
-
      isMarketOrder: boolean = false;
      ticketCountField = AppConstants.EMPTY_STRING;
      expirationTimeField = AppConstants.EMPTY_STRING;
@@ -61,11 +58,11 @@ export class CreateOfferComponent implements AfterViewChecked {
      issuers: string[] = [];
      selectedIssuer: string = AppConstants.EMPTY_STRING;
      tokenBalance: string = AppConstants.EMPTY_STRING;
-
+     spinnerMessage: string = '';
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     async ngOnInit(): Promise<void> {
-          console.log('DOM fully loaded at', new Date().toISOString());
+     ngAfterViewInit() {
+          this.cdr.detectChanges();
      }
 
      ngAfterViewChecked() {
@@ -96,26 +93,20 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
-     ngOnDestroy(): void {
-          if (this.intervalId) {
-               clearInterval(this.intervalId);
-          }
-     }
-
      async getOffers() {
           console.log('Entering getOffers');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = AppConstants.EMPTY_STRING;
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -130,13 +121,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               // Fetch offers
-               const offersResponse = await client.request({
-                    command: 'account_offers',
-                    account: wallet.address,
-                    ledger_index: 'validated',
-               });
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account Offers\n\n`;
 
+               // Fetch offers
+               const offersResponse = await this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '');
                console.log('offers:', offersResponse);
 
                // Prepare data for rendering
@@ -187,16 +175,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -210,13 +189,12 @@ export class CreateOfferComponent implements AfterViewChecked {
      async getOrderBook() {
           console.log('Entering getOrderBook');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = AppConstants.EMPTY_STRING;
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
@@ -251,6 +229,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                          algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
                     });
                }
+
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Order Book\n\n`;
 
                // Prepare currency objects
                let we_want;
@@ -404,17 +384,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -427,431 +399,735 @@ export class CreateOfferComponent implements AfterViewChecked {
 
      async createOffer() {
           console.log('Entering createOffer');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          if (!this.selectedAccount) {
+               return this.setError('Please select an account');
+          }
+
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          if (!this.utilsService.validatInput(seed)) {
+               return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+
+               let wallet;
+               if (seed.split(' ').length > 1) {
+                    wallet = xrpl.Wallet.fromMnemonic(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               } else {
+                    wallet = xrpl.Wallet.fromSeed(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               }
+
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating Offer\n\n`;
+
+               interface SpendObject {
+                    amount?: string; // For XRP
+                    currency?: string; // For tokens
+                    value?: string; // For tokens
+                    issuer?: string; // For tokens
+               }
+
+               interface CurrencyObjectXRP {
+                    currency: string;
+                    value: string;
+               }
+
+               interface CurrencyObjectToken {
+                    currency: string;
+                    issuer: string;
+                    value: string;
+               }
+
+               // type CurrencyObject = CurrencyObjectXRP | CurrencyObjectToken;
+               // const buildCurrencyObject = (currency: string, issuer: string, value: string): CurrencyObject => (currency === AppConstants.XRP_CURRENCY ? { currency, value } : { currency, issuer, value });
+
+               // Prepare data for rendering
+               interface SectionContent {
+                    key: string;
+                    value: string;
+               }
+
+               interface SectionSubItem {
+                    key: string;
+                    openByDefault: boolean;
+                    content: SectionContent[];
+               }
+
+               interface Section {
+                    title: string;
+                    openByDefault: boolean;
+                    content?: SectionContent[];
+                    subItems?: SectionSubItem[];
+               }
+
+               const data: { sections: Section[] } = {
+                    sections: [],
+               };
+
+               // Trust line setup
+               let trustSetResult = null;
+               let issuerAddr, issuerCur;
+               if (this.weWantIssuerField === AppConstants.XRP_CURRENCY || this.weWantIssuerField === '') {
+                    issuerAddr = this.weSpendIssuerField;
+                    issuerCur = this.weSpendCurrencyField;
+               } else {
+                    issuerAddr = this.weWantIssuerField;
+                    issuerCur = this.weWantCurrencyField;
+               }
+
+               console.log(`issuerAddr ${issuerAddr}`);
+               console.log(`issuerCur ${issuerCur}`);
+
+               const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
+               console.log(`trustLines ${JSON.stringify(trustLines.result.lines, null, 2)}`);
+
+               const doesTrustLinesExists = trustLines.result.lines.filter((line: any) => {
+                    // Decode currency for comparison
+                    const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+                    return (
+                         parseFloat(line.limit) > 0 &&
+                         parseFloat(line.balance) > 0 &&
+                         line.account === issuerAddr && // Use 'account' as the issuer field
+                         (issuerCur ? decodedCurrency === issuerCur : true)
+                    );
+               });
+               console.debug(`Active trust lines for ${wallet.classicAddress}:`, doesTrustLinesExists);
+
+               if (doesTrustLinesExists.length <= 0) {
+                    const { result: feeResponse } = await client.request({ command: 'fee' });
+                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+                    const trustSetTx: TrustSet = {
+                         TransactionType: 'TrustSet',
+                         Account: wallet.classicAddress,
+                         LimitAmount: {
+                              currency: issuerCur,
+                              issuer: issuerAddr,
+                              value: '1000000',
+                         },
+                         Fee: feeResponse.drops.open_ledger_fee || '12',
+                         LastLedgerSequence: currentLedger + 20,
+                    };
+
+                    const ts_prepared = await client.autofill(trustSetTx);
+                    const ts_signed = wallet.sign(ts_prepared);
+                    trustSetResult = await client.submitAndWait(ts_signed.tx_blob);
+
+                    if (trustSetResult.result.meta && typeof trustSetResult.result.meta !== 'string' && (trustSetResult.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                         this.utilsService.renderTransactionsResults(trustSetResult, this.resultField.nativeElement);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return;
+                    }
+
+                    data.sections.push({
+                         title: 'Trust Line Setup',
+                         openByDefault: true,
+                         content: [
+                              { key: 'Status', value: 'Trust line created' },
+                              { key: 'Currency', value: issuerCur },
+                              { key: 'Issuer', value: `<code>${issuerAddr}</code>` },
+                              { key: 'Limit', value: this.amountField },
+                         ],
+                    });
+               } else {
+                    data.sections.push({
+                         title: 'Trust Line Setup',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: 'Trust lines already exist' }],
+                    });
+               }
+
+               // Fetch reserve information
+               const xrpReserve = await this.xrplService.getXrpReserveRequirements(client, wallet.address);
+
+               // data.sections.push({
+               //      title: 'Account Reserve Information',
+               //      openByDefault: true,
+               //      content: [
+               //           { key: 'Base Reserve', value: `${xrpReserve.baseReserve} XRP` },
+               //           { key: 'Owner Reserve (per object)', value: `${xrpReserve.ownerReserve} XRP` },
+               //           { key: 'Owner Count', value: String(xrpReserve.ownerCount) },
+               //           { key: 'Current Reserve', value: `${xrpReserve.currentReserve} XRP` },
+               //      ],
+               // });
+
+               // Initial balances
+               const initialXrpBalance = await client.getXrpBalance(wallet.address);
+               console.log(`Initial XRP Balance ${initialXrpBalance} (drops): ${xrpl.xrpToDrops(initialXrpBalance)}`);
+               const tokenBalance = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? this.weWantCurrencyField : this.weSpendCurrencyField;
+               const initialTokenBalance = await this.xrplService.getOnlyTokenBalance(client, wallet.address, tokenBalance);
+               console.log(`Initial ${tokenBalance} Balance: ${initialTokenBalance}`);
+               data.sections.push({
+                    title: 'Initial Balances',
+                    openByDefault: true,
+                    content: [
+                         { key: 'XRP', value: `${initialXrpBalance} (${xrpl.xrpToDrops(initialXrpBalance)} drops)` },
+                         { key: tokenBalance, value: initialTokenBalance },
+                    ],
+               });
+
+               // Build currency objects
+               let we_want = this.weWantCurrencyField === AppConstants.XRP_CURRENCY ? { currency: AppConstants.XRP_CURRENCY, value: this.weWantAmountField } : { currency: this.weWantCurrencyField, issuer: this.weWantIssuerField, value: this.weWantAmountField };
+               let we_spend = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? { amount: this.weSpendAmountField } : { currency: this.weSpendCurrencyField, issuer: this.weSpendIssuerField, value: this.weSpendAmountField };
+
+               if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY) {
+                    if (!this.weSpendAmountField) {
+                         throw new Error('weSpendAmountField is required for XRP');
+                    }
+                    we_spend = { amount: this.weSpendAmountField };
+               } else {
+                    if (!this.weSpendAmountField || !this.weSpendIssuerField) {
+                         throw new Error('weSpendAmountField and weSpendIssuerField are required for token');
+                    }
+                    we_spend = {
+                         currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
+                         value: this.weSpendAmountField,
+                         issuer: this.weSpendIssuerField,
+                    };
+               }
+
+               // Validate balances
+               if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY && Number(xrpl.xrpToDrops(initialXrpBalance)) < Number(this.weSpendAmountField)) {
+                    this.setError('Insufficient XRP balance');
+                    return;
+               } else if (this.weSpendCurrencyField !== AppConstants.XRP_CURRENCY && Number(initialTokenBalance) < Number(this.weSpendAmountField)) {
+                    this.setError(`Insufficient ${this.weSpendCurrencyField} balance`);
+                    return;
+               }
+
+               if (we_want.currency.length > 3) {
+                    we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
+               }
+               if (we_spend.currency && we_spend.currency.length > 3) {
+                    we_spend.currency = this.utilsService.encodeCurrencyCode(we_spend.currency);
+               }
+
+               const offerType = we_spend.currency ? 'sell' : 'buy';
+               console.log(`Offer Type: ${offerType}`);
+
+               // Rate analysis
+               const proposedQuality = new BigNumber(this.weSpendAmountField).dividedBy(this.weWantAmountField);
+               const effectiveRate = this.calculateEffectiveRate(proposedQuality, xrpReserve, offerType);
+               const rateAnalysis = [
+                    {
+                         key: 'Proposed Rate',
+                         value: `1 ${we_want.currency} = ${proposedQuality.toFixed(8)} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
+                    },
+                    {
+                         key: 'Effective Rate',
+                         value: `1 ${we_want.currency} = ${effectiveRate.toFixed(8)} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
+                    },
+               ];
+               if (effectiveRate.gt(proposedQuality)) {
+                    rateAnalysis.push({
+                         key: 'Note',
+                         value: 'Effective rate is worse than proposed due to XRP reserve requirements',
+                    });
+               }
+               // data.sections.push({
+               //      title: 'Rate Analysis',
+               //      openByDefault: true,
+               //      content: rateAnalysis,
+               // });
+
+               // Market analysis
+               const MAX_SLIPPAGE = 0.05;
+               const orderBook = await client.request({
+                    command: 'book_offers',
+                    taker: wallet.address,
+                    ledger_index: 'current',
+                    taker_gets: we_want,
+                    taker_pays: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
+               });
+               const oppositeOrderBook = await client.request({
+                    command: 'book_offers',
+                    taker: wallet.address,
+                    ledger_index: 'current',
+                    taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
+                    taker_pays: we_want,
+               });
+
+               const offers = orderBook.result.offers;
+               let runningTotal = new BigNumber(0);
+               const wantAmount = new BigNumber(this.weWantAmountField);
+               let bestOfferQuality = null;
+               let marketAnalysis: MarketAnalysisItem[] = [];
+               if (offers.length > 0) {
+                    for (const o of offers) {
+                         const offerQuality = new BigNumber(o.quality ?? '0');
+                         if (!bestOfferQuality || offerQuality.lt(bestOfferQuality)) {
+                              bestOfferQuality = offerQuality;
+                         }
+                         if (offerQuality.lte(proposedQuality.times(1 + MAX_SLIPPAGE))) {
+                              const slippage = proposedQuality.minus(offerQuality).dividedBy(offerQuality);
+                              marketAnalysis = [
+                                   {
+                                        key: 'Best Rate',
+                                        value: `1 ${we_want.currency} = ${bestOfferQuality?.toFixed(6) || '0'} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
+                                   },
+                                   {
+                                        key: 'Proposed Rate',
+                                        value: `1 ${we_want.currency} = ${proposedQuality.toFixed(6)} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
+                                   },
+                                   { key: 'Slippage', value: `${slippage.times(100).toFixed(2)}%` },
+                              ];
+                              if (slippage.gt(MAX_SLIPPAGE)) {
+                                   marketAnalysis.push({
+                                        key: 'Warning',
+                                        value: `Slippage ${slippage.times(100).toFixed(2)}% exceeds ${MAX_SLIPPAGE * 100}%`,
+                                   });
+                              }
+                              runningTotal = runningTotal.plus(new BigNumber(o.owner_funds || (typeof o.TakerGets === 'object' && 'value' in o.TakerGets ? o.TakerGets.value : o.TakerGets)));
+                              if (runningTotal.gte(wantAmount)) break;
+                         }
+                    }
+               }
+
+               if (runningTotal.eq(0)) {
+                    const orderBook2 = await client.request({
+                         command: 'book_offers',
+                         taker: wallet.address,
+                         ledger_index: 'current',
+                         taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
+                         taker_pays: we_want,
+                    });
+                    const offeredQuality = new BigNumber(this.weWantAmountField).dividedBy(this.weSpendAmountField);
+                    const offers2 = orderBook2.result.offers;
+                    let runningTotal2 = new BigNumber(0);
+                    let tallyCurrency = we_spend.currency || AppConstants.XRP_CURRENCY;
+                    if (tallyCurrency === AppConstants.XRP_CURRENCY) {
+                         tallyCurrency = 'drops of XRP';
+                    }
+                    if (offers2.length > 0) {
+                         for (const o of offers2) {
+                              if (typeof o.quality !== 'undefined' && Number(o.quality) <= effectiveRate.toNumber()) {
+                                   const bestOfferQuality2 = new BigNumber(o.quality);
+                                   const slippage = proposedQuality.minus(bestOfferQuality2).dividedBy(bestOfferQuality2);
+                                   marketAnalysis = [
+                                        {
+                                             key: 'Best Rate',
+                                             value: `1 ${we_spend.currency || AppConstants.XRP_CURRENCY} = ${bestOfferQuality2.toFixed(6)} ${we_want.currency}`,
+                                        },
+                                        {
+                                             key: 'Proposed Rate',
+                                             value: `1 ${we_spend.currency || AppConstants.XRP_CURRENCY} = ${proposedQuality.toFixed(6)} ${we_want.currency}`,
+                                        },
+                                        { key: 'Slippage', value: `${slippage.times(100).toFixed(2)}%` },
+                                   ];
+                                   if (slippage.gt(MAX_SLIPPAGE)) {
+                                        marketAnalysis.push({
+                                             key: 'Warning',
+                                             value: `Slippage ${slippage.times(100).toFixed(2)}% exceeds ${MAX_SLIPPAGE * 100}%`,
+                                        });
+                                   }
+                                   runningTotal2 = runningTotal2.plus(new BigNumber(o.owner_funds || '0'));
+                              } else {
+                                   break;
+                              }
+                         }
+                         if (runningTotal2.gt(0)) {
+                              marketAnalysis.push({
+                                   key: 'Order Book Position',
+                                   value: `Offer placed below at least ${runningTotal2.toFixed(2)} ${tallyCurrency}`,
+                              });
+                         }
+                    }
+                    if (!offers2.length) {
+                         marketAnalysis.push({
+                              key: 'Order Book Position',
+                              value: 'No similar offers; this would be the first',
+                         });
+                    }
+               }
+               interface MarketAnalysisItem {
+                    key: string;
+                    value: string;
+               }
+
+               data.sections.push({
+                    title: 'Market Analysis',
+                    openByDefault: true,
+                    content: (marketAnalysis.length ? marketAnalysis : [{ key: 'Status', value: 'No matching offers found in order book' }]) as MarketAnalysisItem[],
+               });
+
+               // Properly assign and type we_want1 and we_spend1 for OfferCreate
+               let we_want1: string | { currency: string; issuer: string; value: string };
+               let we_spend1: string | { currency: string; issuer: string; value: string };
+
+               // we_want1
+               if (this.weWantCurrencyField === AppConstants.XRP_CURRENCY) {
+                    if (!this.weWantAmountField) {
+                         throw new Error('weWantAmountField is required for XRP');
+                    }
+                    // XRP is represented as drops (string)
+                    we_want1 = xrpl.xrpToDrops(this.weWantAmountField);
+               } else {
+                    if (!this.weWantAmountField || !this.weWantIssuerField) {
+                         throw new Error('weWantAmountField and weWantIssuerField are required for token');
+                    }
+                    we_want1 = {
+                         currency: this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField,
+                         issuer: this.weWantIssuerField,
+                         value: this.weWantAmountField,
+                    };
+               }
+
+               // we_spend1
+               if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY) {
+                    if (!this.weSpendAmountField) {
+                         throw new Error('weSpendAmountField is required for XRP');
+                    }
+                    we_spend1 = xrpl.xrpToDrops(this.weSpendAmountField);
+               } else {
+                    if (!this.weSpendAmountField || !this.weSpendIssuerField) {
+                         throw new Error('weSpendAmountField and weSpendIssuerField are required for token');
+                    }
+                    we_spend1 = {
+                         currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
+                         issuer: this.weSpendIssuerField,
+                         value: this.weSpendAmountField,
+                    };
+               }
+
+               // Submit OfferCreate transaction
+               let prepared: OfferCreate;
+               if (typeof we_spend1 === 'object') {
+                    // Token case
+                    prepared = await client.autofill({
+                         TransactionType: 'OfferCreate',
+                         Account: wallet.classicAddress,
+                         TakerGets: we_spend1,
+                         TakerPays: we_want1,
+                         Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                    });
+               } else {
+                    // XRP case
+                    prepared = await client.autofill({
+                         TransactionType: 'OfferCreate',
+                         Account: wallet.classicAddress,
+                         TakerGets: we_spend1,
+                         TakerPays: we_want1,
+                         Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                    });
+               }
+
+               const signed = wallet.sign(prepared);
+               console.log(`signed: ${signed}`);
+               const tx = await client.submitAndWait(signed.tx_blob);
+
+               if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               // Balance changes
+               let balanceChanges: { account: string; balances: any[] }[] = [];
+               if (tx.result.meta && typeof tx.result.meta !== 'string') {
+                    balanceChanges = xrpl.getBalanceChanges(tx.result.meta);
+               }
+               // data.sections.push({
+               //      title: 'Balance Changes',
+               //      openByDefault: true,
+               //      content: balanceChanges.length
+               //           ? balanceChanges.flatMap((change, index) =>
+               //                  change.balances.map((bal, balIdx) => ({
+               //                       key: `Change ${index + 1}${change.balances.length > 1 ? `.${balIdx + 1}` : ''}`,
+               //                       value: `${bal.value} ${bal.currency}${bal.issuer ? ` (Issuer: <code>${bal.issuer}</code>)` : ''} for <code>${change.account}</code>`,
+               //                  }))
+               //             )
+               //           : [{ key: 'Status', value: 'No balance changes recorded' }],
+               // });
+
+               // Updated balances
+               const finalXrpBalance = await client.getXrpBalance(wallet.address);
+               const updatedTokenBalance = await this.xrplService.getOnlyTokenBalance(client, wallet.address, tokenBalance);
+               // data.sections.push({
+               //      title: 'Updated Balances',
+               //      openByDefault: true,
+               //      content: [
+               //           { key: 'XRP', value: finalXrpBalance.toString() },
+               //           { key: tokenBalance, value: updatedTokenBalance },
+               //      ],
+               // });
+
+               // Outstanding offers
+               const acctOffers = await this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '');
+               // Helper function to format offer amounts
+               function amt_str(amt: any): string {
+                    if (typeof amt === 'string') {
+                         // Assume XRP in drops
+                         return `${xrpl.dropsToXrp(amt)} XRP`;
+                    } else if (amt && typeof amt === 'object') {
+                         // Assume token object
+                         return `${amt.value} ${amt.currency}${amt.issuer ? ` (Issuer: ${amt.issuer})` : ''}`;
+                    }
+                    return String(amt);
+               }
+               if (acctOffers.result.offers && acctOffers.result.offers.length > 0) {
+                    // data.sections.push({
+                    //      title: `Outstanding Offers (${acctOffers.result.offers.length})`,
+                    //      openByDefault: false,
+                    //      subItems: acctOffers.result.offers.map((offer: any, index: number) => ({
+                    //           key: `Offer ${index + 1}`,
+                    //           openByDefault: false,
+                    //           content: [{ key: 'Sequence', value: offer.seq }, { key: 'TakerGets', value: amt_str(offer.taker_gets) }, { key: 'TakerPays', value: amt_str(offer.taker_pays) }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : [])],
+                    //      })),
+                    // });
+               }
+
+               // Account Details
+               // data.sections.push({
+               //      title: 'Account Details',
+               //      openByDefault: true,
+               //      content: [
+               //           { key: 'Name', value: this.account1.name },
+               //           { key: 'Address', value: `<code>${wallet.address}</code>` },
+               //           { key: 'Final XRP Balance', value: finalXrpBalance.toString() },
+               //      ],
+               // });
+
+               this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving getOffers in ${this.executionTime}ms`);
+          }
      }
-
-     // async createOffer() {
-     //      console.log('Entering createOffer');
-     //      const startTime = Date.now();
-     //      this.spinner = true;
-     //      this.isError = false;
-     //      this.isSuccess = false;
-     //      this.result = AppConstants.EMPTY_STRING;
-     //      if (!this.selectedAccount) {
-     //           return this.setError('Please select an account');
-     //      }
-     //      const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-     //      if (!this.utilsService.validatInput(seed)) {
-     //           return this.setError('ERROR: Account seed cannot be empty');
-     //      }
-
-     //      interface CurrencyObjectXRP {
-     //           currency: string;
-     //           value: string;
-     //      }
-
-     //      interface CurrencyObjectToken {
-     //           currency: string;
-     //           issuer: string;
-     //           value: string;
-     //      }
-
-     //      type CurrencyObject = CurrencyObjectXRP | CurrencyObjectToken;
-
-     //      // const buildCurrencyObject = (currency: string, issuer: string, value: string): CurrencyObject => (currency === AppConstants.XRP_CURRENCY ? { currency, value } : { currency, issuer, value });
-
-     //      // Prepare data for rendering
-     //      const data = {
-     //           sections: [],
-     //      };
-
-     //      // Trust line setup
-     //      let trustSetResult = null;
-     //      const doesTrustLinesExists = await getTrustLines(wallet.address, client);
-     //      if (doesTrustLinesExists.length <= 0) {
-     //           let issuerAddr, issuerCur;
-     //           if (weWantIssuerField.value === AppConstants.XRP_CURRENCY || weWantIssuerField.value === '') {
-     //                issuerAddr = weSpendIssuerField.value;
-     //                issuerCur = weSpendCurrencyField.value;
-     //           } else {
-     //                issuerAddr = weWantIssuerField.value;
-     //                issuerCur = weWantCurrencyField.value;
-     //           }
-
-     //           const current_ledger = await getCurrentLedger(client);
-     //           const trustSetTx = {
-     //                TransactionType: 'TrustSet',
-     //                Account: wallet.address,
-     //                LimitAmount: {
-     //                     currency: issuerCur,
-     //                     issuer: issuerAddr,
-     //                     value: '1000000',
-     //                },
-     //                LastLedgerSequence: current_ledger + 50,
-     //           };
-
-     //           const ts_prepared = await client.autofill(trustSetTx);
-     //           const ts_signed = wallet.sign(ts_prepared);
-     //           trustSetResult = await client.submitAndWait(ts_signed.tx_blob);
-
-     //           if (trustSetResult.result.meta.TransactionResult !== TES_SUCCESS) {
-     //                throw new Error(`Unable to create trustLine from ${wallet.address} to ${issuerAddr}\nTransaction failed: ${trustSetResult.result.meta.TransactionResult}`);
-     //           }
-     //           data.sections.push({
-     //                title: 'Trust Line Setup',
-     //                openByDefault: true,
-     //                content: [
-     //                     { key: 'Status', value: 'Trust line created' },
-     //                     { key: 'Currency', value: issuerCur },
-     //                     { key: 'Issuer', value: `<code>${issuerAddr}</code>` },
-     //                     { key: 'Limit', value: '1000000' },
-     //                ],
-     //           });
-     //      } else {
-     //           data.sections.push({
-     //                title: 'Trust Line Setup',
-     //                openByDefault: true,
-     //                content: [{ key: 'Status', value: 'Trust lines already exist' }],
-     //           });
-     //      }
-
-     //      // Initial balances
-     //      const initialXrpBalance = await client.getXrpBalance(wallet.address);
-     //      console.log(`Initial XRP Balance ${initialXrpBalance} (drops): ${xrpl.xrpToDrops(initialXrpBalance)}`);
-     //      const tokenBalance = weSpendCurrencyField.value === AppConstants.XRP_CURRENCY ? weWantCurrencyField.value : weSpendCurrencyField.value;
-     //      const initialTokenBalance = await getOnlyTokenBalance(client, wallet.address, tokenBalance);
-     //      console.log(`Initial ${tokenBalance} Balance: ${initialTokenBalance}`);
-     //      data.sections.push({
-     //           title: 'Initial Balances',
-     //           openByDefault: true,
-     //           content: [
-     //                { key: 'XRP', value: `${initialXrpBalance} (${xrpl.xrpToDrops(initialXrpBalance)} drops)` },
-     //                { key: tokenBalance, value: initialTokenBalance },
-     //           ],
-     //      });
-
-     //      // Build currency objects
-     //      let we_want = weWantCurrencyField.value === AppConstants.XRP_CURRENCY ? { currency: AppConstants.XRP_CURRENCY, value: weWantAmountField.value } : { currency: weWantCurrencyField.value, issuer: weWantIssuerField.value, value: weWantAmountField.value };
-     //      let we_spend = weSpendCurrencyField.value === AppConstants.XRP_CURRENCY ? { amount: weSpendAmountField.value } : { currency: weSpendCurrencyField.value, issuer: weSpendIssuerField.value, value: weSpendAmountField.value };
-
-     //      // Validate balances
-     //      if (weSpendCurrencyField.value === AppConstants.XRP_CURRENCY && xrpl.xrpToDrops(initialXrpBalance) < Number(weSpendAmountField.value)) {
-     //           throw new Error('Insufficient XRP balance');
-     //      } else if (weSpendCurrencyField.value !== AppConstants.XRP_CURRENCY && initialTokenBalance < weSpendAmountField.value) {
-     //           throw new Error(`Insufficient ${weSpendCurrencyField.value} balance`);
-     //      }
-
-     //      if (we_want.currency.length > 3) {
-     //           we_want.currency = encodeCurrencyCode(we_want.currency);
-     //      }
-     //      if (we_spend.currency && we_spend.currency.length > 3) {
-     //           we_spend.currency = encodeCurrencyCode(we_spend.currency);
-     //      }
-
-     //      const offerType = we_spend.currency ? 'sell' : 'buy';
-     //      console.log(`Type: ${weWantCurrencyField.valueOf}`);
-
-     //      // Rate analysis
-     //      const xrpReserve = await getXrpReserveRequirements(client, wallet.address);
-     //      const proposedQuality = new BigNumber(weSpendAmountField.value).dividedBy(weWantAmountField.value);
-     //      const effectiveRate = calculateEffectiveRate(proposedQuality, xrpReserve, offerType);
-     //      const rateAnalysis = [
-     //           {
-     //                key: 'Proposed Rate',
-     //                value: `1 ${we_want.currency} = ${proposedQuality.toFixed(8)} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
-     //           },
-     //           {
-     //                key: 'Effective Rate',
-     //                value: `1 ${we_want.currency} = ${effectiveRate.toFixed(8)} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
-     //           },
-     //      ];
-     //      if (effectiveRate.gt(proposedQuality)) {
-     //           rateAnalysis.push({
-     //                key: 'Note',
-     //                value: 'Effective rate is worse than proposed due to XRP reserve requirements',
-     //           });
-     //      }
-     //      data.sections.push({
-     //           title: 'Rate Analysis',
-     //           openByDefault: true,
-     //           content: rateAnalysis,
-     //      });
-
-     //      // Market analysis
-     //      const MAX_SLIPPAGE = 0.05;
-     //      const orderBook = await client.request({
-     //           method: 'book_offers',
-     //           taker: wallet.address,
-     //           ledger_index: 'current',
-     //           taker_gets: we_want,
-     //           taker_pays: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: weSpendAmountField.value },
-     //      });
-     //      const oppositeOrderBook = await client.request({
-     //           method: 'book_offers',
-     //           taker: wallet.address,
-     //           ledger_index: 'current',
-     //           taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: weSpendAmountField.value },
-     //           taker_pays: we_want,
-     //      });
-
-     //      const offers = orderBook.result.offers;
-     //      let runningTotal = new BigNumber(0);
-     //      const wantAmount = new BigNumber(weWantAmountField.value);
-     //      let bestOfferQuality = null;
-     //      let marketAnalysis = [];
-     //      if (offers.length > 0) {
-     //           for (const o of offers) {
-     //                const offerQuality = new BigNumber(o.quality);
-     //                if (!bestOfferQuality || offerQuality.lt(bestOfferQuality)) {
-     //                     bestOfferQuality = offerQuality;
-     //                }
-     //                if (offerQuality.lte(proposedQuality.times(1 + MAX_SLIPPAGE))) {
-     //                     const slippage = proposedQuality.minus(offerQuality).dividedBy(offerQuality);
-     //                     marketAnalysis = [
-     //                          {
-     //                               key: 'Best Rate',
-     //                               value: `1 ${we_want.currency} = ${bestOfferQuality?.toFixed(6) || '0'} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
-     //                          },
-     //                          {
-     //                               key: 'Proposed Rate',
-     //                               value: `1 ${we_want.currency} = ${proposedQuality.toFixed(6)} ${we_spend.currency || AppConstants.XRP_CURRENCY}`,
-     //                          },
-     //                          { key: 'Slippage', value: `${slippage.times(100).toFixed(2)}%` },
-     //                     ];
-     //                     if (slippage.gt(MAX_SLIPPAGE)) {
-     //                          marketAnalysis.push({
-     //                               key: 'Warning',
-     //                               value: `Slippage ${slippage.times(100).toFixed(2)}% exceeds ${MAX_SLIPPAGE * 100}%`,
-     //                          });
-     //                     }
-     //                     runningTotal = runningTotal.plus(new BigNumber(o.owner_funds || o.TakerGets.value));
-     //                     if (runningTotal.gte(wantAmount)) break;
-     //                }
-     //           }
-     //      }
-
-     //      if (runningTotal.eq(0)) {
-     //           const orderBook2 = await client.request({
-     //                method: 'book_offers',
-     //                taker: wallet.address,
-     //                ledger_index: 'current',
-     //                taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: weSpendAmountField.value },
-     //                taker_pays: we_want,
-     //           });
-     //           const offeredQuality = new BigNumber(weWantAmountField.value).dividedBy(weSpendAmountField.value);
-     //           const offers2 = orderBook2.result.offers;
-     //           let runningTotal2 = new BigNumber(0);
-     //           let tallyCurrency = we_spend.currency || AppConstants.XRP_CURRENCY;
-     //           if (tallyCurrency === AppConstants.XRP_CURRENCY) {
-     //                tallyCurrency = 'drops of XRP';
-     //           }
-     //           if (offers2.length > 0) {
-     //                for (const o of offers2) {
-     //                     if (o.quality <= effectiveRate.toNumber()) {
-     //                          const bestOfferQuality2 = new BigNumber(o.quality);
-     //                          const slippage = proposedQuality.minus(bestOfferQuality2).dividedBy(bestOfferQuality2);
-     //                          marketAnalysis = [
-     //                               {
-     //                                    key: 'Best Rate',
-     //                                    value: `1 ${we_spend.currency || AppConstants.XRP_CURRENCY} = ${bestOfferQuality2.toFixed(6)} ${we_want.currency}`,
-     //                               },
-     //                               {
-     //                                    key: 'Proposed Rate',
-     //                                    value: `1 ${we_spend.currency || AppConstants.XRP_CURRENCY} = ${proposedQuality.toFixed(6)} ${we_want.currency}`,
-     //                               },
-     //                               { key: 'Slippage', value: `${slippage.times(100).toFixed(2)}%` },
-     //                          ];
-     //                          if (slippage.gt(MAX_SLIPPAGE)) {
-     //                               marketAnalysis.push({
-     //                                    key: 'Warning',
-     //                                    value: `Slippage ${slippage.times(100).toFixed(2)}% exceeds ${MAX_SLIPPAGE * 100}%`,
-     //                               });
-     //                          }
-     //                          runningTotal2 = runningTotal2.plus(new BigNumber(o.owner_funds));
-     //                     } else {
-     //                          break;
-     //                     }
-     //                }
-     //                if (runningTotal2.gt(0)) {
-     //                     marketAnalysis.push({
-     //                          key: 'Order Book Position',
-     //                          value: `Offer placed below at least ${runningTotal2.toFixed(2)} ${tallyCurrency}`,
-     //                     });
-     //                }
-     //           }
-     //           if (!offers2.length) {
-     //                marketAnalysis.push({
-     //                     key: 'Order Book Position',
-     //                     value: 'No similar offers; this would be the first',
-     //                });
-     //           }
-     //      }
-     //      data.sections.push({
-     //           title: 'Market Analysis',
-     //           openByDefault: true,
-     //           content: marketAnalysis.length ? marketAnalysis : [{ key: 'Status', value: 'No matching offers found in order book' }],
-     //      });
-
-     //      // Submit OfferCreate transaction
-     //      let prepared;
-     //      if (we_spend.currency) {
-     //           prepared = await client.autofill({
-     //                TransactionType: 'OfferCreate',
-     //                Account: wallet.address,
-     //                TakerGets: we_spend,
-     //                TakerPays: we_want.value,
-     //                Flags: isMarketOrder ? xrpl.OfferCreateFlags.tfImmediateOrCancel : 0,
-     //           });
-     //      } else {
-     //           prepared = await client.autofill({
-     //                TransactionType: 'OfferCreate',
-     //                Account: wallet.address,
-     //                TakerGets: we_spend.amount,
-     //                TakerPays: we_want,
-     //                Flags: isMarketOrder ? xrpl.OfferCreateFlags.tfImmediateOrCancel : 0,
-     //           });
-     //      }
-
-     //      const signed = wallet.sign(prepared);
-     //      const tx = await client.submitAndWait(signed.tx_blob);
-
-     //      // Transaction result
-     //      if (tx.result.meta.TransactionResult !== TES_SUCCESS) {
-     //           data.sections.push({
-     //                title: 'Transaction Details',
-     //                openByDefault: true,
-     //                content: [
-     //                     { key: 'Status', value: `Transaction failed: ${tx.result.meta.TransactionResult}` },
-     //                     { key: 'Details', value: parseXRPLTransaction(tx.result) },
-     //                ],
-     //           });
-     //           throw new Error(`Transaction failed: ${tx.result.meta.TransactionResult}`);
-     //      }
-
-     //      // Transaction Details sections
-     //      const transactionSections = buildTransactionSections(tx);
-     //      data.sections.push(...Object.values(transactionSections));
-
-     //      // Balance changes
-     //      const balanceChanges = xrpl.getBalanceChanges(tx.result.meta);
-     //      data.sections.push({
-     //           title: 'Balance Changes',
-     //           openByDefault: true,
-     //           content: balanceChanges.length
-     //                ? balanceChanges.map((change, index) => ({
-     //                       key: `Change ${index + 1}`,
-     //                       value: `${change.balance} ${change.currency}${change.issuer ? ` (Issuer: <code>${change.issuer}</code>)` : ''} for <code>${change.account}</code>`,
-     //                  }))
-     //                : [{ key: 'Status', value: 'No balance changes recorded' }],
-     //      });
-
-     //      // Affected offers
-     //      let offersAffected = 0;
-     //      for (const node of tx.result.meta.AffectedNodes) {
-     //           if (node.ModifiedNode?.LedgerEntryType === 'Offer' || node.DeletedNode?.LedgerEntryType === 'Offer') {
-     //                offersAffected += 1;
-     //           } else if (node.CreatedNode?.LedgerEntryType === 'Offer') {
-     //                const offer = node.CreatedNode.NewFields;
-     //                data.sections.push({
-     //                     title: 'Created Offer',
-     //                     openByDefault: true,
-     //                     content: [
-     //                          { key: 'Owner', value: `<code>${offer.Account}</code>` },
-     //                          { key: 'TakerGets', value: amt_str(offer.TakerGets) },
-     //                          { key: 'TakerPays', value: amt_str(offer.TakerPays) },
-     //                     ],
-     //                });
-     //           } else if (node.CreatedNode?.LedgerEntryType === 'RippleState') {
-     //                data.sections[0].content.push({ key: 'Additional Note', value: 'Created a trust line' });
-     //           }
-     //      }
-     //      if (offersAffected > 0) {
-     //           data.sections.push({
-     //                title: 'Affected Offers',
-     //                openByDefault: true,
-     //                content: [{ key: 'Count', value: `Modified or removed ${offersAffected} matching offer(s)` }],
-     //           });
-     //      }
-
-     //      // Updated balances
-     //      const finalXrpBalance = await client.getXrpBalance(wallet.address);
-     //      const updatedTokenBalance = await getOnlyTokenBalance(client, wallet.address, tokenBalance);
-     //      data.sections.push({
-     //           title: 'Updated Balances',
-     //           openByDefault: true,
-     //           content: [
-     //                { key: 'XRP', value: finalXrpBalance },
-     //                { key: tokenBalance, value: updatedTokenBalance },
-     //           ],
-     //      });
-
-     //      // Update token balance fields
-     //      if (weWantCurrencyField.value === AppConstants.XRP_CURRENCY) {
-     //           document.getElementById('weWantTokenBalanceField').value = finalXrpBalance;
-     //           document.getElementById('weSpendTokenBalanceField').value = updatedTokenBalance;
-     //      } else {
-     //           document.getElementById('weWantTokenBalanceField').value = updatedTokenBalance;
-     //           document.getElementById('weSpendTokenBalanceField').value = finalXrpBalance;
-     //      }
-
-     //      // Outstanding offers
-     //      const acctOffers = await client.request({
-     //           command: 'account_offers',
-     //           account: wallet.address,
-     //           ledger_index: 'validated',
-     //      });
-     //      if (acctOffers.result.offers.length > 0) {
-     //           data.sections.push({
-     //                title: `Outstanding Offers (${acctOffers.result.offers.length})`,
-     //                openByDefault: false,
-     //                subItems: acctOffers.result.offers.map((offer, index) => ({
-     //                     key: `Offer ${index + 1}`,
-     //                     openByDefault: false,
-     //                     content: [{ key: 'Sequence', value: offer.seq }, { key: 'TakerGets', value: amt_str(offer.taker_gets) }, { key: 'TakerPays', value: amt_str(offer.taker_pays) }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : [])],
-     //                })),
-     //           });
-     //      }
-
-     //      // Account Details
-     //      // data.sections.push({
-     //      //      title: 'Account Details',
-     //      //      openByDefault: true,
-     //      //      content: [
-     //      //           { key: 'Name', value: accountNameField.value },
-     //      //           { key: 'Address', value: `<code>${wallet.address}</code>` },
-     //      //           { key: 'Final XRP Balance', value: finalXrpBalance },
-     //      //      ],
-     //      // });
-
-     //      // Server Info
-     //      // data.sections.push({
-     //      //      title: 'Server Info',
-     //      //      openByDefault: false,
-     //      //      content: [{ key: 'Environment', value: environment }, { key: 'Network', value: net }, { key: 'Server Version', value: serverVersion }, ...(parseFloat(serverVersion) < 1.9 ? [{ key: 'Warning', value: 'Server version may not fully support offer creation (requires rippled 1.9.0 or higher)' }] : [])],
-     //      // });
-
-     //      // Render data
-     //      renderCreateOfferDetails(data);
-     // }
 
      async cancelOffer() {
           console.log('Entering cancelOffer');
           const startTime = Date.now();
+          this.setSuccessProperties();
+
+          if (!this.selectedAccount) {
+               return this.setError('Please select an account');
+          }
+
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          if (!this.utilsService.validatInput(seed)) {
+               return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          const offerSequenceArray = this.offerSequenceField.split(',').map(seq => seq.trim());
+          if (offerSequenceArray.length === 0 || offerSequenceArray.every(seq => !seq)) {
+               return this.setError('ERROR: Offer Sequence field cannot be empty');
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+
+               let wallet;
+               if (seed.split(' ').length > 1) {
+                    wallet = xrpl.Wallet.fromMnemonic(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               } else {
+                    wallet = xrpl.Wallet.fromSeed(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               }
+
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Offers\n\n`;
+
+               // Define interfaces for rendering
+               interface SectionContent {
+                    key: string;
+                    value: string;
+               }
+
+               interface SectionSubItem {
+                    key: string;
+                    openByDefault: boolean;
+                    content: SectionContent[];
+               }
+
+               interface Section {
+                    title: string;
+                    openByDefault: boolean;
+                    content?: SectionContent[];
+                    subItems?: SectionSubItem[];
+               }
+
+               const data: { sections: Section[] } = {
+                    sections: [],
+               };
+
+               // Collect all transaction results
+               const transactions: { type: string; result: any }[] = [];
+               let hasError = false;
+
+               for (const element of offerSequenceArray) {
+                    if (isNaN(parseFloat(element))) {
+                         hasError = true;
+                         transactions.push({
+                              type: 'OfferCancel',
+                              result: {
+                                   error: `Invalid Offer Sequence: ${element} is not a valid number`,
+                                   OfferSequence: element,
+                              },
+                         });
+                         continue;
+                    }
+
+                    const offerSequence = parseInt(element);
+                    if (offerSequence <= 0) {
+                         hasError = true;
+                         transactions.push({
+                              type: 'OfferCancel',
+                              result: {
+                                   error: `Invalid Offer Sequence: ${element} must be greater than zero`,
+                                   OfferSequence: element,
+                              },
+                         });
+                         continue;
+                    }
+
+                    try {
+                         const prepared = await client.autofill({
+                              TransactionType: 'OfferCancel',
+                              Account: wallet.classicAddress,
+                              OfferSequence: offerSequence,
+                         });
+
+                         const signed = wallet.sign(prepared);
+                         const tx = await client.submitAndWait(signed.tx_blob);
+
+                         transactions.push({
+                              type: 'OfferCancel',
+                              result: tx,
+                         });
+
+                         if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                              hasError = true;
+                         }
+                    } catch (error: any) {
+                         hasError = true;
+                         transactions.push({
+                              type: 'OfferCancel',
+                              result: {
+                                   error: `Error cancelling offer ${element}: ${error.message || 'Unknown error'}`,
+                                   OfferSequence: element,
+                              },
+                         });
+                    }
+               }
+
+               // Add detailed transaction data to data.sections
+               const transactionDetails: SectionSubItem[] = transactions.map((tx, index) => {
+                    const result = tx.result || {};
+                    console.log('result: ', result);
+                    const isSuccess = !result.error && result.meta?.TransactionResult === AppConstants.TRANSACTION.TES_SUCCESS;
+                    const content: SectionContent[] = [
+                         { key: 'Transaction Type', value: 'OfferCancel' },
+                         { key: 'Offer Sequence', value: `<code>${result.result.tx_json.OfferSequence || 'N/A'}</code>` },
+                         { key: 'Sequence', value: `<code>${result.result.tx_json.Sequence || 'N/A'}</code>` },
+                         { key: 'Hash', value: result.result.hash ? `<code>${result.result.hash}</code>` : 'N/A' },
+                         { key: 'Result', value: result.error ? `<span class="error-result">${result.error}</span>` : result.meta?.TransactionResult || 'N/A' },
+                         { key: 'Ledger Index', value: result.result.ledger_index || 'N/A' },
+                         { key: 'Validated', value: result.result.validated !== undefined ? result.result.validated.toString() : 'N/A' },
+                         { key: 'Date', value: result.result.close_time_iso ? new Date(result.result.close_time_iso).toLocaleString() : result.result.close_time_iso || 'N/A' },
+                    ];
+
+                    // Add Account if available
+                    if (result.result.tx_json?.Account) {
+                         content.push({ key: 'Account', value: `<code>${result.result.tx_json.Account}</code>` });
+                    }
+
+                    // Add Meta Data if available
+                    if (result.result.meta) {
+                         content.push({ key: 'Transaction Index', value: result.result.meta.TransactionIndex || 'N/A' }, { key: 'Delivered Amount', value: result.result.meta.delivered_amount ? this.utilsService.formatAmount(result.result.meta.delivered_amount) : 'N/A' });
+                    }
+
+                    return {
+                         key: `OfferCancel ${index + 1} (Sequence: ${result.result.tx_json.OfferSequence || result.result.tx_json?.OfferSequence || 'Unknown'})`,
+                         openByDefault: !isSuccess, // Open by default if failed
+                         content,
+                    };
+               });
+
+               data.sections.push({
+                    title: `Offer Cancellation Details (${transactions.length})`,
+                    openByDefault: true,
+                    subItems: transactionDetails,
+               });
+
+               console.log('transactions', transactions);
+               // Add summary section
+               data.sections.push({
+                    title: 'Offer Cancellation Summary',
+                    openByDefault: true,
+                    content: [
+                         {
+                              key: 'Status',
+                              value: hasError ? 'Some offer cancellations failed' : 'All offers cancelled successfully',
+                         },
+                         {
+                              key: 'Total Offers Processed',
+                              value: String(transactions.length),
+                         },
+                         {
+                              key: 'Successful Cancellations',
+                              value: String(transactions.filter(tx => !tx.result.error && tx.result.result.meta?.TransactionResult === AppConstants.TRANSACTION.TES_SUCCESS).length),
+                         },
+                    ],
+               });
+
+               // Render detailed transaction results
+               this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
+
+               // Render summary and details in data.sections
+               this.utilsService.renderPaymentChannelDetails(data);
+
+               if (hasError) {
+                    this.setErrorProperties();
+               } else {
+                    this.setSuccess(this.result);
+               }
+
+               this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving cancelOffer in ${this.executionTime}ms`);
+          }
      }
 
      async getTokenBalance() {
           console.log('Entering getTokenBalance');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = AppConstants.EMPTY_STRING;
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -866,13 +1142,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               // Fetch token balances
-               const balance = await client.request({
-                    command: 'gateway_balances',
-                    account: wallet.classicAddress,
-                    ledger_index: 'validated',
-               });
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Token Balances\n\n`;
 
+               // Fetch token balances
+               const balance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
                console.log('balance', balance);
 
                // Prepare data for rendering
@@ -962,23 +1235,9 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
 
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
+               this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const xrpBalance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = xrpBalance.toString();
-               } else {
-                    this.account2.balance = xrpBalance.toString();
-               }
+               this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -990,8 +1249,6 @@ export class CreateOfferComponent implements AfterViewChecked {
      }
 
      invertOrder() {
-          console.log('Entering invertOrder');
-
           const weWantCurrencyElem = document.getElementById('weWantCurrencyField') as HTMLInputElement | null;
           const weWantIssuerElem = document.getElementById('weWantIssuerField') as HTMLInputElement | null;
           const weWantAmountElem = document.getElementById('weWantAmountField') as HTMLInputElement | null;
@@ -1241,6 +1498,9 @@ export class CreateOfferComponent implements AfterViewChecked {
      }
 
      async onWeWantCurrencyChange() {
+          console.log('Entering onWeWantCurrencyChange');
+          const startTime = Date.now();
+
           if (!this.selectedAccount) {
                this.setError('Please select an account');
                this.weWantTokenBalanceField = '0';
@@ -1270,10 +1530,15 @@ export class CreateOfferComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving onWeWantCurrencyChange in ${this.executionTime}ms`);
           }
      }
 
      async onWeSpendCurrencyChange() {
+          console.log('Entering onWeSpendCurrencyChange');
+          const startTime = Date.now();
+
           if (!this.selectedAccount) {
                this.setError('Please select an account');
                this.weSpendTokenBalanceField = '0';
@@ -1287,9 +1552,6 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-
                this.spinner = true;
                let balance: string;
                if (this.weSpendCurrencyField === 'XRP') {
@@ -1306,17 +1568,18 @@ export class CreateOfferComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving onWeSpendCurrencyChange in ${this.executionTime}ms`);
           }
      }
 
      async getCurrencyBalance(address: string, currency: string, issuer?: string): Promise<string | null> {
+          console.log('Entering getCurrencyBalance');
+          const startTime = Date.now();
+
           try {
                const client = await this.xrplService.getClient();
-               const balanceResponse = await client.request({
-                    command: 'gateway_balances',
-                    account: address,
-                    ledger_index: 'validated',
-               });
+               const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
 
                let tokenTotal = 0;
                if (balanceResponse.result.assets) {
@@ -1338,40 +1601,18 @@ export class CreateOfferComponent implements AfterViewChecked {
           } catch (error: any) {
                console.error('Error fetching token balance:', error);
                throw error;
+          } finally {
+               this.spinner = false;
+               this.cdr.detectChanges();
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving getCurrencyBalance in ${this.executionTime}ms`);
           }
      }
 
-     // async getCurrencyBalance(address: string, currency: string): Promise<string | null> {
-     //      try {
-     //           const client = await this.xrplService.getClient();
-     //           const balanceResponse = await client.request({
-     //                command: 'gateway_balances',
-     //                account: address,
-     //                ledger_index: 'validated',
-     //           });
-
-     //           let tokenTotal = 0;
-     //           if (balanceResponse.result.assets) {
-     //                Object.entries(balanceResponse.result.assets).forEach(([_, assets]) => {
-     //                     assets.forEach((asset: any) => {
-     //                          let assetCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
-     //                          if (currency === assetCurrency) {
-     //                               const value = parseFloat(asset.value);
-     //                               if (!isNaN(value)) {
-     //                                    tokenTotal += value;
-     //                               }
-     //                          }
-     //                     });
-     //                });
-     //           }
-     //           return tokenTotal > 0 ? (Math.round(tokenTotal * 100) / 100).toString() : '0';
-     //      } catch (error: any) {
-     //           console.error('Error fetching token balance:', error);
-     //           throw error;
-     //      }
-     // }
-
      async getXrpBalance(address: string): Promise<string> {
+          console.log('Entering getXrpBalance');
+          const startTime = Date.now();
+
           try {
                const client = await this.xrplService.getClient();
                const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
@@ -1382,12 +1623,15 @@ export class CreateOfferComponent implements AfterViewChecked {
           } catch (error: any) {
                console.error('Error fetching XRP balance:', error);
                throw error;
+          } finally {
+               this.spinner = false;
+               this.cdr.detectChanges();
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving getXrpBalance in ${this.executionTime}ms`);
           }
      }
 
      async displayOfferDataForAccount1() {
-          console.log('Entering displayOfferDataForAccount1');
-          const startTime = Date.now();
           const account1name = this.storageService.getInputValue('account1name');
           const account1address = this.storageService.getInputValue('account1address');
           const account2address = this.storageService.getInputValue('account2address');
@@ -1395,25 +1639,19 @@ export class CreateOfferComponent implements AfterViewChecked {
           const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
           const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
           const memoField = document.getElementById('memoField') as HTMLInputElement | null;
           const weWantAmountField = document.getElementById('weWantAmountField') as HTMLInputElement | null;
-          const weWantCurrencyField = document.getElementById('weWantCurrencyField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account1name || AppConstants.EMPTY_STRING;
-          if (accountAddress1Field) accountAddress1Field.value = account1address || AppConstants.EMPTY_STRING;
-          if (accountSeed1Field) {
-               if (account1seed === AppConstants.EMPTY_STRING) {
-                    if (account1mnemonic === AppConstants.EMPTY_STRING) {
-                         accountSeed1Field.value = account1secretNumbers || AppConstants.EMPTY_STRING;
-                    } else {
-                         accountSeed1Field.value = account1mnemonic || AppConstants.EMPTY_STRING;
-                    }
+          this.account1.name = account1name || '';
+          this.account1.address = account1address || '';
+          if (account1seed === '') {
+               if (account1mnemonic === '') {
+                    this.account1.seed = account1secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account1seed || AppConstants.EMPTY_STRING;
+                    this.account1.seed = account1mnemonic || '';
                }
+          } else {
+               this.account1.seed = account1seed || '';
           }
 
           this.weWantAmountField = '1';
@@ -1428,41 +1666,39 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.memoField = AppConstants.EMPTY_STRING;
           }
 
-          try {
-               // const { environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-               // const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(account1seed, environment);
-               // this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account1address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account1address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account1.balance', this.account1.balance);
-
-               // Fetch initial balances for weWant and weSpend currencies
-               await this.onWeWantCurrencyChange();
-               await this.onWeSpendCurrencyChange();
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
-          }
-
+          await this.onWeWantCurrencyChange();
+          await this.onWeSpendCurrencyChange();
           this.getOffers();
      }
 
-     private setError(message: string) {
-          this.isError = true;
+     private setErrorProperties() {
           this.isSuccess = false;
-          this.result = `${message}`;
+          this.isError = true;
           this.spinner = false;
      }
 
-     public setSuccess(message: string) {
-          this.result = `${message}`;
-          this.isError = false;
+     private setError(message: string) {
+          this.setErrorProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
+     }
+
+     private setSuccessProperties() {
           this.isSuccess = true;
+          this.isError = false;
+          this.spinner = true;
+          this.result = '';
+     }
+
+     private setSuccess(message: string) {
+          this.setSuccessProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
      }
 }

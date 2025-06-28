@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
@@ -12,6 +12,7 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { sign } from 'ripple-keypairs';
 import { WithImplicitCoercion } from 'buffer';
+import { Subscription } from 'rxjs';
 
 interface EscrowObject {
      index: string;
@@ -36,9 +37,9 @@ interface EscrowObject {
 })
 export class CreateTimeEscrowComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
+     @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
      private lastResult: string = '';
-     private intervalId: any;
      transactionInput = '';
      result: string = '';
      isError: boolean = false;
@@ -60,23 +61,16 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      escrowCancelTimeField = '';
      escrowOwnerField = '';
      escrowSequenceNumberField = '';
-     // currentTimeField = '';
      memoField = '';
      isMultiSignTransaction = false;
      multiSignAddress = '';
      spinner = false;
+     spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     ngOnInit(): void {
-          console.log('DOM fully loaded at', new Date().toISOString());
-
-          // this.updateTimeField(); // Set initial time
-
-          // // Update every 5 seconds
-          // this.intervalId = setInterval(() => {
-          //      this.updateTimeField();
-          // }, 5000);
+     ngAfterViewInit() {
+          this.cdr.detectChanges();
      }
 
      ngAfterViewChecked() {
@@ -109,30 +103,20 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
      }
 
-     // updateTimeField(): void {
-     //      this.currentTimeField = this.utilsService.convertToEstTime(new Date().toISOString());
-     // }
-
-     ngOnDestroy(): void {
-          if (this.intervalId) {
-               clearInterval(this.intervalId);
-          }
-     }
-
      async getEscrows() {
           console.log('Entering getEscrows');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -148,14 +132,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Escrows\n\n`;
 
-               const tx = await client.request({
-                    command: 'account_objects',
-                    account: wallet.classicAddress,
-                    type: 'escrow',
-                    ledger_index: 'validated',
-               });
-
-               console.log('Escrow objects:', tx);
+               const tx = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               console.debug('Escrow objects:', tx);
 
                const data = {
                     sections: [{}],
@@ -216,27 +194,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
 
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
+               this.setSuccess(this.result);
 
-               // if (this.currentTimeField) {
-               //      this.currentTimeField = this.utilsService.convertToEstTime(new Date().toISOString());
-               // }
-
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -250,25 +210,27 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      async createTimeBasedEscrow() {
           console.log('Entering createTimeBasedEscrow');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
+          if (!this.utilsService.validatInput(this.destinationField)) {
+               return this.setError('ERROR: Destination cannot be empty');
+          }
+
           if (!this.utilsService.validatInput(this.amountField)) {
                return this.setError('ERROR: XRP Amount cannot be empty');
           }
+
           if (parseFloat(this.amountField) <= 0) {
                return this.setError('ERROR: XRP Amount must be a positive number');
-          }
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
           }
 
           const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
@@ -339,35 +301,16 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
                this.resultField.nativeElement.innerHTML += `Escrow created successfully.\n\n`;
-
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-               // if (this.currentTimeField) {
-               //      this.currentTimeField = this.utilsService.convertToEstTime(new Date().toISOString());
-               // }
-
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
-
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -381,17 +324,17 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      async finishTimeBasedEscrow() {
           console.log('Entering finishTimeBasedEscrow');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -422,6 +365,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
@@ -429,28 +373,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-               // if (this.currentTimeField) {
-               //      this.currentTimeField = this.utilsService.convertToEstTime(new Date().toISOString());
-               // }
-
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
-
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -464,17 +389,17 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      async cancelEscrow() {
           console.log('Entering cancelEscrow');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
+
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -505,35 +430,16 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
                this.resultField.nativeElement.innerHTML += `Escrow cancelled successfully.\n\n`;
-
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-               // if (this.currentTimeField) {
-               //      this.currentTimeField = this.utilsService.convertToEstTime(new Date().toISOString());
-               // }
-
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
-
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -544,9 +450,15 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
      }
 
+     private async updateXrpBalance(client: xrpl.Client, address: string) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
+          const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
+          this.account1.balance = balance.toString();
+     }
+
      async displayDataForAccount1() {
-          console.log('Entering displayDataForAccount1');
-          const startTime = Date.now();
           const account1name = this.storageService.getInputValue('account1name');
           const account1address = this.storageService.getInputValue('account1address');
           const account2address = this.storageService.getInputValue('account2address');
@@ -554,24 +466,19 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
           const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
           const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
           const escrowOwnerField = document.getElementById('escrowOwnerField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account1name || '';
-          if (accountAddress1Field) accountAddress1Field.value = account1address || '';
-          if (accountSeed1Field) {
-               if (account1seed === '') {
-                    if (account1mnemonic === '') {
-                         accountSeed1Field.value = account1secretNumbers || '';
-                    } else {
-                         accountSeed1Field.value = account1mnemonic || '';
-                    }
+          this.account1.name = account1name || '';
+          this.account1.address = account1address || '';
+          if (account1seed === '') {
+               if (account1mnemonic === '') {
+                    this.account1.seed = account1secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account1seed || '';
+                    this.account1.seed = account1mnemonic || '';
                }
+          } else {
+               this.account1.seed = account1seed || '';
           }
 
           if (destinationField) {
@@ -582,30 +489,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.escrowOwnerField = account1address;
           }
 
-          try {
-               const { environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(account1seed, environment);
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account1address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account1address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account1.balance', this.account1.balance);
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
-          }
-
           this.getEscrows();
      }
 
      async displayDataForAccount2() {
-          console.log('Entering displayDataForAccount2');
-          const startTime = Date.now();
           const account2name = this.storageService.getInputValue('account2name');
           const account1address = this.storageService.getInputValue('account1address');
           const account2address = this.storageService.getInputValue('account2address');
@@ -613,24 +500,19 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
           const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
           const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
           const escrowOwnerField = document.getElementById('escrowOwnerField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account2name || '';
-          if (accountAddress1Field) accountAddress1Field.value = account2address || '';
-          if (accountSeed1Field) {
-               if (account2seed === '') {
-                    if (account2mnemonic === '') {
-                         accountSeed1Field.value = account2secretNumbers || '';
-                    } else {
-                         accountSeed1Field.value = account2mnemonic || '';
-                    }
+          this.account1.name = account2name || '';
+          this.account1.address = account2address || '';
+          if (account2seed === '') {
+               if (account2mnemonic === '') {
+                    this.account1.seed = account2secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account2seed || '';
+                    this.account1.seed = account2mnemonic || '';
                }
+          } else {
+               this.account1.seed = account2seed || '';
           }
 
           if (destinationField) {
@@ -641,37 +523,37 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.escrowOwnerField = account2address;
           }
 
-          try {
-               const { environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(account2seed, environment);
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account2address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account2address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account2.balance', this.account1.balance);
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
-          }
-
           this.getEscrows();
      }
 
-     private setError(message: string) {
-          this.isError = true;
+     private setErrorProperties() {
           this.isSuccess = false;
-          this.result = `${message}`;
+          this.isError = true;
           this.spinner = false;
      }
 
-     public setSuccess(message: string) {
-          this.result = `${message}`;
-          this.isError = false;
+     private setError(message: string) {
+          this.setErrorProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
+     }
+
+     private setSuccessProperties() {
           this.isSuccess = true;
+          this.isError = false;
+          this.spinner = true;
+          this.result = '';
+     }
+
+     private setSuccess(message: string) {
+          this.setSuccessProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
      }
 }

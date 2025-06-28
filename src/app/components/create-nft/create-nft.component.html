@@ -1,1 +1,301 @@
-<p>create-nft works!</p>
+<div id="navbar-container">
+     <app-navbar></app-navbar>
+</div>
+<form id="theForm">
+     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+
+     <fieldset>
+          <legend style="color: white">Transaction Information</legend>
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                              <label for="accountName1Field">Name</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                         <label for="account1">Account 1</label>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                              <label for="accountAddress1Field">Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                         <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                         <label for="account2">Account 2</label>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                              <label for="accountSeed1Field">Seed</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                    </td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                              <label for="xrpBalance1Field">Spendable XRP Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                              <label for="ownerCountField">Owner Count</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                              <label for="totalXrpReservesField">Total XRP Reserves</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                              <label for="totalExecutionTime">Total Execution Time in ms</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                    </td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <div style="display: flex; gap: 30px; align-items: center">
+                              <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it" style="display: flex; align-items: center">
+                                   <label for="burnableNft" style="margin-bottom: 0">Burnable</label>
+                                   <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" style="margin-left: 5px" />
+                              </span>
+                              <span class="tooltip" tooltip-data="NFT can only be bought/sold using XRP (no issued tokens)" style="display: flex; align-items: center">
+                                   <label for="onlyXrpNft" style="margin-bottom: 0">Only XRP</label>
+                                   <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" style="margin-left: 5px" />
+                              </span>
+                         </div>
+                    </td>
+                    <td></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right; vertical-align: top">
+                         <div style="display: flex; gap: 30px; align-items: center">
+                              <span class="tooltip" tooltip-data="Allows the NFT to be transferred to others" style="display: flex; align-items: center">
+                                   <label for="transferableNft" style="margin-bottom: 0">Transferable</label>
+                                   <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" style="margin-left: 5px" />
+                              </span>
+                              <span class="tooltip" tooltip-data="The URI field of the minted NFToken can be updated using the NFTokenModify transaction" style="display: flex; align-items: center">
+                                   <label for="mutableNft" style="margin-bottom: 0">Mutable</label>
+                                   <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" style="margin-left: 5px" />
+                              </span>
+                         </div>
+                    </td>
+                    <td></td>
+               </tr>
+
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma seperated list">
+                              <label for="multiSignAddress">Multi-Sign Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea class="memoField" style="width: 300px" id="multiSignAddress" placeholder="Comma seperated list of address for multi sign" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                         <br />
+                    </td>
+               </tr>
+          </table>
+
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Amount of XRP to send.">
+                              <label for="amountField">Amount</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Address to allow minting of NFTs on your behalf.">
+                              <label for="minterAddressField">Minter Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="minterAddressField" size="40" [(ngModel)]="minterAddressField" name="minterAddressField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Issuer field for authorized minting.">
+                              <label for="issuerAddressField">Issuer Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="issuerAddressField" size="40" [(ngModel)]="issuerAddressField" name="issuerAddressField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="The NFT sell will expire after the expiration date. This is in hours.">
+                              <label for="expirationField">Expiration Date (Hours)</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="expirationField" size="40" [(ngModel)]="expirationField" name="expirationField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="URI field for the minted NFT.">
+                              <label for="uriField">URI Field</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="uriField" size="85" [(ngModel)]="uriField" name="uriField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="NFT Id to use for transactions.">
+                              <label for="nftIdField">Nft Token Id</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="nftIdField" size="85" [(ngModel)]="nftIdField" name="nftIdField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="NFT index used to cancel sell offers.">
+                              <label for="nftIndexField">Nft Index</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="nftIndexField" size="85" [(ngModel)]="nftIndexField" name="nftIndexField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Number of NFT's to mint at 1 time.">
+                              <label for="nftCountField">Batch Nft Count</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="nftCountField" size="85" [(ngModel)]="nftCountField" name="nftCountField" />
+                         <br />
+                    </td>
+               </tr>
+          </table>
+
+          <div class="spinner-container">
+               <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+               <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+          </div>
+
+          <table style="text-align: left; width: 100%">
+               <th></th>
+               <tr>
+                    <td colspan="2">
+                         <button type="button" (click)="getNFT()">Get NFTs</button>
+                         <button type="button" (click)="mintNFT()">Mint NFT</button>
+                         <!-- <button type="button" (click)="mintBatchNFT()">Mint Batch NFTs</button> -->
+                         <button type="button" (click)="burnNFT()">Burn NFTs</button>
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2">
+                         <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
+                         <button type="button" (click)="buyNFT()">Create Buy Offer NFT</button>
+                         <button type="button" (click)="cancelBuyOffer()">Cancel Buy Offer NFT</button>
+                         <button type="button" (click)="sellNFT()">Create Sell Offer NFT</button>
+                         <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2">
+                         <button type="button" (click)="setAuthorizedMinter()">Set Authorized Minter</button>
+                         <button type="button" (click)="updateNFTMetadata()">Update NFT Metadata</button>
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2">
+                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                    </td>
+               </tr>
+          </table>
+     </fieldset>
+
+     <details class="account-flag-info">
+          <summary>NFT Flag Info</summary>
+          <fieldset class="flag-fieldset">
+               <div class="flag-table">
+                    <!-- Header Row -->
+                    <div class="flag-row flag-header">
+                         <div class="flag-cell">Flag Name</div>
+                         <div class="flag-cell">Hex Value</div>
+                         <div class="flag-cell">Decimal Value</div>
+                         <div class="flag-cell">Description</div>
+                    </div>
+                    <!-- Data Rows -->
+                    <div class="flag-row">
+                         <div class="flag-cell">tfBurnable</div>
+                         <div class="flag-cell">0x00000001</div>
+                         <div class="flag-cell">1</div>
+                         <div class="flag-cell">Allows anyone to burn the NFT if they hold it.</div>
+                    </div>
+                    <div class="flag-row">
+                         <div class="flag-cell">tfOnlyXRP</div>
+                         <div class="flag-cell">0x00000002</div>
+                         <div class="flag-cell">2</div>
+                         <div class="flag-cell">NFT can only be bought/sold using XRP (no issued tokens).</div>
+                    </div>
+                    <div class="flag-row">
+                         <div class="flag-cell">tfTransferable</div>
+                         <div class="flag-cell">0x00000008</div>
+                         <div class="flag-cell">8</div>
+                         <div class="flag-cell">Allows the NFT to be transferred to others.</div>
+                    </div>
+                    <div class="flag-row">
+                         <div class="flag-cell">tfMutable</div>
+                         <div class="flag-cell">0x00000010</div>
+                         <div class="flag-cell">16</div>
+                         <div class="flag-cell">The URI field of the minted NFToken can be updated using the NFTokenModify transaction.</div>
+                    </div>
+               </div>
+               <p class="nft-note">Note: Each NFT offer reserves 0.2 XRP on your account until accepted or canceled.</p>
+          </fieldset>
+     </details>
+</form>

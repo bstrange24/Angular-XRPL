@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
@@ -20,41 +20,32 @@ import { AppConstants } from '../../core/app.constants';
 })
 export class SendXrpComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
+     @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
-     private lastResult: string = AppConstants.EMPTY_STRING;
-     transactionInput = AppConstants.EMPTY_STRING;
-     result: string = AppConstants.EMPTY_STRING;
+     private lastResult: string = '';
+     transactionInput = '';
+     result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     account1 = { name: AppConstants.EMPTY_STRING, address: AppConstants.EMPTY_STRING, seed: AppConstants.EMPTY_STRING, secretNumbers: AppConstants.EMPTY_STRING, mnemonic: AppConstants.EMPTY_STRING, balance: AppConstants.EMPTY_STRING };
-     account2 = { name: AppConstants.EMPTY_STRING, address: AppConstants.EMPTY_STRING, seed: AppConstants.EMPTY_STRING, secretNumbers: AppConstants.EMPTY_STRING, mnemonic: AppConstants.EMPTY_STRING, balance: AppConstants.EMPTY_STRING };
-     ownerCount = AppConstants.EMPTY_STRING;
-     totalXrpReserves = AppConstants.EMPTY_STRING;
-     executionTime = AppConstants.EMPTY_STRING;
-     amountField = AppConstants.EMPTY_STRING;
-     destinationField = AppConstants.EMPTY_STRING;
-     destinationTagField = AppConstants.EMPTY_STRING;
-     memoField = AppConstants.EMPTY_STRING;
+     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     ownerCount = '';
+     totalXrpReserves = '';
+     executionTime = '';
+     amountField = '';
+     destinationField = '';
+     destinationTagField = '';
+     memoField = '';
      isMultiSignTransaction = false;
-     multiSignAddress = AppConstants.EMPTY_STRING;
+     multiSignAddress = '';
      spinner = false;
      isMultiSign = false;
+     spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngAfterViewInit() {
-          // Clear input fields after the view is initialized
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
-          const resultField = document.getElementById('resultField') as HTMLInputElement | null;
-
-          if (accountName1Field) accountName1Field.value = AppConstants.EMPTY_STRING;
-          if (accountAddress1Field) accountAddress1Field.value = AppConstants.EMPTY_STRING;
-          if (accountSeed1Field) accountSeed1Field.value = AppConstants.EMPTY_STRING;
-
-          // Ensure Angular detects changes after updating the DOM
           this.cdr.detectChanges();
      }
 
@@ -92,13 +83,29 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
+     async getAccountDetails(seed: string, address: string) {
+          console.log('Entering getAccountDetails');
+          const startTime = Date.now();
+          try {
+               const { environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(seed, environment);
+               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               await this.updateXrpBalance(client, address);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(error.message);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving getAccountDetails in ${this.executionTime}ms`);
+          }
+     }
+
      async sendXrp() {
           console.log('Entering sendXrp');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = AppConstants.EMPTY_STRING;
+          this.setSuccessProperties();
 
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
@@ -113,12 +120,12 @@ export class SendXrpComponent implements AfterViewChecked {
                return this.setError('ERROR: XRP Amount cannot be empty');
           }
 
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
-          }
-
           if (!this.utilsService.validatInput(this.destinationField)) {
                return this.setError('ERROR: Destination cannot be empty');
+          }
+
+          if (parseFloat(this.amountField) <= 0) {
+               return this.setError('ERROR: XRP Amount must be a positive number');
           }
 
           try {
@@ -173,32 +180,19 @@ export class SendXrpComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
+               this.resultField.nativeElement.innerHTML += `XRP successfully sent.\n\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-               this.isSuccess = true;
-               this.handleTransactionResult({
-                    result: this.result,
-                    isError: this.isError,
-                    isSuccess: this.isSuccess,
-               });
-
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
-               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -206,107 +200,104 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
+     private async updateXrpBalance(client: xrpl.Client, address: string) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
+          const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
+          this.account1.balance = balance.toString();
+     }
+
      async displayDataForAccount1() {
-          console.log('Entering displayDataForAccount1');
-          const startTime = Date.now();
           const account1name = this.storageService.getInputValue('account1name');
           const account1address = this.storageService.getInputValue('account1address');
+          const account2address = this.storageService.getInputValue('account2address');
           const account1seed = this.storageService.getInputValue('account1seed');
           const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
           const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account1name || AppConstants.EMPTY_STRING;
-          if (accountAddress1Field) accountAddress1Field.value = account1address || AppConstants.EMPTY_STRING;
-          if (accountSeed1Field) {
-               if (account1seed === AppConstants.EMPTY_STRING) {
-                    if (account1mnemonic === AppConstants.EMPTY_STRING) {
-                         accountSeed1Field.value = account1secretNumbers || AppConstants.EMPTY_STRING;
-                    } else {
-                         accountSeed1Field.value = account1mnemonic || AppConstants.EMPTY_STRING;
-                    }
+          this.account1.name = account1name || '';
+          this.account1.address = account1address || '';
+          if (account1seed === '') {
+               if (account1mnemonic === '') {
+                    this.account1.seed = account1secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account1seed || AppConstants.EMPTY_STRING;
+                    this.account1.seed = account1mnemonic || '';
                }
+          } else {
+               this.account1.seed = account1seed || '';
           }
 
-          try {
-               const { environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(account1seed, environment);
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account1address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account1address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account1.balance', this.account1.balance);
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
+          if (destinationField) {
+               this.destinationField = account2address;
           }
+
+          this.getAccountDetails(account1seed, account1address);
      }
 
      async displayDataForAccount2() {
-          console.log('Entering displayDataForAccount2');
-          const startTime = Date.now();
           const account2name = this.storageService.getInputValue('account2name');
           const account2address = this.storageService.getInputValue('account2address');
+          const account1address = this.storageService.getInputValue('account1address');
           const account2seed = this.storageService.getInputValue('account2seed');
           const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
           const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
 
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
 
-          if (accountName1Field) accountName1Field.value = account2name || AppConstants.EMPTY_STRING;
-          if (accountAddress1Field) accountAddress1Field.value = account2address || AppConstants.EMPTY_STRING;
-          if (accountSeed1Field) {
-               if (account2seed === AppConstants.EMPTY_STRING) {
-                    if (account2mnemonic === AppConstants.EMPTY_STRING) {
-                         accountSeed1Field.value = account2secretNumbers || AppConstants.EMPTY_STRING;
-                    } else {
-                         accountSeed1Field.value = account2mnemonic || AppConstants.EMPTY_STRING;
-                    }
+          this.account1.name = account2name || '';
+          this.account1.address = account2address || '';
+          if (account2seed === '') {
+               if (account2mnemonic === '') {
+                    this.account1.seed = account2secretNumbers || '';
                } else {
-                    accountSeed1Field.value = account2seed || AppConstants.EMPTY_STRING;
+                    this.account1.seed = account2mnemonic || '';
                }
+          } else {
+               this.account1.seed = account2seed || '';
           }
-          try {
-               const { environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(account2seed, environment);
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, account2address);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               this.account1.balance = ((await client.getXrpBalance(account2address)) - parseFloat(this.totalXrpReserves || '0')).toString();
-               console.log('this.account2.balance', this.account1.balance);
-          } catch (error: any) {
-               this.setError(error.message);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
+
+          if (destinationField) {
+               this.destinationField = account1address;
           }
+
+          if (destinationField) {
+               this.destinationField = account1address;
+          }
+
+          this.getAccountDetails(account2seed, account2address);
      }
 
-     private setError(message: string) {
-          this.isError = true;
+     private setErrorProperties() {
           this.isSuccess = false;
-          this.result = `${message}`;
+          this.isError = true;
           this.spinner = false;
      }
 
-     public setSuccess(message: string) {
-          this.result = `${message}`;
-          this.isError = false;
+     private setError(message: string) {
+          this.setErrorProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
+     }
+
+     private setSuccessProperties() {
           this.isSuccess = true;
+          this.isError = false;
+          this.spinner = true;
+          this.result = '';
+     }
+
+     private setSuccess(message: string) {
+          this.setSuccessProperties();
+          this.handleTransactionResult({
+               result: `${message}`,
+               isError: this.isError,
+               isSuccess: this.isSuccess,
+          });
      }
 }

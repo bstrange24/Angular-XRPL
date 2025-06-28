@@ -1,10 +1,11 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import * as xrpl from 'xrpl';
+import { StorageService } from '../../services/storage.service';
 import { AccountSet, TransactionMetadataBase } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -35,6 +36,7 @@ interface AccountFlags {
 })
 export class AccountComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
+     @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
      private lastResult: string = '';
      transactionInput = '';
@@ -55,6 +57,7 @@ export class AccountComponent implements AfterViewChecked {
      isMessageKey = false;
      domain = '';
      memo = '';
+     spinnerMessage: string = '';
      flags: AccountFlags = {
           asfRequireDest: false,
           asfRequireAuth: false,
@@ -72,7 +75,7 @@ export class AccountComponent implements AfterViewChecked {
      };
      spinner = false;
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngAfterViewInit() {
           this.cdr.detectChanges();
@@ -100,35 +103,19 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     toggleMultiSign() {
-          // Handled by *ngIf in template
+     onAccountChange() {
+          if (this.selectedAccount === null || this.selectedAccount === undefined) {
+               return;
+          }
+          if (this.selectedAccount === 'account1') {
+               this.displayDataForAccount1();
+          } else if (this.selectedAccount === 'account2') {
+               this.displayDataForAccount2();
+          }
      }
 
-     async toggleMetaData() {
-          const { net, environment } = this.xrplService.getNet();
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.utilsService.returnErrorMessage('ERROR: Account seed cannot be empty');
-          }
-          let wallet;
-          if (seed.split(' ').length > 1) {
-               wallet = xrpl.Wallet.fromMnemonic(seed, {
-                    algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-               });
-          } else {
-               wallet = xrpl.Wallet.fromSeed(seed, {
-                    algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-               });
-          }
-          const client = await this.xrplService.getClient();
-          const accountInfo = await client.request({
-               command: 'account_info',
-               account: wallet.classicAddress,
-               ledger_index: 'validated',
-          });
-
-          console.log('accountInfo', accountInfo);
-          this.refreshUiIAccountMetaData(accountInfo.result);
+     toggleMultiSign() {
+          // Handled by *ngIf in template
      }
 
      onNoFreezeChange() {
@@ -143,29 +130,18 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     onAccountChange() {
-          if (this.selectedAccount === 'account1') {
-               this.displayDataForAccount1();
-          } else if (this.selectedAccount === 'account2') {
-               this.displayDataForAccount2();
-          }
-     }
-
-     async getAccountInfo() {
-          console.log('Entering getAccountInfo');
+     async toggleMetaData() {
+          console.log('Entering toggleMetaData');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
 
-          if (!this.selectedAccount) {
-               return this.utilsService.returnErrorMessage('Please select an account');
+          if (this.selectedAccount === null || this.selectedAccount === undefined) {
+               console.log('selectedAccount is null');
+               return;
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
-               return this.utilsService.returnErrorMessage('ERROR: Account seed cannot be empty');
+               return this.setError('ERROR: Account seed cannot be empty');
           }
 
           try {
@@ -183,21 +159,61 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account Data.\n\n`;
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               console.debug('accountInfo', accountInfo);
+               this.refreshUiIAccountMetaData(accountInfo.result);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving toggleMetaData in ${this.executionTime}ms`);
+          }
+     }
 
-               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(seed, environment);
+     async getAccountDetails() {
+          console.log('Entering getAccountDetails');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          if (!this.selectedAccount) {
+               return this.setError('Please select an account');
+          }
+
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          if (!this.utilsService.validatInput(seed)) {
+               return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+
+               let wallet;
+               if (seed.split(' ').length > 1) {
+                    wallet = xrpl.Wallet.fromMnemonic(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               } else {
+                    wallet = xrpl.Wallet.fromSeed(seed, {
+                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    });
+               }
+
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account Details\n\n`;
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               console.debug(`accountObjects ${accountObjects} accountInfo ${accountInfo}`);
 
                if (accountInfo.result.account_data.length <= 0) {
-                    this.result += `No account data found for ${wallet.classicAddress}`;
+                    this.resultField.nativeElement.innerHTML += `No account data found for ${wallet.classicAddress}`;
                }
-
-               console.log('accountInfo', accountInfo);
 
                if (accountObjects.result.account_objects.length <= 0) {
-                    this.result += `No account objects found for ${wallet.classicAddress}`;
+                    this.resultField.nativeElement.innerHTML += `No account objects found for ${wallet.classicAddress}`;
                }
-
-               console.log('accountObjects', accountObjects);
 
                // Set flags from account info
                AppConstants.FLAGS.forEach(flag => {
@@ -208,65 +224,37 @@ export class AccountComponent implements AfterViewChecked {
                     }
                });
 
-               // Handle currency balance (if currencyField exists)
-               const currencyField = document.getElementById('currencyField') as HTMLInputElement;
-               if (currencyField && currencyField.value) {
-                    const currencyBalanceField = document.getElementById('currencyBalanceField') as HTMLInputElement;
-                    if (currencyBalanceField) {
-                         currencyBalanceField.value = await this.utilsService.getOnlyTokenBalance(client, wallet.classicAddress, currencyField.value);
-                    }
-               }
-
-               // Handle current time (if currentTimeField exists)
-               const currentTimeField = document.getElementById('currentTimeField') as HTMLInputElement;
-               if (currentTimeField) {
-                    currentTimeField.value = this.utilsService.convertToEstTime(new Date().toISOString());
-               }
-
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-
                this.refreshUiIAccountMetaData(accountInfo.result);
-
                this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
-               this.utilsService.returnErrorMessage(`ERROR: ${error.message || 'Unknown error'}`);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving getAccountInfo in ${this.executionTime}ms`);
+               console.log(`Leaving getAccountDetails in ${this.executionTime}ms`);
           }
      }
 
      async updateFlags() {
           console.log('Entering updateFlags');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
 
           if (!this.selectedAccount) {
-               return this.utilsService.returnErrorMessage('Please select an account');
+               return this.setError('Please select an account');
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
-               return this.utilsService.returnErrorMessage('ERROR: Account seed cannot be empty');
+               return this.setError('ERROR: Account seed cannot be empty');
           }
 
           if (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze) {
-               return this.utilsService.returnErrorMessage('ERROR: Cannot enable both NoFreeze and GlobalFreeze');
+               return this.setError('ERROR: Cannot enable both NoFreeze and GlobalFreeze');
           }
 
           this.clearUiIAccountMetaData();
@@ -288,11 +276,8 @@ export class AccountComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdating Account Flags\n\n`;
 
-               const accountInfo = await client.request({
-                    command: 'account_info',
-                    account: wallet.classicAddress,
-                    ledger_index: 'validated',
-               });
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               console.debug('accountInfo', accountInfo);
 
                const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
 
@@ -329,46 +314,18 @@ export class AccountComponent implements AfterViewChecked {
 
                if (hasError) {
                     this.resultField.nativeElement.classList.add('error');
-                    this.setError();
-               } else {
-                    this.resultField.nativeElement.classList.add('success');
+                    this.setErrorProperties();
                }
 
                // Render all successful transactions
                this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
-
-               // Fetch account objects
-               const accountObjects = await client.request({
-                    command: 'account_objects',
-                    account: wallet.classicAddress,
-                    ledger_index: 'validated',
-               });
-
-               console.debug('accountObjects', accountObjects);
-
-               const updatedAccountInfo = await client.request({
-                    command: 'account_info',
-                    account: wallet.classicAddress,
-                    ledger_index: 'validated',
-               });
-
-               console.debug('updatedAccountInfo', updatedAccountInfo);
-
                this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
-               this.utilsService.returnErrorMessage(`ERROR: ${error.message || 'Unknown error'}`);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -379,18 +336,15 @@ export class AccountComponent implements AfterViewChecked {
      async updateMetaData() {
           console.log('Entering updateMetaData');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
 
           if (!this.selectedAccount) {
-               return this.utilsService.returnErrorMessage('Please select an account');
+               return this.setError('Please select an account');
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
-               return this.utilsService.returnErrorMessage('ERROR: Account seed cannot be empty');
+               return this.setError('ERROR: Account seed cannot be empty');
           }
 
           try {
@@ -432,7 +386,7 @@ export class AccountComponent implements AfterViewChecked {
                if (this.tickSize) {
                     const tickSize = this.utilsService.convertUserInputToInt(this.tickSize);
                     if (tickSize < 3 || tickSize > 15) {
-                         return this.utilsService.returnErrorMessage('ERROR: Tick size must be between 3 and 15.');
+                         return this.setError('ERROR: Tick size must be between 3 and 15.');
                     }
                     updatedData = true;
                     tx.TickSize = tickSize;
@@ -441,7 +395,7 @@ export class AccountComponent implements AfterViewChecked {
                if (this.transferRate) {
                     const transferRate = this.utilsService.convertUserInputToFloat(this.transferRate);
                     if (transferRate > 100) {
-                         return this.utilsService.returnErrorMessage('ERROR: Transfer rate cannot be greater than 100%.');
+                         return this.setError('ERROR: Transfer rate cannot be greater than 100%.');
                     }
                     updatedData = true;
                     tx.TransferRate = this.utilsService.getTransferRate(transferRate);
@@ -462,8 +416,7 @@ export class AccountComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
-
-                         this.setError();
+                         this.setErrorProperties();
                          return;
                     }
 
@@ -478,18 +431,10 @@ export class AccountComponent implements AfterViewChecked {
                this.isUpdateMetaData = true;
                this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
-               this.utilsService.returnErrorMessage(`ERROR: ${error.message || 'Unknown error'}`);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -500,26 +445,23 @@ export class AccountComponent implements AfterViewChecked {
      async setDepositAuthAccounts(authorizeFlag: 'Y' | 'N') {
           console.log('Entering setDepositAuthAccounts');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
 
           if (!this.selectedAccount) {
-               return this.utilsService.returnErrorMessage('Please select an account');
+               return this.setError('Please select an account');
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const authorizedAddress = this.selectedAccount === 'account1' ? this.account2.address : this.account1.address;
 
           if (!this.utilsService.validatInput(seed)) {
-               return this.utilsService.returnErrorMessage('ERROR: Account seed cannot be empty');
+               return this.setError('ERROR: Account seed cannot be empty');
           }
           if (!this.utilsService.validatInput(authorizedAddress)) {
-               return this.utilsService.returnErrorMessage('ERROR: Authorized account address cannot be empty');
+               return this.setError('ERROR: Authorized account address cannot be empty');
           }
           if (!xrpl.isValidAddress(authorizedAddress)) {
-               return this.utilsService.returnErrorMessage('ERROR: Authorized account address is invalid');
+               return this.setError('ERROR: Authorized account address is invalid');
           }
 
           try {
@@ -537,41 +479,28 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Deposit Authorization\n\n`;
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Deposit Auth\n\n`;
 
                try {
-                    await client.request({
-                         command: 'account_info',
-                         account: authorizedAddress,
-                         ledger_index: 'validated',
-                    });
+                    const accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
                } catch (error: any) {
                     if (error.data?.error === 'actNotFound') {
-                         return this.utilsService.returnErrorMessage('ERROR: Authorized account does not exist (tecNO_TARGET)');
+                         return this.setError('ERROR: Authorized account does not exist (tecNO_TARGET)');
                     }
                     throw error;
                }
 
-               const accountInfo = await client.request({
-                    command: 'account_info',
-                    account: wallet.classicAddress,
-                    ledger_index: 'validated',
-               });
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                if (!accountInfo.result.account_flags?.depositAuth) {
-                    return this.utilsService.returnErrorMessage('ERROR: Account must have asfDepositAuth flag enabled');
+                    return this.setError('ERROR: Account must have asfDepositAuth flag enabled');
                }
 
-               const accountObjects = await client.request({
-                    command: 'account_objects',
-                    account: wallet.classicAddress,
-                    type: 'deposit_preauth',
-                    ledger_index: 'validated',
-               });
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
 
                const alreadyAuthorized = accountObjects.result.account_objects.some((obj: any) => obj.Authorize === authorizedAddress);
                if (authorizeFlag === 'Y' && alreadyAuthorized) {
-                    return this.utilsService.returnErrorMessage('ERROR: Preauthorization already exists (tecDUPLICATE). Use Unauthorize to remove');
+                    return this.setError('ERROR: Preauthorization already exists (tecDUPLICATE). Use Unauthorize to remove');
                }
 
                const feeResponse = await client.request({ command: 'fee' });
@@ -588,29 +517,19 @@ export class AccountComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
-
-                    this.setError();
+                    this.setErrorProperties();
                     return;
                }
 
                this.resultField.nativeElement.innerHTML += `Deposit Auth finished successfully\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
-
                this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
-               this.utilsService.returnErrorMessage(`ERROR: ${error.message || 'Unknown error'}`);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -621,18 +540,15 @@ export class AccountComponent implements AfterViewChecked {
      async setMultiSign(enableMultiSignFlag: 'Y' | 'N') {
           console.log('Entering setMultiSign');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
 
           if (!this.selectedAccount) {
-               return this.utilsService.returnErrorMessage('Please select an account');
+               return this.setError('Please select an account');
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
-               return this.utilsService.returnErrorMessage('ERROR: Account seed cannot be empty');
+               return this.setError('ERROR: Account seed cannot be empty');
           }
 
           try {
@@ -650,16 +566,39 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting MultiSign\n\n`;
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Multi Sign\n\n`;
 
                let signerListTx;
                if (enableMultiSignFlag === 'Y') {
                     const addressesArray = this.multiSignAddress
                          .split(',')
                          .map(address => address.trim())
-                         .filter(address => address);
+                         .filter(addr => addr !== '');
+
+                    // Validate: At least one address
                     if (!addressesArray.length) {
-                         return this.utilsService.returnErrorMessage('ERROR: Multi-sign address list is empty');
+                         return this.setError('ERROR: Multi-sign address list is empty');
+                    }
+
+                    const selfAddress = wallet.classicAddress;
+                    if (addressesArray.includes(selfAddress)) {
+                         return this.setError('ERROR: Your own account cannot be in the signer list');
+                    }
+
+                    // Validate: Each is a classic XRPL address
+                    const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+                    if (invalidAddresses.length > 0) {
+                         return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
+                    }
+
+                    // Validate: No duplicates
+                    const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+                    if (duplicates.length > 0) {
+                         return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
+                    }
+
+                    if (invalidAddresses.length < 8) {
+                         return this.setError(`ERROR: XRPL allows max 8 signer entries. You entered ${invalidAddresses.length}`);
                     }
 
                     const SignerEntries = addressesArray.map(address => ({
@@ -671,7 +610,7 @@ export class AccountComponent implements AfterViewChecked {
 
                     const SignerQuorum = Math.ceil(SignerEntries.length / 2);
                     if (SignerQuorum > SignerEntries.length) {
-                         return this.utilsService.returnErrorMessage(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
+                         return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
                     }
 
                     signerListTx = await client.autofill({
@@ -692,29 +631,19 @@ export class AccountComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
-
-                    this.setError();
+                    this.setErrorProperties();
                     return;
                }
 
                this.resultField.nativeElement.innerHTML += `SignerListSet transaction successful\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
-
                this.setSuccess(this.result);
 
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-               if (this.selectedAccount === 'account1') {
-                    this.account1.balance = balance.toString();
-               } else {
-                    this.account2.balance = balance.toString();
-               }
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
-               this.utilsService.returnErrorMessage(`ERROR: ${error.message || 'Unknown error'}`);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -753,6 +682,18 @@ export class AccountComponent implements AfterViewChecked {
                return { success: false, message: `ERROR submitting flag: ${error.message}` };
           } finally {
                console.log(`Leaving submitFlagTransaction in ${Date.now() - startTime}ms`);
+          }
+     }
+
+     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
+          if (this.selectedAccount === 'account1') {
+               this.account1.balance = balance.toString();
+          } else {
+               this.account2.balance = balance.toString();
           }
      }
 
@@ -817,32 +758,73 @@ export class AccountComponent implements AfterViewChecked {
      }
 
      async displayDataForAccount1() {
-          this.account1.name = this.account1.name || '';
-          this.account1.address = this.account1.address || '';
-          this.account1.seed = this.account1.seed || '';
-          await this.getAccountInfo();
+          const account1name = this.storageService.getInputValue('account1name');
+          const account1address = this.storageService.getInputValue('account1address');
+          const account1seed = this.storageService.getInputValue('account1seed');
+          const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
+          const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
+
+          this.account1.name = account1name || '';
+          this.account1.address = account1address || '';
+          if (account1seed === '') {
+               if (account1mnemonic === '') {
+                    this.account1.seed = account1secretNumbers || '';
+               } else {
+                    this.account1.seed = account1mnemonic || '';
+               }
+          } else {
+               this.account1.seed = account1seed || '';
+          }
+
+          await this.getAccountDetails();
      }
 
      async displayDataForAccount2() {
-          this.account2.name = this.account2.name || '';
-          this.account2.address = this.account2.address || '';
-          this.account2.seed = this.account2.seed || '';
-          await this.getAccountInfo();
+          const account2name = this.storageService.getInputValue('account2name');
+          const account2address = this.storageService.getInputValue('account2address');
+          const account2seed = this.storageService.getInputValue('account2seed');
+          const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
+          const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
+
+          this.account2.name = account2name || '';
+          this.account2.address = account2address || '';
+          if (account2seed === '') {
+               if (account2mnemonic === '') {
+                    this.account2.seed = account2secretNumbers || '';
+               } else {
+                    this.account2.seed = account2mnemonic || '';
+               }
+          } else {
+               this.account2.seed = account2seed || '';
+          }
+
+          await this.getAccountDetails();
      }
 
-     public setError() {
+     private setErrorProperties() {
           this.isSuccess = false;
           this.isError = true;
+          this.spinner = false;
+     }
+
+     private setError(message: string) {
+          this.setErrorProperties();
           this.handleTransactionResult({
-               result: this.result,
+               result: `${message}`,
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
      }
 
-     public setSuccess(message: string) {
+     private setSuccessProperties() {
           this.isSuccess = true;
           this.isError = false;
+          this.spinner = true;
+          this.result = '';
+     }
+
+     private setSuccess(message: string) {
+          this.setSuccessProperties();
           this.handleTransactionResult({
                result: `${message}`,
                isError: this.isError,

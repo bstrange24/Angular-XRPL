@@ -141,17 +141,33 @@
                          <br />
                     </td>
                </tr>
+               <!-- <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                              <label for="ticketSequence">Ticket Sequence</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="ticketSequence" size="40" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                    </td>
+               </tr> -->
           </table>
 
-          <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+          <!-- <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div> -->
+
+          <div class="spinner-container">
+               <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+               <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+          </div>
 
           <table style="text-align: left; width: 100%">
                <th></th>
                <tr>
                     <td colspan="2">
-                         <button type="button" (click)="getTrustlinesForAccount()">Get Trustlines</button>
+                         <button type="button" (click)="getTrustlinesForAccount()">Get Trustlines and Balances</button>
                          <button type="button" (click)="setTrustLine()">Set Trustline</button>
                          <button type="button" (click)="removeTrustline()">Remove Trustline</button>
+                         <button type="button" (click)="issueCurrency()">Issue Currency</button>
                     </td>
                </tr>
                <tr>

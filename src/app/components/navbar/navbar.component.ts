@@ -1,4 +1,3 @@
-// src/app/components/navbar/navbar.component.ts
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
@@ -8,6 +7,7 @@ import { AppConstants } from '../../core/app.constants';
 import { DatePipe } from '@angular/common';
 import { interval, Subscription } from 'rxjs';
 import { formatInTimeZone } from 'date-fns-tz';
+import { UtilsService } from '../../services/utils.service';
 
 @Component({
      selector: 'app-navbar',
@@ -27,7 +27,7 @@ export class NavbarComponent implements OnInit {
      currentDateTime: string = ''; // Store formatted date/time
      private timerSubscription: Subscription | null = null; // For real-time updates
 
-     constructor(private storageService: StorageService, private xrplService: XrplService, private router: Router, private datePipe: DatePipe) {}
+     constructor(private storageService: StorageService, private utilsService: UtilsService, private xrplService: XrplService, private router: Router, private datePipe: DatePipe) {}
 
      ngOnInit() {
           // Initialize network
@@ -101,8 +101,15 @@ export class NavbarComponent implements OnInit {
           this.isUtilsDropdownOpen = false;
      }
 
+     async disconnectClient(event: Event) {
+          event.preventDefault();
+          await this.xrplService.disconnect();
+          this.isUtilsDropdownOpen = false;
+     }
+
      clearFields(event: Event) {
           event.preventDefault();
+          event.stopPropagation();
           this.storageService.inputsCleared.emit();
           this.isUtilsDropdownOpen = false;
 
@@ -151,17 +158,14 @@ export class NavbarComponent implements OnInit {
           if (totalXrpReservesField) totalXrpReservesField.value = AppConstants.EMPTY_STRING;
           if (totalExecutionTime) totalExecutionTime.value = AppConstants.EMPTY_STRING;
 
+          const resultField = document.getElementById('resultField') as HTMLInputElement | null;
+          if (resultField) resultField.innerHTML = AppConstants.EMPTY_STRING;
+
           AppConstants.INPUT_IDS.forEach(id => {
                const element = document.getElementById(id) as HTMLInputElement | null;
-               console.log('id:' + id + ' element: ' + element);
+               console.debug('id:' + id + ' element: ' + element);
                if (element) this.storageService.removeValue(id || '');
           });
-     }
-
-     async disconnectClient(event: Event) {
-          event.preventDefault();
-          await this.xrplService.disconnect();
-          this.isUtilsDropdownOpen = false;
      }
 
      gatherAccountInfo(event: Event) {
@@ -231,59 +235,68 @@ export class NavbarComponent implements OnInit {
           const issuerSecretNumbers = document.getElementById('issuerSecretNumbers') as HTMLInputElement | null;
           const issuerMnemonic = document.getElementById('issuerMnemonic') as HTMLInputElement | null;
 
+          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+
           const resultField = document.getElementById('resultField') as HTMLInputElement | null;
           if (!resultField) {
                return;
           }
+
           let accountInfo = resultField.innerHTML.split('\n');
-          if (account1name) account1name.value = accountInfo[0];
-          if (account1address) account1address.value = accountInfo[1];
+          if (account1name) account1name.value = this.utilsService.stripHTML(accountInfo[0]);
+          if (account1address) account1address.value = this.utilsService.stripHTML(accountInfo[1]);
+
+          if (accountName1Field) accountName1Field.value = this.utilsService.stripHTML(accountInfo[0]);
+          if (accountAddress1Field) accountAddress1Field.value = this.utilsService.stripHTML(accountInfo[1]);
 
           if (accountInfo[2].split(' ').length > 1) {
-               if (account1mnemonic) account1mnemonic.value = accountInfo[2];
+               if (account1mnemonic) account1mnemonic.value = this.utilsService.stripHTML(accountInfo[2]);
                if (account1seed) account1seed.value = AppConstants.EMPTY_STRING;
                if (account1secretNumbers) account1secretNumbers.value = AppConstants.EMPTY_STRING;
           } else if (accountInfo[2].includes(',')) {
-               if (account1secretNumbers) account1secretNumbers.value = accountInfo[2];
+               if (account1secretNumbers) account1secretNumbers.value = this.utilsService.stripHTML(accountInfo[2]);
                if (account1seed) account1seed.value = AppConstants.EMPTY_STRING;
                if (account1mnemonic) account1mnemonic.value = AppConstants.EMPTY_STRING;
           } else {
-               if (account1seed) account1seed.value = accountInfo[2];
+               if (account1seed) account1seed.value = this.utilsService.stripHTML(accountInfo[2]);
+               if (accountSeed1Field) accountSeed1Field.value = this.utilsService.stripHTML(accountInfo[2]);
                if (account1secretNumbers) account1secretNumbers.value = AppConstants.EMPTY_STRING;
                if (account1mnemonic) account1mnemonic.value = AppConstants.EMPTY_STRING;
           }
 
-          if (account2name) account2name.value = accountInfo[3];
-          if (account2address) account2address.value = accountInfo[4];
+          if (account2name) account2name.value = this.utilsService.stripHTML(accountInfo[3]);
+          if (account2address) account2address.value = this.utilsService.stripHTML(accountInfo[4]);
 
           if (accountInfo[5].split(' ').length > 1) {
-               if (account2mnemonic) account2mnemonic.value = accountInfo[5];
+               if (account2mnemonic) account2mnemonic.value = this.utilsService.stripHTML(accountInfo[5]);
                if (account2seed) account2seed.value = AppConstants.EMPTY_STRING;
                if (account2secretNumbers) account2secretNumbers.value = AppConstants.EMPTY_STRING;
           } else if (accountInfo[5].includes(',')) {
-               if (account2secretNumbers) account2secretNumbers.value = accountInfo[5];
+               if (account2secretNumbers) account2secretNumbers.value = this.utilsService.stripHTML(accountInfo[5]);
                if (account2seed) account2seed.value = AppConstants.EMPTY_STRING;
                if (account2mnemonic) account2mnemonic.value = AppConstants.EMPTY_STRING;
           } else {
-               if (account2seed) account2seed.value = accountInfo[5];
+               if (account2seed) account2seed.value = this.utilsService.stripHTML(accountInfo[5]);
                if (account2secretNumbers) account2secretNumbers.value = AppConstants.EMPTY_STRING;
                if (account2mnemonic) account2mnemonic.value = AppConstants.EMPTY_STRING;
           }
 
           if (accountInfo[8].length >= 9) {
-               if (issuerName) issuerName.value = accountInfo[6];
-               if (issuerAddress) issuerAddress.value = accountInfo[7];
+               if (issuerName) issuerName.value = this.utilsService.stripHTML(accountInfo[6]);
+               if (issuerAddress) issuerAddress.value = this.utilsService.stripHTML(accountInfo[7]);
 
                if (accountInfo[8].split(' ').length > 1) {
-                    if (issuerMnemonic) issuerMnemonic.value = accountInfo[8];
+                    if (issuerMnemonic) issuerMnemonic.value = this.utilsService.stripHTML(accountInfo[8]);
                     if (issuerSeed) issuerSeed.value = AppConstants.EMPTY_STRING;
                     if (issuerSecretNumbers) issuerSecretNumbers.value = AppConstants.EMPTY_STRING;
                } else if (accountInfo[8].includes(',')) {
-                    if (issuerSecretNumbers) issuerSecretNumbers.value = accountInfo[8];
+                    if (issuerSecretNumbers) issuerSecretNumbers.value = this.utilsService.stripHTML(accountInfo[8]);
                     if (issuerSeed) issuerSeed.value = AppConstants.EMPTY_STRING;
                     if (issuerMnemonic) issuerMnemonic.value = AppConstants.EMPTY_STRING;
                } else {
-                    if (issuerSeed) issuerSeed.value = accountInfo[8];
+                    if (issuerSeed) issuerSeed.value = this.utilsService.stripHTML(accountInfo[8]);
                     if (issuerSecretNumbers) issuerSecretNumbers.value = AppConstants.EMPTY_STRING;
                     if (issuerMnemonic) issuerMnemonic.value = AppConstants.EMPTY_STRING;
                }
@@ -295,7 +308,7 @@ export class NavbarComponent implements OnInit {
           console.log('Entering saveInputValues');
           AppConstants.INPUT_IDS.forEach(id => {
                const element = document.getElementById(id) as HTMLInputElement | null;
-               console.log('id:' + id + ' element: ' + element);
+               console.debug('id:' + id + ' element: ' + element);
                if (element) this.storageService.setInputValue(id, element.value || '');
           });
           console.log('Leaving saveInputValues');
