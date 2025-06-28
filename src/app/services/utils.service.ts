@@ -1497,7 +1497,7 @@ export class UtilsService {
                txDataTable.appendChild(txDataHeader);
 
                txDataContent.forEach(item => {
-                    console.log(`ite ${item.key} ${item.value}`);
+                    console.debug(`ite ${item.key} ${item.value}`);
                     const row = document.createElement('div');
                     row.className = 'result-row';
 
@@ -1531,7 +1531,7 @@ export class UtilsService {
                     txDataTable.appendChild(row);
                });
                //      txDataContent.forEach(item => {
-               //           console.log(`ite ${item.key} ${item.value}`);
+               //           console.debug(`ite ${item.key} ${item.value}`);
                //           const row = document.createElement('div');
                //           row.className = 'result-row';
                //           row.innerHTML = `
@@ -1940,7 +1940,7 @@ export class UtilsService {
                txDataTable.appendChild(txDataHeader);
 
                txDataContent.forEach(item => {
-                    console.log(`ite ${item.key} ${item.value}`);
+                    console.debug(`ite ${item.key} ${item.value}`);
                     const row = document.createElement('div');
                     row.className = 'result-row';
 
@@ -1974,7 +1974,7 @@ export class UtilsService {
                     txDataTable.appendChild(row);
                });
                //      txDataContent.forEach(item => {
-               //           console.log(`ite ${item.key} ${item.value}`);
+               //           console.debug(`ite ${item.key} ${item.value}`);
                //           const row = document.createElement('div');
                //           row.className = 'result-row';
                //           row.innerHTML = `

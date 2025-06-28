@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TransactionMetadataBase } from 'xrpl';
+import { TransactionMetadataBase, Payment } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -87,9 +87,12 @@ export class SendXrpComponent implements AfterViewChecked {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           try {
-               const { environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const { accountInfo, accountObjects } = await this.utilsService.getAccountInfo(seed, environment);
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
+               const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
+               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                await this.updateXrpBalance(client, address);
           } catch (error: any) {
@@ -145,12 +148,17 @@ export class SendXrpComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSending XRP\n\n`;
 
+               const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
                // Prepare the base transaction object
-               const tx: any = {
+               const tx: Payment = {
                     TransactionType: 'Payment',
                     Account: wallet.classicAddress,
                     Amount: xrpl.xrpToDrops(this.amountField),
                     Destination: this.destinationField,
+                    Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
                const destinationTagText = this.destinationTagField;

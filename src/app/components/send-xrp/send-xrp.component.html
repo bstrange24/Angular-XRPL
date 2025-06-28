@@ -86,94 +86,6 @@
                </tr>
           </table>
 
-          <!-- <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                              <label for="accountName2Field">Name</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountName2Field" size="40" [(ngModel)]="account2.name" name="accountName2Field" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                              <label for="accountAddress2Field">Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountAddress2Field" size="40" [(ngModel)]="account2.address" name="accountAddress2Field" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                              <label for="accountSeed2Field">Seed</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountSeed2Field" size="40" [(ngModel)]="account2.seed" name="accountSeed2Field" />
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                              <label for="xrpBalance2Field">Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="xrpBalance2Field" size="40" [(ngModel)]="account2.balance" name="xrpBalance2Field" />
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
-                              <label for="tickSizeField">Tick Size</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tickSizeField" size="40" placeholder="Value must be between 3 and 15" [(ngModel)]="tickSize" name="tickSizeField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Defines how much extra to charge when people hold your issued tokens (only applies to issuers). It's a ratio multiplied by 1,000,000,000">
-                              <label for="transferRateField">Transfer Rate</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="transferRateField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferRate" name="transferRateField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to save the message key in the account Information">
-                              <label>Save Message Key</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <input type="checkbox" id="isMessageKey" [(ngModel)]="isMessageKey" name="isMessageKey" />
-                         <label for="isMessageKey"></label>
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Web identity.">
-                              <label for="domainField">Domain</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="domainField" size="40" [(ngModel)]="domain" name="domainField" />
-                         <br />
-                    </td>
-               </tr>
-          </table> -->
-
           <table style="float: left">
                <th></th>
                <tr style="vertical-align: top">
@@ -244,7 +156,6 @@
                </tr>
           </table>
 
-          <!-- <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div> -->
           <div class="spinner-container">
                <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>

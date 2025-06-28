@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { AccountSet, TransactionMetadataBase } from 'xrpl';
+import { AccountSet, TransactionMetadataBase, DepositPreauth } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -144,6 +144,10 @@ export class AccountComponent implements AfterViewChecked {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
+          if (!xrpl.isValidSecret(seed)) {
+               return this.setError('ERROR: Invalid seed');
+          }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -186,6 +190,10 @@ export class AccountComponent implements AfterViewChecked {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
+          if (!xrpl.isValidSecret(seed)) {
+               return this.setError('ERROR: Invalid seed');
+          }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -205,7 +213,7 @@ export class AccountComponent implements AfterViewChecked {
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountObjects ${accountObjects} accountInfo ${accountInfo}`);
+               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
 
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML += `No account data found for ${wallet.classicAddress}`;
@@ -251,6 +259,10 @@ export class AccountComponent implements AfterViewChecked {
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          if (!xrpl.isValidSecret(seed)) {
+               return this.setError('ERROR: Invalid seed');
           }
 
           if (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze) {
@@ -317,6 +329,8 @@ export class AccountComponent implements AfterViewChecked {
                     this.setErrorProperties();
                }
 
+               console.debug(`transactions ${JSON.stringify(transactions, null, 2)}`);
+
                // Render all successful transactions
                this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
@@ -347,6 +361,10 @@ export class AccountComponent implements AfterViewChecked {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
+          if (!xrpl.isValidSecret(seed)) {
+               return this.setError('ERROR: Invalid seed');
+          }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -364,9 +382,14 @@ export class AccountComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdating Meta Data\n\n`;
 
+               const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
                const tx: AccountSet = await client.autofill({
                     TransactionType: 'AccountSet',
                     Account: wallet.classicAddress,
+                    Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
                let updatedData = false;
@@ -413,6 +436,7 @@ export class AccountComponent implements AfterViewChecked {
 
                if (updatedData) {
                     const response = await client.submitAndWait(tx, { wallet });
+                    console.debug(`response ${JSON.stringify(response, null, 2)}`);
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
@@ -452,14 +476,19 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          const authorizedAddress = this.selectedAccount === 'account1' ? this.account2.address : this.account1.address;
-
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
+          if (!xrpl.isValidSecret(seed)) {
+               return this.setError('ERROR: Invalid seed');
+          }
+
+          const authorizedAddress = this.selectedAccount === 'account1' ? this.account2.address : this.account1.address;
           if (!this.utilsService.validatInput(authorizedAddress)) {
                return this.setError('ERROR: Authorized account address cannot be empty');
           }
+
           if (!xrpl.isValidAddress(authorizedAddress)) {
                return this.setError('ERROR: Authorized account address is invalid');
           }
@@ -481,8 +510,9 @@ export class AccountComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Deposit Auth\n\n`;
 
+               let accountInfo;
                try {
-                    const accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
+                    accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
                } catch (error: any) {
                     if (error.data?.error === 'actNotFound') {
                          return this.setError('ERROR: Authorized account does not exist (tecNO_TARGET)');
@@ -490,13 +520,14 @@ export class AccountComponent implements AfterViewChecked {
                     throw error;
                }
 
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               console.debug(`accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
 
                if (!accountInfo.result.account_flags?.depositAuth) {
                     return this.setError('ERROR: Account must have asfDepositAuth flag enabled');
                }
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
+               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)}`);
 
                const alreadyAuthorized = accountObjects.result.account_objects.some((obj: any) => obj.Authorize === authorizedAddress);
                if (authorizeFlag === 'Y' && alreadyAuthorized) {
@@ -504,16 +535,18 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               const tx = await client.autofill({
+               const tx: DepositPreauth = await client.autofill({
                     TransactionType: 'DepositPreauth',
                     Account: wallet.classicAddress,
                     [authorizeFlag === 'Y' ? 'Authorize' : 'Unauthorize']: authorizedAddress,
-                    Fee: feeResponse.result.drops.open_ledger_fee,
+                    Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
                const response = await client.submitAndWait(tx, { wallet });
-
+               console.debug(`response ${JSON.stringify(response, null, 2)}`);
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -549,6 +582,10 @@ export class AccountComponent implements AfterViewChecked {
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          if (!xrpl.isValidSecret(seed)) {
+               return this.setError('ERROR: Invalid seed');
           }
 
           try {
@@ -597,7 +634,7 @@ export class AccountComponent implements AfterViewChecked {
                          return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
                     }
 
-                    if (invalidAddresses.length < 8) {
+                    if (invalidAddresses.length > 8) {
                          return this.setError(`ERROR: XRPL allows max 8 signer entries. You entered ${invalidAddresses.length}`);
                     }
 
@@ -613,21 +650,32 @@ export class AccountComponent implements AfterViewChecked {
                          return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
                     }
 
+                    const feeResponse = await client.request({ command: 'fee' });
+                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
                     signerListTx = await client.autofill({
                          TransactionType: 'SignerListSet',
                          Account: wallet.classicAddress,
                          SignerQuorum,
                          SignerEntries,
+                         Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                } else {
+                    const feeResponse = await client.request({ command: 'fee' });
+                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
                     signerListTx = await client.autofill({
                          TransactionType: 'SignerListSet',
                          Account: wallet.classicAddress,
                          SignerQuorum: 0,
+                         Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                }
 
                const response = await client.submitAndWait(signerListTx, { wallet });
+               console.debug(`response ${JSON.stringify(response, null, 2)}`);
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
