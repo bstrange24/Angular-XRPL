@@ -116,20 +116,19 @@
                          </select>
                     </td>
                </tr>
-               <!-- <tr style="vertical-align: top">
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Current Time in EST">
-                              <label for="currentTimeField">Current Time in EST</label>
+                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
+                              <label for="memoField">Memo</label>
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="currentTimeField" size="40" readonly [(ngModel)]="currentTimeField" name="currentTimeField" />
+                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
                          <br />
                     </td>
-               </tr> -->
+               </tr>
           </table>
 
-          <!-- <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div> -->
           <div class="spinner-container">
                <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
@@ -140,7 +139,7 @@
                <tr>
                     <td colspan="2">
                          <button type="button" (click)="getTickets()">Get Tickets</button>
-                         <button type="button" (click)="createTicket()">Create Ticket(s)</button>
+                         <button type="button" (click)="createTicket()">Create Tickets</button>
                     </td>
                </tr>
                <tr>

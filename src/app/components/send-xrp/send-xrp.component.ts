@@ -161,6 +161,10 @@ export class SendXrpComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSending XRP\n\n`;
 
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
                const feeResponse = await client.request({ command: 'fee' });
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 

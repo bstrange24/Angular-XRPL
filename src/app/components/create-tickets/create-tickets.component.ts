@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
-import { CheckCreate, TransactionMetadataBase } from 'xrpl';
+import { CheckCreate, TransactionMetadataBase, TicketCreate } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -23,31 +23,30 @@ export class CreateTicketsComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
-     private lastResult: string = AppConstants.EMPTY_STRING;
-     private intervalId: any;
-     transactionInput = AppConstants.EMPTY_STRING;
-     result: string = AppConstants.EMPTY_STRING;
+     private lastResult: string = '';
+     transactionInput = '';
+     result: string = '';
      currencyFieldDropDownValue: string = 'XRP';
      checkExpirationTime: string = 'seconds';
-     ticketCountField = AppConstants.EMPTY_STRING;
-     expirationTimeField = AppConstants.EMPTY_STRING;
+     ticketCountField = '';
+     expirationTimeField = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     account1 = { name: AppConstants.EMPTY_STRING, address: AppConstants.EMPTY_STRING, seed: AppConstants.EMPTY_STRING, secretNumbers: AppConstants.EMPTY_STRING, mnemonic: AppConstants.EMPTY_STRING, balance: AppConstants.EMPTY_STRING };
-     account2 = { name: AppConstants.EMPTY_STRING, address: AppConstants.EMPTY_STRING, seed: AppConstants.EMPTY_STRING, secretNumbers: AppConstants.EMPTY_STRING, mnemonic: AppConstants.EMPTY_STRING, balance: AppConstants.EMPTY_STRING };
-     xrpBalance1Field = AppConstants.EMPTY_STRING;
-     checkIdField = AppConstants.EMPTY_STRING;
-     ownerCount = AppConstants.EMPTY_STRING;
-     totalXrpReserves = AppConstants.EMPTY_STRING;
-     executionTime = AppConstants.EMPTY_STRING;
-     amountField = AppConstants.EMPTY_STRING;
-     destinationField = AppConstants.EMPTY_STRING;
-     memoField = AppConstants.EMPTY_STRING;
+     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     xrpBalance1Field = '';
+     checkIdField = '';
+     ownerCount = '';
+     totalXrpReserves = '';
+     executionTime = '';
+     amountField = '';
+     destinationField = '';
+     memoField = '';
      spinner = false;
      issuers: string[] = [];
-     selectedIssuer: string = AppConstants.EMPTY_STRING;
-     tokenBalance: string = AppConstants.EMPTY_STRING;
+     selectedIssuer: string = '';
+     tokenBalance: string = '';
      spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
@@ -76,9 +75,9 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
      onAccountChange() {
           if (this.selectedAccount === 'account1') {
-               this.displayTicketDataForAccount1();
+               this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
-               this.displayTicketDataForAccount2();
+               this.displayDataForAccount2();
           }
      }
 
@@ -181,8 +180,8 @@ export class CreateTicketsComponent implements AfterViewChecked {
                return this.setError('ERROR: Ticket Count must be a positive number');
           }
 
-          let ticketExpiration = AppConstants.EMPTY_STRING;
-          if (this.expirationTimeField != AppConstants.EMPTY_STRING) {
+          let ticketExpiration = '';
+          if (this.expirationTimeField != '') {
                if (isNaN(parseFloat(this.expirationTimeField)) || parseFloat(this.expirationTimeField) <= 0) {
                     return this.setError('ERROR: Expiration time must be a valid number greater than zero');
                }
@@ -208,20 +207,60 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating Ticket\n\n`;
 
-               const tx: any = await client.autofill({
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
+               const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const tx: TicketCreate = {
                     TransactionType: 'TicketCreate',
                     Account: wallet.classicAddress,
                     TicketCount: parseInt(this.ticketCountField),
-               });
+                    Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
 
-               if (ticketExpiration && ticketExpiration != AppConstants.EMPTY_STRING) {
-                    tx.Expiration = Number(ticketExpiration);
+               // if (ticketExpiration && ticketExpiration != '') {
+               // tx.Expiration = Number(ticketExpiration);
+               // }
+
+               // if (this.memoField) {
+               //      tx.Memos = [
+               //           {
+               //                Memo: {
+               //                     MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+               //                     MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+               //                },
+               //           },
+               //      ];
+               // }
+
+               if (ticketExpiration && ticketExpiration !== '' && !isNaN(Number(ticketExpiration))) {
+                    tx.Memos = tx.Memos || [];
+                    tx.Memos.push({
+                         Memo: {
+                              MemoData: Buffer.from(ticketExpiration, 'utf8').toString('hex'),
+                              MemoType: Buffer.from('Expiration', 'utf8').toString('hex'),
+                         },
+                    });
                }
 
-               const signed = wallet.sign(tx);
+               if (this.memoField) {
+                    tx.Memos = tx.Memos || [];
+                    tx.Memos.push({
+                         Memo: {
+                              MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                              MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                         },
+                    });
+               }
 
                this.resultField.nativeElement.innerHTML += `Creating ${this.ticketCountField} tickets\n`;
 
+               let preparedTx = await client.autofill(tx);
+               const signed = wallet.sign(preparedTx);
                const response = await client.submitAndWait(signed.tx_blob);
                console.log('Response', response);
 
@@ -256,82 +295,53 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     async displayTicketDataForAccount1() {
-          const account1name = this.storageService.getInputValue('account1name');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account1seed = this.storageService.getInputValue('account1seed');
-          const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
-          const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
+     private displayDataForAccount(accountKey: 'account1' | 'account2') {
+          const prefix = accountKey === 'account1' ? 'account1' : 'account2';
+          const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';
 
-          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
-          const checkIdField = document.getElementById('checkIdField') as HTMLInputElement | null;
-          const memoField = document.getElementById('memoField') as HTMLInputElement | null;
+          // Fetch stored values
+          const name = this.storageService.getInputValue(`${prefix}name`) || '';
+          const address = this.storageService.getInputValue(`${prefix}address`) || '';
+          const seed = this.storageService.getInputValue(`${prefix}seed`) || '';
+          const mnemonic = this.storageService.getInputValue(`${prefix}mnemonic`) || '';
+          const secretNumbers = this.storageService.getInputValue(`${prefix}secretNumbers`) || '';
+          const otherAddress = this.storageService.getInputValue(`${otherPrefix}address`) || '';
 
-          this.account1.name = account1name || '';
-          this.account1.address = account1address || '';
-          if (account1seed === '') {
-               if (account1mnemonic === '') {
-                    this.account1.seed = account1secretNumbers || '';
-               } else {
-                    this.account1.seed = account1mnemonic || '';
-               }
-          } else {
-               this.account1.seed = account1seed || '';
+          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+
+          // Update account data
+          const account = accountKey === 'account1' ? this.account1 : this.account2;
+          account.name = name;
+          if (accountName1Field) {
+               accountName1Field.value = account.name;
           }
-
-          if (destinationField) {
-               this.destinationField = account2address;
+          account.address = address;
+          if (accountAddress1Field) {
+               accountAddress1Field.value = account.address;
           }
-
-          if (checkIdField) {
-               this.checkIdField = AppConstants.EMPTY_STRING;
+          account.seed = seed || mnemonic || secretNumbers;
+          if (accountSeed1Field) {
+               accountSeed1Field.value = account.seed;
           }
+          this.destinationField = otherAddress;
 
-          if (memoField) {
-               this.memoField = AppConstants.EMPTY_STRING;
+          this.cdr.detectChanges();
+
+          if (account.address && xrpl.isValidAddress(account.address)) {
+               this.getTickets();
+          } else if (account.address) {
+               this.setError('Invalid XRP address');
           }
-
-          this.getTickets();
      }
 
-     async displayTicketDataForAccount2() {
-          const account2name = this.storageService.getInputValue('account2name');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account2seed = this.storageService.getInputValue('account2seed');
-          const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
-          const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
+     async displayDataForAccount1() {
+          this.displayDataForAccount('account1');
+     }
 
-          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
-          const checkIdField = document.getElementById('checkIdField') as HTMLInputElement | null;
-          const memoField = document.getElementById('memoField') as HTMLInputElement | null;
-
-          this.account1.name = account2name || '';
-          this.account1.address = account2address || '';
-          if (account2seed === '') {
-               if (account2mnemonic === '') {
-                    this.account1.seed = account2secretNumbers || '';
-               } else {
-                    this.account1.seed = account2mnemonic || '';
-               }
-          } else {
-               this.account1.seed = account2seed || '';
-          }
-
-          if (destinationField) {
-               this.destinationField = account1address;
-          }
-
-          if (checkIdField) {
-               this.checkIdField = AppConstants.EMPTY_STRING;
-          }
-
-          if (memoField) {
-               this.memoField = AppConstants.EMPTY_STRING;
-          }
-
-          this.getTickets();
+     async displayDataForAccount2() {
+          this.displayDataForAccount('account2');
      }
 
      private setErrorProperties() {

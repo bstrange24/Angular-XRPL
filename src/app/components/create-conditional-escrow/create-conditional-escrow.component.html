@@ -154,7 +154,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="escrowConditionField" size="90" [(ngModel)]="escrowConditionField" name="escrowConditionField" />
+                         <input type="text" id="escrowConditionField" size="88" [(ngModel)]="escrowConditionField" name="escrowConditionField" />
                          <br />
                     </td>
                </tr>
@@ -165,7 +165,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="escrowFulfillmentField" size="90" [(ngModel)]="escrowFulfillmentField" name="escrowFulfillmentField" />
+                         <input type="text" id="escrowFulfillmentField" size="88" [(ngModel)]="escrowFulfillmentField" name="escrowFulfillmentField" />
                          <br />
                     </td>
                </tr>
@@ -184,17 +184,28 @@
                          <br />
                     </td>
                </tr>
-               <!-- <tr style="vertical-align: top">
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Current Time in EST">
-                              <label for="currentTimeField">Current Time in EST</label>
+                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                              <label>Use Ticket Sequnce</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                         <label for="isTicketEnabled"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                              <label for="ticketSequence"></label>
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="currentTimeField" size="40" readonly [(ngModel)]="currentTimeField" name="currentTimeField" />
+                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
                          <br />
                     </td>
-               </tr> -->
+               </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
@@ -208,7 +219,6 @@
                </tr>
           </table>
 
-          <!-- <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div> -->
           <div class="spinner-container">
                <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>

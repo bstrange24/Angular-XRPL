@@ -341,6 +341,10 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Trustline\n\n`;
 
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
                const { result: feeResponse } = await client.request({ command: 'fee' });
 
                let cur;
@@ -477,6 +481,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nRemoving Trustline\n\n`;
+
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
                console.debug(`All trust lines for ${wallet.classicAddress}:`, trustLines);
@@ -648,6 +656,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nIssuing Currency\n\n`;
+
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                if (accountInfo == null) {

@@ -300,6 +300,10 @@ export class AccountComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdating Account Flags\n\n`;
 
+               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                console.debug('accountInfo', accountInfo);
 
@@ -393,6 +397,10 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdating Meta Data\n\n`;
+
+               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
 
                const feeResponse = await client.request({ command: 'fee' });
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -522,6 +530,10 @@ export class AccountComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Deposit Auth\n\n`;
 
+               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
                let accountInfo;
                try {
                     accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
@@ -627,6 +639,10 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Multi Sign\n\n`;
+
+               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
 
                let signerListTx: SignerListSet;
                if (enableMultiSignFlag === 'Y') {

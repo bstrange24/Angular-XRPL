@@ -439,6 +439,16 @@ export class UtilsService {
           return String(value);
      }
 
+     async isSufficentXrpBalance(client: xrpl.Client, amountField: string, totalXrpReserves: string, address: string) {
+          const amount = parseFloat(amountField);
+          const totalReserves = parseFloat(totalXrpReserves || '0');
+          const balance1 = await client.getXrpBalance(address);
+          if (amount > balance1 - totalReserves) {
+               return true;
+          }
+          return false;
+     }
+
      renderAccountDetails(accountInfo: any, accountObjects: any) {
           const container = document.getElementById('resultField') as HTMLInputElement;
           if (!container) {

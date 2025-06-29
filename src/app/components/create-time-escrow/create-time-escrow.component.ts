@@ -62,6 +62,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      escrowOwnerField = '';
      escrowSequenceNumberField = '';
      memoField = '';
+     ticketSequence: string = '';
+     isTicket = false;
+     isTicketEnabled = false;
      isMultiSignTransaction = false;
      multiSignAddress = '';
      spinner = false;
@@ -102,6 +105,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.displayDataForAccount2();
           }
      }
+
+     toggleTicketSequence() {}
 
      async getEscrows() {
           console.log('Entering getEscrows');
@@ -251,10 +256,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     });
                }
 
-               const amount = parseFloat(this.amountField);
-               const totalReserves = parseFloat(this.totalXrpReserves || '0');
-               const balance1 = await client.getXrpBalance(wallet.classicAddress);
-               if (amount > balance1 - totalReserves) {
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -349,6 +351,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     });
                }
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nFinishing Escrow\n\n`;
+
+               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
 
                const prepared = await client.autofill({
                     TransactionType: 'EscrowFinish',
@@ -458,72 +464,53 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
+     private displayDataForAccount(accountKey: 'account1' | 'account2') {
+          const prefix = accountKey === 'account1' ? 'account1' : 'account2';
+          const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';
+
+          // Fetch stored values
+          const name = this.storageService.getInputValue(`${prefix}name`) || '';
+          const address = this.storageService.getInputValue(`${prefix}address`) || '';
+          const seed = this.storageService.getInputValue(`${prefix}seed`) || '';
+          const mnemonic = this.storageService.getInputValue(`${prefix}mnemonic`) || '';
+          const secretNumbers = this.storageService.getInputValue(`${prefix}secretNumbers`) || '';
+          const otherAddress = this.storageService.getInputValue(`${otherPrefix}address`) || '';
+
+          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+
+          // Update account data
+          const account = accountKey === 'account1' ? this.account1 : this.account2;
+          account.name = name;
+          if (accountName1Field) {
+               accountName1Field.value = account.name;
+          }
+          account.address = address;
+          if (accountAddress1Field) {
+               accountAddress1Field.value = account.address;
+          }
+          account.seed = seed || mnemonic || secretNumbers;
+          if (accountSeed1Field) {
+               accountSeed1Field.value = account.seed;
+          }
+          this.destinationField = otherAddress;
+
+          this.cdr.detectChanges();
+
+          if (account.address && xrpl.isValidAddress(account.address)) {
+               this.getEscrows();
+          } else if (account.address) {
+               this.setError('Invalid XRP address');
+          }
+     }
+
      async displayDataForAccount1() {
-          const account1name = this.storageService.getInputValue('account1name');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account1seed = this.storageService.getInputValue('account1seed');
-          const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
-          const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
-
-          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
-          const escrowOwnerField = document.getElementById('escrowOwnerField') as HTMLInputElement | null;
-
-          this.account1.name = account1name || '';
-          this.account1.address = account1address || '';
-          if (account1seed === '') {
-               if (account1mnemonic === '') {
-                    this.account1.seed = account1secretNumbers || '';
-               } else {
-                    this.account1.seed = account1mnemonic || '';
-               }
-          } else {
-               this.account1.seed = account1seed || '';
-          }
-
-          if (destinationField) {
-               this.destinationField = account2address;
-          }
-
-          if (escrowOwnerField) {
-               this.escrowOwnerField = account1address;
-          }
-
-          this.getEscrows();
+          this.displayDataForAccount('account1');
      }
 
      async displayDataForAccount2() {
-          const account2name = this.storageService.getInputValue('account2name');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account2seed = this.storageService.getInputValue('account2seed');
-          const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
-          const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
-
-          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
-          const escrowOwnerField = document.getElementById('escrowOwnerField') as HTMLInputElement | null;
-
-          this.account1.name = account2name || '';
-          this.account1.address = account2address || '';
-          if (account2seed === '') {
-               if (account2mnemonic === '') {
-                    this.account1.seed = account2secretNumbers || '';
-               } else {
-                    this.account1.seed = account2mnemonic || '';
-               }
-          } else {
-               this.account1.seed = account2seed || '';
-          }
-
-          if (destinationField) {
-               this.destinationField = account1address;
-          }
-
-          if (escrowOwnerField) {
-               this.escrowOwnerField = account2address;
-          }
-
-          this.getEscrows();
+          this.displayDataForAccount('account2');
      }
 
      private setErrorProperties() {
