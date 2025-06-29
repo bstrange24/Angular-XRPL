@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { AccountSet, TransactionMetadataBase, DepositPreauth } from 'xrpl';
+import { AccountSet, TransactionMetadataBase, DepositPreauth, SignerListSet } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -25,6 +25,15 @@ interface AccountFlags {
      asfDisallowIncomingCheck: boolean;
      asfDisallowIncomingPayChan: boolean;
      asfDisallowIncomingTrustline: boolean;
+}
+
+interface AccountData {
+     name: string;
+     address: string;
+     seed: string;
+     secretNumbers: string;
+     mnemonic: string;
+     balance: string;
 }
 
 @Component({
@@ -49,6 +58,9 @@ export class AccountComponent implements AfterViewChecked {
      ownerCount = '';
      totalXrpReserves = '';
      executionTime = '';
+     ticketSequence: string = '';
+     isTicket = false;
+     isTicketEnabled = false;
      isMultiSign = false;
      multiSignAddress = '';
      isUpdateMetaData = false;
@@ -56,7 +68,7 @@ export class AccountComponent implements AfterViewChecked {
      transferRate = '';
      isMessageKey = false;
      domain = '';
-     memo = '';
+     memoField = '';
      spinnerMessage: string = '';
      flags: AccountFlags = {
           asfRequireDest: false,
@@ -114,9 +126,9 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     toggleMultiSign() {
-          // Handled by *ngIf in template
-     }
+     toggleMultiSign() {}
+
+     toggleTicketSequence() {}
 
      onNoFreezeChange() {
           if (this.flags.asfNoFreeze) {
@@ -301,7 +313,7 @@ export class AccountComponent implements AfterViewChecked {
                let hasError = false;
 
                for (const flagValue of setFlags) {
-                    const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memo);
+                    const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memoField);
                     transactions.push({
                          type: 'SetFlag',
                          flag: this.utilsService.getFlagName(flagValue),
@@ -313,7 +325,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                for (const flagValue of clearFlags) {
-                    const response = await this.submitFlagTransaction(client, wallet, { ClearFlag: parseInt(flagValue) }, this.memo);
+                    const response = await this.submitFlagTransaction(client, wallet, { ClearFlag: parseInt(flagValue) }, this.memoField);
                     transactions.push({
                          type: 'ClearFlag',
                          flag: this.utilsService.getFlagName(flagValue),
@@ -388,19 +400,19 @@ export class AccountComponent implements AfterViewChecked {
                const tx: AccountSet = await client.autofill({
                     TransactionType: 'AccountSet',
                     Account: wallet.classicAddress,
-                    Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                    Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
                let updatedData = false;
 
-               if (this.memo) {
+               if (this.memoField) {
                     updatedData = true;
                     tx.Memos = [
                          {
                               Memo: {
                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                                   MemoData: Buffer.from(this.memo, 'utf8').toString('hex'),
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
                               },
                          },
                     ];
@@ -436,8 +448,8 @@ export class AccountComponent implements AfterViewChecked {
 
                if (updatedData) {
                     const response = await client.submitAndWait(tx, { wallet });
-                    console.debug(`response ${JSON.stringify(response, null, 2)}`);
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                         console.error(`response ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
@@ -541,13 +553,24 @@ export class AccountComponent implements AfterViewChecked {
                     TransactionType: 'DepositPreauth',
                     Account: wallet.classicAddress,
                     [authorizeFlag === 'Y' ? 'Authorize' : 'Unauthorize']: authorizedAddress,
-                    Fee: feeResponse.result.drops.open_ledger_fee || '12',
+                    Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
+               if (this.memoField) {
+                    tx.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
                const response = await client.submitAndWait(tx, { wallet });
-               console.debug(`response ${JSON.stringify(response, null, 2)}`);
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`response ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
@@ -605,7 +628,7 @@ export class AccountComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Multi Sign\n\n`;
 
-               let signerListTx;
+               let signerListTx: SignerListSet;
                if (enableMultiSignFlag === 'Y') {
                     const addressesArray = this.multiSignAddress
                          .split(',')
@@ -653,30 +676,107 @@ export class AccountComponent implements AfterViewChecked {
                     const feeResponse = await client.request({ command: 'fee' });
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-                    signerListTx = await client.autofill({
-                         TransactionType: 'SignerListSet',
-                         Account: wallet.classicAddress,
-                         SignerQuorum,
-                         SignerEntries,
-                         Fee: feeResponse.result.drops.open_ledger_fee || '12',
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    });
+                    if (this.ticketSequence) {
+                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                         }
+
+                         signerListTx = await client.autofill({
+                              TransactionType: 'SignerListSet',
+                              Account: wallet.classicAddress,
+                              SignerQuorum,
+                              SignerEntries,
+                              TicketSequence: Number(this.ticketSequence),
+                              Sequence: 0,
+                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+
+                         if (this.memoField) {
+                              signerListTx.Memos = [
+                                   {
+                                        Memo: {
+                                             MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                             MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                        },
+                                   },
+                              ];
+                         }
+                    } else {
+                         signerListTx = await client.autofill({
+                              TransactionType: 'SignerListSet',
+                              Account: wallet.classicAddress,
+                              SignerQuorum,
+                              SignerEntries,
+                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+
+                         if (this.memoField) {
+                              signerListTx.Memos = [
+                                   {
+                                        Memo: {
+                                             MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                             MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                        },
+                                   },
+                              ];
+                         }
+                    }
                } else {
                     const feeResponse = await client.request({ command: 'fee' });
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-                    signerListTx = await client.autofill({
-                         TransactionType: 'SignerListSet',
-                         Account: wallet.classicAddress,
-                         SignerQuorum: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || '12',
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    });
+                    if (this.ticketSequence) {
+                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                         }
+
+                         signerListTx = await client.autofill({
+                              TransactionType: 'SignerListSet',
+                              Account: wallet.classicAddress,
+                              SignerQuorum: 0,
+                              TicketSequence: Number(this.ticketSequence),
+                              Sequence: 0,
+                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+
+                         if (this.memoField) {
+                              signerListTx.Memos = [
+                                   {
+                                        Memo: {
+                                             MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                             MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                        },
+                                   },
+                              ];
+                         }
+                    } else {
+                         signerListTx = await client.autofill({
+                              TransactionType: 'SignerListSet',
+                              Account: wallet.classicAddress,
+                              SignerQuorum: 0,
+                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+
+                         if (this.memoField) {
+                              signerListTx.Memos = [
+                                   {
+                                        Memo: {
+                                             MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                             MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                        },
+                                   },
+                              ];
+                         }
+                    }
                }
 
                const response = await client.submitAndWait(signerListTx, { wallet });
-               console.debug(`response ${JSON.stringify(response, null, 2)}`);
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`response ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
@@ -699,7 +799,7 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     private async submitFlagTransaction(client: xrpl.Client, wallet: xrpl.Wallet, flagPayload: any, memo: any) {
+     private async submitFlagTransaction(client: xrpl.Client, wallet: xrpl.Wallet, flagPayload: any, memoField: any) {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
 
@@ -709,12 +809,12 @@ export class AccountComponent implements AfterViewChecked {
                ...flagPayload,
           };
 
-          if (this.memo) {
+          if (memoField) {
                tx.Memos = [
                     {
                          Memo: {
                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                              MemoData: Buffer.from(this.memo, 'utf8').toString('hex'),
+                              MemoData: Buffer.from(memoField, 'utf8').toString('hex'),
                          },
                     },
                ];
@@ -805,48 +905,41 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     async displayDataForAccount1() {
-          const account1name = this.storageService.getInputValue('account1name');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account1seed = this.storageService.getInputValue('account1seed');
-          const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
-          const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
+     async displayDataForAccount(accountKey: 'account1' | 'account2') {
+          const prefix = accountKey; // 'account1' or 'account2'
 
-          this.account1.name = account1name || '';
-          this.account1.address = account1address || '';
-          if (account1seed === '') {
-               if (account1mnemonic === '') {
-                    this.account1.seed = account1secretNumbers || '';
-               } else {
-                    this.account1.seed = account1mnemonic || '';
+          // Fetch stored values
+          const name = this.storageService.getInputValue(`${prefix}name`) || '';
+          const address = this.storageService.getInputValue(`${prefix}address`) || '';
+          const seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || '';
+
+          // Update account data
+          const account = accountKey === 'account1' ? this.account1 : this.account2;
+          account.name = name;
+          account.address = address;
+          account.seed = seed;
+
+          // Trigger change detection to update UI
+          this.cdr.detectChanges();
+
+          // Validate and fetch account details
+          try {
+               if (address && xrpl.isValidAddress(address)) {
+                    await this.getAccountDetails();
+               } else if (address) {
+                    this.setError('Invalid XRP address');
                }
-          } else {
-               this.account1.seed = account1seed || '';
+          } catch (error: any) {
+               this.setError(`Error fetching account details: ${error.message}`);
           }
+     }
 
-          await this.getAccountDetails();
+     async displayDataForAccount1() {
+          await this.displayDataForAccount('account1');
      }
 
      async displayDataForAccount2() {
-          const account2name = this.storageService.getInputValue('account2name');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account2seed = this.storageService.getInputValue('account2seed');
-          const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
-          const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
-
-          this.account2.name = account2name || '';
-          this.account2.address = account2address || '';
-          if (account2seed === '') {
-               if (account2mnemonic === '') {
-                    this.account2.seed = account2secretNumbers || '';
-               } else {
-                    this.account2.seed = account2mnemonic || '';
-               }
-          } else {
-               this.account2.seed = account2seed || '';
-          }
-
-          await this.getAccountDetails();
+          await this.displayDataForAccount('account2');
      }
 
      private setErrorProperties() {

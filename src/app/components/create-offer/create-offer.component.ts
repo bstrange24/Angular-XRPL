@@ -512,7 +512,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               issuer: issuerAddr,
                               value: '1000000',
                          },
-                         Fee: feeResponse.drops.open_ledger_fee || '12',
+                         Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
                          LastLedgerSequence: currentLedger + 20,
                     };
 

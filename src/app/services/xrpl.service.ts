@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { StorageService } from './storage.service';
 import { Client } from 'xrpl';
 import * as xrpl from 'xrpl';
-import { AccountSet, TransactionMetadataBase } from 'xrpl';
+import { AccountSet, TransactionMetadataBase, DepositPreauth, SignerListSet } from 'xrpl';
 
 @Injectable({
      providedIn: 'root', // Singleton service
@@ -231,6 +231,22 @@ export class XrplService {
           } catch (error) {
                console.error('Error fetching gateway_balances:', error);
                throw error;
+          }
+     }
+
+     async checkTicketExists(client: xrpl.Client, account: string, ticketSequence: number): Promise<boolean> {
+          try {
+               // Fetch account objects (tickets)
+               const ticket_objects = await this.getAccountObjects(client, account, 'validated', 'ticket');
+               console.debug('Ticket Objects: ', ticket_objects);
+
+               // Check if the ticketSequence exists in the ticket_objects array
+               const ticketExists = (ticket_objects.result.account_objects || []).some((ticket: any) => ticket.TicketSequence === ticketSequence);
+
+               return ticketExists;
+          } catch (error) {
+               console.error('Error checking ticket: ', error);
+               return false; // Return false if there's an error fetching tickets
           }
      }
 

@@ -11,6 +11,16 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
+// Define an interface for account data
+interface AccountData {
+     name: string;
+     address: string;
+     seed: string;
+     secretNumbers: string;
+     mnemonic: string;
+     balance: string;
+}
+
 @Component({
      selector: 'app-account',
      standalone: true,
@@ -36,11 +46,14 @@ export class SendXrpComponent implements AfterViewChecked {
      amountField = '';
      destinationField = '';
      destinationTagField = '';
+     ticketSequence: string = '';
      memoField = '';
      isMultiSignTransaction = false;
+     isTicketEnabled = false;
      multiSignAddress = '';
      spinner = false;
      isMultiSign = false;
+     isTicket = false;
      spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
@@ -71,9 +84,9 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     toggleMultiSign() {
-          // Handled by *ngIf in template
-     }
+     toggleMultiSign() {}
+
+     toggleTicketSequence() {}
 
      onAccountChange() {
           if (this.selectedAccount === 'account1') {
@@ -83,7 +96,7 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     async getAccountDetails(seed: string, address: string) {
+     async getAccountDetails(address: string) {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           try {
@@ -151,41 +164,57 @@ export class SendXrpComponent implements AfterViewChecked {
                const feeResponse = await client.request({ command: 'fee' });
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               // Prepare the base transaction object
-               const tx: Payment = {
-                    TransactionType: 'Payment',
-                    Account: wallet.classicAddress,
-                    Amount: xrpl.xrpToDrops(this.amountField),
-                    Destination: this.destinationField,
-                    Fee: feeResponse.result.drops.open_ledger_fee || '12',
-                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               };
+               let payment: Payment;
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
 
+                    payment = {
+                         TransactionType: 'Payment',
+                         Account: wallet.classicAddress,
+                         Amount: xrpl.xrpToDrops(this.amountField),
+                         Destination: this.destinationField,
+                         TicketSequence: Number(this.ticketSequence),
+                         Sequence: 0,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+               } else {
+                    payment = {
+                         TransactionType: 'Payment',
+                         Account: wallet.classicAddress,
+                         Amount: xrpl.xrpToDrops(this.amountField),
+                         Destination: this.destinationField,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+               }
                const destinationTagText = this.destinationTagField;
                if (destinationTagText) {
                     if (parseInt(destinationTagText) <= 0) {
                          return this.setError('ERROR: Destination Tag must be a valid number and greater than zero');
                     }
-                    tx.DestinationTag = parseInt(destinationTagText, 10);
+                    payment.DestinationTag = parseInt(destinationTagText, 10);
                }
 
-               const memoText = this.memoField;
-               if (memoText) {
-                    tx.Memos = [
+               if (this.memoField) {
+                    payment.Memos = [
                          {
                               Memo: {
-                                   MemoData: Buffer.from(memoText, 'utf8').toString('hex'),
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
                               },
                          },
                     ];
                }
 
-               let preparedTx = await client.autofill(tx);
+               let preparedTx = await client.autofill(payment);
                const signed = wallet.sign(preparedTx);
                const response = await client.submitAndWait(signed.tx_blob);
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
@@ -204,7 +233,7 @@ export class SendXrpComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving updateFlags in ${this.executionTime}ms`);
+               console.log(`Leaving sendXrp in ${this.executionTime}ms`);
           }
      }
 
@@ -216,66 +245,53 @@ export class SendXrpComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     async displayDataForAccount1() {
-          const account1name = this.storageService.getInputValue('account1name');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account1seed = this.storageService.getInputValue('account1seed');
-          const account1mnemonic = this.storageService.getInputValue('account1mnemonic');
-          const account1secretNumbers = this.storageService.getInputValue('account1secretNumbers');
+     private displayDataForAccount(accountKey: 'account1' | 'account2') {
+          const prefix = accountKey === 'account1' ? 'account1' : 'account2';
+          const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';
 
-          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
+          // Fetch stored values
+          const name = this.storageService.getInputValue(`${prefix}name`) || '';
+          const address = this.storageService.getInputValue(`${prefix}address`) || '';
+          const seed = this.storageService.getInputValue(`${prefix}seed`) || '';
+          const mnemonic = this.storageService.getInputValue(`${prefix}mnemonic`) || '';
+          const secretNumbers = this.storageService.getInputValue(`${prefix}secretNumbers`) || '';
+          const otherAddress = this.storageService.getInputValue(`${otherPrefix}address`) || '';
 
-          this.account1.name = account1name || '';
-          this.account1.address = account1address || '';
-          if (account1seed === '') {
-               if (account1mnemonic === '') {
-                    this.account1.seed = account1secretNumbers || '';
-               } else {
-                    this.account1.seed = account1mnemonic || '';
-               }
-          } else {
-               this.account1.seed = account1seed || '';
+          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+
+          // Update account data
+          const account = accountKey === 'account1' ? this.account1 : this.account2;
+          account.name = name;
+          if (accountName1Field) {
+               accountName1Field.value = account.name;
           }
-
-          if (destinationField) {
-               this.destinationField = account2address;
+          account.address = address;
+          if (accountAddress1Field) {
+               accountAddress1Field.value = account.address;
           }
+          account.seed = seed || mnemonic || secretNumbers;
+          if (accountSeed1Field) {
+               accountSeed1Field.value = account.seed;
+          }
+          this.destinationField = otherAddress;
 
-          this.getAccountDetails(account1seed, account1address);
+          this.cdr.detectChanges();
+
+          if (account.address && xrpl.isValidAddress(account.address)) {
+               this.getAccountDetails(account.address);
+          } else if (account.address) {
+               this.setError('Invalid XRP address');
+          }
      }
 
-     async displayDataForAccount2() {
-          const account2name = this.storageService.getInputValue('account2name');
-          const account2address = this.storageService.getInputValue('account2address');
-          const account1address = this.storageService.getInputValue('account1address');
-          const account2seed = this.storageService.getInputValue('account2seed');
-          const account2mnemonic = this.storageService.getInputValue('account2mnemonic');
-          const account2secretNumbers = this.storageService.getInputValue('account2secretNumbers');
+     displayDataForAccount1() {
+          this.displayDataForAccount('account1');
+     }
 
-          const destinationField = document.getElementById('destinationField') as HTMLInputElement | null;
-
-          this.account1.name = account2name || '';
-          this.account1.address = account2address || '';
-          if (account2seed === '') {
-               if (account2mnemonic === '') {
-                    this.account1.seed = account2secretNumbers || '';
-               } else {
-                    this.account1.seed = account2mnemonic || '';
-               }
-          } else {
-               this.account1.seed = account2seed || '';
-          }
-
-          if (destinationField) {
-               this.destinationField = account1address;
-          }
-
-          if (destinationField) {
-               this.destinationField = account1address;
-          }
-
-          this.getAccountDetails(account2seed, account2address);
+     displayDataForAccount2() {
+          this.displayDataForAccount('account2');
      }
 
      private setErrorProperties() {

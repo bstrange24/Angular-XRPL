@@ -102,4 +102,5 @@ export const AppConstants = {
      XRP_CURRENCY: 'XRP',
      EMPTY_STRING: '',
      LAST_LEDGER_ADD_TIME: 20,
+     MAX_FEE: '12',
 };
