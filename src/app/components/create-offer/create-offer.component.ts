@@ -25,39 +25,42 @@ export class CreateOfferComponent implements AfterViewChecked {
      // private weWantCurrencySubject = new Subject<string>();
      // private weSpendCurrencySubject = new Subject<string>();
      selectedAccount: 'account1' | 'account2' | null = null;
-     private lastResult: string = AppConstants.EMPTY_STRING;
-     transactionInput = AppConstants.EMPTY_STRING;
-     result: string = AppConstants.EMPTY_STRING;
+     private lastResult: string = '';
+     transactionInput = '';
+     result: string = '';
      currencyFieldDropDownValue: string = 'XRP';
      checkExpirationTime: string = 'seconds';
      weSpendCurrencyField: string = 'XRP';
-     offerSequenceField: string = AppConstants.EMPTY_STRING;
+     offerSequenceField: string = '';
      weWantCurrencyField: string = 'DOG';
-     weWantIssuerField: string = AppConstants.EMPTY_STRING;
-     weWantAmountField: string = AppConstants.EMPTY_STRING;
-     weWantTokenBalanceField: string = AppConstants.EMPTY_STRING;
-     weSpendIssuerField: string = AppConstants.EMPTY_STRING;
-     weSpendAmountField: string = AppConstants.EMPTY_STRING;
-     weSpendTokenBalanceField: string = AppConstants.EMPTY_STRING;
+     weWantIssuerField: string = '';
+     weWantAmountField: string = '';
+     weWantTokenBalanceField: string = '';
+     weSpendIssuerField: string = '';
+     weSpendAmountField: string = '';
+     weSpendTokenBalanceField: string = '';
      isMarketOrder: boolean = false;
-     ticketCountField = AppConstants.EMPTY_STRING;
-     expirationTimeField = AppConstants.EMPTY_STRING;
-     account1 = { name: AppConstants.EMPTY_STRING, address: AppConstants.EMPTY_STRING, seed: AppConstants.EMPTY_STRING, secretNumbers: AppConstants.EMPTY_STRING, mnemonic: AppConstants.EMPTY_STRING, balance: AppConstants.EMPTY_STRING };
-     account2 = { name: AppConstants.EMPTY_STRING, address: AppConstants.EMPTY_STRING, seed: AppConstants.EMPTY_STRING, secretNumbers: AppConstants.EMPTY_STRING, mnemonic: AppConstants.EMPTY_STRING, balance: AppConstants.EMPTY_STRING };
-     xrpBalance1Field = AppConstants.EMPTY_STRING;
-     ownerCount = AppConstants.EMPTY_STRING;
-     totalXrpReserves = AppConstants.EMPTY_STRING;
-     executionTime = AppConstants.EMPTY_STRING;
-     amountField = AppConstants.EMPTY_STRING;
-     currentTimeField = AppConstants.EMPTY_STRING;
-     memoField = AppConstants.EMPTY_STRING;
+     ticketCountField = '';
+     ticketSequence: string = '';
+     isTicket = false;
+     isTicketEnabled = false;
+     expirationTimeField = '';
+     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     xrpBalance1Field = '';
+     ownerCount = '';
+     totalXrpReserves = '';
+     executionTime = '';
+     amountField = '';
+     currentTimeField = '';
+     memoField = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
      spinner = false;
      issuers: string[] = [];
-     selectedIssuer: string = AppConstants.EMPTY_STRING;
-     tokenBalance: string = AppConstants.EMPTY_STRING;
+     selectedIssuer: string = '';
+     tokenBalance: string = '';
      spinnerMessage: string = '';
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
@@ -92,6 +95,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.displayOfferDataForAccount1();
           }
      }
+
+     toggleTicketSequence() {}
 
      async getOffers() {
           console.log('Entering getOffers');
@@ -797,26 +802,77 @@ export class CreateOfferComponent implements AfterViewChecked {
                     };
                }
 
-               // Submit OfferCreate transaction
+               const { result: feeResponse } = await client.request({ command: 'fee' });
                let prepared: OfferCreate;
-               if (typeof we_spend1 === 'object') {
-                    // Token case
-                    prepared = await client.autofill({
-                         TransactionType: 'OfferCreate',
-                         Account: wallet.classicAddress,
-                         TakerGets: we_spend1,
-                         TakerPays: we_want1,
-                         Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
-                    });
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+
+                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+                    if (typeof we_spend1 === 'object') {
+                         // Token case
+                         prepared = await client.autofill({
+                              TransactionType: 'OfferCreate',
+                              Account: wallet.classicAddress,
+                              TakerGets: we_spend1,
+                              TakerPays: we_want1,
+                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Sequence: 0,
+                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+                    } else {
+                         // XRP case
+                         prepared = await client.autofill({
+                              TransactionType: 'OfferCreate',
+                              Account: wallet.classicAddress,
+                              TakerGets: we_spend1,
+                              TakerPays: we_want1,
+                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Sequence: 0,
+                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+                    }
                } else {
-                    // XRP case
-                    prepared = await client.autofill({
-                         TransactionType: 'OfferCreate',
-                         Account: wallet.classicAddress,
-                         TakerGets: we_spend1,
-                         TakerPays: we_want1,
-                         Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
-                    });
+                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+                    if (typeof we_spend1 === 'object') {
+                         // Token case
+                         prepared = await client.autofill({
+                              TransactionType: 'OfferCreate',
+                              Account: wallet.classicAddress,
+                              TakerGets: we_spend1,
+                              TakerPays: we_want1,
+                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+                    } else {
+                         // XRP case
+                         prepared = await client.autofill({
+                              TransactionType: 'OfferCreate',
+                              Account: wallet.classicAddress,
+                              TakerGets: we_spend1,
+                              TakerPays: we_want1,
+                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                         });
+                    }
+               }
+
+               if (this.memoField) {
+                    prepared.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
                }
 
                const signed = wallet.sign(prepared);
@@ -1663,7 +1719,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           if (memoField) {
-               this.memoField = AppConstants.EMPTY_STRING;
+               this.memoField = '';
           }
 
           await this.onWeWantCurrencyChange();

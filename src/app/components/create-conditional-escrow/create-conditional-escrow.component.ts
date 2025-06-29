@@ -610,6 +610,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
           const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
           const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          const escrowOwnerField = document.getElementById('escrowOwnerField') as HTMLInputElement | null;
 
           // Update account data
           const account = accountKey === 'account1' ? this.account1 : this.account2;
@@ -626,6 +627,10 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                accountSeed1Field.value = account.seed;
           }
           this.destinationField = otherAddress;
+
+          if (escrowOwnerField) {
+               escrowOwnerField.value = account.address;
+          }
 
           this.cdr.detectChanges();
 

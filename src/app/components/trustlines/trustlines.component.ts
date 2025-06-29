@@ -345,8 +345,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               const { result: feeResponse } = await client.request({ command: 'fee' });
-
                let cur;
                if (this.currencyField.length > 3) {
                     cur = this.utilsService.encodeCurrencyCode(this.currencyField);
@@ -357,6 +355,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (!/^[A-Z0-9]{3}$|^[0-9A-Fa-f]{40}$/.test(cur)) {
                     throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
                }
+
+               const { result: feeResponse } = await client.request({ command: 'fee' });
 
                let tx;
                if (this.ticketSequence) {
@@ -657,8 +657,14 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nIssuing Currency\n\n`;
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               if (this.currencyField !== AppConstants.XRP_CURRENCY) {
+                    if (parseFloat(this.amountField) > parseFloat(this.currencyBalanceField)) {
+                         return this.setError('ERROR: Insufficent Currency balance to complete transaction');
+                    }
+               } else {
+                    if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
                }
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
