@@ -45,6 +45,19 @@ export class XrplService {
           }
      }
 
+     async getTxData(client: Client, transactionData: string) {
+          try {
+               const response = await client.request({
+                    command: 'tx',
+                    transaction: transactionData,
+               });
+               return response;
+          } catch (error) {
+               console.error(`Error fetching ${transactionData} data: ${error}`);
+               throw error;
+          }
+     }
+
      async getXrplServerState(client: Client, ledgerIndex: xrpl.LedgerIndex, type: string) {
           try {
                const response = await client.request({

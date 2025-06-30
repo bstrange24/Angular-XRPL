@@ -11,10 +11,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { sign } from 'ripple-keypairs';
-import { WithImplicitCoercion } from 'buffer';
-import * as crypto from 'crypto';
 import * as cc from 'five-bells-condition';
-import { Subscription } from 'rxjs';
 
 interface EscrowObject {
      index: string;
@@ -27,8 +24,16 @@ interface EscrowObject {
      Balance: string;
      SourceTag: number;
      PreviousTxnID: string;
+     Memo: string | null | undefined;
      Sequence: number | null | undefined;
 }
+
+type EscrowStatus = {
+     canFinish: boolean;
+     canCancel: boolean;
+     reasonFinish?: string;
+     reasonCancel?: string;
+};
 
 @Component({
      selector: 'app-create-conditional-escrow',
@@ -54,23 +59,23 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      ownerCount = '';
      totalXrpReserves = '';
      executionTime = '';
-     amountField = '';
-     destinationField = '';
-     destinationTagField = '';
+     amountField: string = '';
+     destinationField: string = '';
+     destinationTagField: string = '';
      escrowFinishTimeField = '';
      escrowFinishTimeUnit: string = 'seconds';
      escrowCancelTimeUnit: string = 'seconds';
-     escrowConditionField = '';
-     escrowFulfillmentField = '';
-     escrowCancelTimeField = '';
-     escrowOwnerField = '';
-     escrowSequenceNumberField = '';
-     memoField = '';
+     escrowConditionField: string = '';
+     escrowFulfillmentField: string = '';
+     escrowCancelTimeField: string = '';
+     escrowOwnerField: string = '';
+     escrowSequenceNumberField: string = '';
+     memoField: string = '';
      ticketSequence: string = '';
      isTicket = false;
      isTicketEnabled = false;
      isMultiSignTransaction = false;
-     multiSignAddress = '';
+     multiSignAddress: string = '';
      spinner = false;
      spinnerMessage: string = '';
 
@@ -161,13 +166,17 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     // Fetch Sequence for each PreviousTxnID
                     const escrows = tx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
                     for (const [index, previousTxnID] of previousTxnIDs.entries()) {
-                         const sequenceTx = await client.request({
-                              command: 'tx',
-                              transaction: previousTxnID,
-                         });
-                         const offerSequence = sequenceTx.result.tx_json.Sequence;
-                         console.log(`Escrow OfferSequence: ${offerSequence} Hash: ${sequenceTx.result.hash}`);
-                         escrows[index].Sequence = offerSequence !== undefined ? offerSequence : null;
+                         if (typeof previousTxnID === 'string') {
+                              const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
+                              console.debug('sequenceTx:', sequenceTx);
+                              const offerSequence = sequenceTx.result.tx_json.Sequence;
+                              const memoData = sequenceTx.result.tx_json.Memos ? sequenceTx.result.tx_json.Memos[0].Memo.MemoData : 'N/A';
+                              console.log(`Escrow OfferSequence: ${offerSequence} Hash: ${sequenceTx.result.hash} Memo: ${memoData}`);
+                              escrows[index].Sequence = offerSequence !== undefined ? offerSequence : null;
+                              (escrows[index] as any).Memo = memoData !== undefined ? memoData : null;
+                         } else {
+                              escrows[index].Sequence = null;
+                         }
                     }
 
                     data.sections.push({
@@ -182,6 +191,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                               const DestinationTag = (escrow as any).DestinationTag;
                               const PreviousTxnID = (escrow as any).PreviousTxnID;
                               const Sequence = (escrow as any).Sequence;
+                              const Memo = (escrow as any).Memo;
                               return {
                                    key: `Escrow ${index + 1} (ID: ${PreviousTxnID ? PreviousTxnID.slice(0, 8) : 'N/A'}...)`,
                                    openByDefault: false,
@@ -191,9 +201,10 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                                         { key: 'Amount', value: Amount ? `${xrpl.dropsToXrp(Amount)} XRP` : 'N/A' },
                                         { key: 'Destination', value: Destination ? `<code>${Destination}</code>` : 'N/A' },
                                         ...(Condition ? [{ key: 'Condition', value: `<code>${Condition}</code>` }] : []),
-                                        ...(CancelAfter ? [{ key: 'Cancel After', value: new Date(CancelAfter * 1000).toLocaleString() }] : []),
-                                        ...(FinishAfter ? [{ key: 'Finish After', value: new Date(FinishAfter * 1000).toLocaleString() }] : []),
+                                        ...(CancelAfter ? [{ key: 'Cancel After', value: this.utilsService.convertXRPLTime(CancelAfter) }] : []),
+                                        ...(FinishAfter ? [{ key: 'Finish After', value: this.utilsService.convertXRPLTime(FinishAfter) }] : []),
                                         ...(DestinationTag ? [{ key: 'Destination Tag', value: String(DestinationTag) }] : []),
+                                        ...(Memo ? [{ key: 'Memo', value: this.utilsService.decodeHex(Memo) }] : []),
                                         ...(escrow && (escrow as any).SourceTag ? [{ key: 'Source Tag', value: String((escrow as any).SourceTag) }] : []),
                                    ],
                               };
@@ -242,8 +253,9 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                return this.setError('ERROR: XRP Amount must be a positive number');
           }
 
-          const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
-          const action = actionElement ? actionElement.value : '';
+          if (!this.utilsService.validatInput(this.escrowCancelTimeField)) {
+               return this.setError('ERROR: Escrow cancel time cannot be empty');
+          }
 
           try {
                const { net, environment } = this.xrplService.getNet();
@@ -285,8 +297,9 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Account: wallet.address,
                          Amount: xrpl.xrpToDrops(this.amountField),
                          Destination: this.destinationField,
-                         FinishAfter: finishAfterTime,
                          CancelAfter: cancelAfterTime,
+                         Condition: this.escrowConditionField,
+                         TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
                          Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -297,8 +310,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Account: wallet.address,
                          Amount: xrpl.xrpToDrops(this.amountField),
                          Destination: this.destinationField,
-                         FinishAfter: finishAfterTime,
                          CancelAfter: cancelAfterTime,
+                         Condition: this.escrowConditionField,
                          Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
@@ -381,11 +394,36 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                }
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nFinishing Escrow\n\n`;
 
+               // const escrowObjects = await this.xrplService.getAccountObjects(client, this.escrowOwnerField, 'validated', 'escrow');
+               // console.log(`escrowObjects ${JSON.stringify(escrowObjects.result.account_objects, null, 2)}`);
+               // const targetEscrow = escrowObjects.result.account_objects.find((obj: any) => obj.Sequence === parseInt(this.escrowSequenceNumberField));
+
+               // if (!targetEscrow) {
+               //      return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+               // }
+
+               // const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
+               // const currentRippleTime = serverInfo.result.info.time;
+
+               // const status = this.checkEscrowStatus(
+               //      {
+               //           FinishAfter: (targetEscrow as any).FinishAfter,
+               //           CancelAfter: (targetEscrow as any).CancelAfter,
+               //           Condition: (targetEscrow as any).Condition,
+               //           owner: (targetEscrow as any).Owner,
+               //      },
+               //      Number(currentRippleTime),
+               //      wallet.classicAddress
+               // );
+
+               // if (!status.canFinish) {
+               //      return this.setError(`Escrow cannot be finished: ${status.reasonFinish}`);
+               // }
+
                if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let escrowTx: EscrowFinish;
@@ -399,8 +437,10 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          Owner: this.escrowOwnerField,
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
+                         Condition: this.escrowConditionField,
+                         Fulfillment: this.escrowFulfillmentField,
+                         TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
                } else {
@@ -409,7 +449,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          Owner: this.escrowOwnerField,
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Condition: this.escrowConditionField,
+                         Fulfillment: this.escrowFulfillmentField,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
                }
@@ -488,6 +529,30 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
+               // const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               // if (escrowObjects.result.account_objects.length <= 0) {
+               //      return this.setError(`No escrow found for account ${wallet.classicAddress}`);
+               // }
+
+               // const previousTxnIDs = escrowObjects.result.account_objects.map(obj => obj.PreviousTxnID);
+               // let foundSequence = 'N';
+               // console.log('PreviousTxnIDs:', previousTxnIDs);
+               // for (const [index, previousTxnID] of previousTxnIDs.entries()) {
+               //      if (typeof previousTxnID === 'string') {
+               //           const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
+               //           const offerSequence = sequenceTx.result.tx_json.Sequence;
+               //           console.log(`Escrow OfferSequence: ${offerSequence} Hash: ${sequenceTx.result.hash}`);
+               //           if (this.escrowSequenceNumberField === String(offerSequence)) {
+               //                foundSequence = 'Y';
+               //                break;
+               //           }
+               //      }
+               // }
+
+               // if (foundSequence === 'N') {
+               //      return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+               // }
+
                const feeResponse = await client.request({ command: 'fee' });
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -502,6 +567,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Account: wallet.address,
                          Owner: this.escrowOwnerField,
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
+                         TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
                          Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -587,6 +653,53 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           return { condition, fulfillment: fulfillment_hex };
      }
 
+     checkEscrowStatus(
+          escrow: {
+               FinishAfter?: number;
+               CancelAfter?: number;
+               Condition?: string;
+               owner: string;
+          },
+          currentRippleTime?: number,
+          currentAccountAddress?: string
+     ): EscrowStatus {
+          const now = currentRippleTime ?? Math.floor(Date.now() / 1000) + 946684800; // convert UNIX to XRP timestamp
+
+          const { FinishAfter, CancelAfter, Condition, owner } = escrow;
+          const isCreator = currentAccountAddress ? currentAccountAddress === owner : false;
+
+          const result: EscrowStatus = {
+               canFinish: false,
+               canCancel: false,
+               reasonFinish: '',
+               reasonCancel: '',
+          };
+
+          // Check finish eligibility
+          if (FinishAfter && now >= FinishAfter) {
+               if (Condition) {
+                    result.canFinish = true;
+               } else {
+                    result.canFinish = true;
+               }
+          } else {
+               result.reasonFinish = FinishAfter ? `Cannot finish: FinishAfter ${FinishAfter} not yet reached (now=${now})` : 'Cannot finish: No FinishAfter set';
+          }
+
+          // Check cancel eligibility
+          if (CancelAfter && now >= CancelAfter) {
+               if (isCreator) {
+                    result.canCancel = true;
+               } else {
+                    result.reasonCancel = 'Only the escrow creator can cancel';
+               }
+          } else {
+               result.reasonCancel = CancelAfter ? `Cannot cancel: CancelAfter ${CancelAfter} not yet reached (now=${now})` : 'Cannot cancel: No CancelAfter set';
+          }
+
+          return result;
+     }
+
      private async updateXrpBalance(client: xrpl.Client, address: string) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;
@@ -629,7 +742,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           this.destinationField = otherAddress;
 
           if (escrowOwnerField) {
-               escrowOwnerField.value = account.address;
+               this.escrowOwnerField = account.address;
           }
 
           this.cdr.detectChanges();

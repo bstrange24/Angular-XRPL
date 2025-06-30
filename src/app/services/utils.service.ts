@@ -10,23 +10,14 @@ import { StorageService } from '../services/storage.service';
 })
 export class UtilsService {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     selectedAccount: 'account1' | 'account2' | null = null;
      transactionInput = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     account1 = { name: '', address: '', seed: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', balance: '' };
      ownerCount = '';
      totalXrpReserves = '';
-     executionTime = '';
-     isMultiSign = false;
-     multiSignAddress = '';
-     isUpdateMetaData = false;
-     tickSize = '';
      transferRate = '';
      isMessageKey = false;
-     domain = '';
      memo = '';
      spinner = false;
 
@@ -431,6 +422,20 @@ export class UtilsService {
           }
           if (typeof value === 'string' && value.length > 50) {
                return `<code>${value.slice(0, 50)}...</code>`;
+          }
+          if (key === 'Memos') {
+               const memoData = value[0].Memo.MemoData;
+               const memoType = value[0].Memo.MemoType;
+               return this.decodeHex(memoData) + (memoType ? ` (${this.decodeHex(memoType)})` : '');
+          }
+          if (key === 'Domain' || key === 'EmailHash' || key === 'URI') {
+               return this.decodeHex(value);
+          }
+          if (key === 'Balance' || key === 'Fee') {
+               return this.formatXRPLAmount(value);
+          }
+          if (key === 'date' || key === 'CancelAfter' || key === 'FinishAfter' || key === 'Expiration') {
+               return this.convertXRPLTime(value);
           }
           if (typeof value === 'object') {
                return this.formatAmount(value);

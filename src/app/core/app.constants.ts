@@ -47,6 +47,7 @@ export const AppConstants = {
           { name: 'asfDisallowIncomingPayChan', label: 'Block Payment Channels', value: 14, xrplName: 'disallowIncomingPayChan', xrplEnum: xrpl.AccountSetAsfFlags.asfDisallowIncomingPayChan },
           { name: 'asfDisallowIncomingTrustline', label: 'Block Trust Lines', value: 15, xrplName: 'disallowIncomingTrustline', xrplEnum: xrpl.AccountSetAsfFlags.asfDisallowIncomingTrustline },
           { name: 'asfAllowTrustLineClawback', label: 'Allow Trust Line Clawback', value: 16, xrplName: 'allowTrustLineClawback', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineClawback },
+          // { name: 'asfAllowTrustLineLocking', label: 'Allow Trust Line Locking', value: 17, xrplName: 'asfAllowTrustLineLocking', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineClawback },
      ],
 
      FLAGMAP: {
@@ -103,4 +104,5 @@ export const AppConstants = {
      EMPTY_STRING: '',
      LAST_LEDGER_ADD_TIME: 20,
      MAX_FEE: '12',
+     MAX_ESCROW_FEE: '24',
 };
