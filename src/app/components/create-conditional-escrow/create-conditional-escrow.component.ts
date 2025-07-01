@@ -283,7 +283,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                console.log(`finishUnit: ${this.escrowFinishTimeUnit} cancelUnit: ${this.escrowCancelTimeUnit}`);
                console.log(`finishTime: ${this.utilsService.convertXRPLTime(finishAfterTime)} cancelTime: ${this.utilsService.convertXRPLTime(cancelAfterTime)}`);
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let escrowTx: EscrowCreate;
@@ -301,7 +301,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Condition: this.escrowConditionField,
                          TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                } else {
@@ -312,7 +312,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Destination: this.destinationField,
                          CancelAfter: cancelAfterTime,
                          Condition: this.escrowConditionField,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                }
@@ -553,7 +553,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                //      return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
                // }
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let escrowTx: EscrowCancel;
@@ -569,7 +569,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
                          TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
                } else {
@@ -578,7 +578,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          Owner: this.escrowOwnerField,
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
                }

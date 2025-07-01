@@ -211,14 +211,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const tx: TicketCreate = {
                     TransactionType: 'TicketCreate',
                     Account: wallet.classicAddress,
                     TicketCount: parseInt(this.ticketCountField),
-                    Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                    Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 

@@ -506,6 +506,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                });
                console.debug(`Active trust lines for ${wallet.classicAddress}:`, doesTrustLinesExists);
 
+               const fee = await this.xrplService.calculateTransactionFee(client);
                if (doesTrustLinesExists.length <= 0) {
                     const { result: feeResponse } = await client.request({ command: 'fee' });
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -517,7 +518,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               issuer: issuerAddr,
                               value: '1000000',
                          },
-                         Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + 20,
                     };
 
@@ -820,7 +821,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               TakerPays: we_want1,
                               Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
                               Sequence: 0,
-                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     } else {
@@ -832,7 +833,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               TakerPays: we_want1,
                               Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
                               Sequence: 0,
-                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     }
@@ -847,7 +848,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               TakerGets: we_spend1,
                               TakerPays: we_want1,
                               Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
-                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     } else {
@@ -858,7 +859,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               TakerGets: we_spend1,
                               TakerPays: we_want1,
                               Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
-                              Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     }

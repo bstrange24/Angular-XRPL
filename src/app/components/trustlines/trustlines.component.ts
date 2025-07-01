@@ -356,7 +356,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
                }
 
-               const { result: feeResponse } = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
 
                let tx;
                if (this.ticketSequence) {
@@ -375,7 +375,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               value: this.amountField,
                          },
                          Sequence: 0,
-                         Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
 
@@ -405,7 +405,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               issuer: this.destinationField,
                               value: this.amountField,
                          },
-                         Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
 
@@ -511,7 +511,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError(`ERROR: Cannot remove trust line: Balance is ${trustLine.balance}. Balance must be 0.`);
                }
 
-               const { result: feeResponse } = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
 
                if (this.currencyField.length > 3) {
                     this.currencyField = this.utilsService.encodeCurrencyCode(this.currencyField);
@@ -534,7 +534,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               value: '0',
                          },
                          Sequence: 0,
-                         Fee: feeResponse.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
 
@@ -564,7 +564,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               issuer: this.destinationField,
                               value: '0',
                          },
-                         Fee: feeResponse.drops.open_ledger_fee,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
 
@@ -730,16 +730,17 @@ export class TrustlinesComponent implements AfterViewChecked {
                let tx = null;
                const accountFlags = accountInfo.result.account_data.Flags;
                const asfDefaultRipple = 0x00800000;
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
                let lastLedgerIndex = await this.xrplService.getLastLedgerIndex(client);
 
                if ((accountFlags & asfDefaultRipple) === 0) {
-                    const networkFee = await this.xrplService.getTransactionFee(client);
                     const accountSetTx: AccountSet = {
                          TransactionType: 'AccountSet',
                          Account: wallet.classicAddress,
                          SetFlag: 8, // asfDefaultRipple
                          LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
-                         Fee: networkFee,
+                         Fee: fee,
                     };
 
                     const preparedAccountSet = await client.autofill(accountSetTx);
@@ -773,7 +774,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                lastLedgerIndex = await this.xrplService.getLastLedgerIndex(client);
-               const networkFee = await this.xrplService.getTransactionFee(client);
 
                const curr = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
                const paymentTx: Payment = {
@@ -785,7 +785,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          value: this.amountField,
                          issuer: wallet.classicAddress,
                     },
-                    Fee: networkFee,
+                    Fee: fee,
                     LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 

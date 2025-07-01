@@ -165,7 +165,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let payment: Payment;
@@ -181,7 +181,7 @@ export class SendXrpComponent implements AfterViewChecked {
                          Destination: this.destinationField,
                          TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
                } else {
@@ -190,7 +190,7 @@ export class SendXrpComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          Amount: xrpl.xrpToDrops(this.amountField),
                          Destination: this.destinationField,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
                }

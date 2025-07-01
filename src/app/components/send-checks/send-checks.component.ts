@@ -307,7 +307,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     };
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let tx: CheckCreate;
@@ -323,7 +323,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          Destination: this.destinationField,
                          TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                } else {
@@ -332,7 +332,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          SendMax: sendMax,
                          Destination: this.destinationField,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                }
@@ -446,7 +446,7 @@ export class SendChecksComponent implements AfterViewChecked {
                                 issuer: this.selectedIssuer,
                            };
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let tx: CheckCash;
@@ -461,7 +461,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          Amount: amountToCash,
                          CheckID: this.checkIdField,
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                } else {
@@ -470,7 +470,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          Amount: amountToCash,
                          CheckID: this.checkIdField,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                }
@@ -539,7 +539,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Check\n\n`;
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let tx: CheckCancel;
@@ -553,7 +553,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          Account: wallet.classicAddress,
                          CheckID: this.checkIdField,
                          Sequence: 0,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                } else {
@@ -561,7 +561,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          TransactionType: 'CheckCancel',
                          Account: wallet.classicAddress,
                          CheckID: this.checkIdField,
-                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
                }
