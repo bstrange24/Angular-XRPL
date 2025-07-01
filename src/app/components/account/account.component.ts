@@ -329,7 +329,7 @@ export class AccountComponent implements AfterViewChecked {
                const transactions = [];
                let hasError = false;
 
-               this.updateSpinnerMessage('Sending transaction...');
+               this.updateSpinnerMessage('Submitting transaction to the network ...');
 
                for (const flagValue of setFlags) {
                     const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memoField);
@@ -598,7 +598,7 @@ export class AccountComponent implements AfterViewChecked {
                     ];
                }
 
-               this.updateSpinnerMessage('Sending transaction...');
+               this.updateSpinnerMessage('Submitting transaction to the network ...');
 
                const response = await client.submitAndWait(tx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -811,7 +811,7 @@ export class AccountComponent implements AfterViewChecked {
                     }
                }
 
-               this.updateSpinnerMessage('Sending transaction...');
+               this.updateSpinnerMessage('Submitting transaction to the network ...');
 
                const response = await client.submitAndWait(signerListTx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {

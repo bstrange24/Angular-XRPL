@@ -256,6 +256,18 @@
                               <div class="trustline-cell">Clear Freeze <code>tfClearFreeze</code> value <code>0x00200000</code></div>
                               <div class="trustline-cell">Unfreezes the trust line.</div>
                          </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Partial Payment <code>tfPartialPayment</code></div>
+                              <div class="trustline-cell">Allows partial payment if not enough liquidity (used for IOU/cross-currency payments).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">No Direct Ripple <code>tfNoDirectRipple</code></div>
+                              <div class="trustline-cell">Prevents the payment from taking a direct path through the senders and receivers accounts (for IOU).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Limit Quality <code>tfLimitQuality</code></div>
+                              <div class="trustline-cell">Ensures exchange rate doesn't exceed SendMax/Amount.</div>
+                         </div>
                     </div>
                </details>
                <details class="trustline-subdetails">
@@ -276,6 +288,18 @@
                          <div class="trustline-row">
                               <div class="trustline-cell"><code>LimitAmount</code></div>
                               <div class="trustline-cell">Defines the trust line: includes currency, issuer, and value (max IOU the account is willing to hold from issuer).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Send Max</div>
+                              <div class="trustline-cell">**For IOU payments**, limits the amount to spend. *Not needed when sending XRP.*</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Deliver Min</div>
+                              <div class="trustline-cell">Minimum amount that must be delivered. Useful in **partial payments**. *Ignored for XRP payments unless `tfPartialPayment` is set.*</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Paths</div>
+                              <div class="trustline-cell">Array of paths for cross-currency payments. *Not applicable for XRP-to-XRP.*</div>
                          </div>
                          <div class="trustline-row">
                               <div class="trustline-cell"><code>Flags</code></div>

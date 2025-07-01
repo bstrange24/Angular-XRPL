@@ -11,16 +11,6 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
-// Define an interface for account data
-interface AccountData {
-     name: string;
-     address: string;
-     seed: string;
-     secretNumbers: string;
-     mnemonic: string;
-     balance: string;
-}
-
 @Component({
      selector: 'app-account',
      standalone: true,
@@ -46,6 +36,7 @@ export class SendXrpComponent implements AfterViewChecked {
      amountField = '';
      destinationField = '';
      destinationTagField = '';
+     invoiceIdField: string = '';
      ticketSequence: string = '';
      memoField = '';
      isMultiSignTransaction = false;
@@ -96,14 +87,52 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
+     private async getValidInvoiceID(input: string): Promise<string | null> {
+          if (!input) {
+               return null;
+          }
+          if (/^[0-9A-Fa-f]{64}$/.test(input)) {
+               return input.toUpperCase();
+          }
+          try {
+               const encoder = new TextEncoder();
+               const data = encoder.encode(input);
+               const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+               const hashArray = Array.from(new Uint8Array(hashBuffer));
+               const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+               return hashHex.toUpperCase();
+          } catch (error) {
+               throw new Error('Failed to hash InvoiceID');
+          }
+     }
+
      async getAccountDetails(address: string) {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           try {
                const client = await this.xrplService.getClient();
 
+               this.updateSpinnerMessage('Getting Account Details...');
+
                const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
                const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
+
+               if (accountInfo.result.account_data.length <= 0) {
+                    this.resultField.nativeElement.innerHTML = `No account data found for ${address}`;
+                    return;
+               }
+
+               if (accountObjects.result.account_objects.length <= 0) {
+                    this.resultField.nativeElement.innerHTML = `No account objects found for ${address}`;
+                    return;
+               }
+
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
@@ -159,7 +188,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSending XRP\n\n`;
+               this.updateSpinnerMessage('Sending XRP...');
 
                if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -213,8 +242,18 @@ export class SendXrpComponent implements AfterViewChecked {
                     ];
                }
 
+               if (this.invoiceIdField) {
+                    const validInvoiceID = await this.getValidInvoiceID(this.invoiceIdField);
+                    if (validInvoiceID) {
+                         payment.InvoiceID = validInvoiceID;
+                    }
+               }
+
                let preparedTx = await client.autofill(payment);
                const signed = wallet.sign(preparedTx);
+
+               this.updateSpinnerMessage('Submitting transaction to the network ...');
+
                const response = await client.submitAndWait(signed.tx_blob);
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
