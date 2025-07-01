@@ -240,7 +240,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     });
                }
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -324,7 +324,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
 
-                    this.updateSpinnerMessage('Submitting transaction to the network ...');
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     const response = await client.submitAndWait(signed.tx_blob);
                     console.log('Create Escrow tx', JSON.stringify(response, null, 2));
@@ -402,7 +402,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
 
-                    this.updateSpinnerMessage('Submitting transaction to the network ...');
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     const response = await client.submitAndWait(signed.tx_blob);
                     console.log('Create Escrow tx', JSON.stringify(response, null, 2));
@@ -498,7 +498,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
 
-                    this.updateSpinnerMessage('Submitting transaction to the network ...');
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     const response = await client.submitAndWait(signed.tx_blob);
                     console.log('Create Escrow tx', JSON.stringify(response, null, 2));
@@ -585,7 +585,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
                     const response = await client.submitAndWait(signed.tx_blob);
 
-                    this.updateSpinnerMessage('Submitting transaction to the network ...');
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     console.log('Create Escrow tx', JSON.stringify(response, null, 2));
 

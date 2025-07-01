@@ -272,7 +272,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     });
                }
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -420,7 +420,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                //      return this.setError(`Escrow cannot be finished: ${status.reasonFinish}`);
                // }
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -525,7 +525,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                }
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Escrow\n\n`;
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 

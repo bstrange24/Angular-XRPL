@@ -148,7 +148,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Trustlines\n\n`;
+               this.updateSpinnerMessage('Getting Trustlines ...');
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
                const activeTrustLine = trustLines.result.lines.filter((line: any) => parseFloat(line.limit) > 0);
@@ -339,9 +339,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Trustline\n\n`;
+               this.updateSpinnerMessage('Setting Trustline ...');
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -393,6 +393,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
                     const signed = wallet.sign(trustSetTx);
                     console.debug(`signed ${JSON.stringify(signed, null, 2)}`);
+
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                     tx = await client.submitAndWait(signed.tx_blob);
                     console.debug(`Trustline tx ${JSON.stringify(tx, null, 2)}`);
                } else {
@@ -423,6 +426,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
                     const preparedTx = await client.autofill(trustSetTx);
                     const signedTx = wallet.sign(preparedTx);
+
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                     tx = await client.submitAndWait(signedTx.tx_blob);
                     console.debug('Create Trustline tx', tx);
                }
@@ -435,7 +441,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Trust line set successfully.\n\n`;
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -480,9 +485,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nRemoving Trustline\n\n`;
+               this.updateSpinnerMessage('Removing Trustline ...');
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -552,6 +557,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
                     const signed = wallet.sign(trustSetTx);
                     console.debug(`signed ${JSON.stringify(signed, null, 2)}`);
+
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                     tx = await client.submitAndWait(signed.tx_blob);
                     console.debug(`Trustline tx ${JSON.stringify(tx, null, 2)}`);
                } else {
@@ -582,6 +590,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
                     const preparedTx = await client.autofill(trustSetTx);
                     const signedTx = wallet.sign(preparedTx);
+
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                     tx = await client.submitAndWait(signedTx.tx_blob);
                }
 
@@ -655,14 +665,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nIssuing Currency\n\n`;
+               this.updateSpinnerMessage('Issuing Currency ...');
 
                if (this.currencyField !== AppConstants.XRP_CURRENCY) {
                     if (parseFloat(this.amountField) > parseFloat(this.currencyBalanceField)) {
                          return this.setError('ERROR: Insufficent Currency balance to complete transaction');
                     }
                } else {
-                    if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                          return this.setError('ERROR: Insufficent XRP to complete transaction');
                     }
                }
@@ -733,6 +743,8 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                let lastLedgerIndex = await this.xrplService.getLastLedgerIndex(client);
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                if ((accountFlags & asfDefaultRipple) === 0) {
                     const accountSetTx: AccountSet = {
@@ -1040,6 +1052,12 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
           this.ownerCount = ownerCount;
@@ -1054,7 +1072,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
           const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
 
           let name;
@@ -1107,15 +1125,15 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async displayDataForAccount1() {
+     private async displayDataForAccount1() {
           await this.displayDataForAccount('account1');
      }
 
-     async displayDataForAccount2() {
+     private async displayDataForAccount2() {
           await this.displayDataForAccount('account2');
      }
 
-     async displayDataForAccount3() {
+     private async displayDataForAccount3() {
           await this.displayDataForAccount('issuer');
      }
 

@@ -312,9 +312,9 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Updating Account Flags...');
 
-               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
+               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
+               // }
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                console.debug('accountInfo', accountInfo);
@@ -329,7 +329,7 @@ export class AccountComponent implements AfterViewChecked {
                const transactions = [];
                let hasError = false;
 
-               this.updateSpinnerMessage('Submitting transaction to the network ...');
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                for (const flagValue of setFlags) {
                     const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memoField);
@@ -415,9 +415,9 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Updating Meta Data...');
 
-               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
+               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
+               // }
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -472,6 +472,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (updatedData) {
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                     const response = await client.submitAndWait(tx, { wallet });
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`response ${JSON.stringify(response, null, 2)}`);
@@ -548,9 +549,9 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Setting Deposit Auth...');
 
-               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
+               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
+               // }
 
                let accountInfo;
                try {
@@ -598,7 +599,7 @@ export class AccountComponent implements AfterViewChecked {
                     ];
                }
 
-               this.updateSpinnerMessage('Submitting transaction to the network ...');
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                const response = await client.submitAndWait(tx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -661,7 +662,7 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Setting Multi Sign...');
 
-               if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -811,7 +812,7 @@ export class AccountComponent implements AfterViewChecked {
                     }
                }
 
-               this.updateSpinnerMessage('Submitting transaction to the network ...');
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                const response = await client.submitAndWait(signerListTx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {

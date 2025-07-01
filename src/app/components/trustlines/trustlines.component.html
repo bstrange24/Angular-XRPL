@@ -234,38 +234,56 @@
                     <div class="trustline-table">
                          <div class="trustline-row trustline-header">
                               <div class="trustline-cell">Trustline Flags</div>
+                              <div class="trustline-cell">Value</div>
+                              <div class="trustline-cell">Hex Value</div>
                               <div class="trustline-cell">Purpose</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Set Auth <code>tfSetfAuth</code> value <code>0x00010000</code></div>
+                              <div class="trustline-cell">Set Authuthorization</div>
+                              <div class="trustline-cell"><code>tfSetfAuth</code></div>
+                              <div class="trustline-cell"><code>0x00010000</code></div>
                               <div class="trustline-cell">Marks the trust line as authorized (if required by the issuer).</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Set No Ripple <code>tfSetNoRipple</code> value <code>0x00020000</code></div>
+                              <div class="trustline-cell">Set No Ripple</div>
+                              <div class="trustline-cell"><code>tfSetNoRipple</code></div>
+                              <div class="trustline-cell"><code>0x00020000</code></div>
                               <div class="trustline-cell">Enables No Ripple: prevents IOU from rippling through this trust line.</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Clear No Ripple <code>tfClearNoRipple</code> value <code>0x00040000</code></div>
+                              <div class="trustline-cell">Clear No Ripple</div>
+                              <div class="trustline-cell"><code>tfClearNoRipple</code></div>
+                              <div class="trustline-cell"><code>0x00040000</code></div>
                               <div class="trustline-cell">Clears the No Ripple flag.</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Set Freeze <code>tfSetFreeze</code> value <code>0x00100000</code></div>
+                              <div class="trustline-cell">Set Freeze</div>
+                              <div class="trustline-cell"><code>tfSetFreeze</code></div>
+                              <div class="trustline-cell"><code>0x00100000</code></div>
                               <div class="trustline-cell">Freezes the trust line (prevents the holder from sending/receiving the IOU).</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Clear Freeze <code>tfClearFreeze</code> value <code>0x00200000</code></div>
+                              <div class="trustline-cell">Clear Freeze</div>
+                              <div class="trustline-cell"><code>tfClearFreeze</code></div>
+                              <div class="trustline-cell"><code>0x00200000</code></div>
                               <div class="trustline-cell">Unfreezes the trust line.</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Partial Payment <code>tfPartialPayment</code></div>
+                              <div class="trustline-cell">Partial Payment</div>
+                              <div class="trustline-cell"><code>tfPartialPayment</code></div>
+                              <div class="trustline-cell"><code>N/A</code></div>
                               <div class="trustline-cell">Allows partial payment if not enough liquidity (used for IOU/cross-currency payments).</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">No Direct Ripple <code>tfNoDirectRipple</code></div>
+                              <div class="trustline-cell">No Direct Ripple</div>
+                              <div class="trustline-cell"><code>tfNoDirectRipple</code></div>
+                              <div class="trustline-cell"><code>N/A</code></div>
                               <div class="trustline-cell">Prevents the payment from taking a direct path through the senders and receivers accounts (for IOU).</div>
                          </div>
                          <div class="trustline-row">
-                              <div class="trustline-cell">Limit Quality <code>tfLimitQuality</code></div>
+                              <div class="trustline-cell">Limit Quality</div>
+                              <div class="trustline-cell"><code>tfLimitQuality</code></div>
+                              <div class="trustline-cell"><code>N/A</code></div>
                               <div class="trustline-cell">Ensures exchange rate doesn't exceed SendMax/Amount.</div>
                          </div>
                     </div>

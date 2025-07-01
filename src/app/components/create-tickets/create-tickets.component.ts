@@ -207,7 +207,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating Ticket\n\n`;
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 

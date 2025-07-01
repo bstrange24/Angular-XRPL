@@ -444,14 +444,90 @@ export class UtilsService {
           return String(value);
      }
 
-     async isSufficentXrpBalance(client: xrpl.Client, amountField: string, totalXrpReserves: string, address: string) {
+     async isInsufficientXrpBalance(client: xrpl.Client, amountField: string, totalXrpReserves: string, address: string) {
           const amount = parseFloat(amountField);
           const totalReserves = parseFloat(totalXrpReserves || '0');
-          const balance1 = await client.getXrpBalance(address);
-          if (amount > balance1 - totalReserves) {
-               return true;
-          }
+          const balance = await client.getXrpBalance(address);
+          // return amount > balance - totalReserves;
           return false;
+     }
+
+     increasesOwnerCount(tx: any): boolean {
+          const type = tx.TransactionType;
+
+          switch (type) {
+               case 'TrustSet':
+                    // Non-zero limit or flags will likely create a trustline
+                    const limit = parseFloat(tx?.LimitAmount?.value || '0');
+                    const flags = tx?.Flags || 0;
+                    return limit !== 0 || flags !== 0;
+
+               case 'OfferCreate':
+                    // Offers often create new ledger objects unless fully consumed
+                    return true;
+
+               case 'CheckCreate':
+               case 'EscrowCreate':
+               case 'PaymentChannelCreate':
+               case 'TicketCreate':
+               case 'SignerListSet':
+               case 'AMMDeposit':
+               case 'NFTokenMint':
+                    return true;
+
+               default:
+                    return false;
+          }
+     }
+
+     async isInsufficientXrpBalance1(client: xrpl.Client, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
+          try {
+               // Validate inputs
+               if (!amountXrp || isNaN(parseFloat(amountXrp)) || parseFloat(amountXrp) < 0) {
+                    throw new Error('Invalid amount: must be a non-negative number');
+               }
+
+               let amountDrops = 0n;
+
+               if (txObject?.Amount && typeof txObject.Amount === 'string') {
+                    // XRP to XRP
+                    amountDrops = BigInt(txObject.Amount);
+               } else if (typeof amountXrp === 'string' && !isNaN(Number(amountXrp))) {
+                    amountDrops = BigInt(xrpl.xrpToDrops(amountXrp));
+               } else {
+                    amountDrops = 0n;
+               }
+
+               // Convert amount to drops
+               // const amountDrops = BigInt(xrpl.xrpToDrops(amountXrp));
+
+               // Get account info to calculate reserves
+               const accountInfo = await this.getAccountInfo(address);
+               const balanceDrops = BigInt(accountInfo.result.account_data.Balance);
+
+               // Get server info for reserve requirements
+               const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
+               const baseReserveDrops = BigInt(serverInfo.result.info.validated_ledger?.reserve_base_xrp || 10) * BigInt(1_000_000);
+               const incReserveDrops = BigInt(serverInfo.result.info.validated_ledger?.reserve_inc_xrp || 2) * BigInt(1_000_000);
+               const ownerCount = BigInt(accountInfo.result.account_data.OwnerCount || 0);
+
+               // Calculate total reserve (base + incremental)
+               let totalReserveDrops = baseReserveDrops + ownerCount * incReserveDrops;
+
+               if (txObject && this.increasesOwnerCount(txObject)) {
+                    totalReserveDrops += incReserveDrops;
+               }
+
+               // Include transaction fee
+               const fee = BigInt(feeDrops);
+
+               // Check if balance is sufficient
+               const requiredDrops = amountDrops + fee + totalReserveDrops;
+               return balanceDrops >= requiredDrops;
+          } catch (error: any) {
+               console.error('Error checking XRP balance:', error);
+               throw new Error(`Failed to check balance: ${error.message || 'Unknown error'}`);
+          }
      }
 
      renderAccountDetails(accountInfo: any, accountObjects: any) {
@@ -2912,37 +2988,51 @@ export class UtilsService {
           }
      }
 
-     async getAccountInfo(seed: string, environment: string = 'devnet'): Promise<any> {
-          if (!seed) {
-               throw new Error('Account seed cannot be empty');
-          }
+     async getAccountInfo(address: string): Promise<any> {
           try {
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               }
                const accountInfo = await client.request({
                     command: 'account_info',
-                    account: wallet.classicAddress,
+                    account: address,
                });
 
-               const accountObjects = await client.request({
-                    command: 'account_objects',
-                    account: wallet.classicAddress,
-               });
-
-               return { accountInfo, accountObjects }; //response.result;
+               return accountInfo;
           } catch (error: any) {
                throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
           }
      }
+
+     // async getAccountInfo(seed: string, environment: string = 'devnet'): Promise<any> {
+     //      if (!seed) {
+     //           throw new Error('Account seed cannot be empty');
+     //      }
+     //      try {
+     //           const client = await this.xrplService.getClient();
+     //           let wallet;
+     //           if (seed.split(' ').length > 1) {
+     //                wallet = xrpl.Wallet.fromMnemonic(seed, {
+     //                     algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+     //                });
+     //           } else {
+     //                wallet = xrpl.Wallet.fromSeed(seed, {
+     //                     algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+     //                });
+     //           }
+     //           const accountInfo = await client.request({
+     //                command: 'account_info',
+     //                account: wallet.classicAddress,
+     //           });
+
+     //           const accountObjects = await client.request({
+     //                command: 'account_objects',
+     //                account: wallet.classicAddress,
+     //           });
+
+     //           return { accountInfo, accountObjects }; //response.result;
+     //      } catch (error: any) {
+     //           throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
+     //      }
+     // }
 
      async getTrustlines(seed: string, environment: string = 'devnet'): Promise<any> {
           if (!seed) {

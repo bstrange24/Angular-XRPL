@@ -87,38 +87,13 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
-     }
-
-     private async getValidInvoiceID(input: string): Promise<string | null> {
-          if (!input) {
-               return null;
-          }
-          if (/^[0-9A-Fa-f]{64}$/.test(input)) {
-               return input.toUpperCase();
-          }
-          try {
-               const encoder = new TextEncoder();
-               const data = encoder.encode(input);
-               const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-               const hashArray = Array.from(new Uint8Array(hashBuffer));
-               const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-               return hashHex.toUpperCase();
-          } catch (error) {
-               throw new Error('Failed to hash InvoiceID');
-          }
-     }
-
      async getAccountDetails(address: string) {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           try {
                const client = await this.xrplService.getClient();
 
-               this.updateSpinnerMessage('Getting Account Details...');
+               this.showSpinnerWithDelay('Getting Account Details ...', 250);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
                const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
@@ -188,9 +163,9 @@ export class SendXrpComponent implements AfterViewChecked {
                     });
                }
 
-               this.updateSpinnerMessage('Sending XRP...');
+               this.showSpinnerWithDelay('Sending XRP ...', 250);
 
-               if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -252,7 +227,7 @@ export class SendXrpComponent implements AfterViewChecked {
                let preparedTx = await client.autofill(payment);
                const signed = wallet.sign(preparedTx);
 
-               this.updateSpinnerMessage('Submitting transaction to the network ...');
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                const response = await client.submitAndWait(signed.tx_blob);
 
@@ -277,6 +252,37 @@ export class SendXrpComponent implements AfterViewChecked {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving sendXrp in ${this.executionTime}ms`);
+          }
+     }
+
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+     }
+
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
+     private async getValidInvoiceID(input: string): Promise<string | null> {
+          if (!input) {
+               return null;
+          }
+          if (/^[0-9A-Fa-f]{64}$/.test(input)) {
+               return input.toUpperCase();
+          }
+          try {
+               const encoder = new TextEncoder();
+               const data = encoder.encode(input);
+               const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+               const hashArray = Array.from(new Uint8Array(hashBuffer));
+               const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+               return hashHex.toUpperCase();
+          } catch (error) {
+               throw new Error('Failed to hash InvoiceID');
           }
      }
 
@@ -329,11 +335,11 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     displayDataForAccount1() {
+     private displayDataForAccount1() {
           this.displayDataForAccount('account1');
      }
 
-     displayDataForAccount2() {
+     private displayDataForAccount2() {
           this.displayDataForAccount('account2');
      }
 
