@@ -17,7 +17,7 @@
                     <td>
                          <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
                          <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account1">Account 1</label>
+                         <label for="account1">Sender</label>
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -29,7 +29,7 @@
                     <td>
                          <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
                          <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account2">Account 2</label>
+                         <label for="account2">Receiver</label>
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -90,12 +90,12 @@
                <th></th>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amount of XRP to send.">
+                         <span class="tooltip" tooltip-data="Amount of XRP to send.  (1 XRP = 1,000,000 drops)">
                               <label for="amountField">XRP Amount</label>
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
+                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" placeholder="Amount in XRP" />
                          <br />
                     </td>
                </tr>
@@ -112,12 +112,45 @@
                </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
+                              <label for="destinationTagField">Destination Tag</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Channel ID for Payment Channel..">
                               <label for="channelIDField">Channel ID</label>
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="channelIDField" size="85" [(ngModel)]="channelIDField" name="channelIDField" />
+                         <input type="text" id="channelIDField" size="75" [(ngModel)]="channelIDField" name="channelIDField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Sender's Public Key for Payment Channel..">
+                              <label for="publicKeyField">Sender Public Key</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="publicKeyField" size="75" [(ngModel)]="publicKeyField" name="publicKeyField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Channel Claim Signature Field. This is provided by the receiver">
+                              <label for="channelClaimSignatureField">Claim Signature</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="channelClaimSignatureField" size="75" [(ngModel)]="channelClaimSignatureField" name="channelClaimSignatureField" />
                          <br />
                     </td>
                </tr>
@@ -132,6 +165,10 @@
                          <label><input type="radio" name="channelAction" value="close" /> Close</label>
                     </td>
                </tr>
+          </table>
+
+          <table style="float: left">
+               <th></th>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="It defines the minimum amount of time (in seconds) that must elapse after the sender requests to close the channel before the actual settlement can occur.">
@@ -141,6 +178,22 @@
                     <td>
                          <input type="text" id="settleDelayField" size="40" placeholder="Time in seconds" [(ngModel)]="settleDelayField" name="settleDelayField" />
                          <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Cancel After Time.">
+                              <label for="paymentChannelCancelAfterTimeField">Cancel After Time</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="paymentChannelCancelAfterTimeField" size="40" placeholder="Enter time" [(ngModel)]="paymentChannelCancelAfterTimeField" name="paymentChannelCancelAfterTimeField" />
+                         <select class="timeUnit" id="paymentChannelCancelAfterTimeUnit" [(ngModel)]="paymentChannelCancelAfterTimeUnit" name="paymentChannelCancelAfterTimeUnit">
+                              <option value="seconds">Seconds</option>
+                              <option value="minutes">Minutes</option>
+                              <option value="hours">Hours</option>
+                              <option value="days">Days</option>
+                         </select>
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -157,7 +210,7 @@
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequnce</label>
+                              <label>Use Ticket Sequence</label>
                          </span>
                     </td>
                     <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -176,6 +229,16 @@
                          <br />
                     </td>
                </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check to renew channel expiration.">
+                              <label for="renewChannel">Renew Channel</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="checkbox" id="renewChannel" [(ngModel)]="renewChannel" (ngModelChange)="toggleTicketSequence()" name="renewChannel" />
+                    </td>
+               </tr>
           </table>
 
           <div class="spinner-container">
@@ -189,6 +252,7 @@
                     <td colspan="2">
                          <button type="button" (click)="getPaymentChannels()">Get Payment Channels</button>
                          <button type="button" (click)="handlePaymentChannelAction()">Execute Payment Channel Action</button>
+                         <button type="button" (click)="generateCreatorClaimSignature()">Generate Claim Signature</button>
                     </td>
                </tr>
                <tr>
@@ -198,4 +262,163 @@
                </tr>
           </table>
      </fieldset>
+     <details class="paymentChannel-info">
+          <summary>Payment Channel Info</summary>
+          <fieldset class="paymentChannel-fieldset">
+               <!-- Constrainst table -->
+               <details class="paymentChannel-subdetails">
+                    <summary>Payment Channel Constraints</summary>
+                    <div class="paymentChannel-table">
+                         <div class="paymentChannel-row paymentChannel-header">
+                              <div class="paymentChannel-cell">Payment Channel Constraints</div>
+                              <div class="paymentChannel-cell">Description</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Channel Creator Locks Funds</div>
+                              <div class="paymentChannel-cell">The sender (creator) funds the channel upfront with an Amount of XRP that is locked until claimed or returned.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">One Receiver Only</div>
+                              <div class="paymentChannel-cell">Each channel has a fixed `Destination` (receiver). Only they can claim funds from it.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Receiver Must Submit Claims</div>
+                              <div class="paymentChannel-cell">The receiver presents **signed claims** from the sender to receive funds using `PaymentChannelClaim`</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Only the Receiver Can Claim XRP</div>
+                              <div class="paymentChannel-cell">Only the `Destination` account may redeem claims — sender cannot reclaim incrementally.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Claims Must Be Signed By Sender</div>
+                              <div class="paymentChannel-cell">Claims must include a **valid signature from the sender** of the channel (proof of authorization).</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Claims Must Increase</div>
+                              <div class="paymentChannel-cell">Each claim must specify an `amount` that is **greater than any previous** claimed amount — no partial duplicate claims.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Channel Expires (Optionally)</div>
+                              <div class="paymentChannel-cell">`CancelAfter` can be set. After that time, the sender can **close the channel** if there are unclaimed funds.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Close After Expiry or Fully Claimed</div>
+                              <div class="paymentChannel-cell">The sender or receiver can **close the channel** (via `PaymentChannelClaim` with `close=true`) once it's **expired or depleted</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Renewable Before Expiry</div>
+                              <div class="paymentChannel-cell">If `CancelAfter` hasn't passed, the sender can top up the channel with `PaymentChannelFund` and extend its lifespan (with `Expiration`).</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Signature Must Be Exact Format</div>
+                              <div class="paymentChannel-cell">The claim's signature must use the expected format with correct message digest structure (e.g., `channel_id`, `amount`, and canonical signature).</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Amount in Claims is Cumulative</div>
+                              <div class="paymentChannel-cell">The `amount` in a claim is the **total authorized amount to date** — not an incremental delta.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">No IOUs, XRP only</div>
+                              <div class="paymentChannel-cell">Payment Channels work with **XRP only** — not with issued tokens (IOUs).</div>
+                         </div>
+                    </div>
+               </details>
+               <details class="paymentChannel-subdetails">
+                    <summary>PaymentChannelCreate</summary>
+                    <div class="paymentChannel-table">
+                         <div class="paymentChannel-row paymentChannel-header">
+                              <div class="paymentChannel-cell">PaymentChannelCreate</div>
+                              <div class="paymentChannel-cell">Purpose</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">XRP Amount <code>Amount</code></div>
+                              <div class="paymentChannel-cell">Initial XRP locked in the channel.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Settle Delay <code>SettleDelay</code></div>
+                              <div class="paymentChannel-cell">Minimum time (in seconds) before channel can close.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>CancelAfter</code></div>
+                              <div class="paymentChannel-cell">Absolute expiration time (in ledger close time)</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>`Fee`, `Memos`, `Destination Tag`, etc.</code></div>
+                              <div class="paymentChannel-cell">Standard optional fields.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>Sequence</code></div>
+                              <div class="paymentChannel-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>TicketSequence</code></div>
+                              <div class="paymentChannel-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                         </div>
+                    </div>
+               </details>
+               <details class="paymentChannel-subdetails">
+                    <summary>PaymentChannelFund</summary>
+                    <div class="paymentChannel-table">
+                         <div class="paymentChannel-row paymentChannel-header">
+                              <div class="paymentChannel-cell">PaymentChannelFund</div>
+                              <div class="paymentChannel-cell">Purpose</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">XRP Amount <code>Amount</code></div>
+                              <div class="paymentChannel-cell">Additional XRP to add to the channel. Required if extending expiration or adding funds.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Settle Delay <code>Expiration</code></div>
+                              <div class="paymentChannel-cell">Sets/updates expiration timestamp (in ledger time) — must be ≥ current `CancelAfter`, if already set.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>`Fee`, `Memos`, `Destination Tag`, etc.</code></div>
+                              <div class="paymentChannel-cell">Standard optional fields.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>Sequence</code></div>
+                              <div class="paymentChannel-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>TicketSequence</code></div>
+                              <div class="paymentChannel-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                         </div>
+                    </div>
+               </details>
+
+               <details class="paymentChannel-subdetails">
+                    <summary>PaymentChannelClaim</summary>
+                    <div class="paymentChannel-table">
+                         <div class="paymentChannel-row paymentChannel-header">
+                              <div class="paymentChannel-cell">PaymentChannelClaim</div>
+                              <div class="paymentChannel-cell">Purpose</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">XRP Amount <code>Amount</code></div>
+                              <div class="paymentChannel-cell">The total amount of XRP, in drops, that the receiver is authorized to claim so far. This value must be greater than any previous claim.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">Signature</div>
+                              <div class="paymentChannel-cell">A valid signature from the channel sender authorizing the claim.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell">PublicKey</div>
+                              <div class="paymentChannel-cell">The public key that corresponds to the sender’s account and was used to sign the claim.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>`Fee`, `Memos`, `Destination Tag`, etc.</code></div>
+                              <div class="paymentChannel-cell">Standard optional fields.</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>Sequence</code></div>
+                              <div class="paymentChannel-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                         </div>
+                         <div class="paymentChannel-row">
+                              <div class="paymentChannel-cell"><code>TicketSequence</code></div>
+                              <div class="paymentChannel-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                         </div>
+                    </div>
+               </details>
+          </fieldset>
+     </details>
 </form>

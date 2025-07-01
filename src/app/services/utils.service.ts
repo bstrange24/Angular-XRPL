@@ -620,7 +620,7 @@ export class UtilsService {
                               key: 'TransferRate',
                               value: accountInfo.result.account_data.TransferRate ? ((accountInfo.result.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(6) + '%' : 'Not Set',
                          },
-                         { key: 'TransferRate', value: (accountInfo.result.account_data.TransferRate / 1_000_000_000).toFixed(9) },
+                         // { key: 'TransferRate', value: (accountInfo.result.account_data.TransferRate / 1_000_000_000).toFixed(9) },
                          { key: 'FirstNFTokenSequence', value: accountInfo.result.account_data.FirstNFTokenSequence },
                     ],
                },
@@ -1512,7 +1512,7 @@ export class UtilsService {
                txDataTable.appendChild(txDataHeader);
 
                txDataContent.forEach(item => {
-                    console.debug(`ite ${item.key} ${item.value}`);
+                    // console.debug(`ite ${item.key} ${item.value}`);
                     const row = document.createElement('div');
                     row.className = 'result-row';
 
@@ -1955,7 +1955,7 @@ export class UtilsService {
                txDataTable.appendChild(txDataHeader);
 
                txDataContent.forEach(item => {
-                    console.debug(`ite ${item.key} ${item.value}`);
+                    // console.debug(`ite ${item.key} ${item.value}`);
                     const row = document.createElement('div');
                     row.className = 'result-row';
 
@@ -2720,7 +2720,7 @@ export class UtilsService {
           try {
                // Get the current ledger index from the client
                const server_info = await this.xrplService.getXrplServerInfo(client, 'current', '');
-               console.debug(`Server Info ${JSON.stringify(server_info, null, 2)}`);
+               // console.debug(`Server Info ${JSON.stringify(server_info, null, 2)}`);
 
                if (server_info.result.info && server_info.result.info.validated_ledger) {
                     console.debug(`Base Fee: ${server_info.result.info.validated_ledger.base_fee_xrp} XRP`);
@@ -2739,10 +2739,10 @@ export class UtilsService {
                const reserveBaseXRP = ledgerData.reserve_base;
                const reserveIncrementXRP = ledgerData.reserve_inc;
 
-               console.debug(`baseFee: ${baseFee}`);
-               console.debug(`reserveBaseXRP: ${xrpl.dropsToXrp(reserveBaseXRP)}`);
-               console.debug(`Total incremental owner count: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
-               console.debug(`Total Reserve: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
+               // console.debug(`baseFee: ${baseFee}`);
+               // console.debug(`reserveBaseXRP: ${xrpl.dropsToXrp(reserveBaseXRP)}`);
+               // console.debug(`Total incremental owner count: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
+               // console.debug(`Total Reserve: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
 
                return { reserveBaseXRP, reserveIncrementXRP };
           } catch (error: any) {

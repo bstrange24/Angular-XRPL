@@ -149,4 +149,72 @@
                </tr>
           </table>
      </fieldset>
+
+     <details class="ticket-info">
+          <summary>Ticket Info</summary>
+          <fieldset class="ticket-fieldset">
+               <details class="ticket-subdetails">
+                    <summary>Ticket Constraints</summary>
+                    <div class="ticket-table">
+                         <div class="ticket-row ticket-header">
+                              <div class="ticket-cell">Ticket Constraints</div>
+                              <div class="ticket-cell">Description</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell">TicketSequence</div>
+                              <div class="ticket-cell">Must be a valid TicketNumber from account's ticket pool.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell">Sequence</div>
+                              <div class="ticket-cell">You must not include Sequence when using TicketSequence.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell">Ticket must exist</div>
+                              <div class="ticket-cell">Ticket must have been previously created and not yet consumed.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell">Only Ticket owner or target</div>
+                              <div class="ticket-cell">Only the account that created the Ticket or the Target (if set) can use it.</div>
+                         </div>
+                    </div>
+               </details>
+               <details class="ticket-subdetails">
+                    <summary>Ticket Transaction Settings</summary>
+                    <div class="ticket-table">
+                         <div class="ticket-row ticket-header">
+                              <div class="ticket-cell">Ticket Constraints</div>
+                              <div class="ticket-cell">Description</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>Target</code></div>
+                              <div class="ticket-cell">(Optional) Account that can use the Ticket. If omitted, only the creator can.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>Expiration</code></div>
+                              <div class="ticket-cell">(Optional) Ledger time when ticket becomes invalid.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>TicketCount</code></div>
+                              <div class="ticket-cell">Number of tickets to create (default is 1).</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>`Fee`, `Memos`</code></div>
+                              <div class="ticket-cell">Standard optional fields.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>LastLedgerSequence</code></div>
+                              <div class="ticket-cell">The last ledger in which the transaction can be validated. Prevents the transaction from being stuck indefinitely.</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>Sequence</code></div>
+                              <div class="ticket-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                         </div>
+                         <div class="ticket-row">
+                              <div class="ticket-cell"><code>TicketSequence</code></div>
+                              <div class="ticket-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                         </div>
+                    </div>
+               </details>
+          </fieldset>
+     </details>
 </form>

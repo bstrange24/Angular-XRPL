@@ -40,6 +40,7 @@ export class SendChecksComponent implements AfterViewChecked {
      executionTime = '';
      amountField = '';
      destinationField = '';
+     destinationTagField: string = '';
      memoField = '';
      ticketSequence: string = '';
      isTicket = false;
@@ -162,14 +163,17 @@ export class SendChecksComponent implements AfterViewChecked {
                          title: `Checks (${check_objects.result.account_objects.length})`,
                          openByDefault: true,
                          subItems: check_objects.result.account_objects.map((check, counter) => {
+                              const Account = (check as any)['Account'];
                               const Destination = (check as any)['Destination'];
                               const Amount = (check as any)['Amount'];
                               const Expiration = (check as any)['Expiration'];
                               const InvoiceID = (check as any)['InvoiceID'];
                               const DestinationTag = (check as any)['DestinationTag'];
                               const SourceTag = (check as any)['SourceTag'];
-                              const LedgerEntryType = (check as any)['LedgerEntryType'];
+                              // const LedgerEntryType = (check as any)['LedgerEntryType'];
                               const PreviousTxnID = (check as any)['PreviousTxnID'];
+                              const PreviousTxnLgrSeq = (check as any)['PreviousTxnLgrSeq'];
+                              const Sequence = (check as any)['Sequence'];
                               const index = (check as any)['index'];
                               // Use Amount if available, otherwise fall back to SendMax if present
                               const sendMax = (check as any).SendMax;
@@ -179,11 +183,14 @@ export class SendChecksComponent implements AfterViewChecked {
                                    key: `Check ${counter + 1} (ID: ${PreviousTxnID?.slice(0, 8) || ''}...)`,
                                    openByDefault: false,
                                    content: [
+                                        { key: 'Account', value: `<code>${Account}</code>` },
+                                        { key: 'Destination', value: `<code>${Destination}</code>` },
                                         { key: 'Check ID / Ledger Index', value: `<code>${index}</code>` },
                                         { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
-                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Destination', value: `<code>${Destination}</code>` },
+                                        { key: 'Previous Txn Ledger Sequence', value: `<code>${PreviousTxnLgrSeq}</code>` },
+                                        // { key: 'Ledger Entry Type', value: LedgerEntryType },
                                         { key: Amount ? 'Amount' : 'SendMax', value: amountDisplay },
+                                        { key: 'Sequence', value: `<code>${Sequence}</code>` },
                                         ...(Expiration ? [{ key: 'Expiration', value: new Date(Expiration * 1000).toLocaleString() }] : []),
                                         ...(InvoiceID ? [{ key: 'Invoice ID', value: `<code>${InvoiceID}</code>` }] : []),
                                         ...(DestinationTag ? [{ key: 'Destination Tag', value: String(DestinationTag) }] : []),
@@ -300,12 +307,35 @@ export class SendChecksComponent implements AfterViewChecked {
                     };
                }
 
-               const tx: CheckCreate = await client.autofill({
-                    TransactionType: 'CheckCreate',
-                    Account: wallet.classicAddress,
-                    SendMax: sendMax,
-                    Destination: this.destinationField,
-               });
+               const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               let tx: CheckCreate;
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+
+                    tx = await client.autofill({
+                         TransactionType: 'CheckCreate',
+                         Account: wallet.classicAddress,
+                         SendMax: sendMax,
+                         Destination: this.destinationField,
+                         TicketSequence: Number(this.ticketSequence),
+                         Sequence: 0,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+               } else {
+                    tx = await client.autofill({
+                         TransactionType: 'CheckCreate',
+                         Account: wallet.classicAddress,
+                         SendMax: sendMax,
+                         Destination: this.destinationField,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+               }
 
                if (this.memoField && this.memoField != '') {
                     tx.Memos = [
@@ -322,12 +352,21 @@ export class SendChecksComponent implements AfterViewChecked {
                     tx.Expiration = Number(checkExpiration);
                }
 
-               const signed = wallet.sign(tx);
+               const destinationTagText = this.destinationTagField;
+               if (destinationTagText) {
+                    if (parseInt(destinationTagText) <= 0) {
+                         return this.setError('ERROR: Destination Tag must be a valid number and greater than zero');
+                    }
+                    tx.DestinationTag = parseInt(destinationTagText, 10);
+               }
 
                this.resultField.nativeElement.innerHTML += `Sending Check for ${this.amountField} ${this.currencyFieldDropDownValue} to ${this.destinationField}\n`;
 
+               console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
+               const signed = wallet.sign(tx);
+               console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
                const response = await client.submitAndWait(signed.tx_blob);
-               console.log('Response', response);
+               console.log('response', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -370,6 +409,18 @@ export class SendChecksComponent implements AfterViewChecked {
                return this.setError('ERROR: Check ID cannot be empty');
           }
 
+          if (!this.utilsService.validatInput(this.amountField)) {
+               return this.setError('ERROR: XRP Amount cannot be empty');
+          }
+
+          if (!this.utilsService.validatInput(this.destinationField)) {
+               return this.setError('ERROR: Destination cannot be empty');
+          }
+
+          if (parseFloat(this.amountField) <= 0) {
+               return this.setError('ERROR: XRP Amount must be a positive number');
+          }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
@@ -395,18 +446,42 @@ export class SendChecksComponent implements AfterViewChecked {
                                 issuer: this.selectedIssuer,
                            };
 
-               const tx: CheckCash = await client.autofill({
-                    TransactionType: 'CheckCash',
-                    Account: wallet.classicAddress,
-                    Amount: amountToCash,
-                    CheckID: this.checkIdField,
-               });
+               const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               const signed = wallet.sign(tx);
+               let tx: CheckCash;
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+
+                    tx = await client.autofill({
+                         TransactionType: 'CheckCash',
+                         Account: wallet.classicAddress,
+                         Amount: amountToCash,
+                         CheckID: this.checkIdField,
+                         Sequence: 0,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+               } else {
+                    tx = await client.autofill({
+                         TransactionType: 'CheckCash',
+                         Account: wallet.classicAddress,
+                         Amount: amountToCash,
+                         CheckID: this.checkIdField,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+               }
+
                this.resultField.nativeElement.innerHTML += `Cashing check for ${this.amountField} ${this.currencyFieldDropDownValue}\n`;
 
+               console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
+               const signed = wallet.sign(tx);
+               console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
                const response = await client.submitAndWait(signed.tx_blob);
-               console.log('Response:', response);
+               console.log('response', JSON.stringify(tx, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -464,17 +539,40 @@ export class SendChecksComponent implements AfterViewChecked {
                }
                this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Check\n\n`;
 
-               const tx: CheckCancel = await client.autofill({
-                    TransactionType: 'CheckCancel',
-                    Account: wallet.classicAddress,
-                    CheckID: this.checkIdField,
-               });
+               const feeResponse = await client.request({ command: 'fee' });
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               const signed = wallet.sign(tx);
+               let tx: CheckCancel;
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+
+                    tx = await client.autofill({
+                         TransactionType: 'CheckCancel',
+                         Account: wallet.classicAddress,
+                         CheckID: this.checkIdField,
+                         Sequence: 0,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+               } else {
+                    tx = await client.autofill({
+                         TransactionType: 'CheckCancel',
+                         Account: wallet.classicAddress,
+                         CheckID: this.checkIdField,
+                         Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+               }
+
                this.resultField.nativeElement.innerHTML += `Cashing check for ${this.currencyFieldDropDownValue}\n`;
 
+               console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
+               const signed = wallet.sign(tx);
+               console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
                const response = await client.submitAndWait(signed.tx_blob);
-               console.log('Response:', response);
+               console.log('CheckCancel response', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);

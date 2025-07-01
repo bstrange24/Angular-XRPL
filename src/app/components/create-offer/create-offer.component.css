@@ -1,0 +1,156 @@
+/* offer Info Section */
+.offer-info {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.offer-info summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+.offer-info summary:hover {
+     background: #3a3c41;
+}
+
+.offer-info summary::marker {
+     content: '▶ ';
+}
+
+.offer-info[open] summary::marker {
+     content: '▼ ';
+}
+
+.offer-fieldset {
+     border: 1px solid #686868;
+     border-radius: 10px;
+     padding: 20px;
+     background: #1a1c21;
+     margin: 0;
+}
+
+.offer-fieldset legend {
+     color: white;
+     font-size: 14px;
+     padding: 0 10px;
+     font-weight: bold;
+}
+
+.offer-table {
+     display: flex;
+     flex-direction: column;
+     gap: 0;
+     /* Remove gap between rows if not needed */
+     background: #2a2c31;
+     border-radius: 8px;
+     overflow: hidden;
+     margin-bottom: 20px;
+}
+
+.offer-row {
+     display: flex;
+     width: 100%;
+     transition: background 0.3s ease;
+}
+
+.offer-row:hover:not(.offer-header) {
+     background: #3a3c41;
+}
+
+.offer-header {
+     font-weight: bold;
+     background: #1a1c21;
+     color: #4caf50;
+}
+
+.offer-cell {
+     flex: 1;
+     padding: 12px;
+     /* Reduced from 12px to decrease spacing */
+     color: white;
+     font-size: 13px;
+     text-align: left;
+     border-bottom: 1px solid #686868;
+}
+
+.offer-header .offer-cell {
+     border-bottom: 2px solid #4caf50;
+}
+
+/* Style code tags for emphasis */
+.offer-cell code {
+     background: #3a3c41;
+     padding: 2px 4px;
+     border-radius: 4px;
+     font-family: monospace;
+     color: #4caf50;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+     .offer-table {
+          display: block;
+     }
+
+     .offer-row {
+          flex-direction: column;
+          border-bottom: 1px solid #686868;
+          margin-bottom: 10px;
+     }
+
+     .offer-cell {
+          flex: none;
+          padding: 8px;
+          border-bottom: none;
+     }
+
+     .offer-header .offer-cell {
+          border-bottom: none;
+     }
+
+     .offer-cell::before {
+          content: attr(data-label);
+          font-weight: bold;
+          display: inline-block;
+          width: 120px;
+          color: #4caf50;
+     }
+}
+
+.offer-subdetails {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.offer-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+/* .offer-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+} */
+
+summary::marker {
+     color: white;
+}
+
+.offer-subdetails[open] summary::marker {
+     content: '▼ ';
+     color: white;
+}

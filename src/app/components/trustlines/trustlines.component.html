@@ -153,7 +153,7 @@
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequnce</label>
+                              <label>Use Ticket Sequence</label>
                          </span>
                     </td>
                     <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -196,4 +196,117 @@
                </tr>
           </table>
      </fieldset>
+
+     <details class="trustline-info">
+          <summary>Trustline Info</summary>
+          <fieldset class="trustline-fieldset">
+               <details class="trustline-subdetails">
+                    <summary>Trustline Constraints</summary>
+                    <div class="trustline-table">
+                         <div class="trustline-row trustline-header">
+                              <div class="trustline-cell">Trustline Constraints</div>
+                              <div class="trustline-cell">Description</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Limit must be > 0 to establish line</div>
+                              <div class="trustline-cell">A trust line is only created if the `LimitAmount.value` is greater than zero.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Trust line is removed with value = 0</div>
+                              <div class="trustline-cell">Setting `LimitAmount.value` to `"0"` and submitting removes the trust line **if balance is also 0**.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Cannot remove with non-zero balance</div>
+                              <div class="trustline-cell">You cannot remove a trust line if the balance is not 0.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Currency must be 3-letter or hex</div>
+                              <div class="trustline-cell">Currency codes must be standard 3-letter ISO or 160-bit hex-encoded codes.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">No trustlines needed for XRP</div>
+                              <div class="trustline-cell">XRP does **not** require or support trust lines.</div>
+                         </div>
+                    </div>
+               </details>
+               <details class="trustline-subdetails">
+                    <summary>Trustline Flags</summary>
+                    <div class="trustline-table">
+                         <div class="trustline-row trustline-header">
+                              <div class="trustline-cell">Trustline Flags</div>
+                              <div class="trustline-cell">Purpose</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Set Auth <code>tfSetfAuth</code> value <code>0x00010000</code></div>
+                              <div class="trustline-cell">Marks the trust line as authorized (if required by the issuer).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Set No Ripple <code>tfSetNoRipple</code> value <code>0x00020000</code></div>
+                              <div class="trustline-cell">Enables No Ripple: prevents IOU from rippling through this trust line.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Clear No Ripple <code>tfClearNoRipple</code> value <code>0x00040000</code></div>
+                              <div class="trustline-cell">Clears the No Ripple flag.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Set Freeze <code>tfSetFreeze</code> value <code>0x00100000</code></div>
+                              <div class="trustline-cell">Freezes the trust line (prevents the holder from sending/receiving the IOU).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell">Clear Freeze <code>tfClearFreeze</code> value <code>0x00200000</code></div>
+                              <div class="trustline-cell">Unfreezes the trust line.</div>
+                         </div>
+                    </div>
+               </details>
+               <details class="trustline-subdetails">
+                    <summary>Trustline Transaction Settings</summary>
+                    <div class="trustline-table">
+                         <div class="trustline-row trustline-header">
+                              <div class="trustline-cell">Trustline Constraints</div>
+                              <div class="trustline-cell">Description</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>TransactionType</code></div>
+                              <div class="trustline-cell">Must be "TrustSet".</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>Account</code></div>
+                              <div class="trustline-cell">The address of the account setting the trust line.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>LimitAmount</code></div>
+                              <div class="trustline-cell">Defines the trust line: includes currency, issuer, and value (max IOU the account is willing to hold from issuer).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>Flags</code></div>
+                              <div class="trustline-cell">Used to enable/disable certain trust line behaviors (see next table).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>QualityIn</code></div>
+                              <div class="trustline-cell">Optional inbound transfer rate (e.g. for IOU exchange quality).</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>QualityOut</code></div>
+                              <div class="trustline-cell">Optional outbound transfer rate.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>`Fee`, `Memos`</code></div>
+                              <div class="trustline-cell">Standard optional fields.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>LastLedgerSequence</code></div>
+                              <div class="trustline-cell">The last ledger in which the transaction can be validated. Prevents the transaction from being stuck indefinitely.</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>Sequence</code></div>
+                              <div class="trustline-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                         </div>
+                         <div class="trustline-row">
+                              <div class="trustline-cell"><code>TicketSequence</code></div>
+                              <div class="trustline-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                         </div>
+                    </div>
+               </details>
+          </fieldset>
+     </details>
 </form>

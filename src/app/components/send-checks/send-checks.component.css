@@ -1,0 +1,156 @@
+/* check Info Section */
+.check-info {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.check-info summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+.check-info summary:hover {
+     background: #3a3c41;
+}
+
+.check-info summary::marker {
+     content: '▶ ';
+}
+
+.check-info[open] summary::marker {
+     content: '▼ ';
+}
+
+.check-fieldset {
+     border: 1px solid #686868;
+     border-radius: 10px;
+     padding: 20px;
+     background: #1a1c21;
+     margin: 0;
+}
+
+.check-fieldset legend {
+     color: white;
+     font-size: 14px;
+     padding: 0 10px;
+     font-weight: bold;
+}
+
+.check-table {
+     display: flex;
+     flex-direction: column;
+     gap: 0;
+     /* Remove gap between rows if not needed */
+     background: #2a2c31;
+     border-radius: 8px;
+     overflow: hidden;
+     margin-bottom: 20px;
+}
+
+.check-row {
+     display: flex;
+     width: 100%;
+     transition: background 0.3s ease;
+}
+
+.check-row:hover:not(.check-header) {
+     background: #3a3c41;
+}
+
+.check-header {
+     font-weight: bold;
+     background: #1a1c21;
+     color: #4caf50;
+}
+
+.check-cell {
+     flex: 1;
+     padding: 12px;
+     /* Reduced from 12px to decrease spacing */
+     color: white;
+     font-size: 13px;
+     text-align: left;
+     border-bottom: 1px solid #686868;
+}
+
+.check-header .check-cell {
+     border-bottom: 2px solid #4caf50;
+}
+
+/* Style code tags for emphasis */
+.check-cell code {
+     background: #3a3c41;
+     padding: 2px 4px;
+     border-radius: 4px;
+     font-family: monospace;
+     color: #4caf50;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+     .check-table {
+          display: block;
+     }
+
+     .check-row {
+          flex-direction: column;
+          border-bottom: 1px solid #686868;
+          margin-bottom: 10px;
+     }
+
+     .check-cell {
+          flex: none;
+          padding: 8px;
+          border-bottom: none;
+     }
+
+     .check-header .check-cell {
+          border-bottom: none;
+     }
+
+     .check-cell::before {
+          content: attr(data-label);
+          font-weight: bold;
+          display: inline-block;
+          width: 120px;
+          color: #4caf50;
+     }
+}
+
+.check-subdetails {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.check-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+/* .check-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+} */
+
+summary::marker {
+     color: white;
+}
+
+.check-subdetails[open] summary::marker {
+     content: '▼ ';
+     color: white;
+}

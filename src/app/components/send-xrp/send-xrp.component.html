@@ -135,7 +135,7 @@
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequnce</label>
+                              <label>Use Ticket Sequence</label>
                          </span>
                     </td>
                     <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -197,4 +197,81 @@
                </tr>
           </table>
      </fieldset>
+
+     <details class="send-xrp-info">
+          <summary>Send XRP Info</summary>
+          <fieldset class="send-xrp-fieldset">
+               <details class="send-xrp-subdetails">
+                    <summary>Send Payments</summary>
+                    <div class="send-xrp-table">
+                         <div class="send-xrp-row send-xrp-header">
+                              <div class="send-xrp-cell">Send Payments</div>
+                              <div class="send-xrp-cell">Purpose</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Partial Payment <code>tfPartialPayment</code></div>
+                              <div class="send-xrp-cell">Allows partial payment if not enough liquidity (used for IOU/cross-currency payments).</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">No Direct Ripple <code>tfNoDirectRipple</code></div>
+                              <div class="send-xrp-cell">Prevents the payment from taking a direct path through the senders and receivers accounts (for IOU).</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Limit Quality <code>tfLimitQuality</code></div>
+                              <div class="send-xrp-cell">Ensures exchange rate doesn't exceed SendMax/Amount.</div>
+                         </div>
+                    </div>
+               </details>
+
+               <details class="send-xrp-subdetails">
+                    <summary>Send XRP Constraints</summary>
+                    <div class="send-xrp-table">
+                         <div class="send-xrp-row send-xrp-header">
+                              <div class="send-xrp-cell">Send XRP Constraints</div>
+                              <div class="send-xrp-cell">Description</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Destination Tag</div>
+                              <div class="send-xrp-cell">A tag to help the destination account identify the purpose of the payment (common for exchanges or multi-user wallets).</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Invoice ID</div>
+                              <div class="send-xrp-cell">Arbitrary 256-bit identifier for identifying this payment (e.g. to match a payment to an invoice).</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Send Max</div>
+                              <div class="send-xrp-cell">**For IOU payments**, limits the amount to spend. *Not needed when sending XRP.*</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Deliver Min</div>
+                              <div class="send-xrp-cell">Minimum amount that must be delivered. Useful in **partial payments**. *Ignored for XRP payments unless `tfPartialPayment` is set.*</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Paths</div>
+                              <div class="send-xrp-cell">Array of paths for cross-currency payments. *Not applicable for XRP-to-XRP.*</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Flags</div>
+                              <div class="send-xrp-cell">Used to enable specific behaviors. See below.</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell"><code>`Fee`, `Memos`, `Destination Tag`, etc.</code></div>
+                              <div class="send-xrp-cell">Standard optional fields.</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell">Last Ledger Sequence</div>
+                              <div class="send-xrp-cell">The last ledger in which the transaction can be validated. Prevents the transaction from being stuck indefinitely.</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell"><code>Sequence</code></div>
+                              <div class="send-xrp-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                         </div>
+                         <div class="send-xrp-row">
+                              <div class="send-xrp-cell"><code>TicketSequence</code></div>
+                              <div class="send-xrp-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                         </div>
+                    </div>
+               </details>
+          </fieldset>
+     </details>
 </form>

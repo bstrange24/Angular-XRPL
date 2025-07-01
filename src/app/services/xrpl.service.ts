@@ -84,6 +84,19 @@ export class XrplService {
           }
      }
 
+     async getLedgerCloseTime(client: xrpl.Client): Promise<number> {
+          try {
+               const response = await client.request({
+                    command: 'ledger',
+                    ledger_index: 'current',
+               });
+               return response.result.ledger.close_time;
+          } catch (error) {
+               console.error('Error fetching ledger close time:', error);
+               throw error;
+          }
+     }
+
      async getTransactionFee(client: Client): Promise<string> {
           try {
                const response = await client.request({
