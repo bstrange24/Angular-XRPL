@@ -104,5 +104,6 @@ export const AppConstants = {
      EMPTY_STRING: '',
      LAST_LEDGER_ADD_TIME: 20,
      MAX_FEE: '12',
+     MIN_FEE: '10',
      MAX_ESCROW_FEE: '24',
 };

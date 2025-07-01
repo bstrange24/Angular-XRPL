@@ -130,6 +130,12 @@ export class AccountComponent implements AfterViewChecked {
 
      toggleTicketSequence() {}
 
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
      onNoFreezeChange() {
           if (this.flags.asfNoFreeze) {
                alert('Prevent Freezing Trust Lines (No Freeze) cannot be unset!');
@@ -193,6 +199,8 @@ export class AccountComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
+          this.updateSpinnerMessage('Connecting to XRPL network...');
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
@@ -221,18 +229,20 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account Details\n\n`;
+               this.updateSpinnerMessage('Getting Account Details...');
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
 
                if (accountInfo.result.account_data.length <= 0) {
-                    this.resultField.nativeElement.innerHTML += `No account data found for ${wallet.classicAddress}`;
+                    this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
+                    return;
                }
 
                if (accountObjects.result.account_objects.length <= 0) {
-                    this.resultField.nativeElement.innerHTML += `No account objects found for ${wallet.classicAddress}`;
+                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
+                    return;
                }
 
                // Set flags from account info
@@ -263,6 +273,8 @@ export class AccountComponent implements AfterViewChecked {
           console.log('Entering updateFlags');
           const startTime = Date.now();
           this.setSuccessProperties();
+
+          this.updateSpinnerMessage('Connecting to XRPL network...');
 
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
@@ -298,7 +310,7 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdating Account Flags\n\n`;
+               this.updateSpinnerMessage('Updating Account Flags...');
 
                if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -310,11 +322,14 @@ export class AccountComponent implements AfterViewChecked {
                const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
 
                if (setFlags.length === 0 && clearFlags.length === 0) {
-                    this.resultField.nativeElement.innerHTML += 'Set Flags and Clear Flags length is 0. No flags selected for update';
+                    this.resultField.nativeElement.innerHTML = 'Set Flags and Clear Flags length is 0. No flags selected for update';
+                    return;
                }
 
                const transactions = [];
                let hasError = false;
+
+               this.updateSpinnerMessage('Sending transaction...');
 
                for (const flagValue of setFlags) {
                     const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memoField);
@@ -368,6 +383,8 @@ export class AccountComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
+          this.updateSpinnerMessage('Connecting to XRPL network...');
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
@@ -396,19 +413,19 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdating Meta Data\n\n`;
+               this.updateSpinnerMessage('Updating Meta Data...');
 
                if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const tx: AccountSet = await client.autofill({
                     TransactionType: 'AccountSet',
                     Account: wallet.classicAddress,
-                    Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                    Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
@@ -464,11 +481,10 @@ export class AccountComponent implements AfterViewChecked {
                          return;
                     }
 
-                    this.resultField.nativeElement.innerHTML += `Account fields successfully updated.\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else {
-                    this.resultField.nativeElement.innerHTML += `\nNo fields have data to update.\n\n`;
+                    this.resultField.nativeElement.innerHTML = `No fields have data to update.\n`;
                     return;
                }
 
@@ -490,6 +506,8 @@ export class AccountComponent implements AfterViewChecked {
           console.log('Entering setDepositAuthAccounts');
           const startTime = Date.now();
           this.setSuccessProperties();
+
+          this.updateSpinnerMessage('Connecting to XRPL network...');
 
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
@@ -528,7 +546,7 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Deposit Auth\n\n`;
+               this.updateSpinnerMessage('Setting Deposit Auth...');
 
                if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -558,14 +576,14 @@ export class AccountComponent implements AfterViewChecked {
                     return this.setError('ERROR: Preauthorization already exists (tecDUPLICATE). Use Unauthorize to remove');
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const tx: DepositPreauth = await client.autofill({
                     TransactionType: 'DepositPreauth',
                     Account: wallet.classicAddress,
                     [authorizeFlag === 'Y' ? 'Authorize' : 'Unauthorize']: authorizedAddress,
-                    Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                    Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
@@ -580,6 +598,8 @@ export class AccountComponent implements AfterViewChecked {
                     ];
                }
 
+               this.updateSpinnerMessage('Sending transaction...');
+
                const response = await client.submitAndWait(tx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`response ${JSON.stringify(response, null, 2)}`);
@@ -589,7 +609,6 @@ export class AccountComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Deposit Auth finished successfully\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -609,6 +628,8 @@ export class AccountComponent implements AfterViewChecked {
           console.log('Entering setMultiSign');
           const startTime = Date.now();
           this.setSuccessProperties();
+
+          this.updateSpinnerMessage('Connecting to XRPL network...');
 
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
@@ -638,7 +659,7 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSetting Multi Sign\n\n`;
+               this.updateSpinnerMessage('Setting Multi Sign...');
 
                if (await this.utilsService.isSufficentXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -689,7 +710,7 @@ export class AccountComponent implements AfterViewChecked {
                          return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
                     }
 
-                    const feeResponse = await client.request({ command: 'fee' });
+                    const fee = await this.xrplService.calculateTransactionFee(client);
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                     if (this.ticketSequence) {
@@ -704,7 +725,7 @@ export class AccountComponent implements AfterViewChecked {
                               SignerEntries,
                               TicketSequence: Number(this.ticketSequence),
                               Sequence: 0,
-                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
 
@@ -724,7 +745,7 @@ export class AccountComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               SignerQuorum,
                               SignerEntries,
-                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
 
@@ -740,7 +761,7 @@ export class AccountComponent implements AfterViewChecked {
                          }
                     }
                } else {
-                    const feeResponse = await client.request({ command: 'fee' });
+                    const fee = await this.xrplService.calculateTransactionFee(client);
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                     if (this.ticketSequence) {
@@ -754,7 +775,7 @@ export class AccountComponent implements AfterViewChecked {
                               SignerQuorum: 0,
                               TicketSequence: Number(this.ticketSequence),
                               Sequence: 0,
-                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
 
@@ -773,7 +794,7 @@ export class AccountComponent implements AfterViewChecked {
                               TransactionType: 'SignerListSet',
                               Account: wallet.classicAddress,
                               SignerQuorum: 0,
-                              Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
 
@@ -790,6 +811,8 @@ export class AccountComponent implements AfterViewChecked {
                     }
                }
 
+               this.updateSpinnerMessage('Sending transaction...');
+
                const response = await client.submitAndWait(signerListTx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`response ${JSON.stringify(response, null, 2)}`);
@@ -799,7 +822,6 @@ export class AccountComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `SignerListSet transaction successful\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);

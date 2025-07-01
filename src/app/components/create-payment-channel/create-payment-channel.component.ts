@@ -11,7 +11,6 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { sign, verify } from 'ripple-keypairs';
-import { Subscription } from 'rxjs';
 
 interface PaymentChannelObject {
      index: string;
@@ -104,7 +103,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      toggleTicketSequence() {}
 
-     private updateSpinnerMessage(message: string) {
+     updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
           console.log('Spinner message updated:', message); // For debugging
@@ -140,7 +139,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     });
                }
 
-               // this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Payment Channels\n\n`;
                this.updateSpinnerMessage('Getting Payment Channels...');
 
                const response = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
@@ -175,8 +173,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                                         { key: 'Claimed Balance', value: `${xrpl.dropsToXrp(Balance)} XRP` },
                                         { key: 'Remaining', value: `${available} XRP` },
                                         { key: 'Settle Delay', value: `${SettleDelay}s` },
-                                        { key: 'Cancel After', value: `${this.utilsService.convertXRPLTime(CancelAfter)}s` },
-                                        // ...(Expiration ? [{ key: 'Expiration', value: new Date(Expiration * 1000).toLocaleString() }] : []),
+                                        { key: 'Cancel After', value: CancelAfter ? `${this.utilsService.convertXRPLTime(CancelAfter)}s` : 'N/A' },
                                         { key: 'Public Key', value: `<code>${PublicKey}</code>` },
                                    ],
                               };
@@ -213,16 +210,18 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: XRP Amount cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
-          }
-
           const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
           const action = actionElement ? actionElement.value : '';
+
+          if (action !== 'close') {
+               if (!this.utilsService.validatInput(this.amountField)) {
+                    return this.setError('ERROR: XRP Amount cannot be empty');
+               }
+
+               if (parseFloat(this.amountField) <= 0) {
+                    return this.setError('ERROR: XRP Amount must be a positive number');
+               }
+          }
 
           try {
                this.updateSpinnerMessage('Connecting to XRPL network...');
@@ -241,15 +240,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     });
                }
 
-               // this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nModifying Payment Channels\n`;
-
                if (await this.utilsService.isSufficentXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               const feeResponse = await client.request({ command: 'fee' });
-               const baseFee = feeResponse.result.drops.open_ledger_fee || '10'; // Fallback to minimum fee
-               const fee = Math.min(parseInt(baseFee) * 1.5, parseInt(AppConstants.MAX_FEE)).toString(); // 1.5x multiplier, capped at MAX_FEE
+               const fee = await this.xrplService.calculateTransactionFee(client);
 
                if (action === 'create') {
                     if (!this.utilsService.validatInput(this.destinationField)) {
@@ -258,7 +253,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     let tx: PaymentChannelCreate;
 
-                    // this.resultField.nativeElement.innerHTML += `Creating Payment Channel\n\n`;
                     this.updateSpinnerMessage('Creating Payment Channel...');
 
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -277,7 +271,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               PublicKey: wallet.publicKey,
                               Sequence: 0,
                               TicketSequence: Number(this.ticketSequence),
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     } else {
@@ -288,7 +282,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               Destination: this.destinationField,
                               SettleDelay: parseInt(this.settleDelayField),
                               PublicKey: wallet.publicKey,
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     }
@@ -326,8 +320,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          tx.PublicKey = this.publicKeyField;
                     }
 
-                    tx.Fee = fee;
-
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -344,8 +336,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return;
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `\nPayment channel created successfully.\n\n`;
-                    // this.resultField.nativeElement.innerHTML += `Channel created with ID: ${response.result.hash}\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'fund') {
@@ -358,7 +348,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Destination cannot be empty');
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `Funding Payment Channel\n\n`;
                     this.updateSpinnerMessage('Funding Payment Channel...');
 
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -375,7 +364,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               Amount: xrpl.xrpToDrops(this.amountField),
                               TicketSequence: Number(this.ticketSequence),
                               Sequence: 0,
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     } else {
@@ -384,7 +373,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               Channel: this.channelIDField,
                               Amount: xrpl.xrpToDrops(this.amountField),
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     }
@@ -409,8 +398,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          tx.Expiration = newExpiration;
                     }
 
-                    tx.Fee = fee;
-
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -427,8 +414,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return;
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `\nPayment channel funded successfully.\n\n`;
-                    // this.resultField.nativeElement.innerHTML += `Channel funded with ID: ${response.result.hash}\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'claim') {
@@ -437,7 +422,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('Channel ID cannot be empty');
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `Claiming Payment Channel\n\n`;
                     this.updateSpinnerMessage('Claiming Payment Channel...');
 
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -483,7 +467,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               PublicKey: isReceiver ? this.publicKeyField : wallet.publicKey,
                               TicketSequence: Number(this.ticketSequence),
                               Sequence: 0,
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     } else {
@@ -494,7 +478,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               Balance: xrpl.xrpToDrops(this.amountField),
                               Signature: signature,
                               PublicKey: isReceiver ? this.publicKeyField : wallet.publicKey,
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     }
@@ -509,8 +493,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               },
                          ];
                     }
-
-                    tx.Fee = fee;
 
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
@@ -528,7 +510,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return;
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `Payment channel claimed successfully.\n\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'close') {
@@ -549,11 +530,15 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Cannot close channel before expiration');
                     }
 
-                    if (channel.Balance !== '0') {
-                         return this.setError('ERROR: Cannot close channel with non-zero balance. Please claim the balance first.');
+                    const remaining = BigInt(channel.Amount) - BigInt(channel.Balance);
+                    if (remaining > 0n) {
+                         return this.setError(`ERROR: Cannot close channel with non-zero balance. ${xrpl.dropsToXrp(remaining.toString())} XRP still available to claim.`);
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `Closing Payment Channel\n\n`;
+                    // if (channel.Balance !== '0') {
+                    // return this.setError('ERROR: Cannot close channel with non-zero balance. Please claim the balance first.');
+                    // }
+
                     this.updateSpinnerMessage('Closing Payment Channel...');
 
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -570,7 +555,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               Flags: xrpl.PaymentChannelClaimFlags.tfClose,
                               TicketSequence: Number(this.ticketSequence),
                               Sequence: 0,
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     } else {
@@ -579,7 +564,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               Channel: this.channelIDField,
                               Flags: xrpl.PaymentChannelClaimFlags.tfClose,
-                              // Fee: feeResponse.result.drops.open_ledger_fee || AppConstants.MAX_FEE,
+                              Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
                     }
@@ -594,8 +579,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               },
                          ];
                     }
-
-                    tx.Fee = fee;
 
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
@@ -613,7 +596,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return;
                     }
 
-                    // this.resultField.nativeElement.innerHTML += `Payment channel closed successfully.\n\n`;
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                }
@@ -676,37 +658,40 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           try {
-               if (!/^[0-9A-Fa-f]{64}$/.test(this.channelIDField)) {
-                    throw new Error('Invalid channelID: must be a 64-character hexadecimal string');
-               }
-               const amountDrops = xrpl.xrpToDrops(this.amountField);
-               if (isNaN(parseFloat(this.amountField)) || parseFloat(this.amountField) <= 0) {
-                    throw new Error('Invalid amountXRP: must be a valid number or string');
-               }
+               // if (!/^[0-9A-Fa-f]{64}$/.test(this.channelIDField)) {
+               //      throw new Error('Invalid channelID: must be a 64-character hexadecimal string');
+               // }
+               // const amountDrops = xrpl.xrpToDrops(this.amountField);
+               // if (isNaN(parseFloat(this.amountField)) || parseFloat(this.amountField) <= 0) {
+               //      throw new Error('Invalid amountXRP: must be a valid number or string');
+               // }
 
-               // Convert the amount to 8-byte big-endian buffer
-               const amountBuffer = Buffer.alloc(8);
-               amountBuffer.writeBigUInt64BE(BigInt(amountDrops), 0);
+               // // Convert the amount to 8-byte big-endian buffer
+               // const amountBuffer = Buffer.alloc(8);
+               // amountBuffer.writeBigUInt64BE(BigInt(amountDrops), 0);
 
-               // Create the message buffer: 'CLM\0' + ChannelID (hex) + Amount (8 bytes)
-               const message = Buffer.concat([
-                    Buffer.from('CLM\0'), // Prefix for channel claims
-                    Buffer.from(this.channelIDField, 'hex'), // 32-byte channel ID
-                    amountBuffer, // 8-byte drop amount
-               ]);
+               // // Create the message buffer: 'CLM\0' + ChannelID (hex) + Amount (8 bytes)
+               // const message = Buffer.concat([
+               //      Buffer.from('CLM\0'), // Prefix for channel claims
+               //      Buffer.from(this.channelIDField, 'hex'), // 32-byte channel ID
+               //      amountBuffer, // 8-byte drop amount
+               // ]);
 
-               // Sign the message using ripple-keypairs
-               const messageHex = message.toString('hex');
-               const signature = sign(messageHex, wallet.privateKey);
+               // // Sign the message using ripple-keypairs
+               // const messageHex = message.toString('hex');
+               // const signature = sign(messageHex, wallet.privateKey);
 
-               // Verify the signature
-               const isValid = verify(messageHex, signature, wallet.publicKey);
-               if (!isValid) {
-                    throw new Error('Generated signature is invalid');
-               }
+               // // Verify the signature
+               // const isValid = verify(messageHex, signature, wallet.publicKey);
+               // if (!isValid) {
+               //      throw new Error('Generated signature is invalid');
+               // }
+
+               // this.publicKeyField = wallet.publicKey;
+               // this.channelClaimSignatureField = signature.toUpperCase();
 
                this.publicKeyField = wallet.publicKey;
-               this.channelClaimSignatureField = signature.toUpperCase();
+               this.channelClaimSignatureField = this.generateChannelSignature(this.channelIDField, this.amountField, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);

@@ -3,6 +3,7 @@ import { StorageService } from './storage.service';
 import { Client } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { AccountSet, TransactionMetadataBase, DepositPreauth, SignerListSet } from 'xrpl';
+import { AppConstants } from '../core/app.constants';
 
 @Injectable({
      providedIn: 'root', // Singleton service
@@ -107,6 +108,18 @@ export class XrplService {
           } catch (error) {
                console.error('Error fetching last ledger index:', error);
                throw error;
+          }
+     }
+
+     async calculateTransactionFee(client: xrpl.Client) {
+          try {
+               const feeResponse = await this.getTransactionFee(client);
+               const baseFee = feeResponse || AppConstants.MIN_FEE;
+               const fee = Math.min(parseInt(baseFee) * 1.5, parseInt(AppConstants.MAX_FEE)).toString();
+               return fee;
+          } catch (error) {
+               console.error('Error calculating transaciton fee:', error);
+               return AppConstants.MIN_FEE; // Fallback to minimum fee in case of error
           }
      }
 
