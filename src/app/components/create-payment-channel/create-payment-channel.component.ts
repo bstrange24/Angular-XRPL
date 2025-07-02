@@ -753,6 +753,21 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
+     clearFields() {
+          this.amountField = '';
+          this.destinationTagField = '';
+          this.channelIDField = '';
+          this.publicKeyField = '';
+          this.channelClaimSignatureField = '';
+          this.settleDelayField = '';
+          this.paymentChannelCancelAfterTimeField = '';
+          this.memoField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.renewChannel = false;
+          this.cdr.detectChanges();
+     }
+
      private displayDataForAccount(accountKey: 'account1' | 'account2') {
           const prefix = accountKey === 'account1' ? 'account1' : 'account2';
           const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';

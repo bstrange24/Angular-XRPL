@@ -143,7 +143,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="escrowSequenceNumberField" size="40" [(ngModel)]="escrowSequenceNumberField" name="escrowSequenceNumberField" />
+                         <input type="text" id="escrowSequenceNumberField" size="40" [(ngModel)]="escrowSequenceNumberField" (blur)="getEscrowOwnerAddress()" (keyup.enter)="getEscrowOwnerAddress()" name="escrowSequenceNumberField" />
                          <br />
                     </td>
                </tr>
@@ -231,8 +231,9 @@
                          <button type="button" (click)="getEscrows()">Get Escrows</button>
                          <button type="button" (click)="createConditionalEscrow()">Create Condition-based Escrow</button>
                          <button type="button" (click)="finishConditionalEscrow()">Finish Condition-based Escrow</button>
-                         <button type="button" (click)="getCondition()">Get Condition</button>
                          <button type="button" (click)="cancelEscrow()">Cancel Escrow</button>
+                         <button type="button" (click)="getCondition()">Get Condition</button>
+                         <button type="button" (click)="clearFields()">Clear Fields</button>
                     </td>
                </tr>
                <tr>

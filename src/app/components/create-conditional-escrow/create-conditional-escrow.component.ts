@@ -117,6 +117,30 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
      toggleTicketSequence() {}
 
+     async getEscrowOwnerAddress() {
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          if (accountAddress1Field) {
+               const client = await this.xrplService.getClient();
+               const escrowsTx = await this.xrplService.getAccountObjects(client, accountAddress1Field.value, 'validated', 'escrow');
+               const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
+               console.log('PreviousTxnIDs:', previousTxnIDs);
+               const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
+               for (const [index, previousTxnID] of previousTxnIDs.entries()) {
+                    if (typeof previousTxnID === 'string') {
+                         const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
+                         console.debug('sequenceTx:', sequenceTx);
+                         const offerSequence = sequenceTx.result.tx_json.Sequence;
+                         if (offerSequence === Number(this.escrowSequenceNumberField)) {
+                              if ('Account' in escrows[index]) {
+                                   this.escrowOwnerField = (escrows[index] as any).Account;
+                                   break;
+                              }
+                         }
+                    }
+               }
+          }
+     }
+
      async getEscrows() {
           console.log('Entering getEscrows');
           const startTime = Date.now();
@@ -144,7 +168,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
                     });
                }
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Escrows\n\n`;
+
+               this.showSpinnerWithDelay('Getting Escrows ...', 250);
 
                const tx = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
                console.debug('Escrow objects:', tx);
@@ -276,7 +301,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreate Time Based Escrow\n\n`;
+               this.showSpinnerWithDelay('Create Time Based Escrow ...', 250);
 
                const finishAfterTime = this.utilsService.addTime(this.escrowFinishTimeField, this.escrowFinishTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
                const cancelAfterTime = this.utilsService.addTime(this.escrowCancelTimeField, this.escrowCancelTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -349,7 +374,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Escrow created successfully.\n\n`;
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -392,7 +416,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
                     });
                }
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nFinishing Escrow\n\n`;
+
+               this.showSpinnerWithDelay('Finishing Escrow ...', 250);
 
                // const escrowObjects = await this.xrplService.getAccountObjects(client, this.escrowOwnerField, 'validated', 'escrow');
                // console.log(`escrowObjects ${JSON.stringify(escrowObjects.result.account_objects, null, 2)}`);
@@ -480,7 +505,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Escrow finsihed successfully.\n\n`;
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -523,7 +547,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
                     });
                }
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Escrow\n\n`;
+               this.showSpinnerWithDelay('Cancelling Escrow ...', 250);
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -608,7 +632,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Escrow cancelled successfully.\n\n`;
                this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -700,12 +723,38 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           return result;
      }
 
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+     }
+
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
      private async updateXrpBalance(client: xrpl.Client, address: string) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     clearFields() {
+          this.amountField = '';
+          this.destinationTagField = '';
+          this.escrowFinishTimeField = '';
+          this.escrowCancelTimeField = '';
+          this.escrowSequenceNumberField = '';
+          this.memoField = '';
+          this.escrowConditionField = '';
+          this.escrowFulfillmentField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.cdr.detectChanges();
      }
 
      private displayDataForAccount(accountKey: 'account1' | 'account2') {

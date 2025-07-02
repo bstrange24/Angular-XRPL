@@ -950,6 +950,16 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
+     clearFields() {
+          this.memoField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.isMultiSign = false;
+          this.multiSignAddress = '';
+          this.isUpdateMetaData = false;
+          this.cdr.detectChanges();
+     }
+
      async displayDataForAccount(accountKey: 'account1' | 'account2') {
           const prefix = accountKey; // 'account1' or 'account2'
 

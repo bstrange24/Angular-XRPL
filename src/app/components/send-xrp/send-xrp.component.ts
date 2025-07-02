@@ -286,6 +286,17 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
+     clearFields() {
+          this.amountField = '';
+          this.memoField = '';
+          this.invoiceIdField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.isMultiSign = false;
+          this.multiSignAddress = '';
+          this.cdr.detectChanges();
+     }
+
      private async updateXrpBalance(client: xrpl.Client, address: string) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;

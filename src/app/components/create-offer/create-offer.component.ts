@@ -1688,6 +1688,14 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
+     clearFields() {
+          this.memoField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.isMarketOrder = false;
+          this.cdr.detectChanges();
+     }
+
      async displayOfferDataForAccount1() {
           const account1name = this.storageService.getInputValue('account1name');
           const account1address = this.storageService.getInputValue('account1address');

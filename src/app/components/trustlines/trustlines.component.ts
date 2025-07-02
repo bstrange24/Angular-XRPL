@@ -1078,6 +1078,16 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
+     clearFields() {
+          this.amountField = '';
+          this.currencyField = '';
+          this.currencyBalanceField = '0';
+          this.memoField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.cdr.detectChanges();
+     }
+
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
           const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
 

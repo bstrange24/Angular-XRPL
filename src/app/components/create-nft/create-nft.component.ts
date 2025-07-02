@@ -1326,6 +1326,19 @@ export class CreateNftComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
+     clearFields() {
+          this.amountField = '';
+          this.minterAddressField = '';
+          this.issuerAddressField = '';
+          this.expirationField = '';
+          this.nftIdField = '';
+          this.nftIndexField = '';
+          this.nftCountField = '';
+          // this.memoField = '';
+          // this.isTicket = false;
+          this.cdr.detectChanges();
+     }
+
      refreshUiIAccountMetaData(accountInfo: any) {
           const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement;
           if (tickSizeField) {

@@ -605,6 +605,17 @@ export class SendChecksComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
+     clearFields() {
+          this.amountField = '';
+          this.destinationField = '';
+          this.expirationTimeField = '';
+          this.memoField = '';
+          this.checkIdField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.cdr.detectChanges();
+     }
+
      private displayDataForAccount(accountKey: 'account1' | 'account2') {
           const prefix = accountKey === 'account1' ? 'account1' : 'account2';
           const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';

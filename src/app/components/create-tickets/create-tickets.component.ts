@@ -295,6 +295,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
+     clearFields() {
+          this.amountField = '';
+          this.expirationTimeField = '';
+          this.memoField = '';
+          this.ticketCountField = '';
+          this.cdr.detectChanges();
+     }
+
      private displayDataForAccount(accountKey: 'account1' | 'account2') {
           const prefix = accountKey === 'account1' ? 'account1' : 'account2';
           const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';
