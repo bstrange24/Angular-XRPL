@@ -103,12 +103,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      toggleTicketSequence() {}
 
-     updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
-     }
-
      async getPaymentChannels() {
           console.log('Entering getPaymentChannels');
           const startTime = Date.now();
@@ -737,6 +731,18 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           } catch (error: any) {
                throw new Error(`Failed to generate channel signature: ${error.message}`);
           }
+     }
+
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
      private async updateXrpBalance(client: xrpl.Client, address: string) {

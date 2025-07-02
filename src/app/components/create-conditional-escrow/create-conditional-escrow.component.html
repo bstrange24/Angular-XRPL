@@ -242,37 +242,89 @@
                </tr>
           </table>
      </fieldset>
+
      <details class="escrow-info">
           <summary>Escrow Info</summary>
           <fieldset class="escrow-fieldset">
-               <div class="escrow-table">
-                    <!-- Header Row -->
-                    <div class="escrow-row escrow-header">
-                         <div class="escrow-cell">Time Condition</div>
-                         <div class="escrow-cell">Can Finish?</div>
-                         <div class="escrow-cell">Can Cancel?</div>
-                         <div class="escrow-cell">Who Can Do It?</div>
+               <details class="escrow-subdetails">
+                    <summary>Escrow Constraints</summary>
+                    <div class="escrow-table">
+                         <div class="escrow-row escrow-header">
+                              <div class="escrow-cell">Escrow Constraints</div>
+                              <div class="escrow-cell">Description</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell"><code>FinishAfter</code> (Required)</div>
+                              <div class="escrow-cell">The earliest time (in Ripple Epoch seconds) that the escrow can be finished. Must be in the future.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell"><code>CancelAfter</code> (Optional but common)</div>
+                              <div class="escrow-cell">The time after which the escrow can be **canceled** if not yet finished. Must be **after** `FinishAfter`.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell"><code>Condition</code> (Required for conditional)</div>
+                              <div class="escrow-cell">A cryptographic condition (usually a hash of a preimage). The escrow can only be finished by submitting the matching `Fulfillment`.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell"><code>Fulfillment</code> (Required to finish)</div>
+                              <div class="escrow-cell">The preimage that satisfies the `Condition`. Submitted with the `EscrowFinish` transaction.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell"><code>EscrowFinish</code> rules</div>
+                              <div class="escrow-cell">Must include both `Condition` and `Fulfillment` to succeed. Cannot be submitted before `FinishAfter`.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">**Only recipient can finish**</div>
+                              <div class="escrow-cell">The **Destination** of the escrow (recipient) must finish the escrow with the correct `Fulfillment`, and only after `FinishAfter`.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">**Only sender can cancel**</div>
+                              <div class="escrow-cell">The original escrow sender can cancel the escrow, but only **after `CancelAfter`**, and only if it hasn’t already been finished.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">Ledger time vs system time</div>
+                              <div class="escrow-cell">Times are in **Ripple Epoch**, not UNIX. Use XRPL server time for accurate conversions.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">Immutable once created</div>
+                              <div class="escrow-cell">You cannot modify `FinishAfter`, `CancelAfter`, `Condition`, or `Amount` after creation.</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">XRP-only</div>
+                              <div class="escrow-cell">Escrow transactions only support **XRP**, not IOUs or issued currencies.</div>
+                         </div>
                     </div>
-                    <!-- Data Rows -->
-                    <div class="escrow-row">
-                         <div class="escrow-cell">Before <code>Escrow Finish Time</code></div>
-                         <div class="escrow-cell">No</div>
-                         <div class="escrow-cell">No</div>
-                         <div class="escrow-cell">Anyone</div>
+               </details>
+
+               <details class="escrow-subdetails">
+                    <summary>Escrow Fields</summary>
+                    <div class="escrow-table">
+                         <div class="escrow-row escrow-header">
+                              <div class="escrow-cell">Time Condition</div>
+                              <div class="escrow-cell">Can Finish?</div>
+                              <div class="escrow-cell">Can Cancel?</div>
+                              <div class="escrow-cell">Who Can Do It?</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">Before <code>Escrow Finish Time</code></div>
+                              <div class="escrow-cell">No</div>
+                              <div class="escrow-cell">No</div>
+                              <div class="escrow-cell">Anyone</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">Between <code>Escrow Finish Time</code> and <code>Escrow Cancel Time</code></div>
+                              <div class="escrow-cell">Yes</div>
+                              <div class="escrow-cell">No</div>
+                              <div class="escrow-cell">Anyone</div>
+                         </div>
+                         <div class="escrow-row">
+                              <div class="escrow-cell">After <code>Escrow Cancel Time</code></div>
+                              <div class="escrow-cell">No</div>
+                              <div class="escrow-cell">Yes</div>
+                              <div class="escrow-cell">Only escrow creator</div>
+                         </div>
                     </div>
-                    <div class="escrow-row">
-                         <div class="escrow-cell">Between <code>Escrow Finish Time</code> and <code>Escrow Cancel Time</code></div>
-                         <div class="escrow-cell">Yes</div>
-                         <div class="escrow-cell">No</div>
-                         <div class="escrow-cell">Anyone</div>
-                    </div>
-                    <div class="escrow-row">
-                         <div class="escrow-cell">After <code>Escrow Cancel Time</code></div>
-                         <div class="escrow-cell">No</div>
-                         <div class="escrow-cell">Yes</div>
-                         <div class="escrow-cell">Only escrow creator</div>
-                    </div>
-               </div>
+               </details>
           </fieldset>
      </details>
 </form>

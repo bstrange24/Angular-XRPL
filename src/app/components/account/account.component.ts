@@ -136,6 +136,12 @@ export class AccountComponent implements AfterViewChecked {
           console.log('Spinner message updated:', message); // For debugging
      }
 
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+     }
+
      onNoFreezeChange() {
           if (this.flags.asfNoFreeze) {
                alert('Prevent Freezing Trust Lines (No Freeze) cannot be unset!');
@@ -229,7 +235,7 @@ export class AccountComponent implements AfterViewChecked {
                     });
                }
 
-               this.updateSpinnerMessage('Getting Account Details...');
+               this.showSpinnerWithDelay('Getting Account Details...', 200);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');

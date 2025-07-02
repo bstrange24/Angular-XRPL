@@ -1,4 +1,4 @@
-/* Escrow Info Section */
+/* escrow Info Section */
 .escrow-info {
      margin: 20px 0;
      border-radius: 10px;
@@ -44,7 +44,8 @@
 .escrow-table {
      display: flex;
      flex-direction: column;
-     gap: 2px;
+     gap: 0;
+     /* Remove gap between rows if not needed */
      background: #2a2c31;
      border-radius: 8px;
      overflow: hidden;
@@ -70,6 +71,7 @@
 .escrow-cell {
      flex: 1;
      padding: 12px;
+     /* Reduced from 12px to decrease spacing */
      color: white;
      font-size: 13px;
      text-align: left;
@@ -79,23 +81,6 @@
 .escrow-header .escrow-cell {
      border-bottom: 2px solid #4caf50;
 }
-
-/* Specific column widths */
-.escrow-cell:nth-child(1) {
-     flex: 3;
-}
-
-/* Time Condition: Widest */
-.escrow-cell:nth-child(2) {
-     flex: 1;
-}
-
-/* Can Finish?: Narrow */
-.escrow-cell:nth-child(3) {
-     flex: 1;
-}
-
-/* Can Cancel?: Narrow */
 
 /* Style code tags for emphasis */
 .escrow-cell code {
@@ -135,16 +120,37 @@
           width: 120px;
           color: #4caf50;
      }
+}
 
-     .escrow-cell:nth-child(1)::before {
-          content: 'Time Condition: ';
-     }
+.escrow-subdetails {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
 
-     .escrow-cell:nth-child(2)::before {
-          content: 'Can Finish?: ';
-     }
+.escrow-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
 
-     .escrow-cell:nth-child(3)::before {
-          content: 'Can Cancel?: ';
-     }
+/* .escrow-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+} */
+
+summary::marker {
+     color: white;
+}
+
+.escrow-subdetails[open] summary::marker {
+     content: '▼ ';
+     color: white;
 }
