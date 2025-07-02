@@ -408,7 +408,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                // Check if the escrow can be canceled based on the CancelAfter time
                const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
-               const escrowStatus = this.utilsService.checkTimeBasedEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishTimeBasedEscrow');
+               const escrowStatus = this.utilsService.checkTimeBasedEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishEscrow');
 
                if (!escrowStatus.canFinish && !escrowStatus.canCancel) {
                     return this.setError(`ERROR:\n${escrowStatus.reasonCancel}\n${escrowStatus.reasonFinish}`);

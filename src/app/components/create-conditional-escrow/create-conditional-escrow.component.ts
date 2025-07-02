@@ -118,10 +118,13 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      toggleTicketSequence() {}
 
      async getEscrowOwnerAddress() {
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          if (accountAddress1Field) {
+          if (this.account1.address) {
+               if (!xrpl.isValidAddress(this.account1.address)) {
+                    console.error('Invalid adress');
+               }
+
                const client = await this.xrplService.getClient();
-               const escrowsTx = await this.xrplService.getAccountObjects(client, accountAddress1Field.value, 'validated', 'escrow');
+               const escrowsTx = await this.xrplService.getAccountObjects(client, this.account1.address, 'validated', 'escrow');
                const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
                console.log('PreviousTxnIDs:', previousTxnIDs);
                const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
@@ -257,44 +260,26 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: XRP Amount cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
-          }
-
-          if (!this.utilsService.validatInput(this.escrowCancelTimeField)) {
-               return this.setError('ERROR: Escrow cancel time cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               amount: this.amountField,
+               destination: this.destinationField,
+               conditionField: this.escrowConditionField,
+               cancelTime: this.escrowCancelTimeField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
@@ -392,10 +377,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      async finishConditionalEscrow() {
           console.log('Entering finishConditionalEscrow');
           const startTime = Date.now();
-          this.spinner = true;
-          this.isError = false;
-          this.isSuccess = false;
-          this.result = '';
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                return this.setError('Please select an account');
           }
@@ -403,51 +386,71 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           if (!this.utilsService.validatInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               conditionField: this.escrowConditionField,
+               fulfillment: this.escrowFulfillmentField,
+               escrowSequence: this.escrowSequenceNumberField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          // If condition is provided, fulfillment is required
+          if (this.escrowConditionField && !this.utilsService.validatInput(this.escrowFulfillmentField)) {
+               return this.setError('ERROR: Fulfillment is required when a condition is provided');
+          }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
                this.showSpinnerWithDelay('Finishing Escrow ...', 250);
 
-               // const escrowObjects = await this.xrplService.getAccountObjects(client, this.escrowOwnerField, 'validated', 'escrow');
-               // console.log(`escrowObjects ${JSON.stringify(escrowObjects.result.account_objects, null, 2)}`);
-               // const targetEscrow = escrowObjects.result.account_objects.find((obj: any) => obj.Sequence === parseInt(this.escrowSequenceNumberField));
-
-               // if (!targetEscrow) {
-               //      return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
-               // }
-
-               // const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
-               // const currentRippleTime = serverInfo.result.info.time;
-
-               // const status = this.checkEscrowStatus(
-               //      {
-               //           FinishAfter: (targetEscrow as any).FinishAfter,
-               //           CancelAfter: (targetEscrow as any).CancelAfter,
-               //           Condition: (targetEscrow as any).Condition,
-               //           owner: (targetEscrow as any).Owner,
-               //      },
-               //      Number(currentRippleTime),
-               //      wallet.classicAddress
-               // );
-
-               // if (!status.canFinish) {
-               //      return this.setError(`Escrow cannot be finished: ${status.reasonFinish}`);
-               // }
-
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
+
+               // Fetch escrow objects for the account
+               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               if (escrowObjects.result.account_objects.length <= 0) {
+                    return this.setError(`No escrows found for account ${wallet.classicAddress}`);
+               }
+
+               // Find the escrow with the specified sequence number
+               const escrow = await this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField));
+               if (!escrow) {
+                    return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+               }
+               const escrowOwner = escrow.Account;
+
+               // Check if the escrow can be canceled based on the CancelAfter time
+               const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
+               const escrowStatus = this.utilsService.checkEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, Condition: this.escrowConditionField, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishEscrow', this.escrowFulfillmentField);
+
+               if (!escrowStatus.canFinish) {
+                    return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
+               }
+
+               // if (!escrowStatus.canFinish && !escrowStatus.canCancel) {
+               //      return this.setError(`ERROR:\n${escrowStatus.reasonCancel}\n${escrowStatus.reasonFinish}`);
+               // }
+
+               // if (!escrowStatus.canFinish) {
+               //      return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
+               // }
+
+               // if (!escrowStatus.canCancel) {
+               //      return this.setError(`ERROR: ${escrowStatus.reasonCancel}`);
+               // }
 
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -676,53 +679,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           return { condition, fulfillment: fulfillment_hex };
      }
 
-     checkEscrowStatus(
-          escrow: {
-               FinishAfter?: number;
-               CancelAfter?: number;
-               Condition?: string;
-               owner: string;
-          },
-          currentRippleTime?: number,
-          currentAccountAddress?: string
-     ): EscrowStatus {
-          const now = currentRippleTime ?? Math.floor(Date.now() / 1000) + 946684800; // convert UNIX to XRP timestamp
-
-          const { FinishAfter, CancelAfter, Condition, owner } = escrow;
-          const isCreator = currentAccountAddress ? currentAccountAddress === owner : false;
-
-          const result: EscrowStatus = {
-               canFinish: false,
-               canCancel: false,
-               reasonFinish: '',
-               reasonCancel: '',
-          };
-
-          // Check finish eligibility
-          if (FinishAfter && now >= FinishAfter) {
-               if (Condition) {
-                    result.canFinish = true;
-               } else {
-                    result.canFinish = true;
-               }
-          } else {
-               result.reasonFinish = FinishAfter ? `Cannot finish: FinishAfter ${FinishAfter} not yet reached (now=${now})` : 'Cannot finish: No FinishAfter set';
-          }
-
-          // Check cancel eligibility
-          if (CancelAfter && now >= CancelAfter) {
-               if (isCreator) {
-                    result.canCancel = true;
-               } else {
-                    result.reasonCancel = 'Only the escrow creator can cancel';
-               }
-          } else {
-               result.reasonCancel = CancelAfter ? `Cannot cancel: CancelAfter ${CancelAfter} not yet reached (now=${now})` : 'Cannot cancel: No CancelAfter set';
-          }
-
-          return result;
-     }
-
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
@@ -743,6 +699,68 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; conditionField?: string; fulfillment?: string; escrowSequence?: string; cancelTime?: string }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+               return 'XRP Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'XRP Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'XRP Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          if (inputs.cancelTime != undefined) {
+               if (!this.utilsService.validatInput(inputs.cancelTime)) {
+                    return 'Escrow cancel time cannot be empty';
+               }
+               if (isNaN(parseFloat(inputs.cancelTime ?? '')) || !isFinite(parseFloat(inputs.cancelTime ?? ''))) {
+                    return 'Escrow cancel time must be a valid number';
+               }
+               if (parseFloat(inputs.cancelTime ?? '') <= 0) {
+                    return 'Escrow cancel time must be a positive number';
+               }
+          }
+          if (inputs.conditionField != undefined) {
+               if (!this.utilsService.validatInput(inputs.conditionField)) {
+                    return 'Escrow condition cannot be empty';
+               }
+               if (inputs.conditionField != undefined && !this.utilsService.validateCondition(inputs.conditionField)) {
+                    return 'Escrow condition is invalid';
+               }
+          }
+          if (inputs.fulfillment != undefined) {
+               if (!this.utilsService.validatInput(inputs.fulfillment)) {
+                    return 'Escrow fulfillment cannot be empty';
+               }
+               if (!this.utilsService.validateFulfillment(inputs.fulfillment, inputs.conditionField ?? '')) {
+                    return 'Escrow fulfillment is invalid';
+               }
+          }
+          if (inputs.escrowSequence != undefined) {
+               if (!this.utilsService.validatInput(inputs.escrowSequence)) {
+                    return 'Escrow sequence cannot be empty';
+               }
+               if (isNaN(parseFloat(inputs.escrowSequence ?? '')) || !isFinite(parseFloat(inputs.escrowSequence ?? ''))) {
+                    return 'Escrow sequence must be a valid number';
+               }
+               if (inputs.escrowSequence && parseFloat(inputs.escrowSequence) <= 0) {
+                    return 'Escrow sequence must be a positive number';
+               }
+          }
+          return null;
+     }
+
      clearFields() {
           this.amountField = '';
           this.destinationTagField = '';
@@ -754,6 +772,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           this.escrowFulfillmentField = '';
           this.ticketSequence = '';
           this.isTicket = false;
+          this.cdr.detectChanges();
      }
 
      private displayDataForAccount(accountKey: 'account1' | 'account2') {
@@ -817,12 +836,14 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      }
 
      private setError(message: string) {
+          console.log('setError called:', message, 'isError:', this.isError, 'selectedAccount:', this.selectedAccount);
           this.setErrorProperties();
           this.handleTransactionResult({
                result: `${message}`,
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 
      private setSuccessProperties() {
@@ -839,5 +860,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 }

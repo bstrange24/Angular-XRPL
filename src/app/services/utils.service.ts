@@ -4,6 +4,8 @@ import * as xrpl from 'xrpl';
 import { XrplService } from '../services/xrpl.service';
 import { AppConstants } from '../core/app.constants';
 import { StorageService } from '../services/storage.service';
+// import { createHash } from 'crypto';
+import { sha256 } from 'js-sha256';
 
 @Injectable({
      providedIn: 'root',
@@ -210,6 +212,47 @@ export class UtilsService {
                pluralLabel: 'NFTs',
           },
      };
+
+     validateCondition(condition: string | undefined | null): string | null {
+          // Check if condition is provided and non-empty
+          if (!this.validatInput(condition)) {
+               return 'Condition cannot be empty';
+          }
+
+          // Ensure condition is a valid hex string (uppercase, 0-9, A-F)
+          const hexRegex = /^[0-9A-F]+$/;
+          if (!hexRegex.test(condition!)) {
+               return 'Condition must be a valid uppercase hex string (0-9, A-F)';
+          }
+
+          // Check length for SHA-256 (32 bytes = 64 hex characters)
+          if (condition!.length !== 64) {
+               return 'Condition must be 64 hex characters (32 bytes) for SHA-256';
+          }
+
+          return null;
+     }
+
+     validateFulfillment(fulfillment: string | undefined | null, condition: string): string | null {
+          if (!this.validatInput(fulfillment)) {
+               return 'Fulfillment cannot be empty';
+          }
+          const hexRegex = /^[0-9A-F]+$/;
+          if (!hexRegex.test(fulfillment!)) {
+               return 'Fulfillment must be a valid uppercase hex string (0-9, A-F)';
+          }
+          try {
+               // Convert hex to binary and compute SHA-256 hash
+               const fulfillmentBytes = Buffer.from(fulfillment!, 'hex'); // Buffer polyfill or use Uint8Array
+               const computedHash = sha256(fulfillmentBytes).toUpperCase();
+               if (computedHash !== condition) {
+                    return 'Fulfillment does not match the condition';
+               }
+          } catch (error) {
+               return 'Invalid fulfillment: unable to compute SHA-256 hash';
+          }
+          return null;
+     }
 
      validatInput(input: string | undefined | null): boolean {
           return typeof input === 'string' && !!input.trim();
@@ -427,10 +470,85 @@ export class UtilsService {
                reasonCancel = `No CancelAfter time defined.`;
           }
 
-          if (operation === 'finishTimeBasedEscrow' && canCancel && canFinish) {
+          if (operation === 'finishEscrow' && canCancel && canFinish) {
                canFinish = false;
                canCancel = true;
                reasonFinish = `The Escrow has expired and can only be cancelled.`;
+          }
+
+          return { canFinish, canCancel, reasonFinish, reasonCancel };
+     }
+
+     checkEscrowStatus(
+          escrow: {
+               FinishAfter?: number;
+               CancelAfter?: number;
+               Condition?: string;
+               owner: string;
+          },
+          currentRippleTime: number,
+          callerAddress: string,
+          operation: 'finishEscrow' | 'cancelEscrow',
+          fulfillment?: string
+     ): {
+          canFinish: boolean;
+          canCancel: boolean;
+          reasonFinish: string;
+          reasonCancel: string;
+     } {
+          const now = currentRippleTime;
+          const { FinishAfter, CancelAfter, Condition, owner } = escrow;
+
+          let canFinish = true; // Default to true for condition-only escrows
+          let canCancel = false;
+          let reasonFinish = '';
+          let reasonCancel = '';
+
+          // --- Check finish eligibility ---
+          // Time-based check
+          if (FinishAfter !== undefined) {
+               if (now < FinishAfter) {
+                    canFinish = false;
+                    reasonFinish = `Escrow can only be finished after ${this.convertXRPLTime(FinishAfter)}, current time is ${this.convertXRPLTime(now)}.`;
+               }
+          }
+
+          // Condition-based check
+          if (Condition) {
+               if (!fulfillment) {
+                    canFinish = false;
+                    reasonFinish = reasonFinish ? `${reasonFinish} Additionally, a fulfillment is required for condition-based escrow.` : 'A fulfillment is required for condition-based escrow.';
+               }
+          } else if (fulfillment && !Condition) {
+               canFinish = false;
+               reasonFinish = reasonFinish ? `${reasonFinish} No condition is set, so fulfillment is not applicable.` : 'No condition is set, so fulfillment is not applicable.';
+          }
+
+          // If no FinishAfter or Condition is set, finishing is not possible
+          if (FinishAfter === undefined && !Condition) {
+               canFinish = false;
+               reasonFinish = 'No FinishAfter time or Condition defined.';
+          }
+
+          // --- Check cancel eligibility ---
+          if (CancelAfter !== undefined) {
+               if (now >= CancelAfter) {
+                    if (callerAddress === owner) {
+                         canCancel = true;
+                    } else {
+                         reasonCancel = `Only the escrow owner (${owner}) can cancel this escrow.`;
+                    }
+               } else {
+                    reasonCancel = `Escrow can only be canceled after ${this.convertXRPLTime(CancelAfter)}, current time is ${this.convertXRPLTime(now)}.`;
+               }
+          } else {
+               reasonCancel = 'No CancelAfter time defined.';
+          }
+
+          // If escrow has expired (CancelAfter passed), prioritize cancellation for finishEscrow operation
+          if (operation === 'finishEscrow' && canCancel && canFinish) {
+               canFinish = false;
+               reasonFinish = reasonFinish ? `${reasonFinish} The escrow has expired and can only be canceled.` : 'The escrow has expired and can only be canceled.';
           }
 
           return { canFinish, canCancel, reasonFinish, reasonCancel };
