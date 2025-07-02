@@ -754,7 +754,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           this.escrowFulfillmentField = '';
           this.ticketSequence = '';
           this.isTicket = false;
-          this.cdr.detectChanges();
      }
 
      private displayDataForAccount(accountKey: 'account1' | 'account2') {

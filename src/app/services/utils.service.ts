@@ -382,6 +382,60 @@ export class UtilsService {
           return div.textContent || div.innerText || '';
      }
 
+     async getWallet(seed: string, environment: string): Promise<xrpl.Wallet> {
+          return seed.split(' ').length > 1
+               ? xrpl.Wallet.fromMnemonic(seed, {
+                      algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                 })
+               : xrpl.Wallet.fromSeed(seed, {
+                      algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                 });
+     }
+
+     checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {
+          const now = currentRippleTime;
+          const { FinishAfter, CancelAfter, owner } = escrow;
+
+          let canFinish = false;
+          let canCancel = false;
+          let reasonFinish = '';
+          let reasonCancel = '';
+
+          // --- Check finish eligibility ---
+          if (FinishAfter !== undefined) {
+               if (now >= FinishAfter) {
+                    canFinish = true;
+               } else {
+                    reasonFinish = `Escrow can only be finished after ${this.convertXRPLTime(FinishAfter)}, current time is ${this.convertXRPLTime(now)}.`;
+               }
+          } else {
+               reasonFinish = `No FinishAfter time defined.`;
+          }
+
+          // --- Check cancel eligibility ---
+          if (CancelAfter !== undefined) {
+               if (now >= CancelAfter) {
+                    if (callerAddress === owner) {
+                         canCancel = true;
+                    } else {
+                         reasonCancel = `The Escrow has expired and can only be cancelled. Only the escrow owner (${owner}) can cancel this escrow.`;
+                    }
+               } else {
+                    reasonCancel = `Escrow can only be canceled after ${this.convertXRPLTime(CancelAfter)}, current time is ${this.convertXRPLTime(now)}.`;
+               }
+          } else {
+               reasonCancel = `No CancelAfter time defined.`;
+          }
+
+          if (operation === 'finishTimeBasedEscrow' && canCancel && canFinish) {
+               canFinish = false;
+               canCancel = true;
+               reasonFinish = `The Escrow has expired and can only be cancelled.`;
+          }
+
+          return { canFinish, canCancel, reasonFinish, reasonCancel };
+     }
+
      getFlagName(value: string) {
           return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `Flag ${value}`;
      }

@@ -53,6 +53,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      isEditable: boolean = true;
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     accountAddress1Field: string = '';
      channelIDField = '';
      settleDelayField = '';
      ownerCount = '';
@@ -115,10 +116,13 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      toggleTicketSequence() {}
 
      async getEscrowOwnerAddress() {
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          if (accountAddress1Field) {
+          if (this.account1.address) {
+               if (!xrpl.isValidAddress(this.account1.address)) {
+                    console.error('Invalid adress');
+               }
+
                const client = await this.xrplService.getClient();
-               const escrowsTx = await this.xrplService.getAccountObjects(client, accountAddress1Field.value, 'validated', 'escrow');
+               const escrowsTx = await this.xrplService.getAccountObjects(client, this.account1.address, 'validated', 'escrow');
                const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
                console.log('PreviousTxnIDs:', previousTxnIDs);
                const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
@@ -155,16 +159,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               }
+               const wallet = await this.utilsService.getWallet(seed, environment);
 
                this.showSpinnerWithDelay('Getting Escrows ...', 250);
 
@@ -258,40 +253,26 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: XRP Amount cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               amount: this.amountField,
+               destination: this.destinationField,
+               finishTime: this.escrowFinishTimeField,
+               cancelTime: this.escrowCancelTimeField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
@@ -391,58 +372,54 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               sequence: this.escrowSequenceNumberField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
                this.showSpinnerWithDelay('Finishing Escrow ...', 250);
 
-               // const escrowsTx = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
-               // const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
-               // console.log('PreviousTxnIDs:', previousTxnIDs);
+               // Fetch escrow objects for the account
+               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               if (escrowObjects.result.account_objects.length <= 0) {
+                    return this.setError(`No escrows found for account ${wallet.classicAddress}`);
+               }
 
-               // const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
-               // for (const [index, previousTxnID] of previousTxnIDs.entries()) {
-               //      if (typeof previousTxnID === 'string') {
-               //           const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
-               //           console.debug('sequenceTx:', sequenceTx);
-               //           const offerSequence = sequenceTx.result.tx_json.Sequence;
-               //           if (offerSequence === Number(this.escrowSequenceNumberField)) {
-               //                if ('Account' in escrows[index] && (escrows[index] as any).Destination === wallet.classicAddress) {
-               //                     this.escrowOwnerField = (escrows[index] as any).Destination;
-               //                     break;
-               //                }
-               //           }
-               //      }
-               // }
+               // Find the escrow with the specified sequence number
+               const escrow = await this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField));
+               if (!escrow) {
+                    return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+               }
+               const escrowOwner = escrow.Account;
 
-               // if (this.escrowOwnerField === '') {
-               //      return this.setError('ERROR: The destination address can only finsish the escrow');
-               // }
+               // Check if the escrow can be canceled based on the CancelAfter time
+               const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
+               const escrowStatus = this.utilsService.checkTimeBasedEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishTimeBasedEscrow');
 
-               // return this.setError('ERROR: Insufficent XRP to complete transaction');
+               if (!escrowStatus.canFinish && !escrowStatus.canCancel) {
+                    return this.setError(`ERROR:\n${escrowStatus.reasonCancel}\n${escrowStatus.reasonFinish}`);
+               }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               if (!escrowStatus.canFinish) {
+                    return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
+               }
+
+               if (!escrowStatus.canCancel) {
+                    return this.setError(`ERROR: ${escrowStatus.reasonCancel}`);
                }
 
                const fee = await this.xrplService.calculateTransactionFee(client);
@@ -519,59 +496,49 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               sequence: this.escrowSequenceNumberField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
                this.showSpinnerWithDelay('Cancelling Escrow ...', 250);
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               // Fetch escrow objects for the account
+               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               if (escrowObjects.result.account_objects.length <= 0) {
+                    return this.setError(`No escrows found for account ${wallet.classicAddress}`);
                }
 
-               // const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
-               // if (escrowObjects.result.account_objects.length <= 0) {
-               //      return this.setError(`No escrow found for account ${wallet.classicAddress}`);
-               // }
+               // Find the escrow with the specified sequence number
+               const escrow = await this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField));
+               if (!escrow) {
+                    return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+               }
+               const escrowOwner = escrow.Account;
 
-               // const previousTxnIDs = escrowObjects.result.account_objects.map(obj => obj.PreviousTxnID);
-               // let foundSequence = 'N';
-               // console.log('PreviousTxnIDs:', previousTxnIDs);
-               // for (const [index, previousTxnID] of previousTxnIDs.entries()) {
-               //      if (typeof previousTxnID === 'string') {
-               //           const sequenceTx = await this.xrplService.getSequenceNuber(client, previousTxnID);
-               //           const offerSequence = sequenceTx.result.tx_json.Sequence;
-               //           console.log(`Escrow OfferSequence: ${offerSequence} Hash: ${sequenceTx.result.hash}`);
-               //           if (this.escrowSequenceNumberField === String(offerSequence)) {
-               //                foundSequence = 'Y';
-               //                break;
-               //           }
-               //      }
-               // }
+               // Check if the escrow can be canceled based on the CancelAfter time
+               const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
+               const escrowStatus = this.utilsService.checkTimeBasedEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'cancelEscrow');
 
-               // if (foundSequence === 'N') {
-               //      return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
-               // }
+               if (!escrowStatus.canCancel) {
+                    return this.setError(`ERROR: ${escrowStatus.reasonCancel}`);
+               }
 
+               // Prepare the EscrowCancel transaction
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -583,8 +550,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                     escrowTx = await client.autofill({
                          TransactionType: 'EscrowCancel',
-                         Account: wallet.address,
-                         Owner: this.escrowOwnerField,
+                         Account: wallet.classicAddress,
+                         Owner: escrowOwner,
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
                          TicketSequence: Number(this.ticketSequence),
                          Sequence: 0,
@@ -594,8 +561,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                } else {
                     escrowTx = await client.autofill({
                          TransactionType: 'EscrowCancel',
-                         Account: wallet.address,
-                         Owner: this.escrowOwnerField,
+                         Account: wallet.classicAddress,
+                         Owner: escrowOwner,
                          OfferSequence: parseInt(this.escrowSequenceNumberField),
                          Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -603,11 +570,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
 
                console.log(`escrowTx: ${JSON.stringify(escrowTx, null, 2)}`);
-               let preparedTx = await client.autofill(escrowTx);
-               const signed = wallet.sign(preparedTx);
+               const signed = wallet.sign(escrowTx);
                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
                const tx = await client.submitAndWait(signed.tx_blob);
-               console.log('Create Escrow tx', JSON.stringify(tx, null, 2));
+               console.log('Cancel Escrow tx', JSON.stringify(tx, null, 2));
 
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
@@ -631,57 +597,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
      }
 
-     checkTimeBasedEscrowStatus(
-          escrow: {
-               FinishAfter?: number;
-               CancelAfter?: number;
-               owner: string;
-          },
-          currentRippleTime: number,
-          callerAddress: string
-     ): {
-          canFinish: boolean;
-          canCancel: boolean;
-          reasonFinish: string;
-          reasonCancel: string;
-     } {
-          const now = currentRippleTime;
-          const { FinishAfter, CancelAfter, owner } = escrow;
-
-          let canFinish = false;
-          let canCancel = false;
-          let reasonFinish = '';
-          let reasonCancel = '';
-
-          // --- Check finish eligibility ---
-          if (FinishAfter !== undefined) {
-               if (now >= FinishAfter) {
-                    canFinish = true;
-               } else {
-                    reasonFinish = `Escrow can only be finished after ${FinishAfter}, current time is ${now}`;
-               }
-          } else {
-               reasonFinish = `No FinishAfter time defined`;
-          }
-
-          // --- Check cancel eligibility ---
-          if (CancelAfter !== undefined) {
-               if (now >= CancelAfter) {
-                    if (callerAddress === owner) {
-                         canCancel = true;
-                    } else {
-                         reasonCancel = `Only the escrow owner (${owner}) can cancel this escrow`;
-                    }
-               } else {
-                    reasonCancel = `Escrow can only be canceled after ${CancelAfter}, current time is ${now}`;
-               }
-          } else {
-               reasonCancel = `No CancelAfter time defined`;
-          }
-
-          return { canFinish, canCancel, reasonFinish, reasonCancel };
-     }
-
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
@@ -700,6 +615,55 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; finishTime?: string; cancelTime?: string }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+               return 'XRP Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'XRP Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'XRP Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          if (inputs.finishTime != undefined && !this.utilsService.validatInput(inputs.finishTime)) {
+               return 'Escrow finish time cannot be empty';
+          }
+          if (inputs.finishTime != undefined) {
+               if (isNaN(parseFloat(inputs.finishTime ?? '')) || !isFinite(parseFloat(inputs.finishTime ?? ''))) {
+                    return 'Escrow finish time must be a valid number';
+               }
+          }
+          if (inputs.finishTime != undefined && parseFloat(inputs.finishTime ?? '') <= 0) {
+               return 'Escrow finish time must be a positive number';
+          }
+          if (inputs.cancelTime != undefined && !this.utilsService.validatInput(inputs.cancelTime)) {
+               return 'Escrow cancel time cannot be empty';
+          }
+          if (inputs.cancelTime != undefined) {
+               if (isNaN(parseFloat(inputs.cancelTime ?? '')) || !isFinite(parseFloat(inputs.cancelTime ?? ''))) {
+                    return 'Escrow cancel time must be a valid number';
+               }
+          }
+          if (inputs.cancelTime != undefined && parseFloat(inputs.cancelTime ?? '') <= 0) {
+               return 'Escrow cancel time must be a positive number';
+          }
+          if (inputs.sequence != undefined && inputs.sequence && !this.utilsService.validatInput(inputs.sequence)) {
+               return 'Escrow sequence number cannot be empty';
+          }
+          return null;
      }
 
      clearFields() {
@@ -775,12 +739,14 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      private setError(message: string) {
+          console.log('setError called:', message, 'isError:', this.isError, 'selectedAccount:', this.selectedAccount);
           this.setErrorProperties();
           this.handleTransactionResult({
                result: `${message}`,
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 
      private setSuccessProperties() {
@@ -797,5 +763,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 }
