@@ -275,6 +275,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
+
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
@@ -389,6 +394,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                this.showSpinnerWithDelay('Finishing Escrow ...', 250);
@@ -515,6 +525,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
+
                this.showSpinnerWithDelay('Cancelling Escrow ...', 250);
 
                // Fetch escrow objects for the account
@@ -525,8 +540,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                // Find the escrow with the specified sequence number
                const escrow = await this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField));
-               if (!escrow) {
-                    return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+               if (!this.isTicketEnabled) {
+                    if (!escrow) {
+                         return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
+                    }
                }
                const escrowOwner = escrow.Account;
 

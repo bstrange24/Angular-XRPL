@@ -10,7 +10,6 @@ import { TransactionMetadataBase, EscrowCancel, EscrowCreate, EscrowFinish } fro
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { sign } from 'ripple-keypairs';
 import * as cc from 'five-bells-condition';
 
 interface EscrowObject {
@@ -162,14 +161,15 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                this.showSpinnerWithDelay('Getting Escrows ...', 250);
@@ -280,6 +280,11 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
@@ -413,6 +418,11 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
+
                this.showSpinnerWithDelay('Finishing Escrow ...', 250);
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
@@ -439,18 +449,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                if (!escrowStatus.canFinish) {
                     return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
                }
-
-               // if (!escrowStatus.canFinish && !escrowStatus.canCancel) {
-               //      return this.setError(`ERROR:\n${escrowStatus.reasonCancel}\n${escrowStatus.reasonFinish}`);
-               // }
-
-               // if (!escrowStatus.canFinish) {
-               //      return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
-               // }
-
-               // if (!escrowStatus.canCancel) {
-               //      return this.setError(`ERROR: ${escrowStatus.reasonCancel}`);
-               // }
 
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -541,15 +539,17 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
+
                this.showSpinnerWithDelay('Cancelling Escrow ...', 250);
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {

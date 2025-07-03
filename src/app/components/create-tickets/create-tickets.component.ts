@@ -33,8 +33,8 @@ export class CreateTicketsComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      xrpBalance1Field = '';
      checkIdField = '';
      ownerCount = '';
@@ -60,17 +60,17 @@ export class CreateTicketsComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
@@ -86,30 +86,28 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Tickets\n\n`;
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
 
                const ticket_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
                console.debug('Ticket Objects: ', ticket_objects);
@@ -163,21 +161,15 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.ticketCountField)) {
-               return this.setError('ERROR: Ticket Count cannot be empty');
-          }
-
-          if (parseFloat(this.ticketCountField) <= 0) {
-               return this.setError('ERROR: Ticket Count must be a positive number');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               destination: this.destinationField,
+               amount: this.amountField,
+               ticketCount: this.ticketCountField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           let ticketExpiration = '';
@@ -193,19 +185,17 @@ export class CreateTicketsComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating Ticket\n\n`;
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -261,6 +251,9 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                let preparedTx = await client.autofill(tx);
                const signed = wallet.sign(preparedTx);
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                const response = await client.submitAndWait(signed.tx_blob);
                console.log('Response', response);
 
@@ -287,12 +280,56 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
      }
 
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+     }
+
      private async updateXrpBalance(client: xrpl.Client, address: string) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; ticketCount?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+               return 'Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          if (inputs.ticketCount != undefined) {
+               if (isNaN(parseFloat(inputs.ticketCount ?? '')) || !isFinite(parseFloat(inputs.ticketCount ?? ''))) {
+                    return 'Ticket count must be a valid number';
+               }
+               if (parseFloat(inputs.ticketCount) <= 0) {
+                    return 'Ticket count must be a positive number';
+               }
+          }
+          return null;
      }
 
      clearFields() {

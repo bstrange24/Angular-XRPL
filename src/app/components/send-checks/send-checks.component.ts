@@ -31,8 +31,8 @@ export class SendChecksComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      xrpBalance1Field = '';
      checkIdField = '';
      ownerCount = '';
@@ -54,7 +54,6 @@ export class SendChecksComponent implements AfterViewChecked {
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      async ngOnInit(): Promise<void> {
-          console.log('Send-Check DOM fully loaded at', new Date().toISOString());
           await this.toggleIssuerField();
      }
 
@@ -67,17 +66,17 @@ export class SendChecksComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
@@ -91,9 +90,9 @@ export class SendChecksComponent implements AfterViewChecked {
      toggleTicketSequence() {}
 
      async toggleIssuerField() {
-          this.issuers = []; // Reset issuers
-          this.selectedIssuer = ''; // Reset selected issuer
-          this.tokenBalance = ''; // Reset token balance
+          this.issuers = [];
+          this.selectedIssuer = '';
+          this.tokenBalance = '';
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
@@ -122,27 +121,27 @@ export class SendChecksComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');
@@ -220,25 +219,14 @@ export class SendChecksComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: XRP Amount cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               destination: this.destinationField,
+               amount: this.amountField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           let checkExpiration = '';
@@ -263,9 +251,9 @@ export class SendChecksComponent implements AfterViewChecked {
                     return this.setError('ERROR: Token balance must be greater than 0');
                }
 
-               if (parseFloat(balance.toString()) > parseFloat(this.amountField)) {
-                    return this.setError(`ERROR: Insufficient token balance. Amount is to high`);
-               }
+               // if (parseFloat(balance.toString()) > parseFloat(this.amountField)) {
+               // return this.setError(`ERROR: Insufficient token balance. Amount is to high`);
+               // }
           }
 
           if (this.issuers && this.tokenBalance != '' && Number(this.tokenBalance) > 0 && this.issuers.length === 0) {
@@ -275,16 +263,16 @@ export class SendChecksComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
@@ -292,8 +280,6 @@ export class SendChecksComponent implements AfterViewChecked {
                          return this.setError('ERROR: Insufficent XRP to send check');
                     }
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSending Check\n\n`;
 
                // Build SendMax amount
                let sendMax;
@@ -360,11 +346,12 @@ export class SendChecksComponent implements AfterViewChecked {
                     tx.DestinationTag = parseInt(destinationTagText, 10);
                }
 
-               this.resultField.nativeElement.innerHTML += `Sending Check for ${this.amountField} ${this.currencyFieldDropDownValue} to ${this.destinationField}\n`;
-
                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                const signed = wallet.sign(tx);
                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                const response = await client.submitAndWait(signed.tx_blob);
                console.log('response', JSON.stringify(response, null, 2));
 
@@ -375,7 +362,6 @@ export class SendChecksComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Account fields successfully updated.\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -396,45 +382,31 @@ export class SendChecksComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.checkIdField)) {
-               return this.setError('ERROR: Check ID cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: XRP Amount cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               destination: this.destinationField,
+               amount: this.amountField,
+               checkId: this.checkIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCashing Check\n\n`;
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
 
                // Build amount object depending on currency
                const amountToCash =
@@ -475,11 +447,13 @@ export class SendChecksComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML += `Cashing check for ${this.amountField} ${this.currencyFieldDropDownValue}\n`;
-
+               console.log(`Cashing check for ${this.amountField} ${this.currencyFieldDropDownValue}`);
                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                const signed = wallet.sign(tx);
                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                const response = await client.submitAndWait(signed.tx_blob);
                console.log('response', JSON.stringify(tx, null, 2));
 
@@ -490,7 +464,6 @@ export class SendChecksComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Account fields successfully updated.\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -524,20 +497,29 @@ export class SendChecksComponent implements AfterViewChecked {
                return this.setError('ERROR: Check ID cannot be empty');
           }
 
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               checkId: this.checkIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Check\n\n`;
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -566,12 +548,14 @@ export class SendChecksComponent implements AfterViewChecked {
                     });
                }
 
-               this.resultField.nativeElement.innerHTML += `Cashing check for ${this.currencyFieldDropDownValue}\n`;
-
+               console.log(`Cancelling check for ${this.currencyFieldDropDownValue}`);
                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                const signed = wallet.sign(tx);
                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
                const response = await client.submitAndWait(signed.tx_blob);
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
                console.log('CheckCancel response', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -581,7 +565,6 @@ export class SendChecksComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Account fields successfully updated.\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -597,12 +580,53 @@ export class SendChecksComponent implements AfterViewChecked {
           }
      }
 
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+     }
+
      private async updateXrpBalance(client: xrpl.Client, address: string) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; checkId?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+               return 'Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          if (inputs.checkId != undefined) {
+               if (!this.utilsService.validatInput(inputs.checkId)) {
+                    return 'Check ID cannot be empty';
+               }
+          }
+          return null;
      }
 
      clearFields() {

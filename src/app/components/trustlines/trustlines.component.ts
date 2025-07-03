@@ -10,17 +10,6 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
-import { derive } from 'xrpl-accountlib';
-import { secretNumbers } from 'xrpl-accountlib/dist/generate';
-
-interface AccountData {
-     name: string;
-     address: string;
-     seed: string;
-     secretNumbers: string;
-     mnemonic: string;
-     balance: string;
-}
 
 interface TrustLine {
      currency: string;
@@ -58,9 +47,9 @@ export class TrustlinesComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket = false;
      isTicketEnabled = false;
-     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '' };
+     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      ownerCount = '';
      totalXrpReserves = '';
      executionTime = '';
@@ -90,24 +79,22 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
-          this.issuer = event.issuer;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
+          this.issuer = { ...event.issuer, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
-          if (this.selectedAccount === null || this.selectedAccount === undefined) {
-               return;
-          }
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -124,28 +111,29 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                this.showSpinnerWithDelay('Getting Trustlines...', 200);
@@ -303,40 +291,26 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: Currency Amount cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: Currency Amount must be a positive number');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               amount: this.amountField,
+               destination: this.destinationField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                this.updateSpinnerMessage('Setting Trustline...');
@@ -461,28 +435,24 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                this.updateSpinnerMessage('Removing Trustline...');
@@ -624,25 +594,14 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: Currency Amount cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: Currency Amount must be a positive number');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               amount: this.amountField,
+               destination: this.destinationField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           const currencyBalanceField = document.getElementById('currencyBalanceField') as HTMLInputElement | null;
@@ -653,16 +612,13 @@ export class TrustlinesComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                this.updateSpinnerMessage('Issuing Currency...');
@@ -719,23 +675,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          content: [{ key: 'Status', value: `Trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationField}</code>` }],
                     });
                }
-
-               // const destinationTrustLines = await this.xrplService.getAccountLines(client, this.destinationField, 'validated', '');
-               // const activeDestinationTrustLine = destinationTrustLines.result.lines.filter((line: any) => {
-               //      // Decode currency for comparison
-               //      const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-               //      return parseFloat(line.limit) > 0 && parseFloat(line.balance) > 0 && line.account === this.destinationField && (this.destinationField ? decodedCurrency === this.currencyField : true);
-               // });
-               // console.debug(`Active trust lines for ${this.destinationField}:`, activeDestinationTrustLine);
-
-               // const activeDestinationTrustLines: TrustLine[] = (activeDestinationTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.limit) > 0);
-               // if (activeDestinationTrustLines.length === 0) {
-               //      data.sections.push({
-               //           title: 'Trust Lines',
-               //           openByDefault: true,
-               //           content: [{ key: 'Status', value: `No active trust lines found from <code>${this.destinationField}</code> to <code>${wallet.classicAddress}</code>` }],
-               //      });
-               // }
 
                let tx = null;
                const accountFlags = accountInfo.result.account_data.Flags;
@@ -1055,7 +994,6 @@ export class TrustlinesComponent implements AfterViewChecked {
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
@@ -1076,6 +1014,30 @@ export class TrustlinesComponent implements AfterViewChecked {
           } else {
                this.account1.balance = balance.toString();
           }
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+               return 'Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          return null;
      }
 
      clearFields() {

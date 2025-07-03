@@ -40,8 +40,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
+     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      paymentChannelCancelAfterTimeField: string = '';
      paymentChannelCancelAfterTimeUnit: string = 'seconds';
      channelIDField = '';
@@ -80,17 +80,17 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
@@ -108,36 +108,33 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          this.updateSpinnerMessage('Connecting to XRPL network...');
-
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
                }
 
-               this.updateSpinnerMessage('Getting Payment Channels...');
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
+
+               this.showSpinnerWithDelay('Getting Payment Channels...', 200);
 
                const response = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
                console.debug('Payment channel:', response);
-
                const channels = response.result.account_objects as PaymentChannelObject[];
 
                const data = {
@@ -195,43 +192,39 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
           const action = actionElement ? actionElement.value : '';
 
           if (action !== 'close') {
-               if (!this.utilsService.validatInput(this.amountField)) {
-                    return this.setError('ERROR: XRP Amount cannot be empty');
-               }
-
-               if (parseFloat(this.amountField) <= 0) {
-                    return this.setError('ERROR: XRP Amount must be a positive number');
+               const validationError = this.validateInputs({
+                    amount: this.amountField,
+               });
+               if (validationError) {
+                    return this.setError(`ERROR: ${validationError}`);
                }
           }
 
           try {
-               this.updateSpinnerMessage('Connecting to XRPL network...');
-
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
@@ -321,7 +314,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     const response = await client.submitAndWait(signed.tx_blob);
-                    console.log('Create Escrow tx', JSON.stringify(response, null, 2));
+                    console.log('response', JSON.stringify(response, null, 2));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -399,7 +392,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     const response = await client.submitAndWait(signed.tx_blob);
-                    console.log('Create Escrow tx', JSON.stringify(response, null, 2));
+                    console.log('response', JSON.stringify(response, null, 2));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -495,7 +488,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     const response = await client.submitAndWait(signed.tx_blob);
-                    console.log('Create Escrow tx', JSON.stringify(response, null, 2));
+                    console.log('response', JSON.stringify(response, null, 2));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -581,7 +574,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
-                    console.log('Create Escrow tx', JSON.stringify(response, null, 2));
+                    console.log('response', JSON.stringify(response, null, 2));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -639,16 +632,16 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           const { net, environment } = this.xrplService.getNet();
-
           let wallet;
-          if (seed.split(' ').length > 1) {
-               wallet = xrpl.Wallet.fromMnemonic(seed, {
-                    algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-               });
-          } else {
-               wallet = xrpl.Wallet.fromSeed(seed, {
-                    algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-               });
+          if (this.selectedAccount === 'account1') {
+               wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+          } else if (this.selectedAccount === 'account2') {
+               wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+          }
+
+          if (!wallet) {
+               this.setError('ERROR: Wallet could not be created or is undefined');
+               return;
           }
 
           try {
@@ -751,6 +744,30 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+               return 'Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          return null;
      }
 
      clearFields() {

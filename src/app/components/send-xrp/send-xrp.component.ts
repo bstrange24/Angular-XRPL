@@ -127,40 +127,29 @@ export class SendXrpComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.amountField)) {
-               return this.setError('ERROR: XRP Amount cannot be empty');
-          }
-
-          if (!this.utilsService.validatInput(this.destinationField)) {
-               return this.setError('ERROR: Destination cannot be empty');
-          }
-
-          if (parseFloat(this.amountField) <= 0) {
-               return this.setError('ERROR: XRP Amount must be a positive number');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               amount: this.amountField,
+               destination: this.destinationField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
                let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
                } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
                }
 
                this.showSpinnerWithDelay('Sending XRP ...', 250);
@@ -303,6 +292,37 @@ export class SendXrpComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined) {
+               if (!this.utilsService.validatInput(inputs.seed)) {
+                    return 'Account seed cannot be empty';
+               }
+               if (!xrpl.isValidSecret(inputs.seed)) {
+                    return 'Account seed is invalid';
+               }
+          } else {
+               return 'Account seed is invalid';
+          }
+          if (inputs.amount != undefined) {
+               if (!this.utilsService.validatInput(inputs.amount)) {
+                    return 'XRP Amount cannot be empty';
+               }
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'XRP Amount must be a valid number';
+               }
+               if (inputs.amount && parseFloat(inputs.amount) <= 0) {
+                    return 'XRP Amount must be a positive number';
+               }
+          }
+          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          return null;
      }
 
      private displayDataForAccount(accountKey: 'account1' | 'account2') {
