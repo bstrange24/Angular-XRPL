@@ -12,13 +12,13 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
 @Component({
-     selector: 'app-account',
+     selector: 'app-delete-account',
      standalone: true,
      imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
-     templateUrl: './send-xrp.component.html',
-     styleUrl: './send-xrp.component.css',
+     templateUrl: './delete-account.component.html',
+     styleUrl: './delete-account.component.css',
 })
-export class SendXrpComponent implements AfterViewChecked {
+export class DeleteAccountComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
@@ -117,15 +117,14 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     async sendXrp() {
-          console.log('Entering sendXrp');
+     async deleteAccount() {
+          console.log('Entering deleteAccount');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
-               amount: this.amountField,
                destination: this.destinationField,
           });
           if (validationError) {
@@ -147,7 +146,19 @@ export class SendXrpComponent implements AfterViewChecked {
                     return;
                }
 
-               this.showSpinnerWithDelay('Sending XRP ...', 250);
+               this.showSpinnerWithDelay('Deleting account ...', 250);
+
+               const ledgerIndex = await this.xrplService.getLastLedgerIndex(client);
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               if (ledgerIndex < accountInfo.result.account_data.Sequence + 256) {
+                    const timeLeft = accountInfo.result.account_data.Sequence + 256 - ledgerIndex;
+                    return this.setError(`ERROR: Account cannot be deleted yet. You have to wait ${((timeLeft * 4) / 60).toFixed(2)} minutes`);
+               }
+
+               const accountObjects = await this.xrplService.checkAccountObjectsForDeletion(client, wallet.classicAddress);
+               if (accountObjects.result.account_objects.length) {
+                    return this.setError('ERROR: There are blocking objects on the account. Remove objects and try to again.');
+               }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -156,32 +167,14 @@ export class SendXrpComponent implements AfterViewChecked {
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               let payment: Payment;
-               if (this.ticketSequence) {
-                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
+               let payment: xrpl.AccountDelete = {
+                    TransactionType: 'AccountDelete',
+                    Account: wallet.classicAddress,
+                    Destination: this.destinationField,
+                    // Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
 
-                    payment = {
-                         TransactionType: 'Payment',
-                         Account: wallet.classicAddress,
-                         Amount: xrpl.xrpToDrops(this.amountField),
-                         Destination: this.destinationField,
-                         TicketSequence: Number(this.ticketSequence),
-                         Sequence: 0,
-                         Fee: fee,
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    };
-               } else {
-                    payment = {
-                         TransactionType: 'Payment',
-                         Account: wallet.classicAddress,
-                         Amount: xrpl.xrpToDrops(this.amountField),
-                         Destination: this.destinationField,
-                         Fee: fee,
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    };
-               }
                const destinationTagText = this.destinationTagField;
                if (destinationTagText) {
                     if (parseInt(destinationTagText) <= 0) {
@@ -199,13 +192,6 @@ export class SendXrpComponent implements AfterViewChecked {
                               },
                          },
                     ];
-               }
-
-               if (this.invoiceIdField) {
-                    const validInvoiceID = await this.getValidInvoiceID(this.invoiceIdField);
-                    if (validInvoiceID) {
-                         payment.InvoiceID = validInvoiceID;
-                    }
                }
 
                let preparedTx = await client.autofill(payment);
@@ -235,7 +221,7 @@ export class SendXrpComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving sendXrp in ${this.executionTime}ms`);
+               console.log(`Leaving deleteAccount in ${this.executionTime}ms`);
           }
      }
 

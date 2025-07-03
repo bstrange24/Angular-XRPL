@@ -233,11 +233,6 @@ export class AccountComponent implements AfterViewChecked {
                     return;
                }
 
-               if (accountObjects.result.account_objects.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
-                    return;
-               }
-
                // Set flags from account info
                AppConstants.FLAGS.forEach(flag => {
                     const input = document.getElementById(flag.name) as HTMLInputElement;

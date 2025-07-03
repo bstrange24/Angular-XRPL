@@ -12,11 +12,13 @@ import { SendCurrencyComponent } from './components/send-currency/send-currency.
 import { CreateNftComponent } from './components/create-nft/create-nft.component';
 import { CreateAmmComponent } from './components/create-amm/create-amm.component';
 import { TrustlinesComponent } from './components/trustlines/trustlines.component';
+import { DeleteAccountComponent } from './components/delete-account/delete-account.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
      { path: '', redirectTo: '/account', pathMatch: 'full' },
      { path: 'account', component: AccountComponent },
+     { path: 'delete-account', component: DeleteAccountComponent },
      { path: 'send-xrp', component: SendXrpComponent },
      { path: 'create-payment-channel', component: CreatePaymentChannelComponent },
      { path: 'create-time-escrow', component: CreateTimeEscrowComponent },

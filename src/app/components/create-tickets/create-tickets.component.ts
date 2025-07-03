@@ -5,12 +5,11 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
-import { CheckCreate, TransactionMetadataBase, TicketCreate } from 'xrpl';
+import { AccountSet, TransactionMetadataBase, TicketCreate } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { Subscription } from 'rxjs';
 
 @Component({
      selector: 'app-create-tickets',
@@ -43,6 +42,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
      amountField = '';
      destinationField = '';
      memoField = '';
+     ticketSequence: string = '';
      spinner = false;
      issuers: string[] = [];
      selectedIssuer: string = '';
@@ -124,10 +124,17 @@ export class CreateTicketsComponent implements AfterViewChecked {
                          content: [{ key: 'Status', value: `No tickets found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
+                    // Sort tickets from oldest to newest.
+                    const sortedTickets = ticket_objects.result.account_objects.sort((a, b) => {
+                         const seqA = (a as any).TicketSequence ?? Number.MAX_SAFE_INTEGER;
+                         const seqB = (b as any).TicketSequence ?? Number.MAX_SAFE_INTEGER;
+                         return seqA - seqB;
+                    });
+
                     data.sections.push({
                          title: `Tickets (${ticket_objects.result.account_objects.length})`,
                          openByDefault: true,
-                         subItems: ticket_objects.result.account_objects.map((ticket, counter) => {
+                         subItems: sortedTickets.map((ticket, counter) => {
                               const { LedgerEntryType, PreviousTxnID, index } = ticket;
                               // TicketSequence and Flags may not exist on all AccountObject types
                               const ticketSequence = (ticket as any).TicketSequence;
@@ -164,22 +171,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
-               destination: this.destinationField,
-               amount: this.amountField,
                ticketCount: this.ticketCountField,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
-          }
-
-          let ticketExpiration = '';
-          if (this.expirationTimeField != '') {
-               if (isNaN(parseFloat(this.expirationTimeField)) || parseFloat(this.expirationTimeField) <= 0) {
-                    return this.setError('ERROR: Expiration time must be a valid number greater than zero');
-               }
-               const expirationTimeValue = this.expirationTimeField;
-               ticketExpiration = this.utilsService.addTime(parseInt(expirationTimeValue), this.checkExpirationTime as 'seconds' | 'minutes' | 'hours' | 'days').toString();
-               console.log(`Raw expirationTime: ${expirationTimeValue} finishUnit: ${this.checkExpirationTime} ticketExpiration: ${this.utilsService.convertXRPLTime(parseInt(ticketExpiration))}`);
           }
 
           try {
@@ -212,31 +207,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // if (ticketExpiration && ticketExpiration != '') {
-               // tx.Expiration = Number(ticketExpiration);
-               // }
-
-               // if (this.memoField) {
-               //      tx.Memos = [
-               //           {
-               //                Memo: {
-               //                     MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-               //                     MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-               //                },
-               //           },
-               //      ];
-               // }
-
-               if (ticketExpiration && ticketExpiration !== '' && !isNaN(Number(ticketExpiration))) {
-                    tx.Memos = tx.Memos || [];
-                    tx.Memos.push({
-                         Memo: {
-                              MemoData: Buffer.from(ticketExpiration, 'utf8').toString('hex'),
-                              MemoType: Buffer.from('Expiration', 'utf8').toString('hex'),
-                         },
-                    });
-               }
-
                if (this.memoField) {
                     tx.Memos = tx.Memos || [];
                     tx.Memos.push({
@@ -246,8 +216,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                          },
                     });
                }
-
-               this.resultField.nativeElement.innerHTML += `Creating ${this.ticketCountField} tickets\n`;
 
                let preparedTx = await client.autofill(tx);
                const signed = wallet.sign(preparedTx);
@@ -264,7 +232,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `Ticket created successfully.\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -277,6 +244,103 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving createTicket in ${this.executionTime}ms`);
+          }
+     }
+
+     async cancelTicket() {
+          console.log('Entering cancelTicket');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               ticketSequence: this.ticketSequence,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return;
+               }
+
+               const ticket_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
+               console.debug('Ticket Objects: ', ticket_objects);
+
+               const ticketExists = ticket_objects.result.account_objects.some((ticket: any) => ticket.TicketSequence === Number(this.ticketSequence));
+
+               if (!ticketExists) {
+                    return this.setError(`Ticket ${this.ticketSequence} does not exist for account ${wallet.classicAddress}`);
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const tx: AccountSet = {
+                    TransactionType: 'AccountSet',
+                    Account: wallet.classicAddress,
+                    TicketSequence: Number(this.ticketSequence),
+                    Sequence: 0,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
+
+               if (this.memoField) {
+                    tx.Memos = tx.Memos || [];
+                    tx.Memos.push({
+                         Memo: {
+                              MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                              MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                         },
+                    });
+               }
+
+               let preparedTx = await client.autofill(tx);
+               console.log(`preparedTx: ${JSON.stringify(preparedTx, null, 2)}`);
+
+               const signed = wallet.sign(preparedTx);
+               console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               const response = await client.submitAndWait(signed.tx_blob);
+               console.log('Response', response);
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet.classicAddress);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving cancelTicket in ${this.executionTime}ms`);
           }
      }
 
@@ -300,7 +364,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; ticketCount?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; ticketCount?: string; ticketSequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -327,6 +391,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
                }
                if (parseFloat(inputs.ticketCount) <= 0) {
                     return 'Ticket count must be a positive number';
+               }
+          }
+          if (inputs.ticketSequence != undefined) {
+               if (isNaN(parseFloat(inputs.ticketSequence ?? '')) || !isFinite(parseFloat(inputs.ticketSequence ?? ''))) {
+                    return 'Ticket sequence must be a valid number';
+               }
+               if (parseFloat(inputs.ticketSequence) <= 0) {
+                    return 'Ticket sequence must be a positive number';
                }
           }
           return null;

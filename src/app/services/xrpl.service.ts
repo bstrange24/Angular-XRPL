@@ -236,6 +236,20 @@ export class XrplService {
           }
      }
 
+     async checkAccountObjectsForDeletion(client: Client, address: string) {
+          try {
+               const response = await client.request({
+                    command: 'account_objects',
+                    account: address,
+                    deletion_blockers_only: true,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account objects:', error);
+               throw new Error(`Failed to fetch account objects: ${error.message || 'Unknown error'}`);
+          }
+     }
+
      async getAccountLines(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
           try {
                if (type) {
@@ -285,6 +299,78 @@ export class XrplService {
           } catch (error: any) {
                console.error('Error fetching account offers:', error);
                throw new Error(`Failed to fetch account offers: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getAccountChannels(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+          try {
+               const response = await client.request({
+                    command: 'account_channels',
+                    account: address,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account channels:', error);
+               throw new Error(`Failed to fetch account channels: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getAccountCurrencies(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+          try {
+               const response = await client.request({
+                    command: 'account_currencies',
+                    account: address,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account currencies:', error);
+               throw new Error(`Failed to fetch account currencies: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getAccountTrustlines(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+          try {
+               const response = await client.request({
+                    command: 'account_lines',
+                    account: address,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account trustlines:', error);
+               throw new Error(`Failed to fetch account trustlines: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getAccountTransactions(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+          try {
+               const response = await client.request({
+                    command: 'account_tx',
+                    account: address,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account transactions:', error);
+               throw new Error(`Failed to fetch account transactions: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getAccountNoRippleCheck(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+          try {
+               const response = await client.request({
+                    command: 'noripple_check',
+                    account: address,
+                    role: 'gateway',
+                    limit: 10,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account no ripple check:', error);
+               throw new Error(`Failed to fetch account no ripple check: ${error.message || 'Unknown error'}`);
           }
      }
 

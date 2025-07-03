@@ -100,20 +100,15 @@
                          <br />
                     </td>
                </tr>
-               <tr style="vertical-align: top">
+               <tr class="multisignAddressClass" style="vertical-align: top">
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check will expire after this time.">
-                              <label for="expirationTimeField">Expiration Time</label>
+                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                              <label for="ticketSequence">Ticket Sequence</label>
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="expirationTimeField" placeholder="Enter time" size="40" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
-                         <select class="timeUnit" id="checkExpirationTime" [(ngModel)]="checkExpirationTime" name="checkExpirationTime">
-                              <option value="seconds">Seconds</option>
-                              <option value="minutes">Minutes</option>
-                              <option value="hours">Hours</option>
-                              <option value="days">Days</option>
-                         </select>
+                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence to cancel" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                         <br />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -140,6 +135,7 @@
                     <td colspan="2">
                          <button type="button" (click)="getTickets()">Get Tickets</button>
                          <button type="button" (click)="createTicket()">Create Tickets</button>
+                         <button type="button" (click)="cancelTicket()">Cancel Tickets</button>
                          <button type="button" (click)="clearFields()">Clear Fields</button>
                     </td>
                </tr>
