@@ -215,7 +215,7 @@ export class UtilsService {
 
      validateCondition(condition: string | undefined | null): string | null {
           // Check if condition is provided and non-empty
-          if (!this.validatInput(condition)) {
+          if (!this.validateInput(condition)) {
                return 'Condition cannot be empty';
           }
 
@@ -234,7 +234,7 @@ export class UtilsService {
      }
 
      validateFulfillment(fulfillment: string | undefined | null, condition: string): string | null {
-          if (!this.validatInput(fulfillment)) {
+          if (!this.validateInput(fulfillment)) {
                return 'Fulfillment cannot be empty';
           }
           const hexRegex = /^[0-9A-F]+$/;
@@ -254,7 +254,7 @@ export class UtilsService {
           return null;
      }
 
-     validatInput(input: string | undefined | null): boolean {
+     validateInput(input: string | undefined | null): boolean {
           return typeof input === 'string' && !!input.trim();
      }
 
@@ -287,7 +287,7 @@ export class UtilsService {
 
      decodeHex = (hex: any): string => {
           try {
-               if (!this.validatInput(hex)) {
+               if (!this.validateInput(hex)) {
                     return '';
                }
                return Buffer.from(hex, 'hex').toString('ascii');
@@ -393,17 +393,17 @@ export class UtilsService {
           return rippleEpoch;
      }
 
-     convertUserInputToInt(input: string): number {
-          // Placeholder: Implement your convertUserInputToInt from utils.js
-          const value = parseInt(input.trim());
-          return isNaN(value) ? 0 : value;
-     }
+     // convertUserInputToInt(input: string): number {
+     //      // Placeholder: Implement your convertUserInputToInt from utils.js
+     //      const value = parseInt(input.trim());
+     //      return isNaN(value) ? 0 : value;
+     // }
 
-     convertUserInputToFloat(input: string): number {
-          // Placeholder: Implement your convertUserInputToFloat from utils.js
-          const value = parseFloat(input.trim());
-          return isNaN(value) ? 0 : value;
-     }
+     // convertUserInputToFloat(input: string): number {
+     //      // Placeholder: Implement your convertUserInputToFloat from utils.js
+     //      const value = parseFloat(input.trim());
+     //      return isNaN(value) ? 0 : value;
+     // }
 
      getTransferRate(percentage: number): number {
           // Placeholder: Implement your getTransferRate from utils.js
@@ -479,23 +479,7 @@ export class UtilsService {
           return { canFinish, canCancel, reasonFinish, reasonCancel };
      }
 
-     checkEscrowStatus(
-          escrow: {
-               FinishAfter?: number;
-               CancelAfter?: number;
-               Condition?: string;
-               owner: string;
-          },
-          currentRippleTime: number,
-          callerAddress: string,
-          operation: 'finishEscrow' | 'cancelEscrow',
-          fulfillment?: string
-     ): {
-          canFinish: boolean;
-          canCancel: boolean;
-          reasonFinish: string;
-          reasonCancel: string;
-     } {
+     checkEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; Condition?: string; owner: string }, currentRippleTime: number, callerAddress: string, operation: 'finishEscrow' | 'cancelEscrow', fulfillment?: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {
           const now = currentRippleTime;
           const { FinishAfter, CancelAfter, Condition, owner } = escrow;
 
@@ -616,14 +600,6 @@ export class UtilsService {
           return String(value);
      }
 
-     async isInsufficientXrpBalance(client: xrpl.Client, amountField: string, totalXrpReserves: string, address: string) {
-          const amount = parseFloat(amountField);
-          const totalReserves = parseFloat(totalXrpReserves || '0');
-          const balance = await client.getXrpBalance(address);
-          // return amount > balance - totalReserves;
-          return false;
-     }
-
      increasesOwnerCount(tx: any): boolean {
           const type = tx.TransactionType;
 
@@ -647,12 +623,15 @@ export class UtilsService {
                case 'NFTokenMint':
                     return true;
 
+               case 'AccountSet':
+                    return false; // AccountSet does not increase owner count
+
                default:
                     return false;
           }
      }
 
-     async isInsufficientXrpBalance1(client: xrpl.Client, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
+     async isInsufficientXrpBalance(client: xrpl.Client, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
           try {
                // Validate inputs
                if (!amountXrp || isNaN(parseFloat(amountXrp)) || parseFloat(amountXrp) < 0) {
@@ -661,17 +640,25 @@ export class UtilsService {
 
                let amountDrops = 0n;
 
-               if (txObject?.Amount && typeof txObject.Amount === 'string') {
-                    // XRP to XRP
-                    amountDrops = BigInt(txObject.Amount);
-               } else if (typeof amountXrp === 'string' && !isNaN(Number(amountXrp))) {
-                    amountDrops = BigInt(xrpl.xrpToDrops(amountXrp));
-               } else {
-                    amountDrops = 0n;
-               }
+               // Define transaction types that involve sending XRP
+               const xrpTransferTypes = new Set([
+                    'Payment',
+                    'EscrowFinish', // Can deliver XRP
+                    'CheckCash', // Can cash XRP checks
+                    // Add other transaction types that involve XRP transfers as needed
+               ]);
 
-               // Convert amount to drops
-               // const amountDrops = BigInt(xrpl.xrpToDrops(amountXrp));
+               // Calculate amountDrops only for transactions that involve sending XRP
+               if (txObject?.TransactionType && xrpTransferTypes.has(txObject.TransactionType)) {
+                    if (txObject?.Amount && typeof txObject.Amount === 'string') {
+                         // XRP to XRP
+                         amountDrops = BigInt(txObject.Amount);
+                    } else if (typeof amountXrp === 'string' && !isNaN(Number(amountXrp))) {
+                         amountDrops = BigInt(xrpl.xrpToDrops(amountXrp));
+                    }
+               } else {
+                    amountDrops = 0n; // No XRP transfer for non-payment transactions
+               }
 
                // Get account info to calculate reserves
                const accountInfo = await this.getAccountInfo(address);
@@ -679,8 +666,8 @@ export class UtilsService {
 
                // Get server info for reserve requirements
                const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
-               const baseReserveDrops = BigInt(serverInfo.result.info.validated_ledger?.reserve_base_xrp || 10) * BigInt(1_000_000);
-               const incReserveDrops = BigInt(serverInfo.result.info.validated_ledger?.reserve_inc_xrp || 2) * BigInt(1_000_000);
+               const baseReserveDrops = BigInt(xrpl.xrpToDrops(serverInfo.result.info.validated_ledger?.reserve_base_xrp || 10));
+               const incReserveDrops = BigInt(xrpl.xrpToDrops(serverInfo.result.info.validated_ledger?.reserve_inc_xrp || 0.2));
                const ownerCount = BigInt(accountInfo.result.account_data.OwnerCount || 0);
 
                // Calculate total reserve (base + incremental)
@@ -695,7 +682,7 @@ export class UtilsService {
 
                // Check if balance is sufficient
                const requiredDrops = amountDrops + fee + totalReserveDrops;
-               return balanceDrops >= requiredDrops;
+               return balanceDrops < requiredDrops; // Return true if insufficient balance
           } catch (error: any) {
                console.error('Error checking XRP balance:', error);
                throw new Error(`Failed to check balance: ${error.message || 'Unknown error'}`);

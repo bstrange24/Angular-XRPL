@@ -62,17 +62,16 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      toggleMultiSign() {}
@@ -80,6 +79,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      toggleTicketSequence() {}
 
      onAccountChange() {
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -159,19 +159,12 @@ export class DeleteAccountComponent implements AfterViewChecked {
                if (accountObjects.result.account_objects.length) {
                     return this.setError('ERROR: There are blocking objects on the account. Remove objects and try to again.');
                }
-
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
-               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let payment: xrpl.AccountDelete = {
                     TransactionType: 'AccountDelete',
                     Account: wallet.classicAddress,
                     Destination: this.destinationField,
-                    // Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
@@ -280,7 +273,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                return 'Please select an account';
           }
           if (inputs.seed != undefined) {
-               if (!this.utilsService.validatInput(inputs.seed)) {
+               if (!this.utilsService.validateInput(inputs.seed)) {
                     return 'Account seed cannot be empty';
                }
                if (!xrpl.isValidSecret(inputs.seed)) {
@@ -290,7 +283,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                return 'Account seed is invalid';
           }
           if (inputs.amount != undefined) {
-               if (!this.utilsService.validatInput(inputs.amount)) {
+               if (!this.utilsService.validateInput(inputs.amount)) {
                     return 'XRP Amount cannot be empty';
                }
                if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
@@ -300,7 +293,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     return 'XRP Amount must be a positive number';
                }
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
           return null;

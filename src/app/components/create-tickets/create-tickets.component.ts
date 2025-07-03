@@ -74,6 +74,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -192,10 +193,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     return;
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -215,6 +212,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
                          },
                     });
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                let preparedTx = await client.autofill(tx);
@@ -285,10 +286,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     return this.setError(`Ticket ${this.ticketSequence} does not exist for account ${wallet.classicAddress}`);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -309,6 +306,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
                          },
                     });
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                let preparedTx = await client.autofill(tx);
@@ -368,10 +369,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
                return 'Account seed cannot be empty';
           }
-          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
                return 'Amount cannot be empty';
           }
           if (inputs.amount != undefined) {
@@ -382,7 +383,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
                return 'Amount must be a positive number';
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
           if (inputs.ticketCount != undefined) {

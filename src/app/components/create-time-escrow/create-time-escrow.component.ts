@@ -87,20 +87,20 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -147,7 +147,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -279,10 +279,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     return;
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
                this.showSpinnerWithDelay('Create Time Based Escrow ...', 250);
 
                const finishAfterTime = this.utilsService.addTime(this.escrowFinishTimeField, this.escrowFinishTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -341,6 +337,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          return this.setError('ERROR: Destination Tag must be a valid number and greater than zero');
                     }
                     escrowTx.DestinationTag = parseInt(destinationTagText, 10);
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, escrowTx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                console.log(`escrowTx: ${JSON.stringify(escrowTx, null, 2)}`);
@@ -470,6 +470,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                               },
                          },
                     ];
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                console.log(`escrowTx: ${JSON.stringify(escrowTx, null, 2)}`);
@@ -603,6 +607,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     });
                }
 
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
+
                console.log(`escrowTx: ${JSON.stringify(escrowTx, null, 2)}`);
                const signed = wallet.sign(escrowTx);
                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -655,10 +663,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
                return 'Account seed cannot be empty';
           }
-          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
                return 'XRP Amount cannot be empty';
           }
           if (inputs.amount != undefined) {
@@ -669,10 +677,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
                return 'XRP Amount must be a positive number';
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
-          if (inputs.finishTime != undefined && !this.utilsService.validatInput(inputs.finishTime)) {
+          if (inputs.finishTime != undefined && !this.utilsService.validateInput(inputs.finishTime)) {
                return 'Escrow finish time cannot be empty';
           }
           if (inputs.finishTime != undefined) {
@@ -683,7 +691,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           if (inputs.finishTime != undefined && parseFloat(inputs.finishTime ?? '') <= 0) {
                return 'Escrow finish time must be a positive number';
           }
-          if (inputs.cancelTime != undefined && !this.utilsService.validatInput(inputs.cancelTime)) {
+          if (inputs.cancelTime != undefined && !this.utilsService.validateInput(inputs.cancelTime)) {
                return 'Escrow cancel time cannot be empty';
           }
           if (inputs.cancelTime != undefined) {
@@ -694,7 +702,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           if (inputs.cancelTime != undefined && parseFloat(inputs.cancelTime ?? '') <= 0) {
                return 'Escrow cancel time must be a positive number';
           }
-          if (inputs.sequence != undefined && inputs.sequence && !this.utilsService.validatInput(inputs.sequence)) {
+          if (inputs.sequence != undefined && inputs.sequence && !this.utilsService.validateInput(inputs.sequence)) {
                return 'Escrow sequence number cannot be empty';
           }
           return null;

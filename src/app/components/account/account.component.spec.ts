@@ -13,7 +13,7 @@ describe('AccountComponent', () => {
 
      beforeEach(async () => {
           mockXrplService = jasmine.createSpyObj('XrplService', ['getClient', 'getNet']);
-          mockUtilsService = jasmine.createSpyObj('UtilsService', ['validatInput', 'renderTransactionsResults']);
+          mockUtilsService = jasmine.createSpyObj('UtilsService', ['validateInput', 'renderTransactionsResults']);
 
           await TestBed.configureTestingModule({
                imports: [AccountComponent],
@@ -50,7 +50,7 @@ describe('AccountComponent', () => {
      it('should return error for invalid seed', async () => {
           component.selectedAccount = 'account1';
           component.account1 = { seed: '' } as any;
-          mockUtilsService.validatInput.and.returnValue(false);
+          mockUtilsService.validateInput.and.returnValue(false);
           const setErrorSpy = spyOn(component as any, 'setError');
 
           await component.setMultiSign('Y');
@@ -61,7 +61,7 @@ describe('AccountComponent', () => {
      it('should return error for empty multi-sign list', async () => {
           component.selectedAccount = 'account1';
           component.account1 = { seed: 'sEd...' } as any;
-          mockUtilsService.validatInput.and.returnValue(true);
+          mockUtilsService.validateInput.and.returnValue(true);
           mockXrplService.getNet.and.returnValue({ net: 'Testnet', environment: 'testnet' });
           mockXrplService.getClient.and.resolveTo({} as any);
 
@@ -76,7 +76,7 @@ describe('AccountComponent', () => {
      it('should return error for duplicate addresses', async () => {
           component.selectedAccount = 'account1';
           component.account1 = { seed: 'sEd...' } as any;
-          mockUtilsService.validatInput.and.returnValue(true);
+          mockUtilsService.validateInput.and.returnValue(true);
           mockXrplService.getNet.and.returnValue({ net: 'Testnet', environment: 'testnet' });
 
           component.multiSignAddress = 'rAddress1, rAddress1';
@@ -101,7 +101,7 @@ describe('AccountComponent', () => {
      it('should handle successful signer list set', async () => {
           component.selectedAccount = 'account1';
           component.account1 = { seed: 'sEd...' } as any;
-          mockUtilsService.validatInput.and.returnValue(true);
+          mockUtilsService.validateInput.and.returnValue(true);
           mockXrplService.getNet.and.returnValue({ net: 'Testnet', environment: 'testnet' });
 
           component.multiSignAddress = 'rSigner1,rSigner2';

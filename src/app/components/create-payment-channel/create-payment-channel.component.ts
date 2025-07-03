@@ -94,6 +94,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -227,14 +228,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     return;
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
                const fee = await this.xrplService.calculateTransactionFee(client);
 
                if (action === 'create') {
-                    if (!this.utilsService.validatInput(this.destinationField)) {
+                    if (!this.utilsService.validateInput(this.destinationField)) {
                          return this.setError('ERROR: Destination cannot be empty');
                     }
 
@@ -307,6 +304,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          tx.PublicKey = this.publicKeyField;
                     }
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -327,11 +328,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'fund') {
                     let tx: PaymentChannelFund;
-                    if (!this.utilsService.validatInput(this.channelIDField)) {
+                    if (!this.utilsService.validateInput(this.channelIDField)) {
                          return this.setError('Channel ID cannot be empty');
                     }
 
-                    if (!this.utilsService.validatInput(this.destinationField)) {
+                    if (!this.utilsService.validateInput(this.destinationField)) {
                          return this.setError('ERROR: Destination cannot be empty');
                     }
 
@@ -385,6 +386,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          tx.Expiration = newExpiration;
                     }
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -405,7 +410,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'claim') {
                     let tx: PaymentChannelClaim;
-                    if (!this.utilsService.validatInput(this.channelIDField)) {
+                    if (!this.utilsService.validateInput(this.channelIDField)) {
                          return this.setError('Channel ID cannot be empty');
                     }
 
@@ -427,10 +432,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     if (isReceiver) {
                          // Receiver is claiming; signature must be provided by the creator
-                         if (!this.utilsService.validatInput(this.channelClaimSignatureField)) {
+                         if (!this.utilsService.validateInput(this.channelClaimSignatureField)) {
                               return this.setError('ERROR: Claim signature is required for receiver to claim');
                          }
-                         if (!this.utilsService.validatInput(this.publicKeyField)) {
+                         if (!this.utilsService.validateInput(this.publicKeyField)) {
                               return this.setError('ERROR: Public key is required for receiver to claim');
                          }
                     } else {
@@ -481,6 +486,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          ];
                     }
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -501,7 +510,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'close') {
                     let tx: PaymentChannelClaim;
-                    if (!this.utilsService.validatInput(this.channelIDField)) {
+                    if (!this.utilsService.validateInput(this.channelIDField)) {
                          return this.setError('Channel ID cannot be empty');
                     }
 
@@ -567,6 +576,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          ];
                     }
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                     const signed = wallet.sign(tx);
                     console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -611,15 +624,15 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.amountField)) {
+          if (!this.utilsService.validateInput(this.amountField)) {
                return this.setError('ERROR: XRP Amount cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.destinationField)) {
+          if (!this.utilsService.validateInput(this.destinationField)) {
                return this.setError('ERROR: Destination cannot be empty');
           }
 
@@ -627,7 +640,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                return this.setError('ERROR: XRP Amount must be a positive number');
           }
 
-          if (!this.utilsService.validatInput(this.channelIDField)) {
+          if (!this.utilsService.validateInput(this.channelIDField)) {
                return this.setError('Channel ID cannot be empty');
           }
 
@@ -645,38 +658,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           try {
-               // if (!/^[0-9A-Fa-f]{64}$/.test(this.channelIDField)) {
-               //      throw new Error('Invalid channelID: must be a 64-character hexadecimal string');
-               // }
-               // const amountDrops = xrpl.xrpToDrops(this.amountField);
-               // if (isNaN(parseFloat(this.amountField)) || parseFloat(this.amountField) <= 0) {
-               //      throw new Error('Invalid amountXRP: must be a valid number or string');
-               // }
-
-               // // Convert the amount to 8-byte big-endian buffer
-               // const amountBuffer = Buffer.alloc(8);
-               // amountBuffer.writeBigUInt64BE(BigInt(amountDrops), 0);
-
-               // // Create the message buffer: 'CLM\0' + ChannelID (hex) + Amount (8 bytes)
-               // const message = Buffer.concat([
-               //      Buffer.from('CLM\0'), // Prefix for channel claims
-               //      Buffer.from(this.channelIDField, 'hex'), // 32-byte channel ID
-               //      amountBuffer, // 8-byte drop amount
-               // ]);
-
-               // // Sign the message using ripple-keypairs
-               // const messageHex = message.toString('hex');
-               // const signature = sign(messageHex, wallet.privateKey);
-
-               // // Verify the signature
-               // const isValid = verify(messageHex, signature, wallet.publicKey);
-               // if (!isValid) {
-               //      throw new Error('Generated signature is invalid');
-               // }
-
-               // this.publicKeyField = wallet.publicKey;
-               // this.channelClaimSignatureField = signature.toUpperCase();
-
                this.publicKeyField = wallet.publicKey;
                this.channelClaimSignatureField = this.generateChannelSignature(this.channelIDField, this.amountField, wallet);
           } catch (error: any) {
@@ -750,10 +731,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
                return 'Account seed cannot be empty';
           }
-          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
                return 'Amount cannot be empty';
           }
           if (inputs.amount != undefined) {
@@ -764,7 +745,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
                return 'Amount must be a positive number';
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
           return null;

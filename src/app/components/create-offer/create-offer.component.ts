@@ -77,26 +77,38 @@ export class CreateOfferComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayOfferDataForAccount1();
           }
      }
 
      toggleTicketSequence() {}
+
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message);
+     }
+
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+     }
 
      async getOffers() {
           console.log('Entering getOffers');
@@ -108,7 +120,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -201,7 +213,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -412,7 +424,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -978,7 +990,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -1181,7 +1193,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -1564,7 +1576,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return;
           }
           const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
-          if (!this.utilsService.validatInput(address)) {
+          if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.weWantTokenBalanceField = '0';
                return;
@@ -1602,7 +1614,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return;
           }
           const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
-          if (!this.utilsService.validatInput(address)) {
+          if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.weSpendTokenBalanceField = '0';
                return;

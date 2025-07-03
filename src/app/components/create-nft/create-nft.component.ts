@@ -102,23 +102,20 @@ export class CreateNftComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
-          if (this.selectedAccount === null || this.selectedAccount === undefined) {
-               return;
-          }
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -128,6 +125,18 @@ export class CreateNftComponent implements AfterViewChecked {
 
      toggleFlags() {
           // Handled by *ngIf in template
+     }
+
+     updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message);
+     }
+
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      async getNFT() {
@@ -140,7 +149,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -240,7 +249,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -326,7 +335,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
@@ -512,11 +521,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.nftIdField)) {
+          if (!this.utilsService.validateInput(this.nftIdField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -576,11 +585,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.nftIdField)) {
+          if (!this.utilsService.validateInput(this.nftIdField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -857,11 +866,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.nftIdField)) {
+          if (!this.utilsService.validateInput(this.nftIdField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -968,11 +977,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.nftIdField)) {
+          if (!this.utilsService.validateInput(this.nftIdField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -1041,11 +1050,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.nftIdField)) {
+          if (!this.utilsService.validateInput(this.nftIdField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -1105,11 +1114,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.nftIdField)) {
+          if (!this.utilsService.validateInput(this.nftIdField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -1169,11 +1178,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.minterAddressField)) {
+          if (!this.utilsService.validateInput(this.minterAddressField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
@@ -1233,19 +1242,19 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.minterAddressField)) {
+          if (!this.utilsService.validateInput(this.minterAddressField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.minterAddressField)) {
+          if (!this.utilsService.validateInput(this.minterAddressField)) {
                return this.setError('ERROR: NFT ID cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.uriField)) {
+          if (!this.utilsService.validateInput(this.uriField)) {
                return this.setError('ERROR: URI field cannot be empty');
           }
 

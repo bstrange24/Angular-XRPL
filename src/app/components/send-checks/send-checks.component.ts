@@ -80,6 +80,7 @@ export class SendChecksComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -96,7 +97,7 @@ export class SendChecksComponent implements AfterViewChecked {
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
-               if (this.utilsService.validatInput(seed) && this.utilsService.validatInput(address)) {
+               if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
                          const tokenBalanceData = await this.utilsService.getTokenBalance(client, address, this.currencyFieldDropDownValue);
@@ -346,6 +347,16 @@ export class SendChecksComponent implements AfterViewChecked {
                     tx.DestinationTag = parseInt(destinationTagText, 10);
                }
 
+               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+               } else {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+               }
+
                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                const signed = wallet.sign(tx);
                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
@@ -447,6 +458,16 @@ export class SendChecksComponent implements AfterViewChecked {
                     });
                }
 
+               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.currencyFieldDropDownValue, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+               } else {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+               }
+
                console.log(`Cashing check for ${this.amountField} ${this.currencyFieldDropDownValue}`);
                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
                const signed = wallet.sign(tx);
@@ -489,11 +510,11 @@ export class SendChecksComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validatInput(seed)) {
+          if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
 
-          if (!this.utilsService.validatInput(this.checkIdField)) {
+          if (!this.utilsService.validateInput(this.checkIdField)) {
                return this.setError('ERROR: Check ID cannot be empty');
           }
 
@@ -546,6 +567,10 @@ export class SendChecksComponent implements AfterViewChecked {
                          Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                console.log(`Cancelling check for ${this.currencyFieldDropDownValue}`);
@@ -604,10 +629,10 @@ export class SendChecksComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
                return 'Account seed cannot be empty';
           }
-          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
                return 'Amount cannot be empty';
           }
           if (inputs.amount != undefined) {
@@ -618,11 +643,11 @@ export class SendChecksComponent implements AfterViewChecked {
           if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
                return 'Amount must be a positive number';
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
           if (inputs.checkId != undefined) {
-               if (!this.utilsService.validatInput(inputs.checkId)) {
+               if (!this.utilsService.validateInput(inputs.checkId)) {
                     return 'Check ID cannot be empty';
                }
           }

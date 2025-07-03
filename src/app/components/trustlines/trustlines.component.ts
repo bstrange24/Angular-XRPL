@@ -315,10 +315,6 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Setting Trustline...');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
                let cur;
                if (this.currencyField.length > 3) {
                     cur = this.utilsService.encodeCurrencyCode(this.currencyField);
@@ -364,6 +360,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                          ];
                     }
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, trustSetTx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
                     const signed = wallet.sign(trustSetTx);
                     console.debug(`signed ${JSON.stringify(signed, null, 2)}`);
@@ -395,6 +395,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    },
                               },
                          ];
+                    }
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, trustSetTx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
                     }
 
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
@@ -456,10 +460,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.updateSpinnerMessage('Removing Trustline...');
-
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
                console.debug(`All trust lines for ${wallet.classicAddress}:`, trustLines);
@@ -524,6 +524,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                          ];
                     }
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, trustSetTx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
                     const signed = wallet.sign(trustSetTx);
                     console.debug(`signed ${JSON.stringify(signed, null, 2)}`);
@@ -555,6 +559,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    },
                               },
                          ];
+                    }
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, trustSetTx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
                     }
 
                     console.debug(`trustSetTx ${JSON.stringify(trustSetTx, null, 2)} \nto create ${this.currencyField} trust line from ${this.destinationField}`);
@@ -627,10 +635,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     if (parseFloat(this.amountField) > parseFloat(this.currencyBalanceField)) {
                          return this.setError('ERROR: Insufficent Currency balance to complete transaction');
                     }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, this.totalXrpReserves, wallet.classicAddress)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
                }
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
@@ -694,6 +698,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+
                     const preparedAccountSet = await client.autofill(accountSetTx);
                     const signedAccountSet = wallet.sign(preparedAccountSet);
                     tx = await client.submitAndWait(signedAccountSet.tx_blob);
@@ -739,6 +747,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                     Fee: fee,
                     LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
                };
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, paymentTx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               }
 
                const pay_prepared = await client.autofill(paymentTx);
                const pay_signed = wallet.sign(pay_prepared);
@@ -842,7 +854,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                return;
           }
           const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
-          if (!this.utilsService.validatInput(address)) {
+          if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                if (currencyBalanceField) {
                     currencyBalanceField.value = '0';
@@ -1020,10 +1032,10 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined && !this.utilsService.validatInput(inputs.seed)) {
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
                return 'Account seed cannot be empty';
           }
-          if (inputs.amount != undefined && !this.utilsService.validatInput(inputs.amount)) {
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
                return 'Amount cannot be empty';
           }
           if (inputs.amount != undefined) {
@@ -1034,7 +1046,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
                return 'Amount must be a positive number';
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
           return null;

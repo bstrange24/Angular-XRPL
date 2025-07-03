@@ -27,15 +27,6 @@ interface AccountFlags {
      asfDisallowIncomingTrustline: boolean;
 }
 
-interface AccountData {
-     name: string;
-     address: string;
-     seed: string;
-     secretNumbers: string;
-     mnemonic: string;
-     balance: string;
-}
-
 @Component({
      selector: 'app-account',
      standalone: true,
@@ -48,7 +39,6 @@ export class AccountComponent implements AfterViewChecked {
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
      private lastResult: string = '';
-     transactionInput = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -102,23 +92,20 @@ export class AccountComponent implements AfterViewChecked {
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
-          this.account1 = event.account1;
-          this.account2 = event.account2;
+          this.account1 = { ...event.account1, balance: '0' };
+          this.account2 = { ...event.account2, balance: '0' };
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
           this.result = event.result;
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
-          if (this.isSuccess) {
-               this.isEditable = false;
-          }
+          this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
-          if (this.selectedAccount === null || this.selectedAccount === undefined) {
-               return;
-          }
+          if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
@@ -133,13 +120,13 @@ export class AccountComponent implements AfterViewChecked {
      updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
+          console.log('Spinner message updated:', message);
      }
 
      async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      onNoFreezeChange() {
@@ -292,10 +279,6 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Updating Account Flags...');
 
-               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
-               // }
-
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                console.debug('accountInfo', accountInfo);
 
@@ -388,10 +371,6 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Updating Meta Data...');
 
-               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
-               // }
-
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -417,7 +396,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (this.tickSize) {
-                    const tickSize = this.utilsService.convertUserInputToInt(this.tickSize);
+                    const tickSize = parseInt(this.tickSize);
                     if (tickSize < 3 || tickSize > 15) {
                          return this.setError('ERROR: Tick size must be between 3 and 15.');
                     }
@@ -426,7 +405,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (this.transferRate) {
-                    const transferRate = this.utilsService.convertUserInputToFloat(this.transferRate);
+                    const transferRate = parseFloat(this.transferRate);
                     if (transferRate > 100) {
                          return this.setError('ERROR: Transfer rate cannot be greater than 100%.');
                     }
@@ -442,6 +421,10 @@ export class AccountComponent implements AfterViewChecked {
                if (this.domain) {
                     updatedData = true;
                     tx.Domain = Buffer.from(this.domain, 'utf8').toString('hex');
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                if (updatedData) {
@@ -490,7 +473,7 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           const authorizedAddress = this.selectedAccount === 'account1' ? this.account2.address : this.account1.address;
-          if (!this.utilsService.validatInput(authorizedAddress)) {
+          if (!this.utilsService.validateInput(authorizedAddress)) {
                return this.setError('ERROR: Authorized account address cannot be empty');
           }
 
@@ -514,10 +497,6 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                this.updateSpinnerMessage('Setting Deposit Auth...');
-
-               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
-               // }
 
                let accountInfo;
                try {
@@ -563,6 +542,10 @@ export class AccountComponent implements AfterViewChecked {
                               },
                          },
                     ];
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
@@ -621,9 +604,7 @@ export class AccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Setting Multi Sign...');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', this.totalXrpReserves, wallet.classicAddress)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
+               const fee = await this.xrplService.calculateTransactionFee(client);
 
                let signerListTx: SignerListSet;
                if (enableMultiSignFlag === 'Y') {
@@ -670,7 +651,6 @@ export class AccountComponent implements AfterViewChecked {
                          return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
                     }
 
-                    const fee = await this.xrplService.calculateTransactionFee(client);
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                     if (this.ticketSequence) {
@@ -721,7 +701,6 @@ export class AccountComponent implements AfterViewChecked {
                          }
                     }
                } else {
-                    const fee = await this.xrplService.calculateTransactionFee(client);
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                     if (this.ticketSequence) {
@@ -769,6 +748,10 @@ export class AccountComponent implements AfterViewChecked {
                               ];
                          }
                     }
+               }
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, signerListTx, fee)) {
+                    return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
@@ -819,6 +802,13 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           try {
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               tx.fee = fee;
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                    throw new Error('ERROR: Insufficent XRP to complete transaction');
+               }
+
                const response = await client.submitAndWait(tx, { wallet });
                return {
                     success: true,
@@ -848,7 +838,7 @@ export class AccountComponent implements AfterViewChecked {
                return 'Please select an account';
           }
           if (inputs.seed != undefined) {
-               if (!this.utilsService.validatInput(inputs.seed)) {
+               if (!this.utilsService.validateInput(inputs.seed)) {
                     return 'Account seed cannot be empty';
                }
                if (!xrpl.isValidSecret(inputs.seed)) {
@@ -858,7 +848,7 @@ export class AccountComponent implements AfterViewChecked {
                return 'Account seed is invalid';
           }
           if (inputs.amount != undefined) {
-               if (!this.utilsService.validatInput(inputs.amount)) {
+               if (!this.utilsService.validateInput(inputs.amount)) {
                     return 'XRP Amount cannot be empty';
                }
                if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
@@ -868,7 +858,7 @@ export class AccountComponent implements AfterViewChecked {
                     return 'XRP Amount must be a positive number';
                }
           }
-          if (inputs.destination != undefined && !this.utilsService.validatInput(inputs.destination)) {
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
           return null;
