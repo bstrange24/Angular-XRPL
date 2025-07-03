@@ -31,7 +31,9 @@
     "util": "^0.12.5",
     "xrpl": "^4.3.0",
     "xrpl-accountlib": "^8.4.0",
-    "zone.js": "~0.15.0"
+    "zone.js": "~0.15.0",
+    "crypto-js": "^4.2.0",
+    "js-sha256": "^0.11.1"
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "^1.18.0",
