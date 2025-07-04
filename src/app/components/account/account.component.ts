@@ -113,9 +113,13 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     toggleMultiSign() {}
+     toggleMultiSign() {
+          this.cdr.detectChanges();
+     }
 
-     toggleTicketSequence() {}
+     toggleTicketSequence() {
+          this.cdr.detectChanges();
+     }
 
      updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
@@ -232,6 +236,13 @@ export class AccountComponent implements AfterViewChecked {
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.refreshUiIAccountMetaData(accountInfo.result);
                this.setSuccess(this.result);
+
+               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               if (signerAccounts) {
+                    this.multiSignAddress = signerAccounts.map(account => account + ',\n').join('');
+               } else {
+                    this.multiSignAddress = '';
+               }
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -374,7 +385,7 @@ export class AccountComponent implements AfterViewChecked {
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               const tx: AccountSet = await client.autofill({
+               const accountSetTx: AccountSet = await client.autofill({
                     TransactionType: 'AccountSet',
                     Account: wallet.classicAddress,
                     Fee: fee,
@@ -385,7 +396,7 @@ export class AccountComponent implements AfterViewChecked {
 
                if (this.memoField) {
                     updatedData = true;
-                    tx.Memos = [
+                    accountSetTx.Memos = [
                          {
                               Memo: {
                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
@@ -401,7 +412,7 @@ export class AccountComponent implements AfterViewChecked {
                          return this.setError('ERROR: Tick size must be between 3 and 15.');
                     }
                     updatedData = true;
-                    tx.TickSize = tickSize;
+                    accountSetTx.TickSize = tickSize;
                }
 
                if (this.transferRate) {
@@ -410,26 +421,26 @@ export class AccountComponent implements AfterViewChecked {
                          return this.setError('ERROR: Transfer rate cannot be greater than 100%.');
                     }
                     updatedData = true;
-                    tx.TransferRate = this.utilsService.getTransferRate(transferRate);
+                    accountSetTx.TransferRate = this.utilsService.getTransferRate(transferRate);
                }
 
                if (this.isMessageKey) {
                     updatedData = true;
-                    tx.MessageKey = wallet.publicKey;
+                    accountSetTx.MessageKey = wallet.publicKey;
                }
 
                if (this.domain) {
                     updatedData = true;
-                    tx.Domain = Buffer.from(this.domain, 'utf8').toString('hex');
+                    accountSetTx.Domain = Buffer.from(this.domain, 'utf8').toString('hex');
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                if (updatedData) {
                     this.updateSpinnerMessage('Submitting transaction to the Ledger...');
-                    const response = await client.submitAndWait(tx, { wallet });
+                    const response = await client.submitAndWait(accountSetTx, { wallet });
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`response ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -525,7 +536,7 @@ export class AccountComponent implements AfterViewChecked {
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               const tx: DepositPreauth = await client.autofill({
+               const depositPreauthTx: DepositPreauth = await client.autofill({
                     TransactionType: 'DepositPreauth',
                     Account: wallet.classicAddress,
                     [authorizeFlag === 'Y' ? 'Authorize' : 'Unauthorize']: authorizedAddress,
@@ -534,7 +545,7 @@ export class AccountComponent implements AfterViewChecked {
                });
 
                if (this.memoField) {
-                    tx.Memos = [
+                    depositPreauthTx.Memos = [
                          {
                               Memo: {
                                    MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
@@ -544,13 +555,13 @@ export class AccountComponent implements AfterViewChecked {
                     ];
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
-               const response = await client.submitAndWait(tx, { wallet });
+               const response = await client.submitAndWait(depositPreauthTx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`response ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -819,6 +830,22 @@ export class AccountComponent implements AfterViewChecked {
           } finally {
                console.log(`Leaving submitFlagTransaction in ${Date.now() - startTime}ms`);
           }
+     }
+
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account);
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
      }
 
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {

@@ -6,10 +6,11 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TransactionMetadataBase, Payment } from 'xrpl';
+import { TransactionMetadataBase, Payment, Signer, multisign, Wallet } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
+import SignerList from 'xrpl/dist/npm/models/ledger/SignerList';
 
 @Component({
      selector: 'app-account',
@@ -42,6 +43,7 @@ export class SendXrpComponent implements AfterViewChecked {
      isMultiSignTransaction = false;
      isTicketEnabled = false;
      multiSignAddress = '';
+     multiSignSeeds = '';
      spinner = false;
      isMultiSign = false;
      isTicket = false;
@@ -74,9 +76,13 @@ export class SendXrpComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     toggleMultiSign() {}
+     toggleMultiSign() {
+          this.cdr.detectChanges();
+     }
 
-     toggleTicketSequence() {}
+     toggleTicketSequence() {
+          this.cdr.detectChanges();
+     }
 
      onAccountChange() {
           if (!this.selectedAccount) return;
@@ -127,6 +133,8 @@ export class SendXrpComponent implements AfterViewChecked {
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
                amount: this.amountField,
                destination: this.destinationField,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -135,55 +143,37 @@ export class SendXrpComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
-               }
+               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
 
-               if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
-               }
+               if (!wallet) return this.setError('ERROR: Wallet could not be created or is undefined');
 
                this.showSpinnerWithDelay('Sending XRP ...', 250);
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               let payment: Payment;
+               let payment: xrpl.Payment = {
+                    TransactionType: 'Payment',
+                    Account: wallet.classicAddress,
+                    Amount: xrpl.xrpToDrops(this.amountField),
+                    Destination: this.destinationField,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
+
                if (this.ticketSequence) {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
-
-                    payment = {
-                         TransactionType: 'Payment',
-                         Account: wallet.classicAddress,
-                         Amount: xrpl.xrpToDrops(this.amountField),
-                         Destination: this.destinationField,
-                         TicketSequence: Number(this.ticketSequence),
-                         Sequence: 0,
-                         Fee: fee,
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    };
+                    payment.TicketSequence = Number(this.ticketSequence);
+                    payment.Sequence = 0;
                } else {
-                    payment = {
-                         TransactionType: 'Payment',
-                         Account: wallet.classicAddress,
-                         Amount: xrpl.xrpToDrops(this.amountField),
-                         Destination: this.destinationField,
-                         Fee: fee,
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    };
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    payment.Sequence = getAccountInfo.result.account_data.Sequence;
                }
-               const destinationTagText = this.destinationTagField;
-               if (destinationTagText) {
-                    if (parseInt(destinationTagText) <= 0) {
-                         return this.setError('ERROR: Destination Tag must be a valid number and greater than zero');
-                    }
-                    payment.DestinationTag = parseInt(destinationTagText, 10);
+
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    payment.DestinationTag = parseInt(this.destinationTagField, 10);
                }
 
                if (this.memoField) {
@@ -204,18 +194,49 @@ export class SendXrpComponent implements AfterViewChecked {
                     }
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, payment, fee)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
+               let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               let preparedTx = await client.autofill(payment);
-               const signed = wallet.sign(preparedTx);
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignPayment({ client, wallet, environment, payment, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         payment.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(payment, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(payment);
+                    signedTx = wallet.sign(preparedTx);
+               }
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
-               const response = await client.submitAndWait(signed.tx_blob);
+               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, payment, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
 
-               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -223,7 +244,6 @@ export class SendXrpComponent implements AfterViewChecked {
                     return;
                }
 
-               this.resultField.nativeElement.innerHTML += `XRP successfully sent.\n\n`;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -289,7 +309,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -316,6 +336,32 @@ export class SendXrpComponent implements AfterViewChecked {
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
+          }
+          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
+               const addresses = inputs.multiSignAddresses
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.multiSignSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
           }
           return null;
      }
