@@ -43,7 +43,7 @@ export class CreateNftComponent implements AfterViewChecked {
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     isEditable: boolean = true;
+     isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', balance: '' };
      account2 = { name: '', address: '', seed: '', balance: '' };
      ownerCount = '';

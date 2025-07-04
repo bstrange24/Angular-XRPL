@@ -39,7 +39,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     isEditable: boolean = true;
+     isEditable: boolean = false;
      currencyField: string = '';
      currencyBalanceField: string = '';
      destinationField: string = '';

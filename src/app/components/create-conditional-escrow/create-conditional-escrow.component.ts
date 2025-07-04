@@ -46,7 +46,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     isEditable: boolean = true;
+     isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      channelIDField = '';

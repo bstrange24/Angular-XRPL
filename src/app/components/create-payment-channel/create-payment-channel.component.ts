@@ -39,7 +39,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     isEditable: boolean = true;
+     isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      paymentChannelCancelAfterTimeField: string = '';

@@ -6,11 +6,9 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TransactionMetadataBase, Payment, Signer, multisign, Wallet } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import SignerList from 'xrpl/dist/npm/models/ledger/SignerList';
 
 @Component({
      selector: 'app-account',
@@ -28,7 +26,7 @@ export class SendXrpComponent implements AfterViewChecked {
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     isEditable: boolean = true;
+     isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      ownerCount = '';
@@ -419,6 +417,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.isSuccess = false;
           this.isError = true;
           this.spinner = false;
+          this.isEditable = false;
      }
 
      private setError(message: string) {
@@ -435,6 +434,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.isError = false;
           this.spinner = true;
           this.result = '';
+          this.isEditable = false;
      }
 
      private setSuccess(message: string) {

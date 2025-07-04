@@ -2106,7 +2106,7 @@ export class UtilsService {
                console.error('Error: container not found');
                return;
           }
-
+          container.classList.remove('error', 'success');
           container.innerHTML = ''; // Clear content
 
           // Add search bar (if not already present)

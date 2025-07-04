@@ -56,7 +56,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      memoField = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     isEditable: boolean = true;
+     isEditable: boolean = false;
      spinner = false;
      issuers: string[] = [];
      selectedIssuer: string = '';
