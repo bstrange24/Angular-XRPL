@@ -27,6 +27,7 @@ export class WalletMultiInputComponent {
      private searchSubject = new Subject<void>();
      private pageLoad: boolean = true;
      createWallet: boolean = false;
+     encryptionType: boolean = false;
      showGenerateButtons = true;
      showDeriveButtons = false;
      transactionInput = '';
@@ -81,6 +82,8 @@ export class WalletMultiInputComponent {
           // Load createWallet state
           const savedCreateWallet = this.storageService.getInputValue('createWallet');
           this.createWallet = savedCreateWallet === 'true';
+          const savedEncryptionType = this.storageService.getInputValue('encryptionType');
+          this.encryptionType = savedEncryptionType === 'true';
           this.showGenerateButtons = this.createWallet;
           this.showDeriveButtons = !this.createWallet;
           this.emitChange();
@@ -91,9 +94,11 @@ export class WalletMultiInputComponent {
                this.account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '' };
                this.issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '' };
                this.createWallet = true;
+               this.encryptionType = true;
                this.showGenerateButtons = true;
                this.showDeriveButtons = false;
                this.storageService.setInputValue('createWallet', 'true');
+               this.storageService.setInputValue('encryptionType', 'true');
                this.emitChange();
           });
 
@@ -142,6 +147,12 @@ export class WalletMultiInputComponent {
           }
           this.pageLoad = false;
           this.storageService.setInputValue('createWallet', this.createWallet.toString());
+          this.emitChange();
+     }
+
+     onEncryptionChange() {
+          this.pageLoad = false;
+          this.storageService.setInputValue('encryptionType', this.encryptionType.toString());
           this.emitChange();
      }
 

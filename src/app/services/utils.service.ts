@@ -413,13 +413,20 @@ export class UtilsService {
      }
 
      async getWallet(seed: string, environment: string): Promise<xrpl.Wallet> {
-          return seed.split(' ').length > 1
-               ? xrpl.Wallet.fromMnemonic(seed, {
-                      algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                 })
-               : xrpl.Wallet.fromSeed(seed, {
-                      algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                 });
+          const savedEncryptionType = this.storageService.getInputValue('encryptionType');
+          console.log(`savedEncryptionType: ${savedEncryptionType}`);
+          if (savedEncryptionType === 'true') {
+               return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+          } else {
+               return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+          }
+          // return seed.split(' ').length > 1
+          //      ? xrpl.Wallet.fromMnemonic(seed, {
+          //             algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+          //        })
+          //      : xrpl.Wallet.fromSeed(seed, {
+          //             algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+          //        });
      }
 
      checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {

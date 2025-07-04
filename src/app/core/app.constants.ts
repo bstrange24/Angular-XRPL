@@ -71,6 +71,7 @@ export const AppConstants = {
      NESTED_FIELDS: ['SetFlag', 'ClearFlag'],
 
      INPUT_IDS: [
+          'encryptionType',
           'createWallet',
           'account1name',
           'account2name',

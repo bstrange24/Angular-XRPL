@@ -12,6 +12,11 @@
                          <input type="checkbox" id="createWallet" name="createWallet" [(ngModel)]="createWallet" (ngModelChange)="onCreateWalletChange()" />
                          <span class="slider round"></span>
                     </label>
+                    <label class="tooltip" style="padding-left: 20px" tooltip-data="Select type of encryption to get wallet info">ED25519 Encryption:</label>
+                    <label class="switch" style="padding-left: 20px">
+                         <input type="checkbox" id="encryptionType" name="encryptionType" [(ngModel)]="encryptionType" (ngModelChange)="onEncryptionChange()" />
+                         <span class="slider round"></span>
+                    </label>
                </div>
 
                <!-- Account Section (always shown) -->
