@@ -1002,7 +1002,6 @@ export class AccountComponent implements AfterViewChecked {
           this.isSuccess = false;
           this.isError = true;
           this.spinner = false;
-          this.isEditable = false;
      }
 
      private setError(message: string) {
@@ -1019,7 +1018,6 @@ export class AccountComponent implements AfterViewChecked {
           this.isError = false;
           this.spinner = true;
           this.result = '';
-          this.isEditable = false;
      }
 
      private setSuccess(message: string) {

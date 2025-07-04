@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TransactionMetadataBase, Payment } from 'xrpl';
+import { TransactionMetadataBase, AccountDelete } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -33,18 +33,14 @@ export class DeleteAccountComponent implements AfterViewChecked {
      ownerCount = '';
      totalXrpReserves = '';
      executionTime = '';
-     amountField = '';
      destinationField = '';
      destinationTagField = '';
-     invoiceIdField: string = '';
-     ticketSequence: string = '';
      memoField = '';
      isMultiSignTransaction = false;
-     isTicketEnabled = false;
-     multiSignAddress = '';
-     spinner = false;
      isMultiSign = false;
-     isTicket = false;
+     multiSignAddress = '';
+     multiSignSeeds = '';
+     spinner = false;
      spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
@@ -74,9 +70,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     toggleMultiSign() {}
-
-     toggleTicketSequence() {}
+     toggleMultiSign() {
+          this.cdr.detectChanges();
+     }
 
      onAccountChange() {
           if (!this.selectedAccount) return;
@@ -126,6 +122,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
                destination: this.destinationField,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -161,7 +159,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                }
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
-               let payment: xrpl.AccountDelete = {
+               let payment: AccountDelete = {
                     TransactionType: 'AccountDelete',
                     Account: wallet.classicAddress,
                     Destination: this.destinationField,
@@ -230,31 +228,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
           console.log('Spinner message updated:', message); // For debugging
      }
 
-     private async getValidInvoiceID(input: string): Promise<string | null> {
-          if (!input) {
-               return null;
-          }
-          if (/^[0-9A-Fa-f]{64}$/.test(input)) {
-               return input.toUpperCase();
-          }
-          try {
-               const encoder = new TextEncoder();
-               const data = encoder.encode(input);
-               const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-               const hashArray = Array.from(new Uint8Array(hashBuffer));
-               const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-               return hashHex.toUpperCase();
-          } catch (error) {
-               throw new Error('Failed to hash InvoiceID');
-          }
-     }
-
      clearFields() {
-          this.amountField = '';
           this.memoField = '';
-          this.invoiceIdField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
           this.isMultiSign = false;
           this.multiSignAddress = '';
           this.cdr.detectChanges();
@@ -268,7 +243,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -295,6 +270,32 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
+          }
+          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
+               const addresses = inputs.multiSignAddresses
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.multiSignSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
           }
           return null;
      }

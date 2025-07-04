@@ -61,7 +61,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket = false;
      isTicketEnabled = false;
+     isMultiSign = false;
      multiSignAddress = '';
+     multiSignSeeds = '';
      spinner = false;
      spinnerMessage: string = '';
 
@@ -102,7 +104,13 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     toggleTicketSequence() {}
+     toggleMultiSign() {
+          this.cdr.detectChanges();
+     }
+
+     toggleTicketSequence() {
+          this.cdr.detectChanges();
+     }
 
      async getPaymentChannels() {
           console.log('Entering getPaymentChannels');
@@ -196,6 +204,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -727,7 +737,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -747,6 +757,32 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
+          }
+          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
+               const addresses = inputs.multiSignAddresses
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.multiSignSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
           }
           return null;
      }

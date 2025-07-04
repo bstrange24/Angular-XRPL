@@ -204,7 +204,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
 
                     try {
-                         const result = await this.utilsService.handleMultiSignPayment({ client, wallet, environment, payment, signerAddresses, signerSeeds, fee });
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: payment, signerAddresses, signerSeeds, fee });
                          signedTx = result.signedTx;
                          payment.Signers = result.signers;
 
@@ -417,7 +417,6 @@ export class SendXrpComponent implements AfterViewChecked {
           this.isSuccess = false;
           this.isError = true;
           this.spinner = false;
-          this.isEditable = false;
      }
 
      private setError(message: string) {
@@ -434,7 +433,6 @@ export class SendXrpComponent implements AfterViewChecked {
           this.isError = false;
           this.spinner = true;
           this.result = '';
-          this.isEditable = false;
      }
 
      private setSuccess(message: string) {

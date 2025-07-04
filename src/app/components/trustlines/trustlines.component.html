@@ -150,6 +150,41 @@
                          <br />
                     </td>
                </tr>
+          </table>
+
+          <table style="float: left">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                              <label>Use Multi-Sign Address</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                         <label for="isMultiSignAddressData"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
+                              <label for="multiSignAddress">Signer Addresses</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea class="memoField" style="width: 280px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
+                              <label for="multiSignSeeds">Signer Seeds</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea class="memoField" style="width: 280px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                    </td>
+               </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Check this to use a ticket sequence">

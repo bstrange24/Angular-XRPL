@@ -525,7 +525,7 @@ export class UtilsService {
           return { canFinish, canCancel, reasonFinish, reasonCancel };
      }
 
-     async handleMultiSignPayment({ client, wallet, environment, payment, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; payment: xrpl.Payment; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
+     async handleMultiSignTransaction({ client, wallet, environment, tx, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; tx: xrpl.Transaction; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
           if (signerAddresses.length !== signerSeeds.length) {
                throw new Error('Signer address count must match signer seed count');
           }
@@ -534,6 +534,10 @@ export class UtilsService {
           const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');
           if (!signerList) {
                throw new Error('Account does not have a SignerList');
+          }
+
+          if (!Array.isArray((signerList as any).SignerEntries)) {
+               throw new Error('SignerList object does not have valid SignerEntries');
           }
 
           if (!('SignerEntries' in signerList) || !Array.isArray((signerList as any).SignerEntries)) {
@@ -550,10 +554,6 @@ export class UtilsService {
                }
           });
 
-          if (totalWeight < quorum) {
-               throw new Error(`Total signer weight (${totalWeight}) does not meet quorum (${quorum})`);
-          }
-
           if (signerAddresses.some(addr => !validSigners.includes(addr))) {
                throw new Error('One or more signer addresses are not in the SignerList');
           }
@@ -563,15 +563,15 @@ export class UtilsService {
           console.log('Provided Signers:', signerAddresses);
           console.log('Quorum:', quorum);
 
-          // Fee = baseFee × (1 + number of signers)
+          // Adjust fee based on number of signers
           const feeDrops = Number(fee) * (1 + signerAddresses.length);
-          payment.Fee = String(feeDrops);
-          payment.SigningPubKey = '';
+          tx.Fee = String(feeDrops);
+          tx.SigningPubKey = '';
 
           const preparedTx = await client.autofill({
-               ...payment,
+               ...tx,
                SigningPubKey: '',
-          });
+          } as xrpl.SubmittableTransaction);
           delete preparedTx.Signers;
           delete preparedTx.TxnSignature;
 
@@ -598,7 +598,7 @@ export class UtilsService {
 
                signers.push(decoded.Signers[0]);
                signedTx = signed;
-               break; // Exit after first valid signer if quorum is 1
+               break; // Exit after first signer if quorum is 1
           }
 
           if (!signedTx) {
@@ -607,6 +607,89 @@ export class UtilsService {
 
           return { signedTx, signers };
      }
+
+     // async handleMultiSignPayment({ client, wallet, environment, payment, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; payment: xrpl.Payment; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
+     //      if (signerAddresses.length !== signerSeeds.length) {
+     //           throw new Error('Signer address count must match signer seed count');
+     //      }
+
+     //      const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+     //      const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');
+     //      if (!signerList) {
+     //           throw new Error('Account does not have a SignerList');
+     //      }
+
+     //      if (!('SignerEntries' in signerList) || !Array.isArray((signerList as any).SignerEntries)) {
+     //           throw new Error('SignerList object does not have SignerEntries');
+     //      }
+     //      const validSigners = (signerList as { SignerEntries: any[] }).SignerEntries.map((entry: any) => entry.SignerEntry.Account);
+     //      const quorum = (signerList as any).SignerQuorum;
+
+     //      let totalWeight = 0;
+     //      signerAddresses.forEach(addr => {
+     //           const signerEntry = (signerList as any).SignerEntries.find((entry: any) => entry.SignerEntry.Account === addr);
+     //           if (signerEntry) {
+     //                totalWeight += signerEntry.SignerEntry.SignerWeight;
+     //           }
+     //      });
+
+     //      if (totalWeight < quorum) {
+     //           throw new Error(`Total signer weight (${totalWeight}) does not meet quorum (${quorum})`);
+     //      }
+
+     //      if (signerAddresses.some(addr => !validSigners.includes(addr))) {
+     //           throw new Error('One or more signer addresses are not in the SignerList');
+     //      }
+
+     //      console.log('SignerList:', JSON.stringify(signerList, null, 2));
+     //      console.log('Valid Signers:', validSigners);
+     //      console.log('Provided Signers:', signerAddresses);
+     //      console.log('Quorum:', quorum);
+
+     //      // Fee = baseFee × (1 + number of signers)
+     //      const feeDrops = Number(fee) * (1 + signerAddresses.length);
+     //      payment.Fee = String(feeDrops);
+     //      payment.SigningPubKey = '';
+
+     //      const preparedTx = await client.autofill({
+     //           ...payment,
+     //           SigningPubKey: '',
+     //      });
+     //      delete preparedTx.Signers;
+     //      delete preparedTx.TxnSignature;
+
+     //      console.log('PreparedTx before signing:', JSON.stringify(preparedTx, null, 2));
+
+     //      const signers: xrpl.Signer[] = [];
+     //      let signedTx: { tx_blob: string; hash: string } | null = null;
+
+     //      for (let i = 0; i < signerAddresses.length; i++) {
+     //           const signerWallet = await this.getWallet(signerSeeds[i], environment);
+
+     //           if (signerWallet.classicAddress !== signerAddresses[i]) {
+     //                throw new Error(`Seed mismatch for signer ${signerAddresses[i]}`);
+     //           }
+
+     //           const signed = signerWallet.sign(preparedTx, true);
+     //           console.log('Signed Transaction:', JSON.stringify(signed, null, 2));
+
+     //           const decoded = xrpl.decode(signed.tx_blob) as xrpl.Transaction;
+
+     //           if (!decoded.Signers || !Array.isArray(decoded.Signers)) {
+     //                throw new Error(`Could not extract Signer from ${signerWallet.classicAddress}`);
+     //           }
+
+     //           signers.push(decoded.Signers[0]);
+     //           signedTx = signed;
+     //           break; // Exit after first valid signer if quorum is 1
+     //      }
+
+     //      if (!signedTx) {
+     //           throw new Error('No valid signature collected for multisign transaction');
+     //      }
+
+     //      return { signedTx, signers };
+     // }
 
      getFlagName(value: string) {
           return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `Flag ${value}`;
