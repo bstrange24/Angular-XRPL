@@ -3,7 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
-import { WalletInputComponent } from '../wallet-input/wallet-input.component';
+// import { WalletInputComponent } from '../wallet-input/wallet-input.component';
+import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
 import { AccountSet, TransactionMetadataBase, DepositPreauth, SignerListSet } from 'xrpl';
@@ -29,16 +30,17 @@ interface AccountFlags {
 }
 
 @Component({
-     selector: 'app-account',
+     selector: 'app-account-configurator',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
-     templateUrl: './account.component.html',
-     styleUrls: ['./account.component.css'],
+     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     templateUrl: './account-configurator.component.html',
+     styleUrl: './account-configurator.component.css',
 })
-export class AccountComponent implements AfterViewChecked {
+export class AccountConfiguratorComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
+     configurationType: 'holder' | 'exchanger' | 'issuer' | null = null; // New property to track configuration type
      private lastResult: string = '';
      result: string = '';
      isError: boolean = false;
@@ -46,6 +48,7 @@ export class AccountComponent implements AfterViewChecked {
      isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', balance: '' };
      account2 = { name: '', address: '', seed: '', balance: '' };
+     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      ownerCount = '';
      totalXrpReserves = '';
      executionTime = '';
@@ -55,10 +58,12 @@ export class AccountComponent implements AfterViewChecked {
      isMultiSign = false;
      multiSignAddress = '';
      isUpdateMetaData = false;
+     isHolderConfiguration = false;
+     isExchangerConfiguration = false;
+     isIssuerConfiguration = false;
      tickSize = '';
      transferRate = '';
      isMessageKey = false;
-     nfTokenMinterAddress = '';
      domain = '';
      memoField = '';
      spinnerMessage: string = '';
@@ -94,9 +99,11 @@ export class AccountComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any }) {
+     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
+          this.issuer = { ...event.issuer, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
@@ -113,7 +120,294 @@ export class AccountComponent implements AfterViewChecked {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
                this.displayDataForAccount2();
+          } else {
+               this.displayDataForAccount3();
           }
+     }
+
+     onConfigurationChange() {
+          // Reset all flags to ensure a clean state
+          this.resetFlags();
+
+          // Call the appropriate method based on configurationType
+          if (this.configurationType === 'holder') {
+               this.setHolder();
+          } else if (this.configurationType === 'exchanger') {
+               this.setExchanger();
+          } else if (this.configurationType === 'issuer') {
+               this.setIssuer();
+          }
+
+          this.cdr.detectChanges();
+     }
+
+     // Optional: Add a method to reset flags to avoid conflicts
+     private resetFlags() {
+          this.flags = {
+               asfRequireDest: false,
+               asfRequireAuth: false,
+               asfDisallowXRP: false,
+               asfDisableMaster: false,
+               asfNoFreeze: false,
+               asfGlobalFreeze: false,
+               asfDefaultRipple: false,
+               asfDepositAuth: false,
+               asfAuthorizedNFTokenMinter: false,
+               asfAllowTrustLineClawback: false,
+               asfDisallowIncomingNFTokenOffer: false,
+               asfDisallowIncomingCheck: false,
+               asfDisallowIncomingPayChan: false,
+               asfDisallowIncomingTrustline: false,
+          };
+
+          // Reset metadata fields
+          this.domain = '';
+          this.transferRate = '';
+          this.tickSize = '';
+
+          // Update UI elements
+          const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
+          if (domainFieldElem) domainFieldElem.value = '';
+          const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
+          if (transferRateFieldElem) transferRateFieldElem.value = '';
+          const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
+          if (tickSizeFieldElem) tickSizeFieldElem.value = '';
+     }
+
+     setHolder() {
+          // Update flags for Holder configuration
+          this.flags.asfRequireDest = false;
+          this.flags.asfRequireAuth = false;
+          this.flags.asfDisallowXRP = false;
+          this.flags.asfDisableMaster = false;
+          this.flags.asfNoFreeze = false;
+          this.flags.asfGlobalFreeze = false;
+          this.flags.asfDefaultRipple = false;
+          this.flags.asfDepositAuth = false;
+          this.flags.asfAuthorizedNFTokenMinter = false;
+          this.flags.asfAllowTrustLineClawback = false;
+          this.flags.asfDisallowIncomingNFTokenOffer = false;
+          this.flags.asfDisallowIncomingCheck = false;
+          this.flags.asfDisallowIncomingPayChan = false;
+          this.flags.asfDisallowIncomingTrustline = false;
+
+          this.cdr.detectChanges();
+     }
+
+     setExchanger() {
+          // Update flags for Exchanger configuration
+          this.flags.asfRequireDest = true;
+          this.flags.asfRequireAuth = false;
+          this.flags.asfDisallowXRP = false;
+          this.flags.asfDisableMaster = false;
+          this.flags.asfNoFreeze = false;
+          this.flags.asfGlobalFreeze = false;
+          this.flags.asfDefaultRipple = true;
+          this.flags.asfDepositAuth = false;
+          this.flags.asfAuthorizedNFTokenMinter = false;
+          this.flags.asfAllowTrustLineClawback = false;
+          this.flags.asfDisallowIncomingNFTokenOffer = true;
+          this.flags.asfDisallowIncomingCheck = false;
+          this.flags.asfDisallowIncomingPayChan = true;
+          this.flags.asfDisallowIncomingTrustline = false;
+
+          this.cdr.detectChanges();
+     }
+
+     setIssuer() {
+          // Update flags for Issuer configuration
+          this.flags.asfRequireDest = true;
+          this.flags.asfRequireAuth = false;
+          this.flags.asfDisallowXRP = false;
+          this.flags.asfDisableMaster = false;
+          this.flags.asfNoFreeze = false;
+          this.flags.asfGlobalFreeze = false;
+          this.flags.asfDefaultRipple = true;
+          this.flags.asfDepositAuth = true;
+          this.flags.asfAuthorizedNFTokenMinter = false;
+          this.flags.asfAllowTrustLineClawback = false;
+          this.flags.asfDisallowIncomingNFTokenOffer = true;
+          this.flags.asfDisallowIncomingCheck = true;
+          this.flags.asfDisallowIncomingPayChan = true;
+          this.flags.asfDisallowIncomingTrustline = false;
+
+          this.cdr.detectChanges();
+     }
+
+     // setHolder() {
+     //      const asfRequireDestElem = document.getElementById('asfRequireDest') as HTMLInputElement | null;
+     //      if (asfRequireDestElem) asfRequireDestElem.checked = false;
+
+     //      const asfRequireAuthElem = document.getElementById('asfRequireAuth') as HTMLInputElement | null;
+     //      if (asfRequireAuthElem) asfRequireAuthElem.checked = false;
+
+     //      const asfDisallowXRPElem = document.getElementById('asfDisallowXRP') as HTMLInputElement | null;
+     //      if (asfDisallowXRPElem) asfDisallowXRPElem.checked = false;
+
+     //      const asfDisableMasterElem = document.getElementById('asfDisableMaster') as HTMLInputElement | null;
+     //      if (asfDisableMasterElem) asfDisableMasterElem.checked = false;
+
+     //      const asfNoFreezeElem = document.getElementById('asfNoFreeze') as HTMLInputElement | null;
+     //      if (asfNoFreezeElem) asfNoFreezeElem.checked = false;
+
+     //      const asfGlobalFreezeElem = document.getElementById('asfGlobalFreeze') as HTMLInputElement | null;
+     //      if (asfGlobalFreezeElem) asfGlobalFreezeElem.checked = false;
+
+     //      const asfDefaultRippleElem = document.getElementById('asfDefaultRipple') as HTMLInputElement | null;
+     //      if (asfDefaultRippleElem) asfDefaultRippleElem.checked = false;
+
+     //      const asfDepositAuthElem = document.getElementById('asfDepositAuth') as HTMLInputElement | null;
+     //      if (asfDepositAuthElem) asfDepositAuthElem.checked = false;
+
+     //      const asfAuthorizedNFTokenMinterElem = document.getElementById('asfAuthorizedNFTokenMinter') as HTMLInputElement | null;
+     //      if (asfAuthorizedNFTokenMinterElem) asfAuthorizedNFTokenMinterElem.checked = false;
+
+     //      const asfAllowTrustLineClawbackElem = document.getElementById('asfAllowTrustLineClawback') as HTMLInputElement | null;
+     //      if (asfAllowTrustLineClawbackElem) asfAllowTrustLineClawbackElem.checked = false;
+
+     //      const asfDisallowIncomingNFTokenOfferElem = document.getElementById('asfDisallowIncomingNFTokenOffer') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingNFTokenOfferElem) asfDisallowIncomingNFTokenOfferElem.checked = false;
+
+     //      const asfDisallowIncomingCheckElem = document.getElementById('asfDisallowIncomingCheck') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingCheckElem) asfDisallowIncomingCheckElem.checked = false;
+
+     //      const asfDisallowIncomingPayChanElem = document.getElementById('asfDisallowIncomingPayChan') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingPayChanElem) asfDisallowIncomingPayChanElem.checked = false;
+
+     //      const asfDisallowIncomingTrustlineElem = document.getElementById('asfDisallowIncomingTrustline') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingTrustlineElem) asfDisallowIncomingTrustlineElem.checked = false;
+
+     //      const disallowIncomingXRPElem = document.getElementById('disallowIncomingXRP') as HTMLInputElement | null;
+     //      if (disallowIncomingXRPElem) disallowIncomingXRPElem.checked = false;
+
+     //      const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
+     //      if (domainFieldElem) domainFieldElem.value = '';
+
+     //      const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
+     //      if (transferRateFieldElem) transferRateFieldElem.value = '';
+
+     //      const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
+     //      if (tickSizeFieldElem) tickSizeFieldElem.value = '';
+
+     //      // document.getElementById('issuer_additional_fields').style.display = 'none';
+     // }
+
+     // setExchanger() {
+     //      const asfRequireDestElem = document.getElementById('asfRequireDest') as HTMLInputElement | null;
+     //      if (asfRequireDestElem) asfRequireDestElem.checked = true;
+
+     //      const asfRequireAuthElem = document.getElementById('asfRequireAuth') as HTMLInputElement | null;
+     //      if (asfRequireAuthElem) asfRequireAuthElem.checked = false;
+
+     //      const asfDisallowXRPElem = document.getElementById('asfDisallowXRP') as HTMLInputElement | null;
+     //      if (asfDisallowXRPElem) asfDisallowXRPElem.checked = false;
+
+     //      const asfDisableMasterElem = document.getElementById('asfDisableMaster') as HTMLInputElement | null;
+     //      if (asfDisableMasterElem) asfDisableMasterElem.checked = false;
+
+     //      const asfNoFreezeElem = document.getElementById('asfNoFreeze') as HTMLInputElement | null;
+     //      if (asfNoFreezeElem) asfNoFreezeElem.checked = false;
+
+     //      const asfGlobalFreezeElem = document.getElementById('asfGlobalFreeze') as HTMLInputElement | null;
+     //      if (asfGlobalFreezeElem) asfGlobalFreezeElem.checked = false;
+
+     //      const asfDefaultRippleElem = document.getElementById('asfDefaultRipple') as HTMLInputElement | null;
+     //      if (asfDefaultRippleElem) asfDefaultRippleElem.checked = true;
+
+     //      const asfDepositAuthElem = document.getElementById('asfDepositAuth') as HTMLInputElement | null;
+     //      if (asfDepositAuthElem) asfDepositAuthElem.checked = false;
+
+     //      const asfAuthorizedNFTokenMinterElem = document.getElementById('asfAuthorizedNFTokenMinter') as HTMLInputElement | null;
+     //      if (asfAuthorizedNFTokenMinterElem) asfAuthorizedNFTokenMinterElem.checked = false;
+
+     //      const asfAllowTrustLineClawbackElem = document.getElementById('asfAllowTrustLineClawback') as HTMLInputElement | null;
+     //      if (asfAllowTrustLineClawbackElem) asfAllowTrustLineClawbackElem.checked = false;
+
+     //      const asfDisallowIncomingNFTokenOfferElem = document.getElementById('asfDisallowIncomingNFTokenOffer') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingNFTokenOfferElem) asfDisallowIncomingNFTokenOfferElem.checked = true;
+
+     //      const asfDisallowIncomingCheckElem = document.getElementById('asfDisallowIncomingCheck') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingCheckElem) asfDisallowIncomingCheckElem.checked = false;
+
+     //      const asfDisallowIncomingPayChanElem = document.getElementById('asfDisallowIncomingPayChan') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingPayChanElem) asfDisallowIncomingPayChanElem.checked = true;
+
+     //      const asfDisallowIncomingTrustlineElem = document.getElementById('asfDisallowIncomingTrustline') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingTrustlineElem) asfDisallowIncomingTrustlineElem.checked = false;
+
+     //      const disallowIncomingXRPElem = document.getElementById('disallowIncomingXRP') as HTMLInputElement | null;
+     //      if (disallowIncomingXRPElem) disallowIncomingXRPElem.checked = false;
+
+     //      const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
+     //      if (domainFieldElem) domainFieldElem.value = '';
+
+     //      const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
+     //      if (transferRateFieldElem) transferRateFieldElem.value = '';
+
+     //      const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
+     //      if (tickSizeFieldElem) tickSizeFieldElem.value = '';
+
+     //      // document.getElementById('issuer_additional_fields').style.display = 'none';
+     // }
+
+     // setIssuer() {
+     //      const asfRequireDestElem = document.getElementById('asfRequireDest') as HTMLInputElement | null;
+     //      if (asfRequireDestElem) asfRequireDestElem.checked = true;
+
+     //      const asfRequireAuthElem = document.getElementById('asfRequireAuth') as HTMLInputElement | null;
+     //      if (asfRequireAuthElem) asfRequireAuthElem.checked = false;
+
+     //      const asfDisallowXRPElem = document.getElementById('asfDisallowXRP') as HTMLInputElement | null;
+     //      if (asfDisallowXRPElem) asfDisallowXRPElem.checked = false;
+
+     //      const asfDisableMasterElem = document.getElementById('asfDisableMaster') as HTMLInputElement | null;
+     //      if (asfDisableMasterElem) asfDisableMasterElem.checked = false;
+
+     //      const asfNoFreezeElem = document.getElementById('asfNoFreeze') as HTMLInputElement | null;
+     //      if (asfNoFreezeElem) asfNoFreezeElem.checked = false;
+
+     //      const asfGlobalFreezeElem = document.getElementById('asfGlobalFreeze') as HTMLInputElement | null;
+     //      if (asfGlobalFreezeElem) asfGlobalFreezeElem.checked = false;
+
+     //      const asfDefaultRippleElem = document.getElementById('asfDefaultRipple') as HTMLInputElement | null;
+     //      if (asfDefaultRippleElem) asfDefaultRippleElem.checked = true;
+
+     //      const asfDepositAuthElem = document.getElementById('asfDepositAuth') as HTMLInputElement | null;
+     //      if (asfDepositAuthElem) asfDepositAuthElem.checked = true;
+
+     //      const asfAuthorizedNFTokenMinterElem = document.getElementById('asfAuthorizedNFTokenMinter') as HTMLInputElement | null;
+     //      if (asfAuthorizedNFTokenMinterElem) asfAuthorizedNFTokenMinterElem.checked = false;
+
+     //      const asfAllowTrustLineClawbackElem = document.getElementById('asfAllowTrustLineClawback') as HTMLInputElement | null;
+     //      if (asfAllowTrustLineClawbackElem) asfAllowTrustLineClawbackElem.checked = false;
+
+     //      const asfDisallowIncomingNFTokenOfferElem = document.getElementById('asfDisallowIncomingNFTokenOffer') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingNFTokenOfferElem) asfDisallowIncomingNFTokenOfferElem.checked = true;
+
+     //      const asfDisallowIncomingCheckElem = document.getElementById('asfDisallowIncomingCheck') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingCheckElem) asfDisallowIncomingCheckElem.checked = true;
+
+     //      const asfDisallowIncomingPayChanElem = document.getElementById('asfDisallowIncomingPayChan') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingPayChanElem) asfDisallowIncomingPayChanElem.checked = true;
+
+     //      const asfDisallowIncomingTrustlineElem = document.getElementById('asfDisallowIncomingTrustline') as HTMLInputElement | null;
+     //      if (asfDisallowIncomingTrustlineElem) asfDisallowIncomingTrustlineElem.checked = false;
+
+     //      const disallowIncomingXRPElem = document.getElementById('disallowIncomingXRP') as HTMLInputElement | null;
+     //      if (disallowIncomingXRPElem) disallowIncomingXRPElem.checked = true;
+
+     //      const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
+     //      if (domainFieldElem) domainFieldElem.value = '';
+
+     //      const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
+     //      if (transferRateFieldElem) transferRateFieldElem.value = '';
+
+     //      const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
+     //      if (tickSizeFieldElem) tickSizeFieldElem.value = '';
+     // }
+
+     toggleConfigurationTemplate() {
+          this.cdr.detectChanges();
      }
 
      toggleMultiSign() {
@@ -199,7 +493,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -211,8 +505,10 @@ export class AccountComponent implements AfterViewChecked {
                let wallet;
                if (this.selectedAccount === 'account1') {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
+               } else if (this.selectedAccount === 'account2') {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                if (!wallet) {
@@ -802,11 +1098,21 @@ export class AccountComponent implements AfterViewChecked {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
 
-          const tx = {
-               TransactionType: 'AccountSet',
-               Account: wallet.classicAddress,
-               ...flagPayload,
-          };
+          let tx;
+          if (flagPayload.SetFlag === 10) {
+               tx = {
+                    TransactionType: 'AccountSet',
+                    Account: wallet.classicAddress,
+                    ...flagPayload,
+                    NFTokenMinter: 'rETbLUGdjTo2PScLT5xCUZ8ov7B9zHnRqo',
+               };
+          } else {
+               tx = {
+                    TransactionType: 'AccountSet',
+                    Account: wallet.classicAddress,
+                    ...flagPayload,
+               };
+          }
 
           if (memoField) {
                tx.Memos = [
@@ -862,8 +1168,10 @@ export class AccountComponent implements AfterViewChecked {
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
           if (this.selectedAccount === 'account1') {
                this.account1.balance = balance.toString();
+          } else if (this.selectedAccount === 'account2') {
+               this.account1.balance = balance.toString();
           } else {
-               this.account2.balance = balance.toString();
+               this.account1.balance = balance.toString();
           }
      }
 
@@ -968,24 +1276,47 @@ export class AccountComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     async displayDataForAccount(accountKey: 'account1' | 'account2') {
-          const prefix = accountKey; // 'account1' or 'account2'
+     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+
+          let name;
+          let address;
+          let seed;
 
           // Fetch stored values
-          const name = this.storageService.getInputValue(`${prefix}name`) || '';
-          const address = this.storageService.getInputValue(`${prefix}address`) || '';
-          const seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || '';
+          if (prefix === 'issuer') {
+               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
+               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
+               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
+          } else {
+               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
+               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
+               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
+          }
 
           // Update account data
-          const account = accountKey === 'account1' ? this.account1 : this.account2;
+          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
           account.name = name;
           account.address = address;
           account.seed = seed;
 
-          // Trigger change detection to update UI
+          // DOM manipulation
+          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+
+          if (accountName1Field) accountName1Field.value = name;
+          if (accountAddress1Field) accountAddress1Field.value = address;
+          if (accountSeed1Field) accountSeed1Field.value = seed;
+
+          // Trigger change detection to sync with ngModel
           this.cdr.detectChanges();
 
-          // Validate and fetch account details
+          // Update destination field (set to other account's address)
+          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
+          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
+
+          // Fetch account details and trustlines
           try {
                if (address && xrpl.isValidAddress(address)) {
                     await this.getAccountDetails();
@@ -1003,6 +1334,10 @@ export class AccountComponent implements AfterViewChecked {
 
      async displayDataForAccount2() {
           await this.displayDataForAccount('account2');
+     }
+
+     private async displayDataForAccount3() {
+          await this.displayDataForAccount('issuer');
      }
 
      private setErrorProperties() {

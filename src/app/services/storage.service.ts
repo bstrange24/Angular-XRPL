@@ -90,6 +90,7 @@ export class StorageService {
      setActiveNavLink(link: string) {
           localStorage.setItem('activeNavLink', link);
           localStorage.removeItem('activeEscrowLink');
+          localStorage.removeItem('activeAccountsLink');
      }
 
      getActiveEscrowLink(): string {
@@ -99,5 +100,16 @@ export class StorageService {
      setActiveEscrowLink(link: string) {
           localStorage.setItem('activeEscrowLink', link);
           localStorage.removeItem('activeNavLink');
+          localStorage.removeItem('activeAccountsLink');
+     }
+
+     getActiveAccountsLink(): string {
+          return localStorage.getItem('activeAccountsLink') || '';
+     }
+
+     setActiveAccountsLink(link: string) {
+          localStorage.setItem('activeAccountsLink', link);
+          localStorage.removeItem('activeNavLink');
+          localStorage.removeItem('activeEscrowLink');
      }
 }

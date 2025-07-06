@@ -57,6 +57,9 @@ export class CreateNftComponent implements AfterViewChecked {
      isMessageKey = false;
      domain = '';
      memo = '';
+     isTicket = false;
+     isTicketEnabled = false;
+     ticketSequence = '';
      burnableNft: { checked: any } | undefined;
      onlyXrpNft: { checked: any } | undefined;
      transferableNft: { checked: any } | undefined;
@@ -125,6 +128,10 @@ export class CreateNftComponent implements AfterViewChecked {
 
      toggleFlags() {
           // Handled by *ngIf in template
+     }
+
+     toggleTicketSequence() {
+          this.cdr.detectChanges();
      }
 
      updateSpinnerMessage(message: string) {

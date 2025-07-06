@@ -22,12 +22,38 @@ export class NavbarComponent implements OnInit {
      navbarColor: string = '#1a1c21';
      isNetworkDropdownOpen: boolean = false;
      isEscrowsDropdownOpen: boolean = false;
+     isAccountDropdownOpen: boolean = false;
      isUtilsDropdownOpen: boolean = false;
      isEscrowsDropdownActive: boolean = false;
+     isAccountsDropdownActive: boolean = false;
      currentDateTime: string = ''; // Store formatted date/time
      private timerSubscription: Subscription | null = null; // For real-time updates
 
      constructor(private storageService: StorageService, private utilsService: UtilsService, private xrplService: XrplService, private router: Router, private datePipe: DatePipe) {}
+
+     // ngOnInit() {
+     //      const { environment } = this.storageService.getNet();
+     //      this.selectedNetwork = environment.charAt(0).toUpperCase() + environment.slice(1);
+     //      this.networkColor = this.storageService.getNetworkColor(environment);
+     //      const activeNavLink = this.storageService.getActiveNavLink();
+     //      const activeEscrowLink = this.storageService.getActiveEscrowLink();
+     //      const activeAccountLink = this.storageService.getActiveAccountsLink();
+     //      if (activeAccountLink) {
+     //           this.isAccountsDropdownActive = true;
+     //           this.isAccountDropdownOpen = true;
+     //           this.isEscrowsDropdownActive = false;
+     //      } else if (activeEscrowLink) {
+     //           this.isEscrowsDropdownActive = true;
+     //           this.isAccountsDropdownActive = false;
+     //      } else {
+     //           this.isEscrowsDropdownActive = !!activeNavLink && activeNavLink.includes('escrow');
+     //           this.isAccountsDropdownActive = !!activeNavLink && activeNavLink.includes('account');
+     //      }
+     //      this.updateDateTime();
+     //      this.timerSubscription = interval(100).subscribe(() => {
+     //           this.updateDateTime();
+     //      });
+     // }
 
      ngOnInit() {
           // Initialize network
@@ -39,6 +65,20 @@ export class NavbarComponent implements OnInit {
           const activeNavLink = this.storageService.getActiveNavLink();
           const activeEscrowLink = this.storageService.getActiveEscrowLink();
           this.isEscrowsDropdownActive = !!activeEscrowLink;
+          const activeAccountLink = this.storageService.getActiveAccountsLink();
+          this.isAccountDropdownOpen = !!activeAccountLink;
+
+          if (activeAccountLink) {
+               this.isAccountsDropdownActive = true;
+               this.isAccountDropdownOpen = true;
+               this.isEscrowsDropdownActive = false;
+          } else if (activeEscrowLink) {
+               this.isEscrowsDropdownActive = true;
+               this.isAccountsDropdownActive = false;
+          } else {
+               this.isEscrowsDropdownActive = !!activeNavLink && activeNavLink.includes('escrow');
+               this.isAccountsDropdownActive = !!activeNavLink && activeNavLink.includes('account');
+          }
 
           // Initialize date/time and set up timer for real-time updates
           this.updateDateTime();
@@ -64,6 +104,19 @@ export class NavbarComponent implements OnInit {
           this.isNetworkDropdownOpen = !this.isNetworkDropdownOpen;
           this.isEscrowsDropdownOpen = false;
           this.isUtilsDropdownOpen = false;
+          this.isAccountDropdownOpen = false;
+     }
+
+     toggleAccountsDropdown(event: Event) {
+          event.preventDefault();
+          event.stopPropagation(); // Prevent event bubbling that might interfere
+          this.isAccountDropdownOpen = !this.isAccountDropdownOpen;
+          this.isAccountsDropdownActive = this.isAccountDropdownOpen; // Sync active state with open state
+          this.isNetworkDropdownOpen = false;
+          this.isEscrowsDropdownOpen = false;
+          this.isEscrowsDropdownActive = false; // Explicitly reset Escrows active state
+          this.isUtilsDropdownOpen = false;
+          this.storageService.removeValue('activeEscrowLink'); // Clear escrow link from storage
      }
 
      toggleEscrowsDropdown(event: Event) {
@@ -71,6 +124,8 @@ export class NavbarComponent implements OnInit {
           this.isEscrowsDropdownOpen = !this.isEscrowsDropdownOpen;
           this.isNetworkDropdownOpen = false;
           this.isUtilsDropdownOpen = false;
+          this.isAccountDropdownOpen = false;
+          this.storageService.removeValue('activeAccountLink'); // Clear escrow link from storage
      }
 
      toggleUtilsDropdown(event: Event) {
@@ -78,6 +133,7 @@ export class NavbarComponent implements OnInit {
           this.isUtilsDropdownOpen = !this.isUtilsDropdownOpen;
           this.isNetworkDropdownOpen = false;
           this.isEscrowsDropdownOpen = false;
+          this.isAccountDropdownOpen = false;
      }
 
      selectNetwork(network: string) {
@@ -92,6 +148,7 @@ export class NavbarComponent implements OnInit {
           this.isEscrowsDropdownActive = false;
           this.isEscrowsDropdownOpen = false;
           this.isUtilsDropdownOpen = false;
+          this.isAccountDropdownOpen = false;
      }
 
      setActiveEscrowLink(link: string) {
@@ -99,6 +156,36 @@ export class NavbarComponent implements OnInit {
           this.isEscrowsDropdownActive = true;
           this.isEscrowsDropdownOpen = false;
           this.isUtilsDropdownOpen = false;
+          this.isAccountDropdownOpen = false;
+     }
+
+     setActiveAccountsLink(link: string) {
+          this.storageService.setActiveAccountsLink(link);
+          this.storageService.removeValue('activeEscrowLink'); // Clear escrow link from storage
+          // this.storageService.removeValue('activeNavLink'); // Clear any other active nav link
+          this.isAccountDropdownOpen = true;
+          this.isAccountsDropdownActive = true; // Mark Accounts dropdown as active
+          this.isEscrowsDropdownActive = false; // Reset Escrows active state
+          this.isEscrowsDropdownOpen = false;
+          this.isUtilsDropdownOpen = false;
+          this.isNetworkDropdownOpen = false;
+     }
+
+     private resetDropdownStates(exclude: string = '') {
+          if (exclude !== 'network') {
+               this.isNetworkDropdownOpen = false;
+          }
+          if (exclude !== 'accounts') {
+               this.isAccountDropdownOpen = false;
+               this.isAccountsDropdownActive = false;
+          }
+          if (exclude !== 'escrows') {
+               this.isEscrowsDropdownOpen = false;
+               this.isEscrowsDropdownActive = false;
+          }
+          if (exclude !== 'utils') {
+               this.isUtilsDropdownOpen = false;
+          }
      }
 
      async disconnectClient(event: Event) {

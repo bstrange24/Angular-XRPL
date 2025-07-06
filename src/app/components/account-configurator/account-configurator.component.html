@@ -2,12 +2,28 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+     <!-- <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input> -->
+     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
           <table style="float: left">
                <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                              <label>Account Configuration Templates:</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="radio" id="isHolderConfiguration" [(ngModel)]="configurationType" (ngModelChange)="onConfigurationChange()" name="configurationType" value="holder" />
+                         <label for="isHolderConfiguration">Holder</label>
+                         <input type="radio" id="isExchangerConfiguration" [(ngModel)]="configurationType" (ngModelChange)="onConfigurationChange()" name="configurationType" value="exchanger" />
+                         <label for="isExchangerConfiguration">Exchanger</label>
+                         <input type="radio" id="isIssuerConfiguration" [(ngModel)]="configurationType" (ngModelChange)="onConfigurationChange()" name="configurationType" value="issuer" />
+                         <label for="isIssuerConfiguration">Issuer</label>
+                    </td>
+               </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -40,6 +56,8 @@
                     </td>
                     <td>
                          <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                         <input type="radio" id="issuer" name="accounts" value="issuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                         <label for="issuer">Issuer</label>
                     </td>
                </tr>
                <tr>
@@ -113,46 +131,6 @@
 
           <table style="float: left">
                <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                              <label for="accountName2Field">Name</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountName2Field" size="40" [(ngModel)]="account2.name" name="accountName2Field" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                              <label for="accountAddress2Field">Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountAddress2Field" size="40" [(ngModel)]="account2.address" name="accountAddress2Field" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                              <label for="accountSeed2Field">Seed</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountSeed2Field" size="40" [(ngModel)]="account2.seed" name="accountSeed2Field" />
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                              <label for="xrpBalance2Field">Spendable XRP Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="xrpBalance2Field" size="40" [(ngModel)]="account2.balance" name="xrpBalance2Field" />
-                    </td>
-               </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
@@ -252,10 +230,37 @@
                </tr>
           </table>
 
-          <table style="float: left">
+          <!-- <table style="float: left">
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                              <label>Enable Multi-Sign Address</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isMultiSignAddressData"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma seperated list">
+                              <label for="multiSignAddress">Multi-Sign Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea class="memoField" style="width: 280px" id="multiSignAddress" placeholder="Comma seperated list of address for multi sign" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                         <br />
+                    </td>
+               </tr>
+          </table> -->
+          <table id="flags" style="float: left">
                <th></th>
                <tr>
-                    <td style="text-align: right">
+                    <td style="text-align: right" align="middle">
                          <span class="tooltip" tooltip-data="Requires a destination tag for incoming payments">
                               <label for="asfRequireDest">Require Destination Tag</label>
                          </span>
@@ -269,8 +274,8 @@
                </tr>
                <tr>
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Requires authorization for trust lines">
-                              <label for="asfRequireAuth">Require Trust Line Auth</label>
+                         <span class="tooltip" tooltip-data="Requires authorization">
+                              <label for="asfRequireAuth">Require Auth</label>
                          </span>
                     </td>
                     <td>
@@ -347,7 +352,7 @@
                </tr>
           </table>
 
-          <table style="float: left">
+          <table id="flags" style="float: left">
                <th></th>
                <tr>
                     <td style="text-align: right">
@@ -365,7 +370,7 @@
                <tr>
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Allows another account to mint NFTs">
-                              <label for="asfAllowTrustLineClawback">Allow TrustLine Clawback</label>
+                              <label for="asfAllowTrustLineClawback">Allow Trust Line Clawback</label>
                          </span>
                     </td>
                     <td>
@@ -433,22 +438,11 @@
                               <label for="asfAuthorizedNFTokenMinter">Auth NFT Minter</label>
                          </span>
                     </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                    <td>
                          <label class="switch">
                               <input type="checkbox" id="asfAuthorizedNFTokenMinter" [(ngModel)]="flags.asfAuthorizedNFTokenMinter" (ngModelChange)="onAuthorizedNFTokenMinter()" name="asfAuthorizedNFTokenMinter" />
                               <span class="slider round"></span>
                          </label>
-                         <label for="asfAuthorizedNFTokenMinter"></label>
-                    </td>
-               </tr>
-               <tr *ngIf="flags.asfAuthorizedNFTokenMinter">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Enter the address of the account authorized to mint NFTs">
-                              <label for="nfTokenMinterAddress">NFT Minter Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="nfTokenMinterAddress" size="33" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress" placeholder="Enter authorized minter address" />
                     </td>
                </tr>
           </table>

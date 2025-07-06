@@ -19,8 +19,18 @@
      <nav id="navbar" class="navbar" [style.backgroundColor]="navbarColor">
           <div class="navbar-container">
                <div class="navbar-links">
-                    <a routerLink="/account" routerLinkActive="active" (click)="setActiveLink('/account')">Account Info</a>
-                    <a routerLink="/delete-account" routerLinkActive="active" (click)="setActiveLink('/delete-account')">Delete Account</a>
+                    <!-- <a routerLink="/account" routerLinkActive="active" (click)="setActiveLink('/account')">Account Info</a> -->
+                    <!-- <a routerLink="/delete-account" routerLinkActive="active" (click)="setActiveLink('/delete-account')">Delete Account</a> -->
+
+                    <div class="dropdown accounts-dropdown" [ngClass]="{ active: isAccountsDropdownActive }">
+                         <a href="#" class="dropdown-toggle" aria-label="Toggle Accounts dropdown" (click)="toggleAccountsDropdown($event)">Accounts ▾</a>
+                         <div class="dropdown-menu">
+                              <a routerLink="/account" routerLinkActive="active" (click)="setActiveAccountsLink('/account')">Account Info</a>
+                              <a routerLink="/account-configurator" routerLinkActive="active" (click)="setActiveAccountsLink('/account-configurator')">Configurator</a>
+                              <a routerLink="/delete-account" routerLinkActive="active" (click)="setActiveAccountsLink('/delete-account')">Delete Account</a>
+                         </div>
+                    </div>
+
                     <a routerLink="/send-xrp" routerLinkActive="active" (click)="setActiveLink('/send-xrp')">Send XRP</a>
                     <a routerLink="/trustlines" routerLinkActive="active" (click)="setActiveLink('/trustlines')">Manage Trustlines</a>
                     <a routerLink="/create-payment-channel" routerLinkActive="active" (click)="setActiveLink('/create-payment-channel')"> Payment Channel </a>

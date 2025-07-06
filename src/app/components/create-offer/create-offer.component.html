@@ -101,7 +101,10 @@
                          </span>
                     </td>
                     <td>
-                         <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" />
+                         <label class="switch">
+                              <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" />
+                              <span class="slider round"></span>
+                         </label>
                     </td>
                </tr>
           </table>
@@ -248,7 +251,10 @@
                          </span>
                     </td>
                     <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                         <label class="switch">
+                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                              <span class="slider round"></span>
+                         </label>
                          <label for="isTicketEnabled"></label>
                     </td>
                </tr>

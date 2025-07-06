@@ -89,11 +89,17 @@
                          <div style="display: flex; gap: 30px; align-items: center">
                               <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it" style="display: flex; align-items: center">
                                    <label for="burnableNft" style="margin-bottom: 0">Burnable</label>
-                                   <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" style="margin-left: 5px" />
+                                   <label class="switch">
+                                        <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" style="margin-left: 5px" />
+                                        <span class="slider round"></span>
+                                   </label>
                               </span>
                               <span class="tooltip" tooltip-data="NFT can only be bought/sold using XRP (no issued tokens)" style="display: flex; align-items: center">
                                    <label for="onlyXrpNft" style="margin-bottom: 0">Only XRP</label>
-                                   <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" style="margin-left: 5px" />
+                                   <label class="switch">
+                                        <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" style="margin-left: 5px" />
+                                        <span class="slider round"></span>
+                                   </label>
                               </span>
                          </div>
                     </td>
@@ -104,11 +110,17 @@
                          <div style="display: flex; gap: 30px; align-items: center">
                               <span class="tooltip" tooltip-data="Allows the NFT to be transferred to others" style="display: flex; align-items: center">
                                    <label for="transferableNft" style="margin-bottom: 0">Transferable</label>
-                                   <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" style="margin-left: 5px" />
+                                   <label class="switch">
+                                        <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" style="margin-left: 5px" />
+                                        <span class="slider round"></span>
+                                   </label>
                               </span>
                               <span class="tooltip" tooltip-data="The URI field of the minted NFToken can be updated using the NFTokenModify transaction" style="display: flex; align-items: center">
                                    <label for="mutableNft" style="margin-bottom: 0">Mutable</label>
-                                   <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" style="margin-left: 5px" />
+                                   <label class="switch">
+                                        <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" style="margin-left: 5px" />
+                                        <span class="slider round"></span>
+                                   </label>
                               </span>
                          </div>
                     </td>
@@ -215,6 +227,31 @@
                     </td>
                     <td>
                          <input type="text" id="nftCountField" size="85" [(ngModel)]="nftCountField" name="nftCountField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                              <label>Use Ticket Sequence</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isTicketEnabled"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                              <label for="ticketSequence"></label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
                          <br />
                     </td>
                </tr>

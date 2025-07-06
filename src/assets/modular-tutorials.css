@@ -1421,6 +1421,47 @@ mark {
      font-weight: bold;
 }
 
+.accounts-dropdown.active .dropdown-toggle {
+     color: #4CAF50;
+     font-weight: bold;
+}
+
+.accounts-dropdown {
+     position: relative;
+}
+
+.accounts-dropdown .dropdown-menu {
+     display: none;
+     position: absolute;
+     top: 100%;
+     left: 0;
+     background-color: #1a1c21;
+     border-radius: 10px;
+     padding: 10px;
+     min-width: 200px;
+     z-index: 1000;
+}
+
+.accounts-dropdown:hover .dropdown-menu {
+     display: block;
+}
+
+.accounts-dropdown .dropdown-toggle:hover {
+     color: #4CAF50;
+     cursor: pointer;
+}
+
+.accounts-dropdown .dropdown-menu a {
+     display: block;
+     padding: 5px 5px;
+     color: white;
+}
+
+.accounts-dropdown .dropdown-menu a:hover {
+     background-color: #2a2c31;
+     color: #4CAF50;
+}
+
 .escrows-dropdown.active .dropdown-toggle {
      color: #4CAF50;
      font-weight: bold;
