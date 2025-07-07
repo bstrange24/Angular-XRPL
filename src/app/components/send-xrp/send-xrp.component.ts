@@ -144,7 +144,9 @@ export class SendXrpComponent implements AfterViewChecked {
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
 
-               if (!wallet) return this.setError('ERROR: Wallet could not be created or is undefined');
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
 
                this.showSpinnerWithDelay('Sending XRP ...', 250);
 

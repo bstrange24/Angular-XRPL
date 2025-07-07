@@ -57,10 +57,20 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isTicketEnabled = false;
      isMultiSign = false;
      multiSignAddress = '';
+     signer1Account = '';
+     signer2Account = '';
+     signer3Account = '';
+     signer1Weight = '';
+     signer2Weight = '';
+     signer3Weight = '';
+     signerQuorum = '';
+     nfTokenMinterAddress = '';
      isUpdateMetaData = false;
      isHolderConfiguration = false;
      isExchangerConfiguration = false;
      isIssuerConfiguration = false;
+     isdepositAuthAddress = false;
+     depositAuthAddress = '';
      tickSize = '';
      transferRate = '';
      isMessageKey = false;
@@ -123,6 +133,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           } else {
                this.displayDataForAccount3();
           }
+          this.configurationType = null;
+     }
+
+     validateQuorum() {
+          this.cdr.detectChanges();
      }
 
      onConfigurationChange() {
@@ -138,6 +153,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.setIssuer();
           }
 
+          console.log('Configuration changed to:', this.configurationType);
           this.cdr.detectChanges();
      }
 
@@ -172,6 +188,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           if (transferRateFieldElem) transferRateFieldElem.value = '';
           const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
           if (tickSizeFieldElem) tickSizeFieldElem.value = '';
+
+          this.cdr.detectChanges();
      }
 
      setHolder() {
@@ -234,178 +252,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     // setHolder() {
-     //      const asfRequireDestElem = document.getElementById('asfRequireDest') as HTMLInputElement | null;
-     //      if (asfRequireDestElem) asfRequireDestElem.checked = false;
-
-     //      const asfRequireAuthElem = document.getElementById('asfRequireAuth') as HTMLInputElement | null;
-     //      if (asfRequireAuthElem) asfRequireAuthElem.checked = false;
-
-     //      const asfDisallowXRPElem = document.getElementById('asfDisallowXRP') as HTMLInputElement | null;
-     //      if (asfDisallowXRPElem) asfDisallowXRPElem.checked = false;
-
-     //      const asfDisableMasterElem = document.getElementById('asfDisableMaster') as HTMLInputElement | null;
-     //      if (asfDisableMasterElem) asfDisableMasterElem.checked = false;
-
-     //      const asfNoFreezeElem = document.getElementById('asfNoFreeze') as HTMLInputElement | null;
-     //      if (asfNoFreezeElem) asfNoFreezeElem.checked = false;
-
-     //      const asfGlobalFreezeElem = document.getElementById('asfGlobalFreeze') as HTMLInputElement | null;
-     //      if (asfGlobalFreezeElem) asfGlobalFreezeElem.checked = false;
-
-     //      const asfDefaultRippleElem = document.getElementById('asfDefaultRipple') as HTMLInputElement | null;
-     //      if (asfDefaultRippleElem) asfDefaultRippleElem.checked = false;
-
-     //      const asfDepositAuthElem = document.getElementById('asfDepositAuth') as HTMLInputElement | null;
-     //      if (asfDepositAuthElem) asfDepositAuthElem.checked = false;
-
-     //      const asfAuthorizedNFTokenMinterElem = document.getElementById('asfAuthorizedNFTokenMinter') as HTMLInputElement | null;
-     //      if (asfAuthorizedNFTokenMinterElem) asfAuthorizedNFTokenMinterElem.checked = false;
-
-     //      const asfAllowTrustLineClawbackElem = document.getElementById('asfAllowTrustLineClawback') as HTMLInputElement | null;
-     //      if (asfAllowTrustLineClawbackElem) asfAllowTrustLineClawbackElem.checked = false;
-
-     //      const asfDisallowIncomingNFTokenOfferElem = document.getElementById('asfDisallowIncomingNFTokenOffer') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingNFTokenOfferElem) asfDisallowIncomingNFTokenOfferElem.checked = false;
-
-     //      const asfDisallowIncomingCheckElem = document.getElementById('asfDisallowIncomingCheck') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingCheckElem) asfDisallowIncomingCheckElem.checked = false;
-
-     //      const asfDisallowIncomingPayChanElem = document.getElementById('asfDisallowIncomingPayChan') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingPayChanElem) asfDisallowIncomingPayChanElem.checked = false;
-
-     //      const asfDisallowIncomingTrustlineElem = document.getElementById('asfDisallowIncomingTrustline') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingTrustlineElem) asfDisallowIncomingTrustlineElem.checked = false;
-
-     //      const disallowIncomingXRPElem = document.getElementById('disallowIncomingXRP') as HTMLInputElement | null;
-     //      if (disallowIncomingXRPElem) disallowIncomingXRPElem.checked = false;
-
-     //      const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
-     //      if (domainFieldElem) domainFieldElem.value = '';
-
-     //      const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
-     //      if (transferRateFieldElem) transferRateFieldElem.value = '';
-
-     //      const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
-     //      if (tickSizeFieldElem) tickSizeFieldElem.value = '';
-
-     //      // document.getElementById('issuer_additional_fields').style.display = 'none';
-     // }
-
-     // setExchanger() {
-     //      const asfRequireDestElem = document.getElementById('asfRequireDest') as HTMLInputElement | null;
-     //      if (asfRequireDestElem) asfRequireDestElem.checked = true;
-
-     //      const asfRequireAuthElem = document.getElementById('asfRequireAuth') as HTMLInputElement | null;
-     //      if (asfRequireAuthElem) asfRequireAuthElem.checked = false;
-
-     //      const asfDisallowXRPElem = document.getElementById('asfDisallowXRP') as HTMLInputElement | null;
-     //      if (asfDisallowXRPElem) asfDisallowXRPElem.checked = false;
-
-     //      const asfDisableMasterElem = document.getElementById('asfDisableMaster') as HTMLInputElement | null;
-     //      if (asfDisableMasterElem) asfDisableMasterElem.checked = false;
-
-     //      const asfNoFreezeElem = document.getElementById('asfNoFreeze') as HTMLInputElement | null;
-     //      if (asfNoFreezeElem) asfNoFreezeElem.checked = false;
-
-     //      const asfGlobalFreezeElem = document.getElementById('asfGlobalFreeze') as HTMLInputElement | null;
-     //      if (asfGlobalFreezeElem) asfGlobalFreezeElem.checked = false;
-
-     //      const asfDefaultRippleElem = document.getElementById('asfDefaultRipple') as HTMLInputElement | null;
-     //      if (asfDefaultRippleElem) asfDefaultRippleElem.checked = true;
-
-     //      const asfDepositAuthElem = document.getElementById('asfDepositAuth') as HTMLInputElement | null;
-     //      if (asfDepositAuthElem) asfDepositAuthElem.checked = false;
-
-     //      const asfAuthorizedNFTokenMinterElem = document.getElementById('asfAuthorizedNFTokenMinter') as HTMLInputElement | null;
-     //      if (asfAuthorizedNFTokenMinterElem) asfAuthorizedNFTokenMinterElem.checked = false;
-
-     //      const asfAllowTrustLineClawbackElem = document.getElementById('asfAllowTrustLineClawback') as HTMLInputElement | null;
-     //      if (asfAllowTrustLineClawbackElem) asfAllowTrustLineClawbackElem.checked = false;
-
-     //      const asfDisallowIncomingNFTokenOfferElem = document.getElementById('asfDisallowIncomingNFTokenOffer') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingNFTokenOfferElem) asfDisallowIncomingNFTokenOfferElem.checked = true;
-
-     //      const asfDisallowIncomingCheckElem = document.getElementById('asfDisallowIncomingCheck') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingCheckElem) asfDisallowIncomingCheckElem.checked = false;
-
-     //      const asfDisallowIncomingPayChanElem = document.getElementById('asfDisallowIncomingPayChan') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingPayChanElem) asfDisallowIncomingPayChanElem.checked = true;
-
-     //      const asfDisallowIncomingTrustlineElem = document.getElementById('asfDisallowIncomingTrustline') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingTrustlineElem) asfDisallowIncomingTrustlineElem.checked = false;
-
-     //      const disallowIncomingXRPElem = document.getElementById('disallowIncomingXRP') as HTMLInputElement | null;
-     //      if (disallowIncomingXRPElem) disallowIncomingXRPElem.checked = false;
-
-     //      const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
-     //      if (domainFieldElem) domainFieldElem.value = '';
-
-     //      const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
-     //      if (transferRateFieldElem) transferRateFieldElem.value = '';
-
-     //      const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
-     //      if (tickSizeFieldElem) tickSizeFieldElem.value = '';
-
-     //      // document.getElementById('issuer_additional_fields').style.display = 'none';
-     // }
-
-     // setIssuer() {
-     //      const asfRequireDestElem = document.getElementById('asfRequireDest') as HTMLInputElement | null;
-     //      if (asfRequireDestElem) asfRequireDestElem.checked = true;
-
-     //      const asfRequireAuthElem = document.getElementById('asfRequireAuth') as HTMLInputElement | null;
-     //      if (asfRequireAuthElem) asfRequireAuthElem.checked = false;
-
-     //      const asfDisallowXRPElem = document.getElementById('asfDisallowXRP') as HTMLInputElement | null;
-     //      if (asfDisallowXRPElem) asfDisallowXRPElem.checked = false;
-
-     //      const asfDisableMasterElem = document.getElementById('asfDisableMaster') as HTMLInputElement | null;
-     //      if (asfDisableMasterElem) asfDisableMasterElem.checked = false;
-
-     //      const asfNoFreezeElem = document.getElementById('asfNoFreeze') as HTMLInputElement | null;
-     //      if (asfNoFreezeElem) asfNoFreezeElem.checked = false;
-
-     //      const asfGlobalFreezeElem = document.getElementById('asfGlobalFreeze') as HTMLInputElement | null;
-     //      if (asfGlobalFreezeElem) asfGlobalFreezeElem.checked = false;
-
-     //      const asfDefaultRippleElem = document.getElementById('asfDefaultRipple') as HTMLInputElement | null;
-     //      if (asfDefaultRippleElem) asfDefaultRippleElem.checked = true;
-
-     //      const asfDepositAuthElem = document.getElementById('asfDepositAuth') as HTMLInputElement | null;
-     //      if (asfDepositAuthElem) asfDepositAuthElem.checked = true;
-
-     //      const asfAuthorizedNFTokenMinterElem = document.getElementById('asfAuthorizedNFTokenMinter') as HTMLInputElement | null;
-     //      if (asfAuthorizedNFTokenMinterElem) asfAuthorizedNFTokenMinterElem.checked = false;
-
-     //      const asfAllowTrustLineClawbackElem = document.getElementById('asfAllowTrustLineClawback') as HTMLInputElement | null;
-     //      if (asfAllowTrustLineClawbackElem) asfAllowTrustLineClawbackElem.checked = false;
-
-     //      const asfDisallowIncomingNFTokenOfferElem = document.getElementById('asfDisallowIncomingNFTokenOffer') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingNFTokenOfferElem) asfDisallowIncomingNFTokenOfferElem.checked = true;
-
-     //      const asfDisallowIncomingCheckElem = document.getElementById('asfDisallowIncomingCheck') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingCheckElem) asfDisallowIncomingCheckElem.checked = true;
-
-     //      const asfDisallowIncomingPayChanElem = document.getElementById('asfDisallowIncomingPayChan') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingPayChanElem) asfDisallowIncomingPayChanElem.checked = true;
-
-     //      const asfDisallowIncomingTrustlineElem = document.getElementById('asfDisallowIncomingTrustline') as HTMLInputElement | null;
-     //      if (asfDisallowIncomingTrustlineElem) asfDisallowIncomingTrustlineElem.checked = false;
-
-     //      const disallowIncomingXRPElem = document.getElementById('disallowIncomingXRP') as HTMLInputElement | null;
-     //      if (disallowIncomingXRPElem) disallowIncomingXRPElem.checked = true;
-
-     //      const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
-     //      if (domainFieldElem) domainFieldElem.value = '';
-
-     //      const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
-     //      if (transferRateFieldElem) transferRateFieldElem.value = '';
-
-     //      const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
-     //      if (tickSizeFieldElem) tickSizeFieldElem.value = '';
-     // }
-
      toggleConfigurationTemplate() {
           this.cdr.detectChanges();
      }
@@ -452,7 +298,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -469,8 +315,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
@@ -512,8 +357,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Getting Account Details...', 200);
@@ -565,7 +409,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -587,8 +431,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Updating Account Flags...');
@@ -606,7 +449,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const transactions = [];
                let hasError = false;
 
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
+               // this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                for (const flagValue of setFlags) {
                     const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memoField);
@@ -662,7 +505,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -679,8 +522,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Updating Meta Data...');
@@ -780,13 +622,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
           }
 
-          const authorizedAddress = this.selectedAccount === 'account1' ? this.account2.address : this.account1.address;
+          const authorizedAddress = this.depositAuthAddress;
+          console.log(`Authorized Address: ${this.depositAuthAddress}`);
           if (!this.utilsService.validateInput(authorizedAddress)) {
                return this.setError('ERROR: Authorized account address cannot be empty');
           }
@@ -806,8 +649,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Setting Deposit Auth...');
@@ -895,7 +737,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -912,9 +754,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
+
+               console.log(`this.signer1Account ${this.signer1Account} this.signer2Account ${this.signer2Account} this.signer3Account ${this.signer3Account}`);
+               console.log(`this.signer1Weight ${this.signer1Weight} this.signer2Weight ${this.signer2Weight} this.signer3Weight ${this.signer3Weight} this.signerQuorum ${this.signerQuorum}`);
 
                this.updateSpinnerMessage('Setting Multi Sign...');
 
@@ -922,52 +766,64 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                let signerListTx: SignerListSet;
                if (enableMultiSignFlag === 'Y') {
-                    const addressesArray = this.multiSignAddress
-                         .split(',')
-                         .map(address => address.trim())
-                         .filter(addr => addr !== '');
+                    // Create array of signer accounts and their weights
+                    const signerEntries = [
+                         { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight) },
+                         { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight) },
+                         { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight) },
+                    ].filter(entry => entry.Account && entry.SignerWeight > 0); // Filter out empty or invalid entries
 
-                    // Validate: At least one address
-                    if (!addressesArray.length) {
-                         return this.setError('ERROR: Multi-sign address list is empty');
+                    // Validate: At least one valid signer
+                    if (!signerEntries.length) {
+                         return this.setError('ERROR: No valid signer accounts provided');
                     }
 
+                    // Validate: Self-address not included
                     const selfAddress = wallet.classicAddress;
-                    if (addressesArray.includes(selfAddress)) {
+                    if (signerEntries.some(entry => entry.Account === selfAddress)) {
                          return this.setError('ERROR: Your own account cannot be in the signer list');
                     }
 
                     // Validate: Each is a classic XRPL address
-                    const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+                    const invalidAddresses = signerEntries.filter(entry => !xrpl.isValidClassicAddress(entry.Account));
                     if (invalidAddresses.length > 0) {
-                         return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
+                         return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.map(entry => entry.Account).join(', ')}`);
                     }
 
                     // Validate: No duplicates
-                    const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+                    const addresses = signerEntries.map(entry => entry.Account);
+                    const duplicates = addresses.filter((addr, idx, self) => self.indexOf(addr) !== idx);
                     if (duplicates.length > 0) {
                          return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
                     }
 
-                    if (invalidAddresses.length > 8) {
-                         return this.setError(`ERROR: XRPL allows max 8 signer entries. You entered ${invalidAddresses.length}`);
+                    // Validate: Max 8 signers
+                    if (signerEntries.length > 8) {
+                         return this.setError(`ERROR: XRPL allows max 8 signer entries. You provided ${signerEntries.length}`);
                     }
 
-                    const SignerEntries = addressesArray.map(address => ({
+                    // Validate: Quorum does not exceed total weight
+                    const totalWeight = signerEntries.reduce((sum, entry) => sum + entry.SignerWeight, 0);
+                    const SignerQuorum = Number(this.signerQuorum);
+                    if (SignerQuorum > totalWeight) {
+                         return this.setError(`ERROR: Quorum (${SignerQuorum}) exceeds total signer weight (${totalWeight})`);
+                    }
+                    if (SignerQuorum <= 0) {
+                         return this.setError('ERROR: Quorum must be greater than 0');
+                    }
+
+                    // Format SignerEntries for XRPL transaction
+                    const formattedSignerEntries = signerEntries.map(entry => ({
                          SignerEntry: {
-                              Account: address,
-                              SignerWeight: 1,
+                              Account: entry.Account,
+                              SignerWeight: entry.SignerWeight,
                          },
                     }));
-
-                    const SignerQuorum = Math.ceil(SignerEntries.length / 2);
-                    if (SignerQuorum > SignerEntries.length) {
-                         return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
-                    }
 
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                     if (this.ticketSequence) {
+                         // Validate ticket sequence
                          if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
@@ -976,7 +832,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                               TransactionType: 'SignerListSet',
                               Account: wallet.classicAddress,
                               SignerQuorum,
-                              SignerEntries,
+                              SignerEntries: formattedSignerEntries,
                               TicketSequence: Number(this.ticketSequence),
                               Sequence: 0,
                               Fee: fee,
@@ -998,7 +854,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                               TransactionType: 'SignerListSet',
                               Account: wallet.classicAddress,
                               SignerQuorum,
-                              SignerEntries,
+                              SignerEntries: formattedSignerEntries,
                               Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
@@ -1015,9 +871,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                     }
                } else {
+                    // Disable multi-sign (set SignerQuorum to 0 and empty SignerEntries)
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                     if (this.ticketSequence) {
+                         // Validate ticket sequence
                          if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
@@ -1063,6 +921,150 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                     }
                }
+
+               // let signerListTx: SignerListSet;
+               // if (enableMultiSignFlag === 'Y') {
+               //      const addressesArray = this.multiSignAddress
+               //           .split(',')
+               //           .map(address => address.trim())
+               //           .filter(addr => addr !== '');
+
+               //      // Validate: At least one address
+               //      if (!addressesArray.length) {
+               //           return this.setError('ERROR: Multi-sign address list is empty');
+               //      }
+
+               //      const selfAddress = wallet.classicAddress;
+               //      if (addressesArray.includes(selfAddress)) {
+               //           return this.setError('ERROR: Your own account cannot be in the signer list');
+               //      }
+
+               //      // Validate: Each is a classic XRPL address
+               //      const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+               //      if (invalidAddresses.length > 0) {
+               //           return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
+               //      }
+
+               //      // Validate: No duplicates
+               //      const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+               //      if (duplicates.length > 0) {
+               //           return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
+               //      }
+
+               //      if (invalidAddresses.length > 8) {
+               //           return this.setError(`ERROR: XRPL allows max 8 signer entries. You entered ${invalidAddresses.length}`);
+               //      }
+
+               //      const SignerEntries = addressesArray.map(address => ({
+               //           SignerEntry: {
+               //                Account: address,
+               //                SignerWeight: 1,
+               //           },
+               //      }));
+
+               //      const SignerQuorum = Math.ceil(SignerEntries.length / 2);
+               //      if (SignerQuorum > SignerEntries.length) {
+               //           return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
+               //      }
+
+               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               //      if (this.ticketSequence) {
+               //           if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+               //                return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+               //           }
+
+               //           signerListTx = await client.autofill({
+               //                TransactionType: 'SignerListSet',
+               //                Account: wallet.classicAddress,
+               //                SignerQuorum,
+               //                SignerEntries,
+               //                TicketSequence: Number(this.ticketSequence),
+               //                Sequence: 0,
+               //                Fee: fee,
+               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               //           });
+
+               //           if (this.memoField) {
+               //                signerListTx.Memos = [
+               //                     {
+               //                          Memo: {
+               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+               //                          },
+               //                     },
+               //                ];
+               //           }
+               //      } else {
+               //           signerListTx = await client.autofill({
+               //                TransactionType: 'SignerListSet',
+               //                Account: wallet.classicAddress,
+               //                SignerQuorum,
+               //                SignerEntries,
+               //                Fee: fee,
+               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               //           });
+
+               //           if (this.memoField) {
+               //                signerListTx.Memos = [
+               //                     {
+               //                          Memo: {
+               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+               //                          },
+               //                     },
+               //                ];
+               //           }
+               //      }
+               // } else {
+               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               //      if (this.ticketSequence) {
+               //           if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+               //                return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+               //           }
+
+               //           signerListTx = await client.autofill({
+               //                TransactionType: 'SignerListSet',
+               //                Account: wallet.classicAddress,
+               //                SignerQuorum: 0,
+               //                TicketSequence: Number(this.ticketSequence),
+               //                Sequence: 0,
+               //                Fee: fee,
+               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               //           });
+
+               //           if (this.memoField) {
+               //                signerListTx.Memos = [
+               //                     {
+               //                          Memo: {
+               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+               //                          },
+               //                     },
+               //                ];
+               //           }
+               //      } else {
+               //           signerListTx = await client.autofill({
+               //                TransactionType: 'SignerListSet',
+               //                Account: wallet.classicAddress,
+               //                SignerQuorum: 0,
+               //                Fee: fee,
+               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               //           });
+
+               //           if (this.memoField) {
+               //                signerListTx.Memos = [
+               //                     {
+               //                          Memo: {
+               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+               //                          },
+               //                     },
+               //                ];
+               //           }
+               //      }
+               // }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, signerListTx, fee)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
@@ -1098,13 +1100,23 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
 
+          if (flagPayload.SetFlag) {
+               const flagToUpdate = Array.from(AppConstants.FLAGS.values()).find((flag: any) => flag.value === flagPayload.SetFlag);
+               this.updateSpinnerMessage(`Submitting ${flagToUpdate ? flagToUpdate.label : 'Flag'} set flag to the Ledger...`);
+          }
+
+          if (flagPayload.ClearFlag) {
+               const flagToUpdate = Array.from(AppConstants.FLAGS.values()).find((flag: any) => flag.value === flagPayload.ClearFlag);
+               this.updateSpinnerMessage(`Submitting ${flagToUpdate ? flagToUpdate.label : 'Flag'} clear flag to the Ledger...`);
+          }
+
           let tx;
           if (flagPayload.SetFlag === 10) {
                tx = {
                     TransactionType: 'AccountSet',
                     Account: wallet.classicAddress,
                     ...flagPayload,
-                    NFTokenMinter: 'rETbLUGdjTo2PScLT5xCUZ8ov7B9zHnRqo',
+                    NFTokenMinter: this.nfTokenMinterAddress,
                };
           } else {
                tx = {

@@ -141,8 +141,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');
@@ -272,8 +271,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
@@ -415,8 +413,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                // Build amount object depending on currency
@@ -538,8 +535,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                const fee = await this.xrplService.calculateTransactionFee(client);

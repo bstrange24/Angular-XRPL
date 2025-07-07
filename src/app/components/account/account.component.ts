@@ -175,8 +175,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
@@ -216,8 +215,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Getting Account Details...', 200);
@@ -291,8 +289,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Updating Account Flags...');
@@ -383,8 +380,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Updating Meta Data...');
@@ -510,8 +506,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Setting Deposit Auth...');
@@ -616,8 +611,7 @@ export class AccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.updateSpinnerMessage('Setting Multi Sign...');

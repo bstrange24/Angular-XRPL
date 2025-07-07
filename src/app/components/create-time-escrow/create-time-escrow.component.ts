@@ -275,8 +275,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Create Time Based Escrow ...', 250);
@@ -396,8 +395,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Finishing Escrow ...', 250);
@@ -529,8 +527,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Cancelling Escrow ...', 250);

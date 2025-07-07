@@ -140,8 +140,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Deleting account ...', 250);

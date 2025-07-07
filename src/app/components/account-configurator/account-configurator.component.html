@@ -2,7 +2,6 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <!-- <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input> -->
      <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
@@ -102,161 +101,8 @@
                          <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                     </td>
                </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                              <label>Enable Multi-Sign Address</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isMultiSignAddressData"></label>
-                    </td>
-               </tr>
-               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma seperated list">
-                              <label for="multiSignAddress">Multi-Sign Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <textarea class="memoField" style="width: 280px" id="multiSignAddress" placeholder="Comma seperated list of address for multi sign" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
-                         <br />
-                    </td>
-               </tr>
           </table>
 
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                              <label for="memoField">Memo</label>
-                         </span>
-                    </td>
-                    <td>
-                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequence</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isTicketEnabled"></label>
-                    </td>
-               </tr>
-               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
-                              <label for="ticketSequence"></label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                         <br />
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to update the account meta data">
-                              <label>Update Meta Data</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isUpdateMetaData" [(ngModel)]="isUpdateMetaData" (ngModelChange)="toggleMetaData()" name="isUpdateMetaData" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isUpdateMetaData"></label>
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
-                              <label for="tickSizeField">Tick Size</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tickSizeField" size="40" placeholder="Value must be between 3 and 15" [(ngModel)]="tickSize" name="tickSizeField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Defines how much extra to charge when people hold your issued tokens (only applies to issuers). It's a ratio multiplied by 1,000,000,000">
-                              <label for="transferRateField">Transfer Rate</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="transferRateField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferRate" name="transferRateField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to save the message key in the account Information">
-                              <label>Save Message Key</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isMessageKey" [(ngModel)]="isMessageKey" name="isMessageKey" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isMessageKey"></label>
-                    </td>
-               </tr>
-               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Web identity.">
-                              <label for="domainField">Domain</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="domainField" size="40" [(ngModel)]="domain" name="domainField" />
-                         <br />
-                    </td>
-               </tr>
-          </table>
-
-          <!-- <table style="float: left">
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                              <label>Enable Multi-Sign Address</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isMultiSignAddressData"></label>
-                    </td>
-               </tr>
-               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma seperated list">
-                              <label for="multiSignAddress">Multi-Sign Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <textarea class="memoField" style="width: 280px" id="multiSignAddress" placeholder="Comma seperated list of address for multi sign" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
-                         <br />
-                    </td>
-               </tr>
-          </table> -->
           <table id="flags" style="float: left">
                <th></th>
                <tr>
@@ -432,17 +278,219 @@
                          </label>
                     </td>
                </tr>
+          </table>
+
+          <table id="meta" style="float: left; padding-left: 25px">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
+                              <label for="memoField">Memo</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea style="width: 280px; height: 95px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to enter a deposit auth address">
+                              <label>Deposit Auth Address</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isdepositAuthAddress" [(ngModel)]="isdepositAuthAddress" name="isdepositAuthAddress" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isdepositAuthAddress"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isdepositAuthAddress">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                              <label for="depositAuthAddress"></label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="depositAuthAddress" size="40" id="depositAuthAddress" placeholder="Enter Deposit Auth Address" [(ngModel)]="depositAuthAddress" name="depositAuthAddress" />
+                         <br />
+                    </td>
+               </tr>
                <tr>
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.">
                               <label for="asfAuthorizedNFTokenMinter">Auth NFT Minter</label>
                          </span>
                     </td>
-                    <td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
                          <label class="switch">
                               <input type="checkbox" id="asfAuthorizedNFTokenMinter" [(ngModel)]="flags.asfAuthorizedNFTokenMinter" (ngModelChange)="onAuthorizedNFTokenMinter()" name="asfAuthorizedNFTokenMinter" />
                               <span class="slider round"></span>
                          </label>
+                         <label for="asfAuthorizedNFTokenMinter"></label>
+                    </td>
+               </tr>
+               <tr *ngIf="flags.asfAuthorizedNFTokenMinter">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Enter the address of the account authorized to mint NFTs">
+                              <label for="nfTokenMinterAddress">NFT Minter Address</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="nfTokenMinterAddress" size="40" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress" placeholder="Enter authorized minter address" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                              <label>Use Ticket Sequence</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isTicketEnabled"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                              <label for="ticketSequence"></label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to update the account meta data">
+                              <label>Update Meta Data</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isUpdateMetaData" [(ngModel)]="isUpdateMetaData" (ngModelChange)="toggleMetaData()" name="isUpdateMetaData" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isUpdateMetaData"></label>
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
+                              <label for="tickSizeField">Tick Size</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="tickSizeField" size="40" placeholder="Value must be between 3 and 15" [(ngModel)]="tickSize" name="tickSizeField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Defines how much extra to charge when people hold your issued tokens (only applies to issuers). It's a ratio multiplied by 1,000,000,000">
+                              <label for="transferRateField">Transfer Rate</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="transferRateField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferRate" name="transferRateField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to save the message key in the account Information">
+                              <label>Save Message Key</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isMessageKey" [(ngModel)]="isMessageKey" name="isMessageKey" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isMessageKey"></label>
+                    </td>
+               </tr>
+               <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Web identity.">
+                              <label for="domainField">Domain</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="domainField" size="40" [(ngModel)]="domain" name="domainField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                              <label>Enable Multi-Sign Address</label>
+                         </span>
+                    </td>
+                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                         <label class="switch">
+                              <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                              <span class="slider round"></span>
+                         </label>
+                         <label for="isMultiSignAddressData"></label>
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma separated list">
+                              <label for="signer1AccountField">Signer 1 Account</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="signer1AccountField" size="40" [(ngModel)]="signer1Account" name="signer1AccountField" />
+                         <span class="tooltip" tooltip-data="Relative value of the signer's vote on approvals.">Weight</span>
+                         &nbsp;&nbsp;
+                         <input type="text" id="signer1WeightField" size="5" [(ngModel)]="signer1Weight" name="signer1WeightField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma separated list">
+                              <label for="signer2AccountField">Signer 2 Account</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="signer2AccountField" size="40" [(ngModel)]="signer2Account" name="signer2AccountField" />
+                         <span class="tooltip" tooltip-data="Relative value of the signer's vote on approvals.">Weight</span>
+                         &nbsp;&nbsp;
+                         <input type="text" id="signer2WeightField" size="5" [(ngModel)]="signer2Weight" name="signer2WeightField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Add address for multi sign. This is a comma separated list">
+                              <label for="signer3AccountField">Signer 3 Account</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="signer3AccountField" size="40" [(ngModel)]="signer3Account" name="signer3AccountField" />
+                         <span class="tooltip" tooltip-data="Relative value of the signer's vote on approvals.">Weight</span>
+                         &nbsp;&nbsp;
+                         <input type="text" id="signer3WeightField" size="5" [(ngModel)]="signer3Weight" name="signer3WeightField" />
+                         <br />
+                    </td>
+               </tr>
+               <tr class="multisignAddressClass" style="vertical-align: top; padding-left: 240px" *ngIf="isMultiSign">
+                    <td></td>
+                    <td style="padding-left: 240px">
+                         <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum</span>
+                         &nbsp;&nbsp;
+                         <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                         <br />
                     </td>
                </tr>
           </table>

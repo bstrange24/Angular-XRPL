@@ -156,9 +156,13 @@ table {
 #issuerAddress,
 #issuerField,
 #weWantIssuerField,
-#weSpendIssuerField {
+#weSpendIssuerField,
+#depositAuthAddress,
+#nfTokenMinterAddress,
+#signer1AccountField,
+#signer2AccountField,
+#signer3AccountField {
      color: #4CAF50;
-     ;
 }
 
 button {

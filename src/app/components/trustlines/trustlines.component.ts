@@ -135,8 +135,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Getting Trustlines...', 200);
@@ -312,7 +311,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
 
-               if (!wallet) return this.setError('ERROR: Wallet could not be created or is undefined');
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
 
                this.updateSpinnerMessage('Setting Trustline...');
 
@@ -597,7 +598,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
 
-               if (!wallet) return this.setError('ERROR: Wallet could not be created or is undefined');
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
 
                this.updateSpinnerMessage('Removing Trustline...');
 

@@ -136,8 +136,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                this.showSpinnerWithDelay('Getting Payment Channels...', 200);
@@ -234,8 +233,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                }
 
                if (!wallet) {
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-                    return;
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
                const fee = await this.xrplService.calculateTransactionFee(client);
@@ -657,8 +655,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      //           }
 
      //           if (!wallet) {
-     //                this.setError('ERROR: Wallet could not be created or is undefined');
-     //                return;
+     //                return this.setError('ERROR: Wallet could not be created or is undefined');
      //           }
 
      //           const fee = await this.xrplService.calculateTransactionFee(client);
@@ -1086,8 +1083,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           if (!wallet) {
-               this.setError('ERROR: Wallet could not be created or is undefined');
-               return;
+               return this.setError('ERROR: Wallet could not be created or is undefined');
           }
 
           try {
