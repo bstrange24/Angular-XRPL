@@ -21,7 +21,7 @@ interface AccountFlags {
      asfGlobalFreeze: boolean;
      asfDefaultRipple: boolean;
      asfDepositAuth: boolean;
-     asfAuthorizedNFTokenMinter: boolean;
+     // asfAuthorizedNFTokenMinter: boolean;
      asfAllowTrustLineClawback: boolean;
      asfDisallowIncomingNFTokenOffer: boolean;
      asfDisallowIncomingCheck: boolean;
@@ -70,6 +70,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isExchangerConfiguration = false;
      isIssuerConfiguration = false;
      isdepositAuthAddress = false;
+     isAuthorizedNFTokenMinter: boolean = false;
      depositAuthAddress = '';
      tickSize = '';
      transferRate = '';
@@ -86,7 +87,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           asfGlobalFreeze: false,
           asfDefaultRipple: false,
           asfDepositAuth: false,
-          asfAuthorizedNFTokenMinter: false,
+          // asfAuthorizedNFTokenMinter: false,
           asfAllowTrustLineClawback: false,
           asfDisallowIncomingNFTokenOffer: false,
           asfDisallowIncomingCheck: false,
@@ -168,7 +169,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                asfGlobalFreeze: false,
                asfDefaultRipple: false,
                asfDepositAuth: false,
-               asfAuthorizedNFTokenMinter: false,
+               // asfAuthorizedNFTokenMinter: false,
                asfAllowTrustLineClawback: false,
                asfDisallowIncomingNFTokenOffer: false,
                asfDisallowIncomingCheck: false,
@@ -202,7 +203,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfGlobalFreeze = false;
           this.flags.asfDefaultRipple = false;
           this.flags.asfDepositAuth = false;
-          this.flags.asfAuthorizedNFTokenMinter = false;
+          // this.flags.asfAuthorizedNFTokenMinter = false;
           this.flags.asfAllowTrustLineClawback = false;
           this.flags.asfDisallowIncomingNFTokenOffer = false;
           this.flags.asfDisallowIncomingCheck = false;
@@ -222,7 +223,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfGlobalFreeze = false;
           this.flags.asfDefaultRipple = true;
           this.flags.asfDepositAuth = false;
-          this.flags.asfAuthorizedNFTokenMinter = false;
+          // this.flags.asfAuthorizedNFTokenMinter = false;
           this.flags.asfAllowTrustLineClawback = false;
           this.flags.asfDisallowIncomingNFTokenOffer = true;
           this.flags.asfDisallowIncomingCheck = false;
@@ -242,7 +243,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfGlobalFreeze = false;
           this.flags.asfDefaultRipple = true;
           this.flags.asfDepositAuth = true;
-          this.flags.asfAuthorizedNFTokenMinter = false;
+          // this.flags.asfAuthorizedNFTokenMinter = false;
           this.flags.asfAllowTrustLineClawback = false;
           this.flags.asfDisallowIncomingNFTokenOffer = true;
           this.flags.asfDisallowIncomingCheck = true;
@@ -310,8 +311,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let wallet;
                if (this.selectedAccount === 'account1') {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
+               } else if (this.selectedAccount === 'account2') {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                if (!wallet) {
@@ -385,10 +388,36 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.setSuccess(this.result);
 
                const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-               if (signerAccounts) {
-                    this.multiSignAddress = signerAccounts.map(account => account + ',\n').join('');
+               if (signerAccounts && signerAccounts.length > 0) {
+                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
+                         this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
+                         this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
+                         this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
+                         this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
+                         this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
+                         this.isMultiSign = true;
+                    }
                } else {
                     this.multiSignAddress = '';
+                    this.isMultiSign = false;
+               }
+
+               const preAuthAccounts: string[] = this.findDepositPreauthObjects(accountObjects);
+               if (preAuthAccounts && preAuthAccounts.length > 0) {
+                    this.depositAuthAddress = preAuthAccounts.map(account => account + ',\n').join('');
+                    this.isdepositAuthAddress = true;
+               } else {
+                    this.depositAuthAddress = '';
+                    this.isdepositAuthAddress = false;
+               }
+
+               if (accountInfo.result.account_data && accountInfo.result.account_data.NFTokenMinter) {
+                    this.isAuthorizedNFTokenMinter = true;
+                    this.nfTokenMinterAddress = accountInfo.result.account_data.NFTokenMinter;
+               } else {
+                    this.isAuthorizedNFTokenMinter = false;
+                    this.nfTokenMinterAddress = '';
                }
 
                await this.updateXrpBalance(client, wallet);
@@ -426,8 +455,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let wallet;
                if (this.selectedAccount === 'account1') {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
+               } else if (this.selectedAccount === 'account2') {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                if (!wallet) {
@@ -448,8 +479,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const transactions = [];
                let hasError = false;
-
-               // this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                for (const flagValue of setFlags) {
                     const response = await this.submitFlagTransaction(client, wallet, { SetFlag: parseInt(flagValue) }, this.memoField);
@@ -517,8 +546,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let wallet;
                if (this.selectedAccount === 'account1') {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
+               } else if (this.selectedAccount === 'account2') {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                if (!wallet) {
@@ -615,11 +646,12 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     async setDepositAuthAccounts(authorizeFlag: 'Y' | 'N') {
+     async setDepositAuthAccounts(authorizeFlag: 'Y' | 'N'): Promise<void> {
           console.log('Entering setDepositAuthAccounts');
           const startTime = Date.now();
           this.setSuccessProperties();
 
+          // Validate selected account and seed
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
@@ -628,14 +660,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${validationError}`);
           }
 
-          const authorizedAddress = this.depositAuthAddress;
-          console.log(`Authorized Address: ${this.depositAuthAddress}`);
-          if (!this.utilsService.validateInput(authorizedAddress)) {
-               return this.setError('ERROR: Authorized account address cannot be empty');
-          }
+          // Split and validate deposit auth addresses
+          const addressesArray = this.depositAuthAddress
+               .split(',')
+               .map(address => address.trim())
+               .filter(addr => addr !== '');
 
-          if (!xrpl.isValidAddress(authorizedAddress)) {
-               return this.setError('ERROR: Authorized account address is invalid');
+          // Validate: At least one address
+          if (!addressesArray.length) {
+               return this.setError('ERROR: Deposit Auth address list is empty');
           }
 
           try {
@@ -644,80 +677,118 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let wallet;
                if (this.selectedAccount === 'account1') {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
+               } else if (this.selectedAccount === 'account2') {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.updateSpinnerMessage('Setting Deposit Auth...');
-
-               let accountInfo;
-               try {
-                    accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
-               } catch (error: any) {
-                    if (error.data?.error === 'actNotFound') {
-                         return this.setError('ERROR: Authorized account does not exist (tecNO_TARGET)');
-                    }
-                    throw error;
+               // Validate: Self-address not included
+               const selfAddress = wallet.classicAddress;
+               if (addressesArray.includes(selfAddress)) {
+                    return this.setError('ERROR: Your own account cannot be in the deposit auth list');
                }
 
-               console.debug(`accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
-
-               if (!accountInfo.result.account_flags?.depositAuth) {
-                    return this.setError('ERROR: Account must have asfDepositAuth flag enabled');
+               // Validate: Each is a classic XRPL address
+               const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+               if (invalidAddresses.length > 0) {
+                    return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
                }
 
+               // Validate: No duplicates
+               const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+               if (duplicates.length > 0) {
+                    return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
+               }
+
+               // Get account objects once for efficiency
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)}`);
 
-               const alreadyAuthorized = accountObjects.result.account_objects.some((obj: any) => obj.Authorize === authorizedAddress);
-               if (authorizeFlag === 'Y' && alreadyAuthorized) {
-                    return this.setError('ERROR: Preauthorization already exists (tecDUPLICATE). Use Unauthorize to remove');
+               // Validate each address
+               for (const authorizedAddress of addressesArray) {
+                    // Check if account exists and has asfDepositAuth flag
+                    let accountInfo;
+                    try {
+                         accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
+                    } catch (error: any) {
+                         if (error.data?.error === 'actNotFound') {
+                              return this.setError(`ERROR: Authorized account ${authorizedAddress} does not exist (tecNO_TARGET)`);
+                         }
+                         throw error;
+                    }
+                    console.debug(`accountInfo for ${authorizedAddress}: ${JSON.stringify(accountInfo, null, 2)}`);
+
+                    if (!accountInfo.result.account_flags?.depositAuth) {
+                         return this.setError(`ERROR: Account ${authorizedAddress} must have asfDepositAuth flag enabled`);
+                    }
+
+                    // Check for existing preauthorization
+                    const alreadyAuthorized = accountObjects.result.account_objects.some((obj: any) => obj.Authorize === authorizedAddress);
+                    if (authorizeFlag === 'Y' && alreadyAuthorized) {
+                         return this.setError(`ERROR: Preauthorization already exists for ${authorizedAddress} (tecDUPLICATE). Use Unauthorize to remove`);
+                    }
+                    if (authorizeFlag === 'N' && !alreadyAuthorized) {
+                         return this.setError(`ERROR: No preauthorization exists for ${authorizedAddress} to unauthorize`);
+                    }
                }
+
+               this.updateSpinnerMessage('Setting Deposit Auth...');
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               const results: any[] = [];
 
-               const depositPreauthTx: DepositPreauth = await client.autofill({
-                    TransactionType: 'DepositPreauth',
-                    Account: wallet.classicAddress,
-                    [authorizeFlag === 'Y' ? 'Authorize' : 'Unauthorize']: authorizedAddress,
-                    Fee: fee,
-                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               });
+               // Process each address
+               for (const authorizedAddress of addressesArray) {
+                    const depositPreauthTx: DepositPreauth = await client.autofill({
+                         TransactionType: 'DepositPreauth',
+                         Account: wallet.classicAddress,
+                         [authorizeFlag === 'Y' ? 'Authorize' : 'Unauthorize']: authorizedAddress,
+                         Fee: fee,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
 
-               if (this.memoField) {
-                    depositPreauthTx.Memos = [
-                         {
-                              Memo: {
-                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                    if (this.memoField) {
+                         depositPreauthTx.Memos = [
+                              {
+                                   Memo: {
+                                        MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                        MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                   },
                               },
-                         },
-                    ];
+                         ];
+                    }
+
+                    // Check XRP balance for each transaction
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
+                         return this.setError(`ERROR: Insufficient XRP to complete transaction for ${authorizedAddress}`);
+                    }
+
+                    this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
+
+                    // Submit transaction
+                    const response = await client.submitAndWait(depositPreauthTx, { wallet });
+                    const result = response.result;
+                    results.push({ result });
+
+                    // Check transaction result
+                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                         console.error(`Response for ${authorizedAddress}: ${JSON.stringify(response, null, 2)}`);
+                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
+                    }
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
-
-               const response = await client.submitAndWait(depositPreauthTx, { wallet });
-               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`response ${JSON.stringify(response, null, 2)}`);
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
-                    return;
-               }
-
-               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               // All transactions successful
+               this.utilsService.renderTransactionsResults(results, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -749,8 +820,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let wallet;
                if (this.selectedAccount === 'account1') {
                     wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
+               } else if (this.selectedAccount === 'account2') {
                     wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
                }
 
                if (!wallet) {
@@ -922,150 +995,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                }
 
-               // let signerListTx: SignerListSet;
-               // if (enableMultiSignFlag === 'Y') {
-               //      const addressesArray = this.multiSignAddress
-               //           .split(',')
-               //           .map(address => address.trim())
-               //           .filter(addr => addr !== '');
-
-               //      // Validate: At least one address
-               //      if (!addressesArray.length) {
-               //           return this.setError('ERROR: Multi-sign address list is empty');
-               //      }
-
-               //      const selfAddress = wallet.classicAddress;
-               //      if (addressesArray.includes(selfAddress)) {
-               //           return this.setError('ERROR: Your own account cannot be in the signer list');
-               //      }
-
-               //      // Validate: Each is a classic XRPL address
-               //      const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
-               //      if (invalidAddresses.length > 0) {
-               //           return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
-               //      }
-
-               //      // Validate: No duplicates
-               //      const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
-               //      if (duplicates.length > 0) {
-               //           return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
-               //      }
-
-               //      if (invalidAddresses.length > 8) {
-               //           return this.setError(`ERROR: XRPL allows max 8 signer entries. You entered ${invalidAddresses.length}`);
-               //      }
-
-               //      const SignerEntries = addressesArray.map(address => ({
-               //           SignerEntry: {
-               //                Account: address,
-               //                SignerWeight: 1,
-               //           },
-               //      }));
-
-               //      const SignerQuorum = Math.ceil(SignerEntries.length / 2);
-               //      if (SignerQuorum > SignerEntries.length) {
-               //           return this.setError(`ERROR: Quorum (${SignerQuorum}) > total signers (${SignerEntries.length})`);
-               //      }
-
-               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-               //      if (this.ticketSequence) {
-               //           if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-               //                return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-               //           }
-
-               //           signerListTx = await client.autofill({
-               //                TransactionType: 'SignerListSet',
-               //                Account: wallet.classicAddress,
-               //                SignerQuorum,
-               //                SignerEntries,
-               //                TicketSequence: Number(this.ticketSequence),
-               //                Sequence: 0,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-
-               //           if (this.memoField) {
-               //                signerListTx.Memos = [
-               //                     {
-               //                          Memo: {
-               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-               //                          },
-               //                     },
-               //                ];
-               //           }
-               //      } else {
-               //           signerListTx = await client.autofill({
-               //                TransactionType: 'SignerListSet',
-               //                Account: wallet.classicAddress,
-               //                SignerQuorum,
-               //                SignerEntries,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-
-               //           if (this.memoField) {
-               //                signerListTx.Memos = [
-               //                     {
-               //                          Memo: {
-               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-               //                          },
-               //                     },
-               //                ];
-               //           }
-               //      }
-               // } else {
-               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-               //      if (this.ticketSequence) {
-               //           if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-               //                return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-               //           }
-
-               //           signerListTx = await client.autofill({
-               //                TransactionType: 'SignerListSet',
-               //                Account: wallet.classicAddress,
-               //                SignerQuorum: 0,
-               //                TicketSequence: Number(this.ticketSequence),
-               //                Sequence: 0,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-
-               //           if (this.memoField) {
-               //                signerListTx.Memos = [
-               //                     {
-               //                          Memo: {
-               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-               //                          },
-               //                     },
-               //                ];
-               //           }
-               //      } else {
-               //           signerListTx = await client.autofill({
-               //                TransactionType: 'SignerListSet',
-               //                Account: wallet.classicAddress,
-               //                SignerQuorum: 0,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-
-               //           if (this.memoField) {
-               //                signerListTx.Memos = [
-               //                     {
-               //                          Memo: {
-               //                               MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-               //                               MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-               //                          },
-               //                     },
-               //                ];
-               //           }
-               //      }
-               // }
-
                if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, signerListTx, fee)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
@@ -1096,6 +1025,149 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
+     async setNftMinterAddress(enableNftMinter: 'Y' | 'N') {
+          console.log('Entering setMultiSign');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          // Split and validate deposit auth addresses
+          const addressesArray = this.nfTokenMinterAddress
+               .split(',')
+               .map(address => address.trim())
+               .filter(addr => addr !== '');
+
+          // Validate: At least one address
+          if (!addressesArray.length) {
+               return this.setError('ERROR: Deposit Auth address list is empty');
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
+               }
+
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               this.updateSpinnerMessage('Setting NFT Minter...');
+
+               // Validate: Self-address not included
+               const selfAddress = wallet.classicAddress;
+               if (addressesArray.includes(selfAddress)) {
+                    return this.setError('ERROR: Your own account cannot be in the deposit auth list');
+               }
+
+               // Validate: Each is a classic XRPL address
+               const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+               if (invalidAddresses.length > 0) {
+                    return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
+               }
+
+               // Validate: No duplicates
+               const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+               if (duplicates.length > 0) {
+                    return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
+               }
+
+               // Get account objects once for efficiency
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
+               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)}`);
+
+               // Validate each address
+               for (const authorizedAddress of addressesArray) {
+                    // Check if account exists and has asfDepositAuth flag
+                    let accountInfo;
+                    try {
+                         accountInfo = await this.xrplService.getAccountInfo(client, authorizedAddress, 'validated', '');
+                    } catch (error: any) {
+                         if (error.data?.error === 'actNotFound') {
+                              return this.setError(`ERROR: Authorized account ${authorizedAddress} does not exist (tecNO_TARGET)`);
+                         }
+                         throw error;
+                    }
+                    console.debug(`accountInfo for ${authorizedAddress}: ${JSON.stringify(accountInfo, null, 2)}`);
+               }
+
+               this.updateSpinnerMessage('Setting NFT Minter Address...');
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               const results: any[] = [];
+
+               // Process each address
+               for (const authorizedAddress of addressesArray) {
+                    const accountSetTx: AccountSet = await client.autofill({
+                         TransactionType: 'AccountSet',
+                         Account: wallet.classicAddress,
+                         NFTokenMinter: enableNftMinter === 'Y' ? authorizedAddress : '',
+                         Fee: fee,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    });
+
+                    if (this.memoField) {
+                         accountSetTx.Memos = [
+                              {
+                                   Memo: {
+                                        MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                        MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                   },
+                              },
+                         ];
+                    }
+
+                    // Check XRP balance for each transaction
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
+                         return this.setError(`ERROR: Insufficient XRP to complete transaction for ${authorizedAddress}`);
+                    }
+
+                    this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
+
+                    // Submit transaction
+                    const response = await client.submitAndWait(accountSetTx, { wallet });
+                    const result = response.result;
+                    results.push({ result });
+
+                    // Check transaction result
+                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                         console.error(`Response for ${authorizedAddress}: ${JSON.stringify(response, null, 2)}`);
+                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
+                    }
+               }
+
+               // All transactions successful
+               this.utilsService.renderTransactionsResults(results, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving setMultiSign in ${this.executionTime}ms`);
+          }
+     }
+
      private async submitFlagTransaction(client: xrpl.Client, wallet: xrpl.Wallet, flagPayload: any, memoField: any) {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
@@ -1110,21 +1182,28 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage(`Submitting ${flagToUpdate ? flagToUpdate.label : 'Flag'} clear flag to the Ledger...`);
           }
 
-          let tx;
-          if (flagPayload.SetFlag === 10) {
-               tx = {
-                    TransactionType: 'AccountSet',
-                    Account: wallet.classicAddress,
-                    ...flagPayload,
-                    NFTokenMinter: this.nfTokenMinterAddress,
-               };
-          } else {
-               tx = {
-                    TransactionType: 'AccountSet',
-                    Account: wallet.classicAddress,
-                    ...flagPayload,
-               };
-          }
+          // let tx;
+          // if (flagPayload.SetFlag === 10) {
+          //      tx = {
+          //           TransactionType: 'AccountSet',
+          //           Account: wallet.classicAddress,
+          //           ...flagPayload,
+          //           NFTokenMinter: this.nfTokenMinterAddress,
+          //      };
+          // } else if (flagPayload.ClearFlag === 10) {
+          //      tx = {
+          //           TransactionType: 'AccountSet',
+          //           Account: wallet.classicAddress,
+          //           ...flagPayload,
+          //           NFTokenMinter: '',
+          //      };
+          // } else {
+          const tx = {
+               TransactionType: 'AccountSet',
+               Account: wallet.classicAddress,
+               ...flagPayload,
+          };
+          // }
 
           if (memoField) {
                tx.Memos = [
@@ -1164,13 +1243,26 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
                               if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account);
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum.toString();
                               }
                          });
                     }
                });
           }
           return signerAccounts;
+     }
+
+     private findDepositPreauthObjects(accountObjects: xrpl.AccountObjectsResponse) {
+          const depositPreauthAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'DepositPreauth' && obj.Authorize) {
+                         depositPreauthAccounts.push(obj.Authorize);
+                    }
+               });
+          }
+          return depositPreauthAccounts;
      }
 
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {

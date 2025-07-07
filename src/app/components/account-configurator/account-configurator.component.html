@@ -59,7 +59,7 @@
                          <label for="issuer">Issuer</label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                               <label for="xrpBalance1Field">Spendable XRP Balance</label>
@@ -105,7 +105,7 @@
 
           <table id="flags" style="float: left">
                <th></th>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right" align="middle">
                          <span class="tooltip" tooltip-data="Requires a destination tag for incoming payments">
                               <label for="asfRequireDest">Require Destination Tag</label>
@@ -118,7 +118,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Requires authorization">
                               <label for="asfRequireAuth">Require Auth</label>
@@ -131,7 +131,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Discourages incoming XRP payments (not enforced)">
                               <label for="asfDisallowXRP">Disallow XRP Payments</label>
@@ -144,7 +144,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Disables the master key pair">
                               <label for="asfDisableMaster">Disable Master Key</label>
@@ -157,7 +157,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Prevents freezing trust lines">
                               <label for="asfNoFreeze">Prevent Freezing Trust Lines</label>
@@ -170,7 +170,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Freezes all trust lines">
                               <label for="asfGlobalFreeze">Freeze All Trust Lines</label>
@@ -183,7 +183,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Enables rippling by default on trust lines">
                               <label for="asfDefaultRipple">Enable Rippling</label>
@@ -200,7 +200,7 @@
 
           <table id="flags" style="float: left">
                <th></th>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Requires preauthorization for incoming deposits">
                               <label for="asfDepositAuth">Require Deposit Auth</label>
@@ -211,9 +211,10 @@
                               <input type="checkbox" id="asfDepositAuth" [(ngModel)]="flags.asfDepositAuth" name="asfDepositAuth" />
                               <span class="slider round"></span>
                          </label>
+                         <label for="asfDepositAuth"></label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Allows another account to mint NFTs">
                               <label for="asfAllowTrustLineClawback">Allow Trust Line Clawback</label>
@@ -226,7 +227,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Blocks incoming NFT offers">
                               <label for="asfDisallowIncomingNFTokenOffer">Block NFT Offers</label>
@@ -239,7 +240,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Blocks incoming checks">
                               <label for="asfDisallowIncomingCheck">Block Checks</label>
@@ -252,7 +253,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Blocks incoming payment channels">
                               <label for="asfDisallowIncomingPayChan">Block Payment Channels</label>
@@ -265,7 +266,7 @@
                          </label>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Blocks incoming trust lines">
                               <label for="asfDisallowIncomingTrustline">Block Trust Lines</label>
@@ -314,32 +315,33 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="depositAuthAddress" size="40" id="depositAuthAddress" placeholder="Enter Deposit Auth Address" [(ngModel)]="depositAuthAddress" name="depositAuthAddress" />
+                         <textarea class="memoField" style="width: 280px" id="depositAuthAddress" placeholder="Comma seperated list of address for deposit auth" [(ngModel)]="depositAuthAddress" name="depositAuthAddress"></textarea>
                          <br />
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.">
-                              <label for="asfAuthorizedNFTokenMinter">Auth NFT Minter</label>
+                              <label for="isAuthorizedNFTokenMinter">Auth NFT Minter</label>
                          </span>
                     </td>
                     <td style="display: flex; gap: 10px; flex-wrap: wrap">
                          <label class="switch">
-                              <input type="checkbox" id="asfAuthorizedNFTokenMinter" [(ngModel)]="flags.asfAuthorizedNFTokenMinter" (ngModelChange)="onAuthorizedNFTokenMinter()" name="asfAuthorizedNFTokenMinter" />
+                              <input type="checkbox" id="isAuthorizedNFTokenMinter" [(ngModel)]="isAuthorizedNFTokenMinter" (ngModelChange)="onAuthorizedNFTokenMinter()" name="isAuthorizedNFTokenMinter" />
                               <span class="slider round"></span>
                          </label>
-                         <label for="asfAuthorizedNFTokenMinter"></label>
+                         <label for="isAuthorizedNFTokenMinter"></label>
                     </td>
                </tr>
-               <tr *ngIf="flags.asfAuthorizedNFTokenMinter">
+               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isAuthorizedNFTokenMinter">
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Enter the address of the account authorized to mint NFTs">
-                              <label for="nfTokenMinterAddress">NFT Minter Address</label>
+                         <span class="tooltip" tooltip-data="Enter NFT Minter addresses">
+                              <label for="nfTokenMinterAddress"></label>
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="nfTokenMinterAddress" size="40" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress" placeholder="Enter authorized minter address" />
+                         <textarea class="memoField" style="width: 280px" id="nfTokenMinterAddress" placeholder="Comma seperated list of address for deposit auth" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress"></textarea>
+                         <br />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -502,23 +504,25 @@
 
           <table style="text-align: left; width: 100%">
                <th></th>
-               <tr>
+               <tr style="vertical-align: top">
                     <td colspan="2">
                          <button type="button" (click)="getAccountDetails()">Get Account Info</button>
                          <button type="button" (click)="clearFields()">Clear Fields</button>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td colspan="2">
                          <button type="button" (click)="updateFlags()">Update Flags</button>
                          <button type="button" (click)="updateMetaData()">Update Meta Data</button>
                          <button type="button" (click)="setDepositAuthAccounts('Y')">Set Deposit Auth</button>
                          <button type="button" (click)="setDepositAuthAccounts('N')">Unauthorize Deposit Auth</button>
+                         <button type="button" (click)="setNftMinterAddress('Y')">Set NFT Minter</button>
+                         <!-- <button type="button" (click)="setNftMinterAddress('N')">Remove NFT Minter</button> -->
                          <button type="button" (click)="setMultiSign('Y')">Set Multi-Sign</button>
                          <button type="button" (click)="setMultiSign('N')">Remove Multi-Sign</button>
                     </td>
                </tr>
-               <tr>
+               <tr style="vertical-align: top">
                     <td colspan="2">
                          <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
                     </td>
