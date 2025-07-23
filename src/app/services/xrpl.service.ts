@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject } from '@angular/core';
 import { StorageService } from './storage.service';
 import { Client } from 'xrpl';
 import * as xrpl from 'xrpl';
@@ -30,6 +30,12 @@ export class XrplService {
 
      getNet() {
           return this.storageService.getNet();
+     }
+
+     decodeCurrencyCode(hexCode: String) {
+          const buffer = Buffer.from(hexCode, 'hex');
+          const trimmed = buffer.subarray(0, buffer.findIndex(byte => byte === 0) === -1 ? 20 : buffer.findIndex(byte => byte === 0));
+          return new TextDecoder().decode(trimmed);
      }
 
      async getXrplServerInfo(client: Client, ledgerIndex: xrpl.LedgerIndex, type: string) {
@@ -412,7 +418,8 @@ export class XrplService {
           try {
                const response = await this.getAccountLines(client, address, 'validated', '');
                const lines = response.result.lines || [];
-               const tokenLine = lines.find((line: any) => line.currency.toUpperCase() === currency.toUpperCase());
+               let assetCurrency = currency.length > 3 ? this.decodeCurrencyCode(currency) : currency;
+               const tokenLine = lines.find((line: any) => line.currency.toUpperCase() === assetCurrency.toUpperCase());
                return tokenLine ? tokenLine.balance : '0';
           } catch (error: any) {
                console.error('Error fetching token balance:', error);

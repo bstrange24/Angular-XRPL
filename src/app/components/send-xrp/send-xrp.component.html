@@ -233,6 +233,11 @@
                     <td>
                          <textarea class="memoField" style="width: 280px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
                     </td>
+                    <td>
+                         <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum: </span>
+                         <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                         <br />
+                    </td>
                </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">

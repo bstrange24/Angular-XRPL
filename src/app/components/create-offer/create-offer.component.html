@@ -15,7 +15,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                         <input type="text" id="accountName1Field" size="42" [(ngModel)]="account1.name" name="accountName1Field" />
                          <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                          <label for="account1">Account 1</label>
                     </td>
@@ -27,7 +27,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                         <input type="text" id="accountAddress1Field" size="42" [(ngModel)]="account1.address" name="accountAddress1Field" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -37,7 +37,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                         <input type="text" id="accountSeed1Field" size="42" [(ngModel)]="account1.seed" name="accountSeed1Field" />
                     </td>
                </tr>
                <tr>
@@ -47,7 +47,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
+                         <input type="text" id="xrpBalanceField" size="42" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
                     </td>
                </tr>
 
@@ -58,7 +58,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                         <input type="text" id="ownerCountField" size="42" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
                          <br />
                     </td>
                </tr>
@@ -69,7 +69,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                         <input type="text" id="totalXrpReservesField" size="42" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
                          <br />
                     </td>
                </tr>
@@ -80,7 +80,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                         <input type="text" id="totalExecutionTime" size="42" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -90,7 +90,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="offerSequenceField" size="40" placeholder="Comma seperated list of sequence numbers" [(ngModel)]="offerSequenceField" name="offerSequenceField" />
+                         <input type="text" id="offerSequenceField" size="42" placeholder="Comma seperated list of sequence numbers" [(ngModel)]="offerSequenceField" name="offerSequenceField" />
                     </td>
                     <td></td>
                </tr>
@@ -106,6 +106,20 @@
                               <span class="slider round"></span>
                          </label>
                     </td>
+               </tr>
+               <tr>
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Check to make this a market order.">
+                              <label for="isMarketOrder"></label>
+                         </span>
+                    </td>
+                    <!-- <td> -->
+                    <!-- <label class="switch"> -->
+                    <!-- <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" /> -->
+                    <!-- <span id="xrpPriceField">1 RLUSD will buy {{ xrpPrice }} XRP</span> -->
+                    <!-- <span class="slider round"></span> -->
+                    <!-- </label> -->
+                    <!-- </td> -->
                </tr>
           </table>
 
@@ -130,7 +144,7 @@
                          </span>
                     </td>
                     <td>
-                         <select class="timeUnit" id="weWantCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField">
+                         <select class="timeUnit" id="weWantCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField">
                               <option value="XRP">XRP</option>
                               <option value="RLUSD">RLUSD</option>
                               <option value="USD">USD</option>
@@ -147,7 +161,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantIssuerField" size="40" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                         <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -157,7 +171,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantAmountField" size="40" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                         <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -167,7 +181,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantTokenBalanceField" size="40" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
+                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
                     </td>
                </tr>
           </table> -->
@@ -193,12 +207,14 @@
                          </span>
                     </td>
                     <td>
-                         <select class="timeUnit" id="weWantCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()">
+                         <select class="timeUnit" id="weWantCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()">
                               <option value="XRP">XRP</option>
                               <option value="RLUSD">RLUSD</option>
                               <option value="USD">USD</option>
                               <option value="USDC">USDC</option>
                               <option value="DOG">DOG</option>
+                              <option value="PHNIX">PHNIX</option>
+                              <option value="Rise">Rise</option>
                          </select>
                          <p></p>
                     </td>
@@ -210,7 +226,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantIssuerField" size="40" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                         <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -220,7 +236,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantAmountField" size="40" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                         <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -230,10 +246,39 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantTokenBalanceField" size="40" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
+                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
                     </td>
                </tr>
                <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Current Token balance for the selected account.">
+                              <label for="tokenBalanceField">Sell</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="tokenBalanceField" size="42" [(ngModel)]="phnixBalance" name="tokenBalanceField" (blur)="updateTokenBalanceAndExchange()" />
+                    </td>
+               </tr>
+               <div class="swap-container" (click)="swapBalances()" title="Swap values">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                         <path d="M17 3L21 7L17 11" stroke-width="2" stroke-linecap="round" />
+                         <path d="M7 21L3 17L7 13" stroke-width="2" stroke-linecap="round" />
+                         <path d="M21 7H10C7.79086 7 6 8.79086 6 11V11" stroke-width="2" stroke-linecap="round" />
+                         <path d="M3 17H14C16.2091 17 18 15.2091 18 13V13" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+               </div>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Estimated XRP you would receive by exchanging the current token at current market rates.">
+                              <label for="toekenExchangeXrpField">Buy</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="toekenExchangeXrpField" size="42" [(ngModel)]="phnixExchangeXrp" name="toekenExchangeXrpField" />
+                    </td>
+               </tr>
+               <!-- <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div> -->
+               <!-- <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
                               <label for="memoField">Memo</label>
@@ -243,8 +288,8 @@
                          <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
                          <br />
                     </td>
-               </tr>
-               <tr style="vertical-align: top">
+               </tr> -->
+               <!-- <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                               <label>Use Ticket Sequence</label>
@@ -265,10 +310,10 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                         <input type="text" id="ticketSequence" size="42" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
                          <br />
                     </td>
-               </tr>
+               </tr> -->
           </table>
 
           <table style="float: left">
@@ -292,12 +337,14 @@
                          </span>
                     </td>
                     <td>
-                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
+                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
                               <option value="XRP">XRP</option>
                               <option value="RLUSD">RLUSD</option>
                               <option value="USD">USD</option>
                               <option value="USDC">USDC</option>
                               <option value="DOG">DOG</option>
+                              <option value="PHNIX">PHNIX</option>
+                              <option value="Rise">Rise</option>
                          </select>
                          <p></p>
                     </td>
@@ -309,7 +356,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendIssuerField" size="40" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                         <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -319,7 +366,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendAmountField" size="40" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                         <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -329,10 +376,65 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendTokenBalanceField" size="40" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
+                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
                     </td>
                </tr>
           </table>
+
+          <!-- <table style="float: left; margin-top: 20px">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Current Token balance for the selected account.">
+                              <label for="tokenBalanceField">Token Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="tokenBalanceField" size="42" [(ngModel)]="phnixBalance" name="tokenBalanceField" (ngModelChange)="updateTokenBalanceAndExchange()" />
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Estimated XRP you would receive by exchanging the current token at current market rates.">
+                              <label for="toekenExchangeXrpField">XRP from Exchanging For Token</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="toekenExchangeXrpField" size="42" [(ngModel)]="phnixExchangeXrp" name="toekenExchangeXrpField" />
+                    </td>
+               </tr>
+               <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div>
+          </table> -->
+
+          <!-- <table style="float: left; margin-top: 20px">
+               <th></th>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Current Token balance for the selected account.">
+                              <label for="tokenBalanceField">Token Balance</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="tokenBalanceField" size="42" [(ngModel)]="phnixBalance" name="tokenBalanceField" (ngModelChange)="updateTokenBalanceAndExchange()" />
+                    </td>
+               </tr>
+               <tr>
+                    <td colspan="2" style="text-align: center; padding: 5px 0">
+                         <span class="swap-arrow" (click)="swapBalances()" title="Swap values"> ⇅ </span>
+                    </td>
+               </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Estimated XRP you would receive by exchanging the current token at current market rates.">
+                              <label for="toekenExchangeXrpField">XRP from Exchanging For Token</label>
+                         </span>
+                    </td>
+                    <td>
+                         <input type="text" id="toekenExchangeXrpField" size="42" [(ngModel)]="phnixExchangeXrp" name="toekenExchangeXrpField" />
+                    </td>
+               </tr>
+               <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div>
+          </table> -->
 
           <!-- <table style="float: left">
                <th></th>
@@ -355,7 +457,7 @@
                          </span>
                     </td>
                     <td>
-                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 280px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField">
+                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField">
                               <option value="XRP">XRP</option>
                               <option value="RLUSD">RLUSD</option>
                               <option value="USD">USD</option>
@@ -372,7 +474,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendIssuerField" size="40" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                         <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -382,7 +484,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendAmountField" size="40" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                         <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -392,7 +494,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendTokenBalanceField" size="40" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
+                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
                     </td>
                </tr>
           </table> -->

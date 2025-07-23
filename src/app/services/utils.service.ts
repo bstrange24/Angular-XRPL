@@ -304,6 +304,50 @@ export class UtilsService {
           }
      }
 
+     normalizeCurrencyCode(currencyCode: string, maxLength = 20) {
+          if (!currencyCode) return '';
+
+          if (currencyCode.length === 3 && currencyCode.trim().toLowerCase() !== 'xrp') {
+               // "Standard" currency code
+               return currencyCode.trim();
+          }
+
+          if (currencyCode.match(/^[a-fA-F0-9]{40}$/) && !isNaN(parseInt(currencyCode, 16))) {
+               // Hexadecimal currency code
+               const hex = currencyCode.toString().replace(/(00)+$/g, '');
+               if (hex.startsWith('01')) {
+                    // Old demurrage code. https://xrpl.org/demurrage.html
+                    return this.convertDemurrageToUTF8(currencyCode);
+               }
+               if (hex.startsWith('02')) {
+                    // XLS-16d NFT Metadata using XLS-15d Concise Transaction Identifier
+                    // https://github.com/XRPLF/XRPL-Standards/discussions/37
+                    const xlf15d = Buffer.from(hex, 'hex').slice(8).toString('utf-8').slice(0, maxLength).trim();
+                    if (xlf15d.match(/[a-zA-Z0-9]{3,}/) && xlf15d.toLowerCase() !== 'xrp') {
+                         return xlf15d;
+                    }
+               }
+               const decodedHex = Buffer.from(hex, 'hex').toString('utf-8').slice(0, maxLength).trim();
+               if (decodedHex.match(/[a-zA-Z0-9]{3,}/) && decodedHex.toLowerCase() !== 'xrp') {
+                    // ASCII or UTF-8 encoded alphanumeric code, 3+ characters long
+                    return decodedHex;
+               }
+          }
+          return '';
+     }
+
+     convertDemurrageToUTF8(demurrageCode: string): string {
+          let bytes = Buffer.from(demurrageCode, 'hex');
+          let code = String.fromCharCode(bytes[1]) + String.fromCharCode(bytes[2]) + String.fromCharCode(bytes[3]);
+          let interest_start = (bytes[4] << 24) + (bytes[5] << 16) + (bytes[6] << 8) + bytes[7];
+          let interest_period = bytes.readDoubleBE(8);
+          const year_seconds = 31536000; // By convention, the XRP Ledger's interest/demurrage rules use a fixed number of seconds per year (31536000), which is not adjusted for leap days or leap seconds
+          let interest_after_year = Math.pow(Math.E, (interest_start + year_seconds - interest_start) / interest_period);
+          let interest = interest_after_year * 100 - 100;
+
+          return `${code} (${interest}% pa)`;
+     }
+
      decodeCurrencyCode(hexCode: String) {
           const buffer = Buffer.from(hexCode, 'hex');
           const trimmed = buffer.subarray(0, buffer.findIndex(byte => byte === 0) === -1 ? 20 : buffer.findIndex(byte => byte === 0));
@@ -420,13 +464,6 @@ export class UtilsService {
           } else {
                return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
           }
-          // return seed.split(' ').length > 1
-          //      ? xrpl.Wallet.fromMnemonic(seed, {
-          //             algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-          //        })
-          //      : xrpl.Wallet.fromSeed(seed, {
-          //             algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-          //        });
      }
 
      checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {
@@ -3007,7 +3044,7 @@ export class UtilsService {
      attachSearchListener(container: HTMLElement): void {
           const searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
           if (!searchBar) {
-               console.error('Error: #resultSearch not found');
+               // console.error('Error: #resultSearch not found');
                return;
           }
 
@@ -3359,16 +3396,23 @@ export class UtilsService {
           }
           try {
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (seed.split(' ').length > 1) {
-                    wallet = xrpl.Wallet.fromMnemonic(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
-               } else {
-                    wallet = xrpl.Wallet.fromSeed(seed, {
-                         algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-                    });
+               const wallet = await this.getWallet(seed, environment);
+
+               if (!wallet) {
+                    throw new Error('ERROR: Wallet could not be created or is undefined');
                }
+
+               // let wallet;
+               // if (seed.split(' ').length > 1) {
+               //      wallet = xrpl.Wallet.fromMnemonic(seed, {
+               //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+               //      });
+               // } else {
+               //      wallet = xrpl.Wallet.fromSeed(seed, {
+               //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+               //      });
+               // }
+
                const trustLines = await client.request({
                     command: 'account_lines',
                     account: wallet.classicAddress,

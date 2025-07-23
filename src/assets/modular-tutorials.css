@@ -161,7 +161,8 @@ table {
 #nfTokenMinterAddress,
 #signer1AccountField,
 #signer2AccountField,
-#signer3AccountField {
+#signer3AccountField,
+#multiSignAddress {
      color: #4CAF50;
 }
 
@@ -1620,4 +1621,57 @@ mark {
 
 .nftCheckboxes {
      padding-left: 500px;
+}
+
+.swap-arrow {
+     cursor: pointer;
+     font-size: 20px;
+     padding: 5px 5px;
+     background: #1a1c21;
+     border-radius: 4px;
+     display: inline-block;
+     transition: all 0.3s ease;
+}
+
+.swap-arrow:hover {
+     background: #1a1c21;
+     transform: scale(1.1);
+}
+
+/* .swap-container {
+     display: inline-block;
+     cursor: pointer;
+     width: 40px;
+     height: 40px;
+     border-radius: 50%;
+     border: 2px solid #ccc;
+     text-align: center;
+     line-height: 40px;
+     transition: all 0.3s ease;
+} */
+
+/* .swap-container:hover {
+     border-color: #999;
+     transform: scale(1.1);
+} */
+
+.swap-container {
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     cursor: pointer;
+     width: 40px;
+     height: 40px;
+     border-radius: 50%;
+     border: 2px solid #ccc;
+     transition: all 0.3s ease;
+}
+
+.swap-container:hover {
+     border-color: #666;
+     background-color: #f5f5f5;
+}
+
+.swap-container svg {
+     color: #555;
 }

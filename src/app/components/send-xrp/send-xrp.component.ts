@@ -42,6 +42,7 @@ export class SendXrpComponent implements AfterViewChecked {
      isTicketEnabled = false;
      multiSignAddress = '';
      multiSignSeeds = '';
+     signerQuorum = '';
      spinner = false;
      isMultiSign = false;
      isTicket = false;
@@ -82,6 +83,10 @@ export class SendXrpComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     validateQuorum() {
+          this.cdr.detectChanges();
+     }
+
      onAccountChange() {
           if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
@@ -108,6 +113,23 @@ export class SendXrpComponent implements AfterViewChecked {
                }
 
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+
+               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               if (signerAccounts && signerAccounts.length > 0) {
+                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                         // this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
+                         // this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
+                         // this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
+                         // this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
+                         // this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
+                         // this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
+                         this.isMultiSign = true;
+                    }
+               } else {
+                    this.multiSignAddress = '';
+                    this.isMultiSign = false;
+               }
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                await this.updateXrpBalance(client, address);
@@ -197,7 +219,11 @@ export class SendXrpComponent implements AfterViewChecked {
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    // const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s); // removes empty strings
 
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signers provided for multi-signing');
@@ -257,6 +283,23 @@ export class SendXrpComponent implements AfterViewChecked {
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving sendXrp in ${this.executionTime}ms`);
           }
+     }
+
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum.toString();
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {

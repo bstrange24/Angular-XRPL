@@ -5,9 +5,11 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { derive } from 'xrpl-accountlib';
+import { derive, generate } from 'xrpl-accountlib';
 import { Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
+import * as bip39 from 'bip39';
+import * as secretNumbers from '@xrplf/secret-numbers';
 
 @Component({
      selector: 'app-wallet-multi-input',
@@ -167,16 +169,50 @@ export class WalletMultiInputComponent {
           this.emitChange();
      }
 
-     generateNewWalletFromMnemonic(account: '1' | '2' | '3') {
-          // Placeholder: Implement mnemonic generation
-          alert('Mnemonic generation not implemented yet');
+     async generateNewWalletFromMnemonic(account: '1' | '2' | '3') {
+          const wallet = xrpl.Wallet.generate();
+          // const mnemonic = bip39.generateMnemonic();
+          // const seed = await bip39.mnemonicToSeed(mnemonic);
+          // const familySeed = `s${seed.toString('hex').slice(0, 32)}`;
+          // const wallet = xrpl.Wallet.fromSeed(familySeed);
+          this.updateAccount(account, {
+               address: wallet.classicAddress,
+               seed: wallet.seed || '',
+          });
+          this.saveInput(`account${account}address`, wallet.classicAddress);
+          this.saveInput(`account${account}seed`, wallet.seed || '');
           this.emitChange();
      }
 
      generateNewWalletFromSecretNumbers(account: '1' | '2' | '3') {
-          // Placeholder: Implement secret numbers generation
-          alert('Secret numbers generation not implemented yet');
+          const wallet = xrpl.Wallet.generate();
+          // const numbers = this.generateSecretNumbers(); // mimic generate()
+          // const seed = this.secretNumbersToFamilySeed(numbers); // mimic convertToFamilySeed()
+          // const wallet = xrpl.Wallet.fromSecret(seed);
+
+          this.updateAccount(account, {
+               address: wallet.classicAddress,
+               seed: wallet.seed || '',
+          });
+          this.saveInput(`account${account}address`, wallet.classicAddress);
+          this.saveInput(`account${account}seed`, wallet.seed || '');
           this.emitChange();
+     }
+
+     generateSecretNumbers(): string[] {
+          // Generate secret groups
+          return secretNumbers.randomSecret();
+     }
+
+     secretNumbersToFamilySeed(numbers: string[]): string {
+          // Convert secret numbers to entropy (Uint8Array)
+          const entropy = secretNumbers.secretToEntropy(numbers);
+
+          // Convert entropy back to secret numbers array
+          const groups = secretNumbers.entropyToSecret(entropy);
+
+          // Join groups by space to form the family seed string
+          return groups.join(' ');
      }
 
      getAccountFromSeed(account: '1' | '2' | '3') {
@@ -222,20 +258,19 @@ export class WalletMultiInputComponent {
      getAccountFromSecretNumbers(account: '1' | '2' | '3') {
           const secretNumbers = this.getAccount(account).secretNumbers;
           if (secretNumbers) {
-               try {
-                    // const derived = derive.secretNumbers(secretNumbers);
-                    // if (!derived.secret.familySeed) {
-                    //      throw new Error('familySeed is null');
-                    // }
-                    // const wallet = xrpl.Wallet.fromSeed(derived.secret.familySeed);
-                    // this.updateAccount(account, {
-                    //      address: wallet.classicAddress,
-                    //      secretNumbers,
-                    // });
-                    // this.emitChange();
-               } catch (error) {
-                    alert(`Invalid secret numbers: ${error}`);
-               }
+               // try {
+               // const seed = deriveFamilySeed(secretNumbers);
+               //      const wallet = xrpl.Wallet.fromSeed(seed);
+               //      this.updateAccount(account, {
+               //           address: wallet.classicAddress,
+               //           secretNumbers,
+               //      });
+               //      this.saveInput(`account${account}address`, wallet.classicAddress);
+               //      this.saveInput(`account${account}mnemonic`, secretNumbers);
+               //      this.emitChange();
+               // } catch (error) {
+               //      alert(`Invalid secret numbers: ${error}`);
+               // }
           } else {
                alert('Secret numbers are empty');
           }

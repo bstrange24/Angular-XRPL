@@ -17,7 +17,7 @@ import { AccountConfiguratorComponent } from './components/account-configurator/
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
-     { path: '', redirectTo: '/account', pathMatch: 'full' },
+     { path: '', redirectTo: '/account-configurator', pathMatch: 'full' },
      { path: 'account', component: AccountComponent },
      { path: 'delete-account', component: DeleteAccountComponent },
      { path: 'account-configurator', component: AccountConfiguratorComponent },
