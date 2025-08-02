@@ -228,13 +228,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    };
                               }),
                          });
-                    } else {
-                         data.sections.push({
-                              title: 'Obligations',
-                              openByDefault: true,
-                              content: [{ key: 'Status', value: 'No obligations (tokens issued by you)' }],
-                         });
                     }
+                    // else {
+                    //      data.sections.push({
+                    //           title: 'Obligations',
+                    //           openByDefault: true,
+                    //           content: [{ key: 'Status', value: 'No obligations (tokens issued by you)' }],
+                    //      });
+                    // }
 
                     // Balances section (tokens held by the account)
                     if (tokenBalance.result.assets && Object.keys(tokenBalance.result.assets).length > 0) {
@@ -265,13 +266,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                               openByDefault: true,
                               subItems: balanceItems,
                          });
-                    } else {
-                         data.sections.push({
-                              title: 'Balances',
-                              openByDefault: true,
-                              content: [{ key: 'Status', value: 'No balances (tokens held by you)' }],
-                         });
                     }
+                    // else {
+                    //      data.sections.push({
+                    //           title: 'Balances',
+                    //           openByDefault: true,
+                    //           content: [{ key: 'Status', value: 'No balances (tokens held by you)' }],
+                    //      });
+                    // }
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
@@ -1108,13 +1110,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                               ],
                          })),
                     });
-               } else {
-                    data.sections.push({
-                         title: 'Issuer Obligations',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: 'No obligations issued' }],
-                    });
                }
+               // else {
+               //      data.sections.push({
+               //           title: 'Issuer Obligations',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: 'No obligations issued' }],
+               //      });
+               // }
 
                // Account Details section
                data.sections.push({
@@ -1244,13 +1247,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                               };
                          }),
                     });
-               } else {
-                    data.sections.push({
-                         title: 'Issuer Obligations',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: 'No obligations issued' }],
-                    });
                }
+               // else {
+               //      data.sections.push({
+               //           title: 'Issuer Obligations',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: 'No obligations issued' }],
+               //      });
+               // }
 
                // Balances section (tokens held by the account)
                if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
@@ -1281,13 +1285,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                          openByDefault: true,
                          subItems: balanceItems,
                     });
-               } else {
-                    data.sections.push({
-                         title: 'Balances',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: 'No balances (tokens held by you)' }],
-                    });
                }
+               // else {
+               //      data.sections.push({
+               //           title: 'Balances',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: 'No balances (tokens held by you)' }],
+               //      });
+               // }
 
                this.utilsService.renderPaymentChannelDetails(data);
           } catch (error: any) {

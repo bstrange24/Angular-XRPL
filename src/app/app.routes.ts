@@ -14,6 +14,7 @@ import { CreateAmmComponent } from './components/create-amm/create-amm.component
 import { TrustlinesComponent } from './components/trustlines/trustlines.component';
 import { DeleteAccountComponent } from './components/delete-account/delete-account.component';
 import { AccountConfiguratorComponent } from './components/account-configurator/account-configurator.component';
+import { OffersComponent } from './components/offers/offers.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -28,6 +29,7 @@ export const routes: Routes = [
      { path: 'send-checks', component: SendChecksComponent },
      { path: 'create-tickets', component: CreateTicketsComponent },
      { path: 'create-offer', component: CreateOfferComponent },
+     { path: 'offers', component: OffersComponent },
      { path: 'send-currency', component: SendCurrencyComponent },
      { path: 'create-nft', component: CreateNftComponent },
      { path: 'create-amm', component: CreateAmmComponent },

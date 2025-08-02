@@ -11,6 +11,12 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import BigNumber from 'bignumber.js';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+import { MatInputModule } from '@angular/material/input';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
+import { MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 
 // Helper interfaces for proper typing
 interface AMMAsset {
@@ -67,14 +73,15 @@ type CustomBookOffer = Partial<Omit<BookOffer, 'TakerGets' | 'TakerPays'>> & {
      isAMM?: boolean;
      rate?: BigNumber;
 };
+
 @Component({
-     selector: 'app-create-offer',
+     selector: 'app-offers',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
-     templateUrl: './create-offer.component.html',
-     styleUrl: './create-offer.component.css',
+     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe, MatAutocompleteModule, MatInputModule, MatTooltipModule, MatDialogModule, FormsModule],
+     templateUrl: './offers.component.html',
+     styleUrl: './offers.component.css',
 })
-export class CreateOfferComponent implements AfterViewChecked {
+export class OffersComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      // private weWantCurrencySubject = new Subject<string>();
@@ -87,7 +94,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      checkExpirationTime: string = 'seconds';
      weSpendCurrencyField: string = 'XRP';
      offerSequenceField: string = '';
-     weWantCurrencyField: string = 'HONEY';
+     weWantCurrencyField: string = 'Rise';
      weWantIssuerField: string = 'rHEG9KZ2RYYjHM8DCmNHEKu5SkZWwgmFUB';
      // weWantCurrencyField: string = 'RLUSD'; // Set to RLUSD for XRP/RLUSD pair
      // weWantIssuerField: string = 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De'; // Official RLUSD issuer
@@ -131,10 +138,27 @@ export class CreateOfferComponent implements AfterViewChecked {
      phnixCurrencyCode: string = '';
      insufficientLiquidityWarning: boolean = false;
      slippage: number = 0.2357; // Default to 23.57%
+     activeTab: string = 'limit'; // Default to Limit tab
+     tabIndicatorLeft: string = '0px';
+     tabIndicatorWidth: string = '106px'; // Adjust based on tab width
+     availableTokens: string[] = ['XRP', 'RLUSD', 'USD', 'USDC', 'DOG', 'PHNIX', 'Rise'];
+     tokenLogos: { [key: string]: string } = {
+          XRP: 'https://xpcdn.xpmarket.com/gravatars/fixed/Xrp.png',
+          Rise: 'https://xpcdn.xpmarket.com/storage/logo/Rise_rHEG9KZ2RYYjHM8DCmNHEKu5SkZWwgmFUB.webp',
+          RLUSD: 'https://xpcdn.xpmarket.com/storage/logo/RLUSD_rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De.webp',
+          // Add other tokens as needed
+     };
+     weSpendValueUSD: number = 0; // USD value of sell amount
+     weWantValueUSD: number = 0; // USD value of buy amount
+     priceImpact: number = 0; // Price impact percentage
+     priceImpactTooltip: string = 'The price impact is within the expected range.';
+     poolFee: number = 0; // Pool fee amount
+     poolFeePercent: number = 0.39; // Default pool fee percentage
+     minimumReceived: number = 0; // Minimum received amount
 
      private priceRefreshInterval: any; // For polling
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private dialog: MatDialog) {}
 
      async ngAfterViewInit() {
           this.cdr.detectChanges();
@@ -176,10 +200,10 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     onAccountChange() {
+     onAccountChange(event: MatAutocompleteSelectedEvent) {
           if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
-               this.displayOfferDataForAccount1();
+               this.displayOfferDataForAccount1(event);
           }
           // this.updateTokenBalanceAndExchange();
      }
@@ -199,6 +223,38 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.updateSpinnerMessage(message);
           await new Promise(resolve => setTimeout(resolve, delayMs));
      }
+
+     setActiveTab(tab: string) {
+          this.activeTab = tab;
+          // Define tabWidths and tabOffsets with index signature
+          const tabWidths: { [key: string]: string } = {
+               market: '106px',
+               limit: '106px',
+               send: '106px',
+          };
+          const tabOffsets: { [key: string]: string } = {
+               market: '0px',
+               limit: '106px',
+               send: '212px',
+          };
+          this.tabIndicatorWidth = tabWidths[tab] || '106px';
+          this.tabIndicatorLeft = tabOffsets[tab] || '0px';
+          this.cdr.detectChanges();
+     }
+
+     // openSlippageDialog() {
+     //      const dialogRef = this.dialog.open(SlippageDialogComponent, {
+     //           width: '250px',
+     //           data: { slippage: this.slippage * 100 },
+     //      });
+
+     //      dialogRef.afterClosed().subscribe(result => {
+     //           if (result !== undefined) {
+     //                this.slippage = result / 100;
+     //                this.updateTokenBalanceAndExchange();
+     //           }
+     //      });
+     // }
 
      // Method to fetch XRP price in RLUSD
      async fetchXrpPrice() {
@@ -527,7 +583,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                // Calculate market stats
                const spread = this.computeBidAskSpread(offerType === 'sell' ? counterOrderBook.result.offers : combinedOffers, offerType === 'sell' ? combinedOffers : counterOrderBook.result.offers);
                const liquidity = this.computeLiquidityRatio(offerType === 'sell' ? counterOrderBook.result.offers : combinedOffers, offerType === 'sell' ? combinedOffers : counterOrderBook.result.offers, offerType === 'sell');
-               const stats = this.computeAverageExchangeRateBothWays(combinedOffers, 5);
+               const stats = this.computeAverageExchangeRateBothWays(combinedOffers, 100);
 
                // Prepare data for rendering
                const data = {
@@ -569,7 +625,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               value: `${stats.forward.depthDOG.toFixed(2)} ${displayWeWantCurrency} for ${stats.forward.depthXRP.toFixed(2)} ${displayWeSpendCurrency}`,
                          },
                          {
-                              key: `Execution (5 ${displayWeSpendCurrency})`,
+                              key: `Execution (100 ${displayWeSpendCurrency})`,
                               value: stats.forward.insufficientLiquidity ? `Insufficient liquidity: ${stats.forward.executionDOG.toFixed(2)} ${displayWeWantCurrency} for ${stats.forward.executionXRP.toFixed(2)} ${displayWeSpendCurrency}, Avg Rate: ${stats.forward.executionPrice.toFixed(8)} ${pair}` : `Receive ${stats.forward.executionDOG.toFixed(2)} ${displayWeWantCurrency}, Avg Rate: ${stats.forward.executionPrice.toFixed(8)} ${pair}`,
                          },
                          {
@@ -1028,6 +1084,36 @@ export class CreateOfferComponent implements AfterViewChecked {
                          issuer: this.weSpendIssuerField,
                          value: this.weSpendAmountField,
                     };
+               }
+
+               // Validate against minimum received
+               const expectedAmount = new BigNumber(this.weWantAmountField);
+               if (expectedAmount.lt(this.minimumReceived)) {
+                    this.setError(`Order amount (${expectedAmount.toFixed(8)}) is below minimum received (${this.minimumReceived.toFixed(8)})`);
+                    return;
+               }
+
+               // Validate rate with slippage
+               // const proposedQuality = new BigNumber(this.weSpendAmountField).dividedBy(this.weWantAmountField);
+               // const orderBook = await client.request({
+               //      command: 'book_offers',
+               //      taker: wallet.address,
+               //      ledger_index: 'current',
+               //      taker_gets: we_want1,
+               //      taker_pays: we_spend1,
+               // });
+
+               let bestRate: BigNumber | null = null;
+               for (const offer of orderBook.result.offers) {
+                    const rate = this.getOfferRate(offer);
+                    if (!bestRate || rate.lt(bestRate)) {
+                         bestRate = rate;
+                    }
+               }
+
+               if (bestRate && proposedQuality.gt(bestRate.multipliedBy(1 + this.slippage))) {
+                    this.setError(`Proposed rate exceeds slippage limit of ${this.slippage * 100}%`);
+                    return;
                }
 
                const { result: feeResponse } = await client.request({ command: 'fee' });
@@ -1832,7 +1918,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           return new BigNumber(paysValue).dividedBy(getsValue).toFixed(8);
      }
 
-     async onWeWantCurrencyChange() {
+     async onWeWantCurrencyChange(event: MatAutocompleteSelectedEvent) {
           console.log('Entering onWeWantCurrencyChange');
           const startTime = Date.now();
 
@@ -1858,18 +1944,19 @@ export class CreateOfferComponent implements AfterViewChecked {
                     balance = (await this.getCurrencyBalance(address, currencyCode)) ?? '0';
                }
                this.weWantTokenBalanceField = balance !== null ? balance : '0';
-               // this.phnixBalance = Number(this.weWantTokenBalanceField).toFixed(6);
-               this.phnixBalance = Number(this.weWantTokenBalanceField).toLocaleString(undefined, {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 18, // enough to preserve precision
-                    useGrouping: true,
-               });
+               this.phnixBalance = Number(this.weWantTokenBalanceField).toFixed(6);
+               // this.phnixBalance = Number(this.weWantTokenBalanceField).toLocaleString(undefined, {
+               //      minimumFractionDigits: 0,
+               //      maximumFractionDigits: 18, // enough to preserve precision
+               //      useGrouping: true,
+               // });
                // Number(this.weWantTokenBalanceField).toLocaleString();
-               this.weWantTokenBalanceField = Number(this.weWantTokenBalanceField).toLocaleString(undefined, {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 18, // enough to preserve precision
-                    useGrouping: true,
-               });
+               this.weWantTokenBalanceField = Number(this.weWantTokenBalanceField).toFixed(6);
+               // this.weWantTokenBalanceField = Number(this.weWantTokenBalanceField).toLocaleString(undefined, {
+               //      minimumFractionDigits: 0,
+               //      maximumFractionDigits: 18, // enough to preserve precision
+               //      useGrouping: true,
+               // });
                // = Number(this.weWantTokenBalanceField).toLocaleString();
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
@@ -1877,13 +1964,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.weWantTokenBalanceField = '0';
           } finally {
                this.spinner = false;
-               this.cdr.detectChanges();
+               // this.cdr.detectChanges();
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving onWeWantCurrencyChange in ${this.executionTime}ms`);
           }
      }
 
-     async onWeSpendCurrencyChange() {
+     async onWeSpendCurrencyChange(event: MatAutocompleteSelectedEvent) {
           console.log('Entering onWeSpendCurrencyChange');
           const startTime = Date.now();
 
@@ -1916,7 +2003,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.weSpendTokenBalanceField = '0';
           } finally {
                this.spinner = false;
-               this.cdr.detectChanges();
+               // this.cdr.detectChanges();
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving onWeSpendCurrencyChange in ${this.executionTime}ms`);
           }
@@ -1983,7 +2070,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
           try {
                this.spinner = true;
-               // this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
+               this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
                const client = await this.xrplService.getClient();
                const { net, environment } = this.xrplService.getNet();
@@ -1994,178 +2081,200 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                if (this.weWantCurrencyField === 'XRP') {
-                    this.updateTokenBalanceAndExchange1();
                     await this.updateTokenBalanceAndExchange1();
                     return;
-               } else {
-                    // Fetch Token balance
-                    const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
-                    let phnixBalance = '0';
+               }
 
-                    if (balanceResponse.result.assets) {
-                         for (const [issuer, assets] of Object.entries(balanceResponse.result.assets)) {
-                              for (const asset of assets as any[]) {
-                                   const decodedCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
-                                   if (decodedCurrency === this.weWantCurrencyField && issuer === this.weWantIssuerField) {
-                                        phnixBalance = parseFloat(asset.value).toFixed(8);
-                                        break;
-                                   }
+               // Fetch Token balance
+               const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
+               let phnixBalance = '0';
+               let weSpendBalance = '0';
+               let weWantBalance = '0';
+
+               if (balanceResponse.result.assets) {
+                    for (const [issuer, assets] of Object.entries(balanceResponse.result.assets)) {
+                         for (const asset of assets as any[]) {
+                              const decodedCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
+                              if (decodedCurrency === this.weWantCurrencyField && issuer === this.weWantIssuerField) {
+                                   weWantBalance = parseFloat(asset.value).toFixed(8);
+                              }
+                              if (decodedCurrency === this.weSpendCurrencyField && issuer === this.weSpendIssuerField) {
+                                   weSpendBalance = parseFloat(asset.value).toFixed(8);
                               }
                          }
                     }
+               }
 
-                    this.phnixBalance = this.phnixBalance.replace(/,/g, '');
-                    if (this.phnixBalance !== phnixBalance) {
-                         this.phnixBalance = this.phnixBalance;
-                    } else {
-                         this.phnixBalance = phnixBalance;
-                    }
+               this.weWantTokenBalanceField = Number(this.weWantTokenBalanceField).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 18, // enough to preserve precision
+                    useGrouping: true,
+               });
+               // this.weWantTokenBalanceField = Number(weWantBalance);
+               // this.weSpendTokenBalanceField = Number(weSpendBalance);
+               this.weSpendTokenBalanceField = Number(weSpendBalance).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 18, // enough to preserve precision
+                    useGrouping: true,
+               });
+               this.phnixBalance = Number(weWantBalance).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 18,
+                    useGrouping: true,
+               });
 
-                    if (parseFloat(phnixBalance) === 0) {
-                         this.setError(`No PHNIX found for issuer ${this.weWantIssuerField}`);
-                         return;
-                    }
+               if (parseFloat(weWantBalance) === 0 && this.weWantCurrencyField !== 'XRP') {
+                    this.setError(`No ${this.weWantCurrencyField} found for issuer ${this.weWantIssuerField}`);
+                    return;
+               }
 
-                    const encodedCurrency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-                    const weWant = { currency: 'XRP' };
-                    const weSpend = {
-                         currency: encodedCurrency,
-                         issuer: this.weWantIssuerField,
+               const encodedCurrency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
+               const weWant = { currency: 'XRP' };
+               const weSpend = {
+                    currency: encodedCurrency,
+                    issuer: this.weWantIssuerField,
+               };
+
+               // Fetch Order Book Offers
+               const orderBook = await client.request({
+                    command: 'book_offers',
+                    ledger_index: 'validated',
+                    taker_gets: weWant,
+                    taker_pays: weSpend,
+                    limit: 400,
+               });
+
+               // Fetch AMM Pool (if available)
+               let ammPoolData = null;
+               try {
+                    ammPoolData = await client.request({
+                         command: 'amm_info',
+                         asset: weSpend,
+                         asset2: { currency: 'XRP' },
+                    });
+                    console.log('AMM Pool Data:', ammPoolData);
+               } catch (ammError) {
+                    console.warn('No AMM pool found for this pair:', ammError);
+               }
+
+               // Combine Order Book and AMM Liquidity
+               let allOffers = [...orderBook.result.offers];
+
+               if (ammPoolData?.result?.amm) {
+                    const amm = ammPoolData.result.amm;
+                    const getAmountValue = (amount: any): string => {
+                         if (typeof amount === 'object' && amount !== null && 'value' in amount) {
+                              return amount.value;
+                         }
+                         return String(amount);
                     };
 
-                    console.log(`weWant ${JSON.stringify(weWant, null, 2)} weSpend ${JSON.stringify(weSpend, null, 2)}`);
+                    const asset1Amount = getAmountValue(amm.amount);
+                    let asset2Amount = getAmountValue(amm.amount2);
 
-                    // 1. Fetch Order Book Offers
-                    const orderBook = await client.request({
-                         command: 'book_offers',
-                         ledger_index: 'validated',
-                         taker_gets: weWant,
-                         taker_pays: weSpend,
-                         limit: 400, // Increased limit to capture more liquidity
-                    });
-
-                    // 2. Fetch AMM Pool (if available)
-                    let ammPoolData = null;
-                    try {
-                         ammPoolData = await client.request({
-                              command: 'amm_info',
-                              asset: weSpend, // { currency: encodedCurrency, issuer: this.weWantIssuerField }
-                              asset2: { currency: 'XRP' }, // XRP (no issuer)
-                         });
-                         console.log('AMM Pool Data:', ammPoolData);
-                    } catch (ammError) {
-                         console.warn('No AMM pool found for this pair:', ammError);
+                    if (typeof amm.amount2 === 'string') {
+                         asset2Amount = xrpl.dropsToXrp(asset2Amount).toString();
                     }
 
-                    // Combine Order Book and AMM Liquidity
-                    let allOffers = [...orderBook.result.offers];
-
-                    if (ammPoolData?.result?.amm) {
-                         const amm = ammPoolData.result.amm;
-
-                         // Get the correct amounts from the AMM pool
-                         // const asset1Amount = typeof amm.amount === 'object' && 'value' in amm.amount ? amm.amount.value : amm.amount; // First asset (PHNIX)
-                         // const asset2Amount = typeof amm.amount2 === 'object' && 'value' in amm.amount2 ? amm.amount2.value : amm.amount2; // Second asset (XRP)
-
-                         // Get the correct amounts from the AMM pool with proper type handling
-                         const getAmountValue = (amount: any): string => {
-                              if (typeof amount === 'object' && amount !== null && 'value' in amount) {
-                                   return amount.value;
-                              }
-                              return String(amount);
-                         };
-
-                         const asset1Amount = getAmountValue(amm.amount);
-                         let asset2Amount = getAmountValue(amm.amount2);
-
-                         // Convert XRP from drops to XRP if needed
-                         if (typeof amm.amount2 === 'object' && amm.amount2 !== null && 'currency' in amm.amount2) {
-                              if (amm.amount2.currency === 'XRP') {
-                                   asset2Amount = xrpl.dropsToXrp(asset2Amount).toString();
-                              }
-                         }
-
-                         // Calculate the AMM rate
-                         const ammRate = new BigNumber(asset2Amount).dividedBy(asset1Amount);
-
-                         const ammOffer = {
-                              TakerGets: { currency: 'XRP', value: asset2Amount },
-                              TakerPays: {
-                                   currency: encodedCurrency,
-                                   issuer: this.weWantIssuerField,
-                                   value: asset1Amount,
-                              },
-                              rate: ammRate,
-                              isAMM: true,
-                              LedgerEntryType: 'Offer',
-                              Flags: 0,
-                              Account: 'AMM_POOL',
-                              Sequence: 0,
-                              Expiration: null,
-                              BookDirectory: '',
-                              BookNode: '',
-                              OwnerNode: '',
-                              PreviousTxnID: '',
-                              PreviousTxnLgrSeq: 0,
-                         };
-                         allOffers.push(ammOffer as any);
-                    }
-
-                    // Sort all offers by best rate (descending)
-                    const sortedOffers = allOffers.sort((a, b) => {
-                         const rateA = getOfferRate(a);
-                         const rateB = getOfferRate(b);
-                         return rateB.minus(rateA).toNumber();
-                    });
-
-                    const phnixAmount = new BigNumber(this.phnixBalance);
-                    let remainingPhnix = phnixAmount;
-                    let totalXrp = new BigNumber(0);
-
-                    for (const offer of sortedOffers) {
-                         const takerGets = getOfferXrpAmount(offer);
-                         const takerPays = getOfferPhnixAmount(offer);
-
-                         if (takerPays.isZero()) continue;
-
-                         const rate = takerGets.dividedBy(takerPays);
-                         const phnixToUse = BigNumber.minimum(remainingPhnix, takerPays);
-                         let xrpReceived = phnixToUse.multipliedBy(rate);
-                         xrpReceived = xrpReceived.dividedBy(1_000_000); // Convert to XRP
-
-                         totalXrp = totalXrp.plus(xrpReceived.toFixed(12));
-                         remainingPhnix = remainingPhnix.minus(phnixToUse);
-
-                         console.log(`Used ${phnixToUse.toString()} PHNIX to get ${xrpReceived.toFixed(12)} XRP at rate ${rate.toFixed(8)} `);
-
-                         if (remainingPhnix.isLessThanOrEqualTo(0)) break;
-                    }
-
-                    const usedAmount = phnixAmount.minus(remainingPhnix);
-                    if (usedAmount.isZero()) {
-                         this.phnixExchangeXrp = `No liquidity available`;
-                         this.insufficientLiquidityWarning = true;
-                    } else if (remainingPhnix.isGreaterThan(0)) {
-                         this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(8)} PHNIX can be exchanged for ${totalXrp.toFixed(6)} XRP`;
-                         this.insufficientLiquidityWarning = true;
-                    } else {
-                         this.phnixExchangeXrp = totalXrp.toFixed(12);
-                         this.insufficientLiquidityWarning = false;
-                    }
-
-                    // Optional: Show average rate
-                    if (usedAmount.isGreaterThan(0)) {
-                         const avgRate = totalXrp.dividedBy(usedAmount);
-                         console.log(`Average exchange rate: ${avgRate.toFixed(8)} XRP/PHNIX`);
-                    }
-
-                    // this.phnixBalance = Number(this.phnixBalance).toLocaleString();
-                    this.phnixBalance = Number(this.phnixBalance).toLocaleString(undefined, {
-                         minimumFractionDigits: 0,
-                         maximumFractionDigits: 18, // enough to preserve precision
-                         useGrouping: true,
-                    });
+                    const ammRate = new BigNumber(asset2Amount).dividedBy(asset1Amount);
+                    const ammOffer = {
+                         TakerGets: { currency: 'XRP', value: asset2Amount },
+                         TakerPays: {
+                              currency: encodedCurrency,
+                              issuer: this.weWantIssuerField,
+                              value: asset1Amount,
+                         },
+                         rate: ammRate,
+                         isAMM: true,
+                         LedgerEntryType: 'Offer',
+                         Flags: 0,
+                         Account: 'AMM_POOL',
+                         Sequence: 0,
+                         Expiration: null,
+                         BookDirectory: '',
+                         BookNode: '',
+                         OwnerNode: '',
+                         PreviousTxnID: '',
+                         PreviousTxnLgrSeq: 0,
+                    };
+                    allOffers.push(ammOffer as any);
                }
+
+               // Sort offers by best rate (descending: XRP per Token)
+               const sortedOffers = allOffers.sort((a, b) => {
+                    const rateA = this.getOfferRate(a);
+                    const rateB = this.getOfferRate(b);
+                    return rateB.minus(rateA).toNumber();
+               });
+
+               // Calculate exchange with slippage
+               const phnixAmount = new BigNumber(this.weSpendAmountField || '0');
+               let remainingPhnix = phnixAmount;
+               let totalXrp = new BigNumber(0);
+               let bestRate: BigNumber | null = null;
+
+               for (const offer of sortedOffers) {
+                    const takerGets = this.getOfferXrpAmount(offer);
+                    const takerPays = this.getOfferPhnixAmount(offer);
+
+                    if (takerPays.isZero()) continue;
+
+                    const rate = takerGets.dividedBy(takerPays);
+                    if (!bestRate || rate.gt(bestRate)) {
+                         bestRate = rate;
+                    }
+
+                    if (bestRate && rate.lt(bestRate.multipliedBy(1 - this.slippage))) {
+                         continue;
+                    }
+
+                    const phnixToUse = BigNumber.minimum(remainingPhnix, takerPays);
+                    let xrpReceived = phnixToUse.multipliedBy(rate);
+
+                    totalXrp = totalXrp.plus(xrpReceived);
+                    remainingPhnix = remainingPhnix.minus(phnixToUse);
+
+                    console.log(`Used ${phnixToUse.toString()} ${this.weWantCurrencyField} to get ${xrpReceived.toFixed(12)} XRP at rate ${rate.toFixed(8)}`);
+
+                    if (remainingPhnix.isLessThanOrEqualTo(0)) break;
+               }
+
+               const usedAmount = phnixAmount.minus(remainingPhnix);
+               if (usedAmount.isZero()) {
+                    this.phnixExchangeXrp = `No liquidity available`;
+                    this.insufficientLiquidityWarning = true;
+               } else if (remainingPhnix.isGreaterThan(0)) {
+                    this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(8)} ${this.weWantCurrencyField} can be exchanged for ${totalXrp.toFixed(6)} XRP`;
+                    this.insufficientLiquidityWarning = true;
+               } else {
+                    this.phnixExchangeXrp = totalXrp.toFixed(12);
+                    this.insufficientLiquidityWarning = false;
+               }
+
+               // Calculate average exchange rate
+               if (usedAmount.isGreaterThan(0)) {
+                    this.averageExchangeRate = totalXrp.dividedBy(usedAmount).toFixed(8);
+                    console.log(`Average exchange rate: ${this.averageExchangeRate} XRP/${this.weWantCurrencyField}`);
+               } else {
+                    this.averageExchangeRate = '0';
+               }
+
+               // Calculate USD values (mock prices, replace with real data from an API)
+               const xrpPriceUSD = 0.6; // Example price, fetch from an API
+               const tokenPriceUSD = 0.0001; // Example price for Rise, fetch from an API
+               this.weSpendValueUSD = usedAmount.multipliedBy(tokenPriceUSD).toNumber();
+               this.weWantValueUSD = totalXrp.multipliedBy(xrpPriceUSD).toNumber();
+
+               // Calculate price impact
+               const marketRate = bestRate?.toNumber() || 0;
+               const actualRate = Number(this.averageExchangeRate);
+               this.priceImpact = marketRate ? ((marketRate - actualRate) / marketRate) * 100 : 0;
+               this.priceImpactTooltip = this.priceImpact < 5 ? 'The price impact is within the expected range.' : 'High price impact, consider adjusting the amount.';
+
+               // Calculate pool fee and minimum received
+               this.poolFee = usedAmount.multipliedBy(this.poolFeePercent / 100).toNumber();
+               this.minimumReceived = totalXrp.multipliedBy(1 - this.slippage).toNumber();
+
                this.cdr.detectChanges();
           } catch (error: any) {
                console.error('Error in updateTokenBalanceAndExchange:', error);
@@ -2177,44 +2286,475 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving updateTokenBalanceAndExchange in ${this.executionTime}ms`);
           }
-
-          function getOfferXrpAmount(offer: any): BigNumber {
-               if (offer.taker_gets_funded) {
-                    const amount = typeof offer.taker_gets_funded === 'string' ? offer.taker_gets_funded : offer.taker_gets_funded.value;
-                    if (amount.includes('.')) {
-                         return new BigNumber(amount);
-                    } else {
-                         return new BigNumber(xrpl.dropsToXrp(amount));
-                    }
-                    // return new BigNumber(xrpl.dropsToXrp(amount));
-               }
-               if (typeof offer.TakerGets === 'string') {
-                    return new BigNumber(xrpl.dropsToXrp(offer.TakerGets));
-               }
-               return new BigNumber(offer.TakerGets.value);
-          }
-
-          function isFrozenAsset(obj: any): obj is { value: string } {
-               return typeof obj === 'object' && obj !== null && 'value' in obj;
-          }
-
-          function getOfferPhnixAmount(offer: any): BigNumber {
-               if (offer.taker_pays_funded) {
-                    return new BigNumber(offer.taker_pays_funded.value);
-               }
-               if (typeof offer.TakerPays === 'string') {
-                    // This should never happen for tokens, but just in case
-                    return new BigNumber(offer.TakerPays);
-               }
-               return new BigNumber(offer.TakerPays.value);
-          }
-
-          function getOfferRate(offer: any): BigNumber {
-               const takerGets = getOfferXrpAmount(offer);
-               const takerPays = getOfferPhnixAmount(offer);
-               return takerPays.isZero() ? new BigNumber(0) : takerGets.dividedBy(takerPays);
-          }
      }
+
+     // async updateTokenBalanceAndExchange() {
+     //      console.log('Entering updateTokenBalanceAndExchange');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+
+     //      if (!this.selectedAccount) {
+     //           this.setError('Please select an account');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+
+     //      if (!this.utilsService.validateInput(address)) {
+     //           this.setError('ERROR: Account address cannot be empty');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      try {
+     //           this.spinner = true;
+     //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
+
+     //           const client = await this.xrplService.getClient();
+     //           const { net, environment } = this.xrplService.getNet();
+     //           console.log(`Connected to ${environment} ${net}`);
+
+     //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
+     //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
+     //           }
+
+     //           if (this.weWantCurrencyField === 'XRP') {
+     //                await this.updateTokenBalanceAndExchange1();
+     //                return;
+     //           }
+
+     //           // Fetch Token balance
+     //           const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
+     //           let phnixBalance = '0';
+
+     //           if (balanceResponse.result.assets) {
+     //                for (const [issuer, assets] of Object.entries(balanceResponse.result.assets)) {
+     //                     for (const asset of assets as any[]) {
+     //                          const decodedCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
+     //                          if (decodedCurrency === this.weWantCurrencyField && issuer === this.weWantIssuerField) {
+     //                               phnixBalance = parseFloat(asset.value).toFixed(8);
+     //                               break;
+     //                          }
+     //                     }
+     //                }
+     //           }
+
+     //           this.phnixBalance = Number(phnixBalance).toLocaleString(undefined, {
+     //                minimumFractionDigits: 0,
+     //                maximumFractionDigits: 18,
+     //                useGrouping: true,
+     //           });
+
+     //           if (parseFloat(phnixBalance) === 0) {
+     //                this.setError(`No ${this.weWantCurrencyField} found for issuer ${this.weWantIssuerField}`);
+     //                return;
+     //           }
+
+     //           const encodedCurrency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
+     //           const weWant = { currency: 'XRP' };
+     //           const weSpend = {
+     //                currency: encodedCurrency,
+     //                issuer: this.weWantIssuerField,
+     //           };
+
+     //           console.log(`weWant ${JSON.stringify(weWant, null, 2)} weSpend ${JSON.stringify(weSpend, null, 2)}`);
+
+     //           // Fetch Order Book Offers
+     //           const orderBook = await client.request({
+     //                command: 'book_offers',
+     //                ledger_index: 'validated',
+     //                taker_gets: weWant,
+     //                taker_pays: weSpend,
+     //                limit: 400,
+     //           });
+
+     //           // Fetch AMM Pool (if available)
+     //           let ammPoolData = null;
+     //           try {
+     //                ammPoolData = await client.request({
+     //                     command: 'amm_info',
+     //                     asset: weSpend,
+     //                     asset2: { currency: 'XRP' },
+     //                });
+     //                console.log('AMM Pool Data:', ammPoolData);
+     //           } catch (ammError) {
+     //                console.warn('No AMM pool found for this pair:', ammError);
+     //           }
+
+     //           // Combine Order Book and AMM Liquidity
+     //           let allOffers = [...orderBook.result.offers];
+
+     //           if (ammPoolData?.result?.amm) {
+     //                const amm = ammPoolData.result.amm;
+     //                const getAmountValue = (amount: any): string => {
+     //                     if (typeof amount === 'object' && amount !== null && 'value' in amount) {
+     //                          return amount.value;
+     //                     }
+     //                     return String(amount);
+     //                };
+
+     //                const asset1Amount = getAmountValue(amm.amount);
+     //                let asset2Amount = getAmountValue(amm.amount2);
+
+     //                if (typeof amm.amount2 === 'string') {
+     //                     asset2Amount = xrpl.dropsToXrp(asset2Amount).toString();
+     //                }
+
+     //                const ammRate = new BigNumber(asset2Amount).dividedBy(asset1Amount);
+     //                const ammOffer = {
+     //                     TakerGets: { currency: 'XRP', value: asset2Amount },
+     //                     TakerPays: {
+     //                          currency: encodedCurrency,
+     //                          issuer: this.weWantIssuerField,
+     //                          value: asset1Amount,
+     //                     },
+     //                     rate: ammRate,
+     //                     isAMM: true,
+     //                     LedgerEntryType: 'Offer',
+     //                     Flags: 0,
+     //                     Account: 'AMM_POOL',
+     //                     Sequence: 0,
+     //                     Expiration: null,
+     //                     BookDirectory: '',
+     //                     BookNode: '',
+     //                     OwnerNode: '',
+     //                     PreviousTxnID: '',
+     //                     PreviousTxnLgrSeq: 0,
+     //                };
+     //                allOffers.push(ammOffer as any);
+     //           }
+
+     //           // Sort offers by best rate (descending: XRP per Token)
+     //           const sortedOffers = allOffers.sort((a, b) => {
+     //                const rateA = this.getOfferRate(a);
+     //                const rateB = this.getOfferRate(b);
+     //                return rateB.minus(rateA).toNumber();
+     //           });
+
+     //           // Calculate exchange with slippage
+     //           const phnixAmount = new BigNumber(this.weSpendAmountField || '0');
+     //           let remainingPhnix = phnixAmount;
+     //           let totalXrp = new BigNumber(0);
+     //           let bestRate: BigNumber | null = null;
+
+     //           for (const offer of sortedOffers) {
+     //                const takerGets = this.getOfferXrpAmount(offer);
+     //                const takerPays = this.getOfferPhnixAmount(offer);
+
+     //                if (takerPays.isZero()) continue;
+
+     //                const rate = takerGets.dividedBy(takerPays);
+     //                if (!bestRate || rate.gt(bestRate)) {
+     //                     bestRate = rate;
+     //                }
+
+     //                // Apply slippage constraint
+     //                if (bestRate && rate.lt(bestRate.multipliedBy(1 - this.slippage))) {
+     //                     continue; // Skip offers exceeding slippage
+     //                }
+
+     //                const phnixToUse = BigNumber.minimum(remainingPhnix, takerPays);
+     //                let xrpReceived = phnixToUse.multipliedBy(rate);
+
+     //                totalXrp = totalXrp.plus(xrpReceived);
+     //                remainingPhnix = remainingPhnix.minus(phnixToUse);
+
+     //                console.log(`Used ${phnixToUse.toString()} ${this.weWantCurrencyField} to get ${xrpReceived.toFixed(12)} XRP at rate ${rate.toFixed(8)}`);
+
+     //                if (remainingPhnix.isLessThanOrEqualTo(0)) break;
+     //           }
+
+     //           const usedAmount = phnixAmount.minus(remainingPhnix);
+     //           if (usedAmount.isZero()) {
+     //                this.phnixExchangeXrp = `No liquidity available`;
+     //                this.insufficientLiquidityWarning = true;
+     //           } else if (remainingPhnix.isGreaterThan(0)) {
+     //                this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(8)} ${this.weWantCurrencyField} can be exchanged for ${totalXrp.toFixed(6)} XRP`;
+     //                this.insufficientLiquidityWarning = true;
+     //           } else {
+     //                this.phnixExchangeXrp = totalXrp.toFixed(12);
+     //                this.insufficientLiquidityWarning = false;
+     //           }
+
+     //           // Calculate average exchange rate for display
+     //           if (usedAmount.isGreaterThan(0)) {
+     //                this.averageExchangeRate = totalXrp.dividedBy(usedAmount).toFixed(8);
+     //                console.log(`Average exchange rate: ${this.averageExchangeRate} XRP/${this.weWantCurrencyField}`);
+     //           } else {
+     //                this.averageExchangeRate = '0';
+     //           }
+
+     //           this.cdr.detectChanges();
+     //      } catch (error: any) {
+     //           console.error('Error in updateTokenBalanceAndExchange:', error);
+     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = 'Error';
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving updateTokenBalanceAndExchange in ${this.executionTime}ms`);
+     //      }
+     // }
+
+     // async updateTokenBalanceAndExchange() {
+     //      console.log('Entering updateTokenBalanceAndExchange');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+
+     //      if (!this.selectedAccount) {
+     //           this.setError('Please select an account');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+
+     //      if (!this.utilsService.validateInput(address)) {
+     //           this.setError('ERROR: Account address cannot be empty');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      try {
+     //           this.spinner = true;
+     //           // this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
+
+     //           const client = await this.xrplService.getClient();
+     //           const { net, environment } = this.xrplService.getNet();
+     //           console.log(`Connected to ${environment} ${net}`);
+
+     //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
+     //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
+     //           }
+
+     //           if (this.weWantCurrencyField === 'XRP') {
+     //                this.updateTokenBalanceAndExchange1();
+     //                await this.updateTokenBalanceAndExchange1();
+     //                return;
+     //           } else {
+     //                // Fetch Token balance
+     //                const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
+     //                let phnixBalance = '0';
+
+     //                if (balanceResponse.result.assets) {
+     //                     for (const [issuer, assets] of Object.entries(balanceResponse.result.assets)) {
+     //                          for (const asset of assets as any[]) {
+     //                               const decodedCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
+     //                               if (decodedCurrency === this.weWantCurrencyField && issuer === this.weWantIssuerField) {
+     //                                    phnixBalance = parseFloat(asset.value).toFixed(8);
+     //                                    break;
+     //                               }
+     //                          }
+     //                     }
+     //                }
+
+     //                this.phnixBalance = this.phnixBalance.replace(/,/g, '');
+     //                if (this.phnixBalance !== phnixBalance) {
+     //                     this.phnixBalance = this.phnixBalance;
+     //                } else {
+     //                     this.phnixBalance = phnixBalance;
+     //                }
+
+     //                if (parseFloat(phnixBalance) === 0) {
+     //                     this.setError(`No PHNIX found for issuer ${this.weWantIssuerField}`);
+     //                     return;
+     //                }
+
+     //                const encodedCurrency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
+     //                const weWant = { currency: 'XRP' };
+     //                const weSpend = {
+     //                     currency: encodedCurrency,
+     //                     issuer: this.weWantIssuerField,
+     //                };
+
+     //                console.log(`weWant ${JSON.stringify(weWant, null, 2)} weSpend ${JSON.stringify(weSpend, null, 2)}`);
+
+     //                // 1. Fetch Order Book Offers
+     //                const orderBook = await client.request({
+     //                     command: 'book_offers',
+     //                     ledger_index: 'validated',
+     //                     taker_gets: weWant,
+     //                     taker_pays: weSpend,
+     //                     limit: 400, // Increased limit to capture more liquidity
+     //                });
+
+     //                // 2. Fetch AMM Pool (if available)
+     //                let ammPoolData = null;
+     //                try {
+     //                     ammPoolData = await client.request({
+     //                          command: 'amm_info',
+     //                          asset: weSpend, // { currency: encodedCurrency, issuer: this.weWantIssuerField }
+     //                          asset2: { currency: 'XRP' }, // XRP (no issuer)
+     //                     });
+     //                     console.log('AMM Pool Data:', ammPoolData);
+     //                } catch (ammError) {
+     //                     console.warn('No AMM pool found for this pair:', ammError);
+     //                }
+
+     //                // Combine Order Book and AMM Liquidity
+     //                let allOffers = [...orderBook.result.offers];
+
+     //                if (ammPoolData?.result?.amm) {
+     //                     const amm = ammPoolData.result.amm;
+
+     //                     // Get the correct amounts from the AMM pool
+     //                     // const asset1Amount = typeof amm.amount === 'object' && 'value' in amm.amount ? amm.amount.value : amm.amount; // First asset (PHNIX)
+     //                     // const asset2Amount = typeof amm.amount2 === 'object' && 'value' in amm.amount2 ? amm.amount2.value : amm.amount2; // Second asset (XRP)
+
+     //                     // Get the correct amounts from the AMM pool with proper type handling
+     //                     const getAmountValue = (amount: any): string => {
+     //                          if (typeof amount === 'object' && amount !== null && 'value' in amount) {
+     //                               return amount.value;
+     //                          }
+     //                          return String(amount);
+     //                     };
+
+     //                     const asset1Amount = getAmountValue(amm.amount);
+     //                     let asset2Amount = getAmountValue(amm.amount2);
+
+     //                     // Convert XRP from drops to XRP if needed
+     //                     if (typeof amm.amount2 === 'object' && amm.amount2 !== null && 'currency' in amm.amount2) {
+     //                          if (amm.amount2.currency === 'XRP') {
+     //                               asset2Amount = xrpl.dropsToXrp(asset2Amount).toString();
+     //                          }
+     //                     }
+
+     //                     // Calculate the AMM rate
+     //                     const ammRate = new BigNumber(asset2Amount).dividedBy(asset1Amount);
+
+     //                     const ammOffer = {
+     //                          TakerGets: { currency: 'XRP', value: asset2Amount },
+     //                          TakerPays: {
+     //                               currency: encodedCurrency,
+     //                               issuer: this.weWantIssuerField,
+     //                               value: asset1Amount,
+     //                          },
+     //                          rate: ammRate,
+     //                          isAMM: true,
+     //                          LedgerEntryType: 'Offer',
+     //                          Flags: 0,
+     //                          Account: 'AMM_POOL',
+     //                          Sequence: 0,
+     //                          Expiration: null,
+     //                          BookDirectory: '',
+     //                          BookNode: '',
+     //                          OwnerNode: '',
+     //                          PreviousTxnID: '',
+     //                          PreviousTxnLgrSeq: 0,
+     //                     };
+     //                     allOffers.push(ammOffer as any);
+     //                }
+
+     //                // Sort all offers by best rate (descending)
+     //                const sortedOffers = allOffers.sort((a, b) => {
+     //                     const rateA = getOfferRate(a);
+     //                     const rateB = getOfferRate(b);
+     //                     return rateB.minus(rateA).toNumber();
+     //                });
+
+     //                const phnixAmount = new BigNumber(this.phnixBalance);
+     //                let remainingPhnix = phnixAmount;
+     //                let totalXrp = new BigNumber(0);
+
+     //                for (const offer of sortedOffers) {
+     //                     const takerGets = getOfferXrpAmount(offer);
+     //                     const takerPays = getOfferPhnixAmount(offer);
+
+     //                     if (takerPays.isZero()) continue;
+
+     //                     const rate = takerGets.dividedBy(takerPays);
+     //                     const phnixToUse = BigNumber.minimum(remainingPhnix, takerPays);
+     //                     let xrpReceived = phnixToUse.multipliedBy(rate);
+     //                     xrpReceived = xrpReceived.dividedBy(1_000_000); // Convert to XRP
+
+     //                     totalXrp = totalXrp.plus(xrpReceived.toFixed(12));
+     //                     remainingPhnix = remainingPhnix.minus(phnixToUse);
+
+     //                     console.log(`Used ${phnixToUse.toString()} PHNIX to get ${xrpReceived.toFixed(12)} XRP at rate ${rate.toFixed(8)} `);
+
+     //                     if (remainingPhnix.isLessThanOrEqualTo(0)) break;
+     //                }
+
+     //                const usedAmount = phnixAmount.minus(remainingPhnix);
+     //                if (usedAmount.isZero()) {
+     //                     this.phnixExchangeXrp = `No liquidity available`;
+     //                     this.insufficientLiquidityWarning = true;
+     //                } else if (remainingPhnix.isGreaterThan(0)) {
+     //                     this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(8)} PHNIX can be exchanged for ${totalXrp.toFixed(6)} XRP`;
+     //                     this.insufficientLiquidityWarning = true;
+     //                } else {
+     //                     this.phnixExchangeXrp = totalXrp.toFixed(12);
+     //                     this.insufficientLiquidityWarning = false;
+     //                }
+
+     //                // Optional: Show average rate
+     //                if (usedAmount.isGreaterThan(0)) {
+     //                     const avgRate = totalXrp.dividedBy(usedAmount);
+     //                     console.log(`Average exchange rate: ${avgRate.toFixed(8)} XRP/PHNIX`);
+     //                }
+
+     //                // this.phnixBalance = Number(this.phnixBalance).toLocaleString();
+     //                this.phnixBalance = Number(this.phnixBalance).toLocaleString(undefined, {
+     //                     minimumFractionDigits: 0,
+     //                     maximumFractionDigits: 18, // enough to preserve precision
+     //                     useGrouping: true,
+     //                });
+     //           }
+     //           this.cdr.detectChanges();
+     //      } catch (error: any) {
+     //           console.error('Error in updateTokenBalanceAndExchange:', error);
+     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = 'Error';
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving updateTokenBalanceAndExchange in ${this.executionTime}ms`);
+     //      }
+
+     //      function getOfferXrpAmount(offer: any): BigNumber {
+     //           if (offer.taker_gets_funded) {
+     //                const amount = typeof offer.taker_gets_funded === 'string' ? offer.taker_gets_funded : offer.taker_gets_funded.value;
+     //                if (amount.includes('.')) {
+     //                     return new BigNumber(amount);
+     //                } else {
+     //                     return new BigNumber(xrpl.dropsToXrp(amount));
+     //                }
+     //                // return new BigNumber(xrpl.dropsToXrp(amount));
+     //           }
+     //           if (typeof offer.TakerGets === 'string') {
+     //                return new BigNumber(xrpl.dropsToXrp(offer.TakerGets));
+     //           }
+     //           return new BigNumber(offer.TakerGets.value);
+     //      }
+
+     //      function isFrozenAsset(obj: any): obj is { value: string } {
+     //           return typeof obj === 'object' && obj !== null && 'value' in obj;
+     //      }
+
+     //      function getOfferPhnixAmount(offer: any): BigNumber {
+     //           if (offer.taker_pays_funded) {
+     //                return new BigNumber(offer.taker_pays_funded.value);
+     //           }
+     //           if (typeof offer.TakerPays === 'string') {
+     //                // This should never happen for tokens, but just in case
+     //                return new BigNumber(offer.TakerPays);
+     //           }
+     //           return new BigNumber(offer.TakerPays.value);
+     //      }
+
+     //      function getOfferRate(offer: any): BigNumber {
+     //           const takerGets = getOfferXrpAmount(offer);
+     //           const takerPays = getOfferPhnixAmount(offer);
+     //           return takerPays.isZero() ? new BigNumber(0) : takerGets.dividedBy(takerPays);
+     //      }
+     // }
 
      async updateTokenBalanceAndExchange1() {
           console.log('Entering updateTokenBalanceAndExchange1');
@@ -2256,7 +2796,35 @@ export class CreateOfferComponent implements AfterViewChecked {
                     ledger_index: 'validated',
                });
                let xrpBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance).toString();
-               // this.xrpBalance = parseFloat(xrpBalance).toFixed(6);
+               this.phnixBalance = Number(xrpBalance).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 6,
+                    useGrouping: true,
+               });
+               this.weSpendTokenBalanceField = Number(xrpBalance).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 18, // enough to preserve precision
+                    useGrouping: true,
+               });
+
+               // Fetch token balance for weWantCurrencyField
+               const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
+               let weWantBalance = '0';
+               if (balanceResponse.result.assets) {
+                    for (const [issuer, assets] of Object.entries(balanceResponse.result.assets)) {
+                         for (const asset of assets as any[]) {
+                              const decodedCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
+                              if (decodedCurrency === this.weWantCurrencyField && issuer === this.weWantIssuerField) {
+                                   weWantBalance = parseFloat(asset.value).toFixed(8);
+                              }
+                         }
+                    }
+               }
+               this.weWantTokenBalanceField = Number(weWantBalance).toLocaleString(undefined, {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 18, // enough to preserve precision
+                    useGrouping: true,
+               });
 
                if (parseFloat(xrpBalance) === 0) {
                     this.setError('No XRP balance found');
@@ -2271,29 +2839,22 @@ export class CreateOfferComponent implements AfterViewChecked {
                };
                const weSpend = { currency: 'XRP' };
 
-               // 1. Fetch Order Book Offers
+               // Fetch Order Book Offers
                const orderBook = await client.request({
                     command: 'book_offers',
                     ledger_index: 'validated',
-                    taker_gets: weWant, // PHNIX (what you will receive)
-                    taker_pays: weSpend, // XRP (what you will spend)
+                    taker_gets: weWant,
+                    taker_pays: weSpend,
                     limit: 400,
                });
-               // const orderBook = await client.request({
-               //      command: 'book_offers',
-               //      ledger_index: 'validated',
-               //      taker_gets: weWant, // XRP
-               //      taker_pays: weSpend, // PHNIX
-               //      limit: 400,
-               // });
 
-               // 2. Fetch AMM Pool (if available)
+               // Fetch AMM Pool (if available)
                let ammPoolData = null;
                try {
                     ammPoolData = await client.request({
                          command: 'amm_info',
-                         asset: { currency: 'XRP' }, // XRP (no issuer)
-                         asset2: weWant, // PHNIX
+                         asset: { currency: 'XRP' },
+                         asset2: weWant,
                     });
                     console.log('AMM Pool Data:', ammPoolData);
                } catch (ammError) {
@@ -2305,7 +2866,6 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                if (ammPoolData?.result?.amm) {
                     const amm = ammPoolData.result.amm;
-
                     const getAmountValue = (amount: any): string => {
                          if (typeof amount === 'object' && amount !== null && 'value' in amount) {
                               return amount.value;
@@ -2313,29 +2873,24 @@ export class CreateOfferComponent implements AfterViewChecked {
                          return String(amount);
                     };
 
-                    const asset1Amount = getAmountValue(amm.amount); // XRP or PHNIX
-                    let asset2Amount = getAmountValue(amm.amount2); // PHNIX or XRP
+                    const asset1Amount = getAmountValue(amm.amount);
+                    let asset2Amount = getAmountValue(amm.amount2);
 
-                    // Determine which asset is XRP and which is PHNIX
-                    let xrpAmount, phnixAmount;
+                    let xrpAmount, tokenAmount;
                     if (typeof amm.amount2 === 'string') {
-                         // amount2 is XRP (in drops)
                          xrpAmount = xrpl.dropsToXrp(asset2Amount).toString();
-                         phnixAmount = asset1Amount;
+                         tokenAmount = asset1Amount;
                     } else {
-                         // amount2 is PHNIX, amount is XRP (in drops)
                          xrpAmount = xrpl.dropsToXrp(asset1Amount).toString();
-                         phnixAmount = asset2Amount;
+                         tokenAmount = asset2Amount;
                     }
 
-                    // Calculate the AMM rate (PHNIX per XRP)
-                    const ammRate = new BigNumber(phnixAmount).dividedBy(xrpAmount);
-
+                    const ammRate = new BigNumber(tokenAmount).dividedBy(xrpAmount);
                     const ammOffer = {
                          TakerGets: {
                               currency: encodedCurrency,
-                              issuer: this.weWantIssuerField,
-                              value: phnixAmount,
+                              issuer: this.weSpendIssuerField,
+                              value: tokenAmount,
                          },
                          TakerPays: { currency: 'XRP', value: xrpAmount },
                          rate: ammRate,
@@ -2354,31 +2909,41 @@ export class CreateOfferComponent implements AfterViewChecked {
                     allOffers.push(ammOffer as any);
                }
 
-               // Sort all offers by best rate (ascending, since we want PHNIX per XRP)
+               // Sort offers by best rate (ascending: Token per XRP)
                const sortedOffers = allOffers.sort((a, b) => {
-                    const rateA = getOfferRate(a); // PHNIX per XRP
-                    const rateB = getOfferRate(b);
-                    return rateA.minus(rateB).toNumber(); // Ascending for best PHNIX/XRP rate
+                    const rateA = this.getOfferRate(a);
+                    const rateB = this.getOfferRate(b);
+                    return rateA.minus(rateB).toNumber();
                });
 
-               const xrpAmount = new BigNumber(parseFloat(xrpBalance).toFixed(6));
+               // Calculate exchange with slippage
+               const xrpAmount = new BigNumber(this.weSpendAmountField || '0');
                let remainingXrp = xrpAmount;
-               let totalPhnix = new BigNumber(0);
+               let totalToken = new BigNumber(0);
+               let bestRate: BigNumber | null = null;
 
                for (const offer of sortedOffers) {
-                    const takerGets = getOfferPhnixAmount(offer); // PHNIX
-                    const takerPays = getOfferXrpAmount(offer); // XRP
+                    const takerGets = this.getOfferPhnixAmount(offer);
+                    const takerPays = this.getOfferXrpAmount(offer);
 
                     if (takerGets.isZero()) continue;
 
-                    const rate = takerGets.dividedBy(takerPays); // PHNIX per XRP
-                    const xrpToUse = BigNumber.minimum(remainingXrp, takerPays);
-                    const phnixReceived = xrpToUse.multipliedBy(rate);
+                    const rate = takerGets.dividedBy(takerPays);
+                    if (!bestRate || rate.lt(bestRate)) {
+                         bestRate = rate;
+                    }
 
-                    totalPhnix = totalPhnix.plus(phnixReceived.toFixed(8));
+                    if (bestRate && rate.gt(bestRate.multipliedBy(1 + this.slippage))) {
+                         continue;
+                    }
+
+                    const xrpToUse = BigNumber.minimum(remainingXrp, takerPays);
+                    const tokenReceived = xrpToUse.multipliedBy(rate);
+
+                    totalToken = totalToken.plus(tokenReceived);
                     remainingXrp = remainingXrp.minus(xrpToUse);
 
-                    console.log(`Used ${xrpToUse.toFixed(6)} XRP to get ${phnixReceived.toFixed(8)} PHNIX at rate ${rate.toFixed(8)}`);
+                    console.log(`Used ${xrpToUse.toFixed(6)} XRP to get ${tokenReceived.toFixed(8)} ${this.weSpendCurrencyField} at rate ${rate.toFixed(8)}`);
 
                     if (remainingXrp.isLessThanOrEqualTo(0)) break;
                }
@@ -2388,67 +2953,482 @@ export class CreateOfferComponent implements AfterViewChecked {
                     this.phnixExchangeXrp = `No liquidity available`;
                     this.insufficientLiquidityWarning = true;
                } else if (remainingXrp.isGreaterThan(0)) {
-                    this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(6)} XRP can be exchanged for ${totalPhnix.toFixed(8)} PHNIX`;
+                    this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(6)} XRP can be exchanged for ${totalToken.toFixed(8)} ${this.weSpendCurrencyField}`;
                     this.insufficientLiquidityWarning = true;
                } else {
-                    this.phnixExchangeXrp = totalPhnix.toFixed(8);
+                    this.phnixExchangeXrp = totalToken.toFixed(8);
                     this.insufficientLiquidityWarning = false;
                }
 
-               // Optional: Show average rate
+               // Calculate average exchange rate
                if (usedAmount.isGreaterThan(0)) {
-                    const avgRate = totalPhnix.dividedBy(usedAmount);
-                    console.log(`Average exchange rate: ${avgRate.toFixed(8)} PHNIX/XRP`);
+                    this.averageExchangeRate = totalToken.dividedBy(usedAmount).toFixed(8);
+                    console.log(`Average exchange rate: ${this.averageExchangeRate} ${this.weSpendCurrencyField}/XRP`);
+               } else {
+                    this.averageExchangeRate = '0';
                }
+
+               // Calculate USD values (mock prices, replace with real data)
+               const xrpPriceUSD = 0.6;
+               const tokenPriceUSD = 0.0001;
+               this.weSpendValueUSD = usedAmount.multipliedBy(xrpPriceUSD).toNumber();
+               this.weWantValueUSD = totalToken.multipliedBy(tokenPriceUSD).toNumber();
+
+               // Calculate price impact
+               const marketRate = bestRate?.toNumber() || 0;
+               const actualRate = Number(this.averageExchangeRate);
+               this.priceImpact = marketRate ? ((actualRate - marketRate) / marketRate) * 100 : 0;
+               this.priceImpactTooltip = this.priceImpact < 5 ? 'The price impact is within the expected range.' : 'High price impact, consider adjusting the amount.';
+
+               // Calculate pool fee and minimum received
+               this.poolFee = usedAmount.multipliedBy(this.poolFeePercent / 100).toNumber();
+               this.minimumReceived = totalToken.multipliedBy(1 - this.slippage).toNumber();
 
                this.cdr.detectChanges();
           } catch (error: any) {
                console.error('Error in updateTokenBalanceAndExchange1:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-               // this.xrpBalance = '0';
                this.phnixExchangeXrp = 'Error';
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving updateTokenBalanceAndExchange1 in ${this.executionTime}ms`);
           }
-
-          function getOfferXrpAmount(offer: any): BigNumber {
-               if (offer.taker_gets_funded) {
-                    const amount = typeof offer.taker_gets_funded === 'string' ? offer.taker_gets_funded : offer.taker_gets_funded.value;
-                    if (amount.includes('.')) {
-                         return new BigNumber(amount);
-                    } else {
-                         return new BigNumber(xrpl.dropsToXrp(amount));
-                    }
-               }
-               if (typeof offer.TakerGets === 'string') {
-                    return new BigNumber(xrpl.dropsToXrp(offer.TakerGets));
-               }
-               return new BigNumber(offer.TakerGets.value);
-          }
-
-          function isFrozenAsset(obj: any): obj is { value: string } {
-               return typeof obj === 'object' && obj !== null && 'value' in obj;
-          }
-
-          function getOfferPhnixAmount(offer: any): BigNumber {
-               if (offer.taker_pays_funded) {
-                    return new BigNumber(offer.taker_pays_funded.value);
-               }
-               if (typeof offer.TakerPays === 'string') {
-                    // This should never happen for tokens, but just in case
-                    return new BigNumber(offer.TakerPays);
-               }
-               return new BigNumber(offer.TakerPays.value);
-          }
-
-          function getOfferRate(offer: any): BigNumber {
-               const takerGets = getOfferXrpAmount(offer);
-               const takerPays = getOfferPhnixAmount(offer);
-               return takerPays.isZero() ? new BigNumber(0) : takerGets.dividedBy(takerPays);
-          }
      }
+     // async updateTokenBalanceAndExchange1() {
+     //      console.log('Entering updateTokenBalanceAndExchange1');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+
+     //      if (!this.selectedAccount) {
+     //           this.setError('Please select an account');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+
+     //      if (!this.utilsService.validateInput(address)) {
+     //           this.setError('ERROR: Account address cannot be empty');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      try {
+     //           this.spinner = true;
+     //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
+
+     //           const client = await this.xrplService.getClient();
+     //           const { net, environment } = this.xrplService.getNet();
+     //           console.log(`Connected to ${environment} ${net}`);
+
+     //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
+     //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
+     //           }
+
+     //           // Fetch XRP balance
+     //           const accountInfo = await client.request({
+     //                command: 'account_info',
+     //                account: address,
+     //                ledger_index: 'validated',
+     //           });
+     //           let xrpBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance).toString();
+     //           this.phnixBalance = Number(xrpBalance).toLocaleString(undefined, {
+     //                minimumFractionDigits: 0,
+     //                maximumFractionDigits: 6,
+     //                useGrouping: true,
+     //           });
+
+     //           if (parseFloat(xrpBalance) === 0) {
+     //                this.setError('No XRP balance found');
+     //                this.phnixExchangeXrp = '0';
+     //                return;
+     //           }
+
+     //           const encodedCurrency = this.weSpendCurrencyField.length < 3 ? this.weSpendCurrencyField : this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField);
+     //           const weWant = {
+     //                currency: encodedCurrency,
+     //                issuer: this.weSpendIssuerField,
+     //           };
+     //           const weSpend = { currency: 'XRP' };
+
+     //           // Fetch Order Book Offers
+     //           const orderBook = await client.request({
+     //                command: 'book_offers',
+     //                ledger_index: 'validated',
+     //                taker_gets: weWant,
+     //                taker_pays: weSpend,
+     //                limit: 400,
+     //           });
+
+     //           // Fetch AMM Pool (if available)
+     //           let ammPoolData = null;
+     //           try {
+     //                ammPoolData = await client.request({
+     //                     command: 'amm_info',
+     //                     asset: { currency: 'XRP' },
+     //                     asset2: weWant,
+     //                });
+     //                console.log('AMM Pool Data:', ammPoolData);
+     //           } catch (ammError) {
+     //                console.warn('No AMM pool found for this pair:', ammError);
+     //           }
+
+     //           // Combine Order Book and AMM Liquidity
+     //           let allOffers = [...orderBook.result.offers];
+
+     //           if (ammPoolData?.result?.amm) {
+     //                const amm = ammPoolData.result.amm;
+     //                const getAmountValue = (amount: any): string => {
+     //                     if (typeof amount === 'object' && amount !== null && 'value' in amount) {
+     //                          return amount.value;
+     //                     }
+     //                     return String(amount);
+     //                };
+
+     //                const asset1Amount = getAmountValue(amm.amount);
+     //                let asset2Amount = getAmountValue(amm.amount2);
+
+     //                let xrpAmount, tokenAmount;
+     //                if (typeof amm.amount2 === 'string') {
+     //                     xrpAmount = xrpl.dropsToXrp(asset2Amount).toString();
+     //                     tokenAmount = asset1Amount;
+     //                } else {
+     //                     xrpAmount = xrpl.dropsToXrp(asset1Amount).toString();
+     //                     tokenAmount = asset2Amount;
+     //                }
+
+     //                const ammRate = new BigNumber(tokenAmount).dividedBy(xrpAmount);
+     //                const ammOffer = {
+     //                     TakerGets: {
+     //                          currency: encodedCurrency,
+     //                          issuer: this.weSpendIssuerField,
+     //                          value: tokenAmount,
+     //                     },
+     //                     TakerPays: { currency: 'XRP', value: xrpAmount },
+     //                     rate: ammRate,
+     //                     isAMM: true,
+     //                     LedgerEntryType: 'Offer',
+     //                     Flags: 0,
+     //                     Account: 'AMM_POOL',
+     //                     Sequence: 0,
+     //                     Expiration: null,
+     //                     BookDirectory: '',
+     //                     BookNode: '',
+     //                     OwnerNode: '',
+     //                     PreviousTxnID: '',
+     //                     PreviousTxnLgrSeq: 0,
+     //                };
+     //                allOffers.push(ammOffer as any);
+     //           }
+
+     //           // Sort offers by best rate (ascending: Token per XRP)
+     //           const sortedOffers = allOffers.sort((a, b) => {
+     //                const rateA = this.getOfferRate(a);
+     //                const rateB = this.getOfferRate(b);
+     //                return rateA.minus(rateB).toNumber();
+     //           });
+
+     //           // Calculate exchange with slippage
+     //           const xrpAmount = new BigNumber(this.weSpendAmountField || '0');
+     //           let remainingXrp = xrpAmount;
+     //           let totalToken = new BigNumber(0);
+     //           let bestRate: BigNumber | null = null;
+
+     //           for (const offer of sortedOffers) {
+     //                const takerGets = this.getOfferPhnixAmount(offer); // Token
+     //                const takerPays = this.getOfferXrpAmount(offer); // XRP
+
+     //                if (takerGets.isZero()) continue;
+
+     //                const rate = takerGets.dividedBy(takerPays); // Token per XRP
+     //                if (!bestRate || rate.lt(bestRate)) {
+     //                     bestRate = rate;
+     //                }
+
+     //                // Apply slippage constraint
+     //                if (bestRate && rate.gt(bestRate.multipliedBy(1 + this.slippage))) {
+     //                     continue; // Skip offers exceeding slippage
+     //                }
+
+     //                const xrpToUse = BigNumber.minimum(remainingXrp, takerPays);
+     //                const tokenReceived = xrpToUse.multipliedBy(rate);
+
+     //                totalToken = totalToken.plus(tokenReceived);
+     //                remainingXrp = remainingXrp.minus(xrpToUse);
+
+     //                console.log(`Used ${xrpToUse.toFixed(6)} XRP to get ${tokenReceived.toFixed(8)} ${this.weSpendCurrencyField} at rate ${rate.toFixed(8)}`);
+
+     //                if (remainingXrp.isLessThanOrEqualTo(0)) break;
+     //           }
+
+     //           const usedAmount = xrpAmount.minus(remainingXrp);
+     //           if (usedAmount.isZero()) {
+     //                this.phnixExchangeXrp = `No liquidity available`;
+     //                this.insufficientLiquidityWarning = true;
+     //           } else if (remainingXrp.isGreaterThan(0)) {
+     //                this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(6)} XRP can be exchanged for ${totalToken.toFixed(8)} ${this.weSpendCurrencyField}`;
+     //                this.insufficientLiquidityWarning = true;
+     //           } else {
+     //                this.phnixExchangeXrp = totalToken.toFixed(8);
+     //                this.insufficientLiquidityWarning = false;
+     //           }
+
+     //           // Calculate average exchange rate for display
+     //           if (usedAmount.isGreaterThan(0)) {
+     //                this.averageExchangeRate = totalToken.dividedBy(usedAmount).toFixed(8);
+     //                console.log(`Average exchange rate: ${this.averageExchangeRate} ${this.weSpendCurrencyField}/XRP`);
+     //           } else {
+     //                this.averageExchangeRate = '0';
+     //           }
+
+     //           this.cdr.detectChanges();
+     //      } catch (error: any) {
+     //           console.error('Error in updateTokenBalanceAndExchange1:', error);
+     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+     //           this.phnixExchangeXrp = 'Error';
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving updateTokenBalanceAndExchange1 in ${this.executionTime}ms`);
+     //      }
+     // }
+
+     // async updateTokenBalanceAndExchange1() {
+     //      console.log('Entering updateTokenBalanceAndExchange1');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+
+     //      if (!this.selectedAccount) {
+     //           this.setError('Please select an account');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+
+     //      if (!this.utilsService.validateInput(address)) {
+     //           this.setError('ERROR: Account address cannot be empty');
+     //           this.phnixBalance = '0';
+     //           this.phnixExchangeXrp = '0';
+     //           return;
+     //      }
+
+     //      try {
+     //           this.spinner = true;
+     //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
+
+     //           const client = await this.xrplService.getClient();
+     //           const { net, environment } = this.xrplService.getNet();
+     //           console.log(`Connected to ${environment} ${net}`);
+
+     //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
+     //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
+     //           }
+
+     //           // Fetch XRP balance
+     //           const accountInfo = await client.request({
+     //                command: 'account_info',
+     //                account: address,
+     //                ledger_index: 'validated',
+     //           });
+     //           let xrpBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance).toString();
+     //           // this.xrpBalance = parseFloat(xrpBalance).toFixed(6);
+
+     //           if (parseFloat(xrpBalance) === 0) {
+     //                this.setError('No XRP balance found');
+     //                this.phnixExchangeXrp = '0';
+     //                return;
+     //           }
+
+     //           const encodedCurrency = this.weSpendCurrencyField.length < 3 ? this.weSpendCurrencyField : this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField);
+     //           const weWant = {
+     //                currency: encodedCurrency,
+     //                issuer: this.weSpendIssuerField,
+     //           };
+     //           const weSpend = { currency: 'XRP' };
+
+     //           // 1. Fetch Order Book Offers
+     //           const orderBook = await client.request({
+     //                command: 'book_offers',
+     //                ledger_index: 'validated',
+     //                taker_gets: weWant, // PHNIX (what you will receive)
+     //                taker_pays: weSpend, // XRP (what you will spend)
+     //                limit: 400,
+     //           });
+     //           // const orderBook = await client.request({
+     //           //      command: 'book_offers',
+     //           //      ledger_index: 'validated',
+     //           //      taker_gets: weWant, // XRP
+     //           //      taker_pays: weSpend, // PHNIX
+     //           //      limit: 400,
+     //           // });
+
+     //           // 2. Fetch AMM Pool (if available)
+     //           let ammPoolData = null;
+     //           try {
+     //                ammPoolData = await client.request({
+     //                     command: 'amm_info',
+     //                     asset: { currency: 'XRP' }, // XRP (no issuer)
+     //                     asset2: weWant, // PHNIX
+     //                });
+     //                console.log('AMM Pool Data:', ammPoolData);
+     //           } catch (ammError) {
+     //                console.warn('No AMM pool found for this pair:', ammError);
+     //           }
+
+     //           // Combine Order Book and AMM Liquidity
+     //           let allOffers = [...orderBook.result.offers];
+
+     //           if (ammPoolData?.result?.amm) {
+     //                const amm = ammPoolData.result.amm;
+
+     //                const getAmountValue = (amount: any): string => {
+     //                     if (typeof amount === 'object' && amount !== null && 'value' in amount) {
+     //                          return amount.value;
+     //                     }
+     //                     return String(amount);
+     //                };
+
+     //                const asset1Amount = getAmountValue(amm.amount); // XRP or PHNIX
+     //                let asset2Amount = getAmountValue(amm.amount2); // PHNIX or XRP
+
+     //                // Determine which asset is XRP and which is PHNIX
+     //                let xrpAmount, phnixAmount;
+     //                if (typeof amm.amount2 === 'string') {
+     //                     // amount2 is XRP (in drops)
+     //                     xrpAmount = xrpl.dropsToXrp(asset2Amount).toString();
+     //                     phnixAmount = asset1Amount;
+     //                } else {
+     //                     // amount2 is PHNIX, amount is XRP (in drops)
+     //                     xrpAmount = xrpl.dropsToXrp(asset1Amount).toString();
+     //                     phnixAmount = asset2Amount;
+     //                }
+
+     //                // Calculate the AMM rate (PHNIX per XRP)
+     //                const ammRate = new BigNumber(phnixAmount).dividedBy(xrpAmount);
+
+     //                const ammOffer = {
+     //                     TakerGets: {
+     //                          currency: encodedCurrency,
+     //                          issuer: this.weWantIssuerField,
+     //                          value: phnixAmount,
+     //                     },
+     //                     TakerPays: { currency: 'XRP', value: xrpAmount },
+     //                     rate: ammRate,
+     //                     isAMM: true,
+     //                     LedgerEntryType: 'Offer',
+     //                     Flags: 0,
+     //                     Account: 'AMM_POOL',
+     //                     Sequence: 0,
+     //                     Expiration: null,
+     //                     BookDirectory: '',
+     //                     BookNode: '',
+     //                     OwnerNode: '',
+     //                     PreviousTxnID: '',
+     //                     PreviousTxnLgrSeq: 0,
+     //                };
+     //                allOffers.push(ammOffer as any);
+     //           }
+
+     //           // Sort all offers by best rate (ascending, since we want PHNIX per XRP)
+     //           const sortedOffers = allOffers.sort((a, b) => {
+     //                const rateA = getOfferRate(a); // PHNIX per XRP
+     //                const rateB = getOfferRate(b);
+     //                return rateA.minus(rateB).toNumber(); // Ascending for best PHNIX/XRP rate
+     //           });
+
+     //           const xrpAmount = new BigNumber(parseFloat(xrpBalance).toFixed(6));
+     //           let remainingXrp = xrpAmount;
+     //           let totalPhnix = new BigNumber(0);
+
+     //           for (const offer of sortedOffers) {
+     //                const takerGets = getOfferPhnixAmount(offer); // PHNIX
+     //                const takerPays = getOfferXrpAmount(offer); // XRP
+
+     //                if (takerGets.isZero()) continue;
+
+     //                const rate = takerGets.dividedBy(takerPays); // PHNIX per XRP
+     //                const xrpToUse = BigNumber.minimum(remainingXrp, takerPays);
+     //                const phnixReceived = xrpToUse.multipliedBy(rate);
+
+     //                totalPhnix = totalPhnix.plus(phnixReceived.toFixed(8));
+     //                remainingXrp = remainingXrp.minus(xrpToUse);
+
+     //                console.log(`Used ${xrpToUse.toFixed(6)} XRP to get ${phnixReceived.toFixed(8)} PHNIX at rate ${rate.toFixed(8)}`);
+
+     //                if (remainingXrp.isLessThanOrEqualTo(0)) break;
+     //           }
+
+     //           const usedAmount = xrpAmount.minus(remainingXrp);
+     //           if (usedAmount.isZero()) {
+     //                this.phnixExchangeXrp = `No liquidity available`;
+     //                this.insufficientLiquidityWarning = true;
+     //           } else if (remainingXrp.isGreaterThan(0)) {
+     //                this.phnixExchangeXrp = `Insufficient liquidity: Only ${usedAmount.toFixed(6)} XRP can be exchanged for ${totalPhnix.toFixed(8)} PHNIX`;
+     //                this.insufficientLiquidityWarning = true;
+     //           } else {
+     //                this.phnixExchangeXrp = totalPhnix.toFixed(8);
+     //                this.insufficientLiquidityWarning = false;
+     //           }
+
+     //           // Optional: Show average rate
+     //           if (usedAmount.isGreaterThan(0)) {
+     //                const avgRate = totalPhnix.dividedBy(usedAmount);
+     //                console.log(`Average exchange rate: ${avgRate.toFixed(8)} PHNIX/XRP`);
+     //           }
+
+     //           this.cdr.detectChanges();
+     //      } catch (error: any) {
+     //           console.error('Error in updateTokenBalanceAndExchange1:', error);
+     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+     //           // this.xrpBalance = '0';
+     //           this.phnixExchangeXrp = 'Error';
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving updateTokenBalanceAndExchange1 in ${this.executionTime}ms`);
+     //      }
+
+     //      function getOfferXrpAmount(offer: any): BigNumber {
+     //           if (offer.taker_gets_funded) {
+     //                const amount = typeof offer.taker_gets_funded === 'string' ? offer.taker_gets_funded : offer.taker_gets_funded.value;
+     //                if (amount.includes('.')) {
+     //                     return new BigNumber(amount);
+     //                } else {
+     //                     return new BigNumber(xrpl.dropsToXrp(amount));
+     //                }
+     //           }
+     //           if (typeof offer.TakerGets === 'string') {
+     //                return new BigNumber(xrpl.dropsToXrp(offer.TakerGets));
+     //           }
+     //           return new BigNumber(offer.TakerGets.value);
+     //      }
+
+     //      function isFrozenAsset(obj: any): obj is { value: string } {
+     //           return typeof obj === 'object' && obj !== null && 'value' in obj;
+     //      }
+
+     //      function getOfferPhnixAmount(offer: any): BigNumber {
+     //           if (offer.taker_pays_funded) {
+     //                return new BigNumber(offer.taker_pays_funded.value);
+     //           }
+     //           if (typeof offer.TakerPays === 'string') {
+     //                // This should never happen for tokens, but just in case
+     //                return new BigNumber(offer.TakerPays);
+     //           }
+     //           return new BigNumber(offer.TakerPays.value);
+     //      }
+
+     //      function getOfferRate(offer: any): BigNumber {
+     //           const takerGets = getOfferXrpAmount(offer);
+     //           const takerPays = getOfferPhnixAmount(offer);
+     //           return takerPays.isZero() ? new BigNumber(0) : takerGets.dividedBy(takerPays);
+     //      }
+     // }
 
      // async updateTokenBalanceAndExchange() {
      //      console.log('Entering updateTokenBalanceAndExchange');
@@ -2655,6 +3635,33 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
+     getOfferXrpAmount(offer: any): BigNumber {
+          if (offer.taker_gets_funded) {
+               const amount = typeof offer.taker_gets_funded === 'string' ? offer.taker_gets_funded : offer.taker_gets_funded.value;
+               return new BigNumber(amount.includes('.') ? amount : xrpl.dropsToXrp(amount));
+          }
+          if (typeof offer.TakerGets === 'string') {
+               return new BigNumber(xrpl.dropsToXrp(offer.TakerGets));
+          }
+          return new BigNumber(offer.TakerGets.value);
+     }
+
+     getOfferPhnixAmount(offer: any): BigNumber {
+          if (offer.taker_pays_funded) {
+               return new BigNumber(offer.taker_pays_funded.value);
+          }
+          if (typeof offer.TakerPays === 'string') {
+               return new BigNumber(offer.TakerPays);
+          }
+          return new BigNumber(offer.TakerPays.value);
+     }
+
+     getOfferRate(offer: any): BigNumber {
+          const takerGets = this.getOfferXrpAmount(offer);
+          const takerPays = this.getOfferPhnixAmount(offer);
+          return takerPays.isZero() ? new BigNumber(0) : takerGets.dividedBy(takerPays);
+     }
+
      clearFields() {
           this.memoField = '';
           this.ticketSequence = '';
@@ -2663,7 +3670,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     async displayOfferDataForAccount1() {
+     async displayOfferDataForAccount1(event: MatAutocompleteSelectedEvent) {
           const account1name = this.storageService.getInputValue('account1name');
           const account1address = this.storageService.getInputValue('account1address');
           const account2address = this.storageService.getInputValue('account2address');
@@ -2698,8 +3705,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.memoField = '';
           }
 
-          await this.onWeWantCurrencyChange();
-          await this.onWeSpendCurrencyChange();
+          await this.onWeWantCurrencyChange(event);
+          await this.onWeSpendCurrencyChange(event);
           this.getOffers();
      }
 
