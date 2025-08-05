@@ -9,28 +9,16 @@ import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { Observable, BehaviorSubject } from 'rxjs';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { MatTableModule } from '@angular/material/table';
-import { MatSortModule } from '@angular/material/sort';
-import { MatPaginatorModule } from '@angular/material/paginator';
-import { MatButtonModule } from '@angular/material/button';
 
 @Component({
      selector: 'app-account',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe, MatTableModule, MatSortModule, MatPaginatorModule, MatButtonModule],
+     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './send-xrp.component.html',
      styleUrl: './send-xrp.component.css',
      encapsulation: ViewEncapsulation.None,
 })
 export class SendXrpComponent implements AfterViewChecked {
-     dataSource = new MatTableDataSource<any>();
-     displayedColumns: string[] = ['transactionType', 'createdDate', 'creationAge', 'action', 'amountXrp', 'amountToken', 'currency', 'issuer', 'timestamp', 'transactionHash'];
-     @ViewChild(MatPaginator) paginator!: MatPaginator;
-     @ViewChild(MatSort) sort!: MatSort;
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = null;
@@ -60,25 +48,10 @@ export class SendXrpComponent implements AfterViewChecked {
      isMultiSign = false;
      isTicket = false;
      spinnerMessage: string = '';
-     tokens$: Observable<{ transactionType: string; action: string; amountXrp: string; amountToken: string; currency: string; issuer: string; transactionHash: string; timestamp: Date; createdDate: Date; creationAge: string }[]>;
-     private memeTokensSubject = new BehaviorSubject<{ transactionType: string; action: string; amountXrp: string; amountToken: string; currency: string; issuer: string; transactionHash: string; timestamp: Date; createdDate: Date; creationAge: string }[]>([]);
-     memeTokens$ = this.memeTokensSubject.asObservable(); // Use Observable for UI binding
-     private readonly maxTokens = 20; // Limit to 20 tokens
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {
-          this.tokens$ = this.xrplService.tokens$; // Initialize tokens observable
-     }
-
-     ngOnInit() {
-          this.startTokenMonitoring(); // Start monitoring when component initializes
-          this.memeTokens$.subscribe(tokens => {
-               this.dataSource.data = tokens;
-          });
-     }
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngAfterViewInit() {
-          this.dataSource.paginator = this.paginator;
-          this.dataSource.sort = this.sort;
           this.cdr.detectChanges();
      }
 
@@ -122,54 +95,6 @@ export class SendXrpComponent implements AfterViewChecked {
           } else if (this.selectedAccount === 'account2') {
                this.displayDataForAccount2();
           }
-     }
-
-     private isMemeCoin(token: { currency: string; issuer: string }): boolean {
-          // Dynamic heuristic: Exclude known fiat/stablecoin currencies
-          let isNonStandard;
-          const nonMemeCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'BTC', 'ETH', 'XRP', 'CNY', 'USDT', 'USDC', 'DAI'];
-          if (token.currency.length > 3) {
-               isNonStandard = !nonMemeCurrencies.includes(this.utilsService.decodeCurrencyCode(token.currency));
-          } else {
-               isNonStandard = !nonMemeCurrencies.includes(token.currency.toUpperCase());
-          }
-          return isNonStandard;
-     }
-
-     private async startTokenMonitoring() {
-          try {
-               await this.xrplService.monitorNewTokens();
-               this.tokens$.subscribe(tokens => {
-                    const currentMemeTokens = this.memeTokensSubject.getValue();
-                    // console.log('Current Meme Tokens:', currentMemeTokens);
-                    const newMemeTokens = tokens
-                         .filter(token => this.isMemeCoin(token) && !currentMemeTokens.some(t => t.currency === token.currency && t.issuer === token.issuer))
-                         .map(token => {
-                              if (token.currency.length > 10) {
-                                   const curr = this.utilsService.decodeCurrencyCode(token.currency.toUpperCase());
-                                   // console.log(`Meme coin detected: ${curr} - Transaction Hash: ${token.transactionHash}`);
-                                   return { ...token, currency: curr }; // Decode currency code
-                              } else {
-                                   // console.log(`Meme coin detected: ${token.currency} - Transaction Hash: ${token.transactionHash}`);
-                                   return token;
-                              }
-                         });
-
-                    if (newMemeTokens.length > 0) {
-                         // Keep only the most recent maxTokens (sorted by timestamp, newest first)
-                         const updatedTokens = [...currentMemeTokens, ...newMemeTokens].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, this.maxTokens);
-                         this.memeTokensSubject.next(updatedTokens);
-                    }
-               });
-          } catch (error) {
-               console.error('Error starting token monitoring:', error);
-               this.setError('Failed to start token monitoring');
-          }
-     }
-
-     clearMemeTokens() {
-          // this.memeTokensSubject.next([]);
-          this.dataSource.data = [];
      }
 
      async getAccountDetails(address: string) {
