@@ -4,6 +4,73 @@
 <form id="theForm">
      <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
 
+     <!-- <fieldset>
+          <legend style="color: white">Meme Coin Monitor</legend>
+
+          <table mat-table [dataSource]="dataSource" matSort class="mat-elevation-z8" style="width: 100%; margin-top: 1em; background-color: #1a1c21">
+               <ng-container matColumnDef="transactionType">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Tx Type</th>
+                    <td mat-cell *matCellDef="let token" [class.trustset-cell]="token.transactionType === 'TrustSet'">{{ token.transactionType }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="createdDate">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Created Date</th>
+                    <td mat-cell *matCellDef="let token">{{ token.createdDate | date:'short' }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="creationAge">
+                    <th mat-header-cell *matHeaderCellDef>Created Age</th>
+                    <td mat-cell *matCellDef="let token">{{ token.creationAge }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="action">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Buy/Sell</th>
+                    <td mat-cell *matCellDef="let token">{{ token.action }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="amountXrp">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>XRP Amount</th>
+                    <td mat-cell *matCellDef="let token">{{ token.amountXrp }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="amountToken">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Token Amount</th>
+                    <td mat-cell *matCellDef="let token">{{ token.amountToken }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="currency">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Currency</th>
+                    <td mat-cell *matCellDef="let token">{{ token.currency }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="issuer">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Issuer</th>
+                    <td mat-cell *matCellDef="let token">{{ token.issuer }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="timestamp">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>Timestamp</th>
+                    <td mat-cell *matCellDef="let token">{{ isValidDate(token.timestamp) ? (token.timestamp | date:'short') : 'N/A' }}</td>
+               </ng-container>
+
+               <ng-container matColumnDef="transactionHash">
+                    <th mat-header-cell *matHeaderCellDef>Transaction</th>
+                    <td mat-cell *matCellDef="let token">
+                         <a [href]="'https://livenet.xrpl.org/transactions/' + token.transactionHash" target="_blank"> {{ token.transactionHash | slice:0:10 }}... </a>
+                    </td>
+               </ng-container>
+
+               <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+               <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+
+          <div *ngIf="dataSource.data.length === 0" style="margin-top: 1em; color: lightgray">No meme coins detected yet.</div>
+
+          <button mat-raised-button color="warn" (click)="clearMemeTokens()">Clear Table</button>
+          <mat-paginator [pageSizeOptions]="[5, 10, 20]" showFirstLastButtons></mat-paginator>
+     </fieldset> -->
+
+     <br />
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
           <table style="float: left">
@@ -212,10 +279,10 @@
                               <option value="RLUSD">RLUSD</option>
                               <option value="USD">USD</option>
                               <option value="USDC">USDC</option>
-                              <option value="DOG">DOG</option>
                               <option value="PHNIX">PHNIX</option>
-                              <option value="HONEY">HONEY</option>
-                              <option value="KODY">KODY</option>
+                              <option value="EVAP">EVAP</option>
+                              <option value="ROCK">ROCK</option>
+                              <option value="SNOW">SNOW</option>
                          </select>
                          <p></p>
                     </td>
@@ -343,10 +410,11 @@
                               <option value="RLUSD">RLUSD</option>
                               <option value="USD">USD</option>
                               <option value="USDC">USDC</option>
-                              <option value="DOG">DOG</option>
                               <option value="PHNIX">PHNIX</option>
-                              <option value="HONEY">HONEY</option>
-                              <option value="KODY">KODY</option>
+                              <option value="TAZZ">TAZZ</option>
+                              <option value="EVAP">EVAP</option>
+                              <option value="ROCK">ROCK</option>
+                              <option value="SNOW">SNOW</option>
                          </select>
                          <p></p>
                     </td>

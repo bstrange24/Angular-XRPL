@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
@@ -11,6 +11,14 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import BigNumber from 'bignumber.js';
+import { Observable, BehaviorSubject } from 'rxjs';
+import { MatTableDataSource } from '@angular/material/table';
+import { MatPaginator } from '@angular/material/paginator';
+import { MatSort } from '@angular/material/sort';
+import { MatTableModule } from '@angular/material/table';
+import { MatSortModule } from '@angular/material/sort';
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatButtonModule } from '@angular/material/button';
 
 // Helper interfaces for proper typing
 interface AMMAsset {
@@ -70,11 +78,16 @@ type CustomBookOffer = Partial<Omit<BookOffer, 'TakerGets' | 'TakerPays'>> & {
 @Component({
      selector: 'app-create-offer',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe, MatTableModule, MatSortModule, MatPaginatorModule, MatButtonModule],
      templateUrl: './create-offer.component.html',
      styleUrl: './create-offer.component.css',
+     encapsulation: ViewEncapsulation.None,
 })
 export class CreateOfferComponent implements AfterViewChecked {
+     dataSource = new MatTableDataSource<any>();
+     displayedColumns: string[] = ['transactionType', 'createdDate', 'creationAge', 'action', 'amountXrp', 'amountToken', 'currency', 'issuer', 'timestamp', 'transactionHash'];
+     @ViewChild(MatPaginator) paginator!: MatPaginator;
+     @ViewChild(MatSort) sort!: MatSort;
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      // private weWantCurrencySubject = new Subject<string>();
@@ -131,12 +144,27 @@ export class CreateOfferComponent implements AfterViewChecked {
      phnixCurrencyCode: string = '';
      insufficientLiquidityWarning: boolean = false;
      slippage: number = 0.2357; // Default to 23.57%
+     tokens$: Observable<{ transactionType: string; action: string; amountXrp: string; amountToken: string; currency: string; issuer: string; transactionHash: string; timestamp: Date; createdDate: Date; creationAge: string }[]>;
+     private memeTokensSubject = new BehaviorSubject<{ transactionType: string; action: string; amountXrp: string; amountToken: string; currency: string; issuer: string; transactionHash: string; timestamp: Date; createdDate: Date; creationAge: string }[]>([]);
+     memeTokens$ = this.memeTokensSubject.asObservable(); // Use Observable for UI binding
+     private readonly maxTokens = 20; // Limit to 20 tokens
 
      private priceRefreshInterval: any; // For polling
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {
+          this.tokens$ = this.xrplService.tokens$; // Initialize tokens observable
+     }
+
+     ngOnInit() {
+          this.startTokenMonitoring(); // Start monitoring when component initializes
+          this.memeTokens$.subscribe(tokens => {
+               this.dataSource.data = tokens;
+          });
+     }
 
      async ngAfterViewInit() {
+          this.dataSource.paginator = this.paginator;
+          this.dataSource.sort = this.sort;
           this.cdr.detectChanges();
           this.startPriceRefresh(); // Start polling for price
           // await this.updateTokenBalanceAndExchange(); // Fetch Token balance and calculate XRP
@@ -198,6 +226,51 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.spinner = true;
           this.updateSpinnerMessage(message);
           await new Promise(resolve => setTimeout(resolve, delayMs));
+     }
+
+     isValidDate(value: any): boolean {
+          return value && !isNaN(new Date(value).getTime());
+     }
+
+     private isMemeCoin(token: { currency: string; issuer: string }): boolean {
+          // Dynamic heuristic: Exclude known fiat/stablecoin currencies
+          let isNonStandard;
+          if (token.currency.length > 3) {
+               isNonStandard = !AppConstants.BLACK_LISTED_MEMES.includes(this.utilsService.decodeCurrencyCode(token.currency));
+          } else {
+               isNonStandard = !AppConstants.BLACK_LISTED_MEMES.includes(token.currency.toUpperCase());
+          }
+          return isNonStandard;
+     }
+
+     private async startTokenMonitoring() {
+          try {
+               // await this.xrplService.monitorNewTokens();
+               // this.tokens$.subscribe(tokens => {
+               //      const currentMemeTokens = this.memeTokensSubject.getValue();
+               //      // console.log('Current Meme Tokens:', currentMemeTokens);
+               //      const newMemeTokens = tokens
+               //           .filter(token => this.isMemeCoin(token) && !currentMemeTokens.some(t => t.currency === token.currency && t.issuer === token.issuer))
+               //           .map(token => {
+               //                if (token.currency.length > 10) {
+               //                     const curr = this.utilsService.decodeCurrencyCode(token.currency.toUpperCase());
+               //                     // console.log(`Meme coin detected: ${curr} - Transaction Hash: ${token.transactionHash}`);
+               //                     return { ...token, currency: curr }; // Decode currency code
+               //                } else {
+               //                     // console.log(`Meme coin detected: ${token.currency} - Transaction Hash: ${token.transactionHash}`);
+               //                     return token;
+               //                }
+               //           });
+               //      if (newMemeTokens.length > 0) {
+               //           // Keep only the most recent maxTokens (sorted by timestamp, newest first)
+               //           const updatedTokens = [...currentMemeTokens, ...newMemeTokens].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, this.maxTokens);
+               //           this.memeTokensSubject.next(updatedTokens);
+               //      }
+               // });
+          } catch (error) {
+               console.error('Error starting token monitoring:', error);
+               this.setError('Failed to start token monitoring');
+          }
      }
 
      // Method to fetch XRP price in RLUSD
@@ -872,7 +945,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                // });
 
                // Market analysis
-               const MAX_SLIPPAGE = 0.01;
+               const MAX_SLIPPAGE = 0.05;
                const orderBook = await client.request({
                     command: 'book_offers',
                     taker: wallet.address,
@@ -1030,7 +1103,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                     };
                }
 
-               const { result: feeResponse } = await client.request({ command: 'fee' });
                let prepared: OfferCreate;
                if (this.ticketSequence) {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
@@ -1983,7 +2055,6 @@ export class CreateOfferComponent implements AfterViewChecked {
 
           try {
                this.spinner = true;
-               // this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
                const client = await this.xrplService.getClient();
                const { net, environment } = this.xrplService.getNet();
@@ -2661,6 +2732,11 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.isTicket = false;
           this.isMarketOrder = false;
           this.cdr.detectChanges();
+     }
+
+     clearMemeTokens() {
+          // this.memeTokensSubject.next([]);
+          this.dataSource.data = [];
      }
 
      async displayOfferDataForAccount1() {

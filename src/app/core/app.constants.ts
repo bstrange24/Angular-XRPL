@@ -70,6 +70,8 @@ export const AppConstants = {
 
      NESTED_FIELDS: ['SetFlag', 'ClearFlag'],
 
+     BLACK_LISTED_MEMES: ['USD', 'EUR', 'GBP', 'JPY', 'BTC', 'ETH', 'XRP', 'CNY', 'USDT', 'USDC', 'DAI', '666', 'GRD', 'coreum905c098732', 'RLUSD', 'ETH', 'USDC.axl'],
+
      INPUT_IDS: [
           'encryptionType',
           'createWallet',
