@@ -276,6 +276,14 @@ export class UtilsService {
           return `${(parseInt(value) / 1000000).toFixed(6)} XRP`;
      };
 
+     isValidDate(value: any): boolean {
+          return value && !isNaN(new Date(value).getTime());
+     }
+
+     isValidAddress(address: string): boolean {
+          return xrpl.isValidAddress(address);
+     }
+
      convertXRPLTime(rippleTime: any) {
           // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
           const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
@@ -302,6 +310,11 @@ export class UtilsService {
           } else {
                return code;
           }
+     }
+
+     isValidCurrencyCode(currency: string): boolean {
+          // Basic validation: 3-20 characters or valid hex for XRPL currency codes
+          return /^[A-Za-z0-9]{3,20}$/.test(currency) || /^[0-9A-Fa-f]{40}$/.test(currency);
      }
 
      normalizeCurrencyCode(currencyCode: string, maxLength = 20) {

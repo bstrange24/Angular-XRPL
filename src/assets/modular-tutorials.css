@@ -162,7 +162,8 @@ table {
 #signer1AccountField,
 #signer2AccountField,
 #signer3AccountField,
-#multiSignAddress {
+#multiSignAddress,
+#transactionField {
      color: #4CAF50;
 }
 
@@ -1217,14 +1218,22 @@ mark {
      max-width: 500px;
      padding: 0.5rem;
      box-sizing: border-box;
-     border: 1px solid #ccc;
+     border: 1px solid #4caf50;
      border-radius: 4px;
+
 }
 
-.transactionDivClass input:focus {
+/* .transactionDivClass input:focus {
      outline: none;
      border-color: #007bff;
      box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+     border: 1px solid #4caf50;
+} */
+
+#transactionField:focus {
+     border: 2px solid #4caf50;
+     outline: none;
+     /* removes default blue highlight */
 }
 
 .page-container {

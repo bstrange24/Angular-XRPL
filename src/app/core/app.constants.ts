@@ -101,6 +101,7 @@ export const AppConstants = {
           'xrpBalanceField',
           'amountField',
           'destinationField',
+          'knownIssuers',
      ],
 
      XRP_CURRENCY: 'XRP',

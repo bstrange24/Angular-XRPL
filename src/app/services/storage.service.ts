@@ -69,6 +69,28 @@ export class StorageService {
           localStorage.clear();
      }
 
+     // Store a generic key-value pair
+     set(key: string, value: any): void {
+          localStorage.setItem(key, JSON.stringify(value));
+     }
+
+     // Retrieve a generic key-value pair
+     get(key: string): any {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : null;
+     }
+
+     // Store knownIssuers object
+     setKnownIssuers(key: string, knownIssuers: { [key: string]: string }): void {
+          localStorage.setItem(key, JSON.stringify(knownIssuers));
+     }
+
+     // Retrieve knownIssuers object
+     getKnownIssuers(key: string): { [key: string]: string } | null {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : null;
+     }
+
      setInputValue(id: string, value: string) {
           if (AppConstants.INPUT_IDS.includes(id)) {
                localStorage.setItem(id, value);

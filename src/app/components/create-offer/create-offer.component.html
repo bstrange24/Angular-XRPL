@@ -69,8 +69,7 @@
           <button mat-raised-button color="warn" (click)="clearMemeTokens()">Clear Table</button>
           <mat-paginator [pageSizeOptions]="[5, 10, 20]" showFirstLastButtons></mat-paginator>
      </fieldset> -->
-
-     <br />
+     <!-- <br /> -->
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
           <table style="float: left">
@@ -180,78 +179,8 @@
                               <label for="isMarketOrder"></label>
                          </span>
                     </td>
-                    <!-- <td> -->
-                    <!-- <label class="switch"> -->
-                    <!-- <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" /> -->
-                    <!-- <span id="xrpPriceField">1 RLUSD will buy {{ xrpPrice }} XRP</span> -->
-                    <!-- <span class="slider round"></span> -->
-                    <!-- </label> -->
-                    <!-- </td> -->
                </tr>
           </table>
-
-          <!-- <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right; padding-bottom: 10px">
-                         <span class="tooltip" tooltip-data="Taker Gets.">
-                              <label for="weWantCurrencyField">Taker Gets</label>
-                         </span>
-                    </td>
-                    <td style="text-align: left">
-                         <span class="tooltip" tooltip-data="This is what I want to buy.">
-                              <label for="weWantCurrencyField">This is what I'm buying (weWant)</label>
-                         </span>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
-                              <label for="weWantCurrencyField">Currency Code</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="weWantCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField">
-                              <option value="XRP">XRP</option>
-                              <option value="RLUSD">RLUSD</option>
-                              <option value="USD">USD</option>
-                              <option value="USDC">USDC</option>
-                              <option value="DOG">DOG</option>
-                         </select>
-                         <p></p>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
-                              <label for="weWantIssuerField">Issuer</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
-                              <label for="weWantAmountField">Amount</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of currencies I hold">
-                              <label for="weWantTokenBalance">Currency Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
-                    </td>
-               </tr>
-          </table> -->
 
           <table style="float: left">
                <th></th>
@@ -275,14 +204,7 @@
                     </td>
                     <td>
                          <select class="timeUnit" id="weWantCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()">
-                              <option value="XRP">XRP</option>
-                              <option value="RLUSD">RLUSD</option>
-                              <option value="USD">USD</option>
-                              <option value="USDC">USDC</option>
-                              <option value="PHNIX">PHNIX</option>
-                              <option value="EVAP">EVAP</option>
-                              <option value="ROCK">ROCK</option>
-                              <option value="SNOW">SNOW</option>
+                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
                          </select>
                          <p></p>
                     </td>
@@ -294,7 +216,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                         <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" (ngModelChange)="onWeWantCurrencyChange()" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -314,74 +236,9 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
+                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
                     </td>
                </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Current Token balance for the selected account.">
-                              <label for="tokenBalanceField">Sell</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tokenBalanceField" size="42" [(ngModel)]="phnixBalance" name="tokenBalanceField" (blur)="updateTokenBalanceAndExchange()" />
-                    </td>
-               </tr>
-               <div class="swap-container" (click)="swapBalances()" title="Swap values">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                         <path d="M17 3L21 7L17 11" stroke-width="2" stroke-linecap="round" />
-                         <path d="M7 21L3 17L7 13" stroke-width="2" stroke-linecap="round" />
-                         <path d="M21 7H10C7.79086 7 6 8.79086 6 11V11" stroke-width="2" stroke-linecap="round" />
-                         <path d="M3 17H14C16.2091 17 18 15.2091 18 13V13" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-               </div>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Estimated XRP you would receive by exchanging the current token at current market rates.">
-                              <label for="toekenExchangeXrpField">Buy</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="toekenExchangeXrpField" size="42" [(ngModel)]="phnixExchangeXrp" name="toekenExchangeXrpField" />
-                    </td>
-               </tr>
-               <!-- <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div> -->
-               <!-- <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                              <label for="memoField">Memo</label>
-                         </span>
-                    </td>
-                    <td>
-                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
-                         <br />
-                    </td>
-               </tr> -->
-               <!-- <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequence</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isTicketEnabled"></label>
-                    </td>
-               </tr>
-               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
-                              <label for="ticketSequence"></label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ticketSequence" size="42" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                         <br />
-                    </td>
-               </tr> -->
           </table>
 
           <table style="float: left">
@@ -406,15 +263,7 @@
                     </td>
                     <td>
                          <select class="timeUnit" id="weSpendCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
-                              <option value="XRP">XRP</option>
-                              <option value="RLUSD">RLUSD</option>
-                              <option value="USD">USD</option>
-                              <option value="USDC">USDC</option>
-                              <option value="PHNIX">PHNIX</option>
-                              <option value="TAZZ">TAZZ</option>
-                              <option value="EVAP">EVAP</option>
-                              <option value="ROCK">ROCK</option>
-                              <option value="SNOW">SNOW</option>
+                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
                          </select>
                          <p></p>
                     </td>
@@ -426,7 +275,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                         <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" (ngModelChange)="onWeSpendCurrencyChange()" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -436,7 +285,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                         <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" (ngModelChange)="onWeSpendAmountChange()" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -446,7 +295,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
+                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
                     </td>
                </tr>
           </table>
@@ -506,73 +355,28 @@
                <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div>
           </table> -->
 
-          <!-- <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right; padding-bottom: 10px">
-                         <span class="tooltip" tooltip-data="Taker Pays.">
-                              <label for="weSpendCurrencyField">Taker Pays</label>
-                         </span>
-                    </td>
-                    <td style="text-align: left; padding-bottom: 10px">
-                         <span class="tooltip" tooltip-data="This is what I am selling.">
-                              <label for="weSpendCurrencyField">This is what I'm selling (weSpend)</label>
-                         </span>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
-                              <label for="weSpendCurrencyField">Currency Code</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 293px; height: 25px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField">
-                              <option value="XRP">XRP</option>
-                              <option value="RLUSD">RLUSD</option>
-                              <option value="USD">USD</option>
-                              <option value="USDC">USDC</option>
-                              <option value="DOG">DOG</option>
-                         </select>
-                         <p></p>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
-                              <label for="weWantIssuerField">Issuer</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
-                              <label for="amountField">Amount</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
-                              <label for="weSpendTokenBalance">Currency Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
-                    </td>
-               </tr>
-          </table> -->
-
           <div class="spinner-container">
                <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
           </div>
+
+          <fieldset style="width: 880px; margin-right: 10px">
+               <legend style="color: white">Manage Tokens</legend>
+               <div style="margin-bottom: 10px">
+                    <label>Add Token: </label>
+                    <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
+                    <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
+                    <button type="button" (click)="addToken()">Add</button>
+               </div>
+               <div>
+                    <label>Remove Token: </label>
+                    <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                         <option value="">Select a token</option>
+                         <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                    </select>
+                    <button type="button" (click)="removeToken()">Remove</button>
+               </div>
+          </fieldset>
 
           <table style="text-align: left; width: 100%">
                <th></th>
