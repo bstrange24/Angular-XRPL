@@ -11,7 +11,6 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import BigNumber from 'bignumber.js';
-import { Observable, BehaviorSubject } from 'rxjs';
 import { MatTableDataSource } from '@angular/material/table';
 import { MatPaginator } from '@angular/material/paginator';
 import { MatSort } from '@angular/material/sort';
@@ -90,8 +89,6 @@ export class CreateAmmComponent implements AfterViewChecked {
      @ViewChild(MatSort) sort!: MatSort;
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     // private weWantCurrencySubject = new Subject<string>();
-     // private weSpendCurrencySubject = new Subject<string>();
      selectedAccount: 'account1' | 'account2' | null = null;
      private lastResult: string = '';
      transactionInput = '';

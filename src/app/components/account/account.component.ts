@@ -523,9 +523,9 @@ export class AccountComponent implements AfterViewChecked {
 
                console.debug(`accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
 
-               if (!accountInfo.result.account_flags?.depositAuth) {
-                    return this.setError('ERROR: Account must have asfDepositAuth flag enabled');
-               }
+               // if (!accountInfo.result.account_flags?.depositAuth) {
+               //      return this.setError('ERROR: Account must have asfDepositAuth flag enabled');
+               // }
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)}`);

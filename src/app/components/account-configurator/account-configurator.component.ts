@@ -723,9 +723,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                     console.debug(`accountInfo for ${authorizedAddress}: ${JSON.stringify(accountInfo, null, 2)}`);
 
-                    if (!accountInfo.result.account_flags?.depositAuth) {
-                         return this.setError(`ERROR: Account ${authorizedAddress} must have asfDepositAuth flag enabled`);
-                    }
+                    // if (!accountInfo.result.account_flags?.depositAuth) {
+                    //      return this.setError(`ERROR: Account ${authorizedAddress} must have asfDepositAuth flag enabled`);
+                    // }
 
                     // Check for existing preauthorization
                     const alreadyAuthorized = accountObjects.result.account_objects.some((obj: any) => obj.Authorize === authorizedAddress);

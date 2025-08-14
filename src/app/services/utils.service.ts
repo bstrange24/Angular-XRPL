@@ -583,9 +583,9 @@ export class UtilsService {
      }
 
      async handleMultiSignTransaction({ client, wallet, environment, tx, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; tx: xrpl.Transaction; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
-          if (signerAddresses.length !== signerSeeds.length) {
-               throw new Error('Signer address count must match signer seed count');
-          }
+          // if (signerAddresses.length !== signerSeeds.length) {
+          //      throw new Error('Signer address count must match signer seed count');
+          // }
 
           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
           const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');

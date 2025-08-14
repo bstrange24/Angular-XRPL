@@ -393,9 +393,9 @@ export class SendXrpComponent implements AfterViewChecked {
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
+               // if (addresses.length !== seeds.length) {
+               //      return 'Number of signer addresses must match number of signer seeds';
+               // }
                for (const addr of addresses) {
                     if (!xrpl.isValidAddress(addr)) {
                          return `Invalid signer address: ${addr}`;
