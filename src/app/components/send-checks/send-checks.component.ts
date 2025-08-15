@@ -63,6 +63,7 @@ export class SendChecksComponent implements AfterViewChecked {
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
+          this.onAccountChange();
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {

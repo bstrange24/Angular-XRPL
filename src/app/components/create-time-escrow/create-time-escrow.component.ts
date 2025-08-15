@@ -39,7 +39,8 @@ interface EscrowObject {
 export class CreateTimeEscrowComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = null;
+     // selectedAccount: 'account1' | 'account2' | null = null;
+     selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput = '';
      result: string = '';

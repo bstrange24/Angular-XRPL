@@ -39,7 +39,8 @@ interface AccountFlags {
 export class AccountConfiguratorComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = null;
+     // selectedAccount: 'account1' | 'account2' | null = null;
+     selectedAccount: 'account1' | 'account2' | null = 'account1'; // Initialize to 'account1' for default selection
      configurationType: 'holder' | 'exchanger' | 'issuer' | null = null; // New property to track configuration type
      private lastResult: string = '';
      result: string = '';

@@ -21,7 +21,8 @@ import { AppConstants } from '../../core/app.constants';
 export class SendXrpComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = null;
+     // selectedAccount: 'account1' | 'account2' | null = null;
+     selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput = '';
      result: string = '';
@@ -53,6 +54,7 @@ export class SendXrpComponent implements AfterViewChecked {
 
      ngAfterViewInit() {
           this.cdr.detectChanges();
+          this.onAccountChange();
      }
 
      ngAfterViewChecked() {
@@ -119,12 +121,6 @@ export class SendXrpComponent implements AfterViewChecked {
                if (signerAccounts && signerAccounts.length > 0) {
                     if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
                          this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
-                         // this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
-                         // this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
-                         // this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
-                         // this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
-                         // this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
-                         // this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
                          this.isMultiSign = true;
                     }
                } else {

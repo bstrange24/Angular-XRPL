@@ -98,13 +98,7 @@
                     </td>
                     <td>
                          <select class="timeUnit" id="currencyField" style="width: 280px; height: 25px" [(ngModel)]="currencyField" (ngModelChange)="onCurrencyChange()" name="currencyField">
-                              <option value="HONEY">HONEY</option>
-                              <option value="PHNIX">PHNIX</option>
-                              <option value="KODY">KODY</option>
-                              <option value="RLUSD">RLUSD</option>
-                              <option value="USD">USD</option>
-                              <option value="USDC">USDC</option>
-                              <option value="DOG">DOG</option>
+                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
                          </select>
                          <p></p>
                     </td>
@@ -190,6 +184,11 @@
                     <td>
                          <textarea class="memoField" style="width: 280px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
                     </td>
+                    <td>
+                         <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum: </span>
+                         <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                         <br />
+                    </td>
                </tr>
                <tr style="vertical-align: top">
                     <td style="text-align: right">
@@ -222,6 +221,24 @@
                <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
           </div>
+
+          <fieldset style="width: 880px; margin-right: 10px">
+               <legend style="color: white">Manage Tokens</legend>
+               <div style="margin-bottom: 10px">
+                    <label>Add Token: </label>
+                    <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
+                    <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
+                    <button type="button" (click)="addToken()">Add</button>
+               </div>
+               <div>
+                    <label>Remove Token: </label>
+                    <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                         <option value="">Select a token</option>
+                         <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                    </select>
+                    <button type="button" (click)="removeToken()">Remove</button>
+               </div>
+          </fieldset>
 
           <table style="text-align: left; width: 100%">
                <th></th>
