@@ -89,7 +89,8 @@ export class CreateAmmComponent implements AfterViewChecked {
      @ViewChild(MatSort) sort!: MatSort;
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = null;
+     // selectedAccount: 'account1' | 'account2' | null = null;
+     selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput = '';
      result: string = '';
@@ -158,7 +159,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.dataSource.paginator = this.paginator;
           this.dataSource.sort = this.sort;
           this.cdr.detectChanges();
-          this.startPriceRefresh(); // Start polling for price
+          // this.startPriceRefresh(); // Start polling for price
           // await this.updateTokenBalanceAndExchange(); // Fetch Token balance and calculate XRP
      }
 
@@ -180,6 +181,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      onWalletInputChange(event: { account1: any; account2: any }) {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {

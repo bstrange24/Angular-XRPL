@@ -21,7 +21,8 @@ import { AppConstants } from '../../core/app.constants';
 export class CreateTicketsComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = null;
+     // selectedAccount: 'account1' | 'account2' | null = null;
+     selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput = '';
      result: string = '';
@@ -51,13 +52,16 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
+     ngAfterViewInit() {
+          this.cdr.detectChanges();
+     }
+
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.utilsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
-          this.onAccountChange();
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {

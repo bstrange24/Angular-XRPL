@@ -90,6 +90,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      onWalletInputChange(event: { account1: any; account2: any }) {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {

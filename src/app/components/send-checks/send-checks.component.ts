@@ -21,7 +21,8 @@ import { AppConstants } from '../../core/app.constants';
 export class SendChecksComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = null;
+     // selectedAccount: 'account1' | 'account2' | null = null;
+     selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput = '';
      result: string = '';
@@ -63,7 +64,6 @@ export class SendChecksComponent implements AfterViewChecked {
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
-          this.onAccountChange();
      }
 
      onWalletInputChange(event: { account1: any; account2: any }) {
