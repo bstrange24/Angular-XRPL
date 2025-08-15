@@ -15,6 +15,8 @@ import { TrustlinesComponent } from './components/trustlines/trustlines.componen
 import { DeleteAccountComponent } from './components/delete-account/delete-account.component';
 import { AccountConfiguratorComponent } from './components/account-configurator/account-configurator.component';
 import { OffersComponent } from './components/offers/offers.component';
+import { CreateCredentialsComponent } from './components/create-credentials/create-credentials.component';
+import { CreateDidComponent } from './components/create-did/create-did.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -22,6 +24,8 @@ export const routes: Routes = [
      { path: 'account', component: AccountComponent },
      { path: 'delete-account', component: DeleteAccountComponent },
      { path: 'account-configurator', component: AccountConfiguratorComponent },
+     { path: 'create-credentials', component: CreateCredentialsComponent },
+     { path: 'create-did', component: CreateDidComponent },
      { path: 'send-xrp', component: SendXrpComponent },
      { path: 'create-payment-channel', component: CreatePaymentChannelComponent },
      { path: 'create-time-escrow', component: CreateTimeEscrowComponent },

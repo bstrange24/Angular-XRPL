@@ -1677,10 +1677,18 @@ mark {
 }
 
 .swap-container:hover {
-     border-color: #666;
+     border-color: #667;
      background-color: #f5f5f5;
 }
 
 .swap-container svg {
      color: #555;
+}
+
+#expirationDate {
+     border: 2px solid #ccc;
+     color: #fff;
+     background-color: #1a1c21;
+     padding: 4px;
+     border-radius: 10px;
 }

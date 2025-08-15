@@ -86,69 +86,11 @@
                          <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                     </td>
                </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Select trustline option(s) for the AMM pool">
-                              <label>TrustLine Option(s)</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <span class="tooltip" tooltip-data="Marks the trust line as authorized (if required by the issuer).">
-                              <input type="checkbox" id="isTfSetfAuth" [checked]="trustlineFlags.tfSetfAuth" (change)="selectTrustlineOption('tfSetfAuth')" />
-                              <label for="isTfSetfAuth">TfSetfAuth</label>
-                         </span>
-                         <span class="tooltip" tooltip-data="Enables No Ripple: prevents IOU from rippling through this trust line.">
-                              <input type="checkbox" id="isTfSetNoRipple" [checked]="trustlineFlags.tfSetNoRipple" (change)="selectTrustlineOption('tfSetNoRipple')" />
-                              <label for="isTfSetNoRipple">TfSetNoRipple</label>
-                         </span>
-                         <span class="tooltip" tooltip-data="Clears the No Ripple flag.">
-                              <input type="checkbox" id="isTfClearNoRipple" [checked]="trustlineFlags.tfClearNoRipple" (change)="selectTrustlineOption('tfClearNoRipple')" />
-                              <label for="isTfClearNoRipple">TfClearNoRipple</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <span class="tooltip" tooltip-data="Freezes the trust line (prevents the holder from sending/receiving the IOU).">
-                              <input type="checkbox" id="isTfSetFreeze" [checked]="trustlineFlags.tfSetFreeze" (change)="selectTrustlineOption('tfSetFreeze')" />
-                              <label for="isTfSetFreeze">TfSetFreeze</label>
-                         </span>
-                         <span class="tooltip" tooltip-data="Unfreezes the trust line.">
-                              <input type="checkbox" id="isTfClearNoRipple" [checked]="trustlineFlags.tfClearFreeze" (change)="selectTrustlineOption('tfClearFreeze')" />
-                              <label for="isTfClearFreeze">TfClearFreeze</label>
-                         </span>
-                         <span class="tooltip" tooltip-data="Allows partial payment if not enough liquidity (used for IOU/cross-currency payments).">
-                              <input type="checkbox" id="isTfPartialPayment" [checked]="trustlineFlags.tfPartialPayment" (change)="selectTrustlineOption('tfPartialPayment')" />
-                              <label for="isTfPartialPayment">TfPartialPayment</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <span class="tooltip" tooltip-data="Prevents the payment from taking a direct path through the senders and receivers accounts (for IOU).">
-                              <input type="checkbox" id="isTfNoDirectRipple" [checked]="trustlineFlags.tfNoDirectRipple" (change)="selectTrustlineOption('tfNoDirectRipple')" />
-                              <label for="isTfNoDirectRipple">TfNoDirectRipple</label>
-                         </span>
-                         <span class="tooltip" tooltip-data="Ensures exchange rate doesn't exceed SendMax/Amount.">
-                              <input type="checkbox" id="isTfLimitQuality" [checked]="trustlineFlags.tfLimitQuality" (change)="selectTrustlineOption('tfLimitQuality')" />
-                              <label for="isTfLimitQuality">TfLimitQuality</label>
-                         </span>
-                    </td>
-               </tr>
           </table>
 
           <table style="float: left">
                <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Currency code for the trust line.">
-                              <label for="currencyField">Currency Code</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="currencyField" style="width: 280px; height: 25px" [(ngModel)]="currencyField" (ngModelChange)="onCurrencyChange()" name="currencyField">
-                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                         </select>
-                         <p></p>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
+               <!-- <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Currency balance.">
                               <label for="currencyBalanceField">Currency Balance</label>
@@ -158,8 +100,8 @@
                          <input type="text" id="currencyBalanceField" size="40" [(ngModel)]="currencyBalanceField" readonly name="currencyBalanceField" />
                          <br />
                     </td>
-               </tr>
-               <tr style="vertical-align: top">
+               </tr> -->
+               <!-- <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Amount of XRP to send.">
                               <label for="amountField">Amount</label>
@@ -180,18 +122,58 @@
                          <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
                          <br />
                     </td>
-               </tr>
+               </tr> -->
+
+               <!-- Verification Section -->
                <tr style="vertical-align: top">
                     <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                              <label for="memoField">Memo</label>
+                         <span class="tooltip" tooltip-data="URI pointing to DID information.">
+                              <label for="uri">URI</label>
                          </span>
                     </td>
                     <td>
-                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
-                         <br />
+                         <input type="text" id="uri" size="40" [(ngModel)]="didDetails.uri" name="uri" value="1.0" />
                     </td>
                </tr>
+               <!-- <tr>
+                    <td colspan="2"><strong>Verification</strong></td>
+               </tr> -->
+               <!-- <tr>
+                    <td style="text-align: right"><label for="id">Verification ID</label></td>
+                    <td><input type="text" id="id" size="40" [(ngModel)]="didDetails.verificationMethod.id" name="id" /></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right"><label for="type">Verified Type</label></td>
+                    <td><input type="text" id="type" [(ngModel)]="didDetails.verificationMethod.type" name="type" /></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right"><label for="controller">Verified Controller</label></td>
+                    <td><input type="text" id="controller" size="40" [(ngModel)]="didDetails.verificationMethod.controller" name="controller" /></td>
+               </tr>
+
+               <tr>
+                    <td style="text-align: right"><label for="publicKeyBase58">Verified Public Key</label></td>
+                    <td><input type="text" id="publicKeyBase58" size="40" [(ngModel)]="didDetails.verificationMethod.publicKeyBase58" name="publicKeyBase58" /></td>
+               </tr> -->
+               <!-- <tr>
+                    <td colspan="2"><strong>Service</strong></td>
+               </tr> -->
+               <!-- <tr>
+                    <td style="text-align: right"><label for="serviceId">Service ID</label></td>
+                    <td><input type="text" id="serviceId" size="40" [(ngModel)]="didDetails.service.serviceId" name="serviceId" /></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right"><label for="serviceType">Service Type</label></td>
+                    <td><input type="text" id="serviceType" [(ngModel)]="didDetails.service.serviceType" name="serviceType" /></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right"><label for="serviceEndpoint">Service End Point</label></td>
+                    <td><input type="text" id="serviceEndpoint" size="40" [(ngModel)]="didDetails.service.serviceEndpoint" name="serviceEndpoint" /></td>
+               </tr>
+               <tr>
+                    <td style="text-align: right"><label for="auth">Authentication</label></td>
+                    <td><input type="text" id="auth" size="40" [(ngModel)]="didDetails.authentication.auth" name="auth" /></td>
+               </tr> -->
           </table>
 
           <table style="float: left">
@@ -260,6 +242,17 @@
                          <br />
                     </td>
                </tr>
+               <tr style="vertical-align: top">
+                    <td style="text-align: right">
+                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
+                              <label for="memoField">Memo</label>
+                         </span>
+                    </td>
+                    <td>
+                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
+                         <br />
+                    </td>
+               </tr>
           </table>
 
           <div class="spinner-container">
@@ -267,32 +260,13 @@
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
           </div>
 
-          <fieldset style="width: 880px; margin-right: 10px; margin-left: 735px">
-               <legend style="color: white">Manage Tokens</legend>
-               <div style="margin-bottom: 10px">
-                    <label>Add Token: </label>
-                    <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
-                    <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
-                    <button type="button" (click)="addToken()">Add</button>
-               </div>
-               <div>
-                    <label>Remove Token: </label>
-                    <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
-                         <option value="">Select a token</option>
-                         <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                    </select>
-                    <button type="button" (click)="removeToken()">Remove</button>
-               </div>
-          </fieldset>
-
           <table style="text-align: left; width: 100%">
                <th></th>
                <tr>
                     <td colspan="2">
-                         <button type="button" (click)="getTrustlinesForAccount()">Get Trustlines and Balances</button>
-                         <button type="button" (click)="setTrustLine()">Set Trustline</button>
-                         <button type="button" (click)="removeTrustline()">Remove Trustline</button>
-                         <button type="button" (click)="issueCurrency()">Issue Currency</button>
+                         <button type="button" (click)="getDidForAccount()">Get DID</button>
+                         <button type="button" (click)="setDid()">Set DID</button>
+                         <button type="button" (click)="removeDid()">Remove DID</button>
                          <button type="button" (click)="clearFields()">Clear Fields</button>
                     </td>
                </tr>

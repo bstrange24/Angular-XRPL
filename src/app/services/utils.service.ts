@@ -284,12 +284,41 @@ export class UtilsService {
           return xrpl.isValidAddress(address);
      }
 
+     jsonToHex(jsonObj: object): string {
+          const jsonStr = JSON.stringify(jsonObj);
+          return Buffer.from(jsonStr, 'utf8').toString('hex').toUpperCase();
+     }
+
      convertXRPLTime(rippleTime: any) {
           // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
           const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
           const date = new Date((rippleTime + rippleEpoch) * 1000);
           const formatter = this.dateFormatter();
           return formatter.format(date);
+     }
+
+     convertUnixToEST(unixTimestamp: any) {
+          const date = new Date(unixTimestamp * 1000);
+          const isDST = (date: Date) => {
+               const year = date.getFullYear();
+               const dstStart = new Date(year, 2, 8);
+               dstStart.setDate(8 + (7 - dstStart.getDay()));
+               const dstEnd = new Date(year, 10, 1);
+               dstEnd.setDate(1 + (7 - dstEnd.getDay()));
+               return date >= dstStart && date < dstEnd;
+          };
+          const offset = isDST(date) ? -4 : -5;
+          date.setHours(date.getHours() + offset);
+          return date.toLocaleString('en-US', {
+               timeZone: 'America/New_York',
+               year: 'numeric',
+               month: 'long',
+               day: 'numeric',
+               hour: '2-digit',
+               minute: '2-digit',
+               second: '2-digit',
+               hour12: true,
+          });
      }
 
      decodeHex = (hex: any): string => {
