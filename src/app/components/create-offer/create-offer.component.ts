@@ -503,7 +503,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               return {
                                    key: `Offer ${index + 1} (Sequence: ${offer.seq})`,
                                    openByDefault: false,
-                                   content: [{ key: 'Sequence', value: String(offer.seq) }, { key: 'Taker Gets', value: takerGets }, { key: 'Taker Pays', value: takerPays }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.flags ? [{ key: 'Flags', value: String(offer.flags) }] : [])],
+                                   content: [{ key: 'Sequence', value: String(offer.seq) }, { key: 'Taker Gets', value: takerGets }, { key: 'Taker Pays', value: takerPays }, { key: 'Rate', value: this.calculateRate(offer.taker_gets, offer.taker_pays) }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.flags ? [{ key: 'Flags', value: String(offer.flags) }] : [])],
                               };
                          }),
                     });
@@ -850,7 +850,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          LimitAmount: {
                               currency: decodedCurrency,
                               issuer: issuerAddr,
-                              value: '1000000',
+                              value: '100000000',
                          },
                          Fee: fee,
                          LastLedgerSequence: currentLedger + 20,
@@ -888,16 +888,16 @@ export class CreateOfferComponent implements AfterViewChecked {
                // // Fetch reserve information
                const xrpReserve = await this.xrplService.getXrpReserveRequirements(client, wallet.address);
 
-               // data.sections.push({
-               //      title: 'Account Reserve Information',
-               //      openByDefault: true,
-               //      content: [
-               //           { key: 'Base Reserve', value: `${xrpReserve.baseReserve} XRP` },
-               //           { key: 'Owner Reserve (per object)', value: `${xrpReserve.ownerReserve} XRP` },
-               //           { key: 'Owner Count', value: String(xrpReserve.ownerCount) },
-               //           { key: 'Current Reserve', value: `${xrpReserve.currentReserve} XRP` },
-               //      ],
-               // });
+               data.sections.push({
+                    title: 'Account Reserve Information',
+                    openByDefault: true,
+                    content: [
+                         { key: 'Base Reserve', value: `${xrpReserve.baseReserve} XRP` },
+                         { key: 'Owner Reserve (per object)', value: `${xrpReserve.ownerReserve} XRP` },
+                         { key: 'Owner Count', value: String(xrpReserve.ownerCount) },
+                         { key: 'Current Reserve', value: `${xrpReserve.currentReserve} XRP` },
+                    ],
+               });
 
                // Initial balances
                const initialXrpBalance = await client.getXrpBalance(wallet.address);
@@ -1614,6 +1614,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
 
                if (this.weWantCurrencyField === 'XRP') {
+                    // this.weSpendTokenBalanceField = currencyBalance.toString();
                     this.weSpendTokenBalanceField = currencyBalance
                          ? Number(currencyBalance).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
@@ -1622,6 +1623,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                            })
                          : '0';
                } else {
+                    // this.weWantTokenBalanceField = currencyBalance.toString();
                     this.weWantTokenBalanceField = currencyBalance
                          ? Number(currencyBalance).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
@@ -1931,7 +1933,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      calculateRate(gets: string | IssuedCurrencyAmount | CurrencyAmount, pays: string | IssuedCurrencyAmount | CurrencyAmount): string {
           const getsValue = this.normalizeAmount(gets);
           const paysValue = this.normalizeAmount(pays);
-          return new BigNumber(paysValue).dividedBy(getsValue).toFixed(8);
+          return new BigNumber(paysValue).dividedBy(getsValue).toFixed(15);
      }
 
      // Update issuer when currency changes
@@ -2033,7 +2035,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
 
-               // let tokenTotal = 0;
                let tokenTotal = new BigNumber(0);
                if (balanceResponse.result.assets) {
                     Object.entries(balanceResponse.result.assets).forEach(([assetIssuer, assets]) => {
@@ -2046,9 +2047,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                                         if (!isNaN(Number(asset.value))) {
                                              tokenTotal = tokenTotal.plus(asset.value);
                                         }
-                                        // if (!isNaN(value)) {
-                                        //      tokenTotal += value;
-                                        // }
                                    }
                               });
                          }
@@ -2144,6 +2142,14 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (this.weSpendAmountField && parseFloat(this.weSpendAmountField) > 0) {
                     const xrpAmount = new BigNumber(this.weSpendAmountField);
 
+                    // Check if balance is sufficient (amount + fee)
+                    const spendableXrp = new BigNumber(await this.getXrpBalance(address));
+                    if (xrpAmount.plus(feeInXrp).gt(spendableXrp)) {
+                         this.setError('Insufficient XRP balance (including fee)');
+                         this.weWantAmountField = '0';
+                         return;
+                    }
+
                     // Fetch order book
                     const orderBook = await client.request({
                          command: 'book_offers',
@@ -2219,9 +2225,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                          return new BigNumber(rateA).minus(rateB).toNumber();
                     });
 
-                    let remainingXrp = xrpAmount.minus(feeInXrp); // Deduct transaction fee
+                    let remainingXrp = xrpAmount;
                     let totalToken = new BigNumber(0);
-                    let totalFee = new BigNumber(feeInXrp); // Start with transaction fee
+                    let totalFee = new BigNumber(0); // AMM fees only; tx fee separate
+
+                    // let remainingXrp = xrpAmount.minus(feeInXrp); // Deduct transaction fee
+                    // let totalToken = new BigNumber(0);
+                    // let totalFee = new BigNumber(feeInXrp); // Start with transaction fee
 
                     for (const offer of sortedOffers) {
                          const takerGets = new BigNumber(this.normalizeAmount(offer.TakerGets)); // Token
@@ -2264,6 +2274,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     }
 
                     // Log total fees
+                    console.log(`Total fees: ${totalFee.toFixed(6)} XRP (AMM fees) + ${feeInXrp} XRP (tx fee)`);
                     console.log(`Total fees: ${totalFee.toFixed(6)} XRP (Transaction: ${feeInXrp}, AMM: ${totalFee.minus(feeInXrp).toFixed(6)})`);
 
                     this.cdr.detectChanges();

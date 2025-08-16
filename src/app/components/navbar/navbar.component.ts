@@ -31,30 +31,6 @@ export class NavbarComponent implements OnInit {
 
      constructor(private storageService: StorageService, private utilsService: UtilsService, private xrplService: XrplService, private router: Router, private datePipe: DatePipe) {}
 
-     // ngOnInit() {
-     //      const { environment } = this.storageService.getNet();
-     //      this.selectedNetwork = environment.charAt(0).toUpperCase() + environment.slice(1);
-     //      this.networkColor = this.storageService.getNetworkColor(environment);
-     //      const activeNavLink = this.storageService.getActiveNavLink();
-     //      const activeEscrowLink = this.storageService.getActiveEscrowLink();
-     //      const activeAccountLink = this.storageService.getActiveAccountsLink();
-     //      if (activeAccountLink) {
-     //           this.isAccountsDropdownActive = true;
-     //           this.isAccountDropdownOpen = true;
-     //           this.isEscrowsDropdownActive = false;
-     //      } else if (activeEscrowLink) {
-     //           this.isEscrowsDropdownActive = true;
-     //           this.isAccountsDropdownActive = false;
-     //      } else {
-     //           this.isEscrowsDropdownActive = !!activeNavLink && activeNavLink.includes('escrow');
-     //           this.isAccountsDropdownActive = !!activeNavLink && activeNavLink.includes('account');
-     //      }
-     //      this.updateDateTime();
-     //      this.timerSubscription = interval(100).subscribe(() => {
-     //           this.updateDateTime();
-     //      });
-     // }
-
      ngOnInit() {
           // Initialize network
           const { environment } = this.storageService.getNet();
@@ -96,7 +72,6 @@ export class NavbarComponent implements OnInit {
 
      updateDateTime() {
           const now = new Date();
-          // this.currentDateTime = formatInTimeZone(now, 'America/New_York', 'M/d/yyyy HH:mm:ss');
           this.currentDateTime = formatInTimeZone(now, 'America/New_York', 'M/d/yyyy h:mm:ss aa');
      }
 
@@ -162,7 +137,6 @@ export class NavbarComponent implements OnInit {
      setActiveAccountsLink(link: string) {
           this.storageService.setActiveAccountsLink(link);
           this.storageService.removeValue('activeEscrowLink'); // Clear escrow link from storage
-          // this.storageService.removeValue('activeNavLink'); // Clear any other active nav link
           this.isAccountDropdownOpen = true;
           this.isAccountsDropdownActive = true; // Mark Accounts dropdown as active
           this.isEscrowsDropdownActive = false; // Reset Escrows active state
