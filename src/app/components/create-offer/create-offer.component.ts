@@ -106,6 +106,8 @@ export class CreateOfferComponent implements AfterViewChecked {
      weSpendAmountField: string = '';
      weSpendTokenBalanceField: string = '';
      isMarketOrder: boolean = false;
+     isFillOrKill: boolean = false;
+     isPassive: boolean = false;
      ticketCountField = '';
      ticketSequence: string = '';
      isTicket = false;
@@ -1137,6 +1139,21 @@ export class CreateOfferComponent implements AfterViewChecked {
                     };
                }
 
+               let flags = 0;
+
+               if (this.isMarketOrder) {
+                    // For a market order, you might want ImmediateOrCancel
+                    flags |= OfferCreateFlags.tfImmediateOrCancel;
+               } else {
+                    // For a passive order, use tfPassive
+                    flags |= OfferCreateFlags.tfPassive;
+               }
+
+               // Optional: if you also want FillOrKill
+               if (this.isFillOrKill) {
+                    flags |= OfferCreateFlags.tfFillOrKill;
+               }
+
                let prepared: OfferCreate;
                if (this.ticketSequence) {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
@@ -1152,7 +1169,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               TakerGets: we_spend1,
                               TakerPays: we_want1,
-                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Flags: flags,
                               Sequence: 0,
                               Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -1164,7 +1181,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               TakerGets: we_spend1,
                               TakerPays: we_want1,
-                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Flags: flags,
                               Sequence: 0,
                               Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -1180,7 +1197,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               TakerGets: we_spend1,
                               TakerPays: we_want1,
-                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Flags: flags,
                               Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
@@ -1191,7 +1208,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                               Account: wallet.classicAddress,
                               TakerGets: we_spend1,
                               TakerPays: we_want1,
-                              Flags: this.isMarketOrder ? OfferCreateFlags.tfImmediateOrCancel : 0,
+                              Flags: flags,
                               Fee: fee,
                               LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                          });
@@ -2562,6 +2579,8 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.ticketSequence = '';
           this.isTicket = false;
           this.isMarketOrder = false;
+          this.isPassive = false;
+          this.isFillOrKill = false;
           this.cdr.detectChanges();
      }
 

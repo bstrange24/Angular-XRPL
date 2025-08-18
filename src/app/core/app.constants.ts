@@ -19,6 +19,12 @@ export const AppConstants = {
           },
      },
 
+     XRPL_WIN_URL: {
+          MAINNET: 'https://xrplwin.com/tx/',
+          TESTNET: 'https://testnet.xrplwin.com/tx/',
+          DEVNET: 'https://devnet.xrplwin.com/tx/',
+     },
+
      // Encryption Algorithms
      ENCRYPTION: {
           ED25519: 'ed25519' as ECDSA,

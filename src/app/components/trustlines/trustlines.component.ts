@@ -203,7 +203,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     // Decode currency for comparison
                     const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
                     // return parseFloat(line.limit) > 0 && parseFloat(line.balance) > 0 && line.account === this.destinationField && (this.destinationField ? decodedCurrency === this.currencyField : true);
-                    return line.account === this.destinationField && (line.currency ? decodedCurrency === this.currencyField : true);
+                    // return line.account === this.destinationField && (line.currency ? decodedCurrency === this.currencyField : true);
+                    return line.currency ? decodedCurrency === this.currencyField : true;
                });
                console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLine);
 

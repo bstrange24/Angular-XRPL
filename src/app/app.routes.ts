@@ -17,11 +17,13 @@ import { AccountConfiguratorComponent } from './components/account-configurator/
 import { OffersComponent } from './components/offers/offers.component';
 import { CreateCredentialsComponent } from './components/create-credentials/create-credentials.component';
 import { CreateDidComponent } from './components/create-did/create-did.component';
+import { AccountChangesComponent } from './components/account-changes/account-changes.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
      { path: '', redirectTo: '/account-configurator', pathMatch: 'full' },
      { path: 'account', component: AccountComponent },
+     { path: 'account-changes', component: AccountChangesComponent },
      { path: 'delete-account', component: DeleteAccountComponent },
      { path: 'account-configurator', component: AccountConfiguratorComponent },
      { path: 'create-credentials', component: CreateCredentialsComponent },

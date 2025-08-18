@@ -801,12 +801,16 @@ export class XrplService {
           }
      }
 
-     async getAccountTransactions(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+     async getAccountTransactions(client: Client, address: string, limit: any, marker: string) {
           try {
-               const response = await client.request({
+               const response = client.request({
                     command: 'account_tx',
                     account: address,
-                    ledger_index: ledgerIndex,
+                    limit,
+                    marker,
+                    ledger_index_min: -1, // From account creation (-1 means all history)
+                    ledger_index_max: -1,
+                    forward: false, // Newest first (easier for recent changes; reverse if needed)
                });
                return response;
           } catch (error: any) {

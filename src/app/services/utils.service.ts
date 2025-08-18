@@ -870,6 +870,10 @@ export class UtilsService {
           }
      }
 
+     roundToEightDecimals(value: number): number {
+          return parseFloat(value.toFixed(8));
+     }
+
      async isInsufficientXrpBalance(client: xrpl.Client, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
           try {
                // Validate inputs
