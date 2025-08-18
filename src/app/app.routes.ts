@@ -18,6 +18,7 @@ import { OffersComponent } from './components/offers/offers.component';
 import { CreateCredentialsComponent } from './components/create-credentials/create-credentials.component';
 import { CreateDidComponent } from './components/create-did/create-did.component';
 import { AccountChangesComponent } from './components/account-changes/account-changes.component';
+import { MptComponent } from './components/mpt/mpt.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -40,6 +41,7 @@ export const routes: Routes = [
      { path: 'create-nft', component: CreateNftComponent },
      { path: 'create-amm', component: CreateAmmComponent },
      { path: 'trustlines', component: TrustlinesComponent },
+     { path: 'mpt', component: MptComponent },
      // { path: 'fiat-on-off-ramp', component: FiatOnOffRampComponent },
 ];
 

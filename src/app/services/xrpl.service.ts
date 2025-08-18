@@ -573,6 +573,10 @@ export class XrplService {
                const feeResponse = await this.getTransactionFee(client);
                const baseFee = feeResponse || AppConstants.MIN_FEE;
                const fee = Math.min(parseInt(baseFee) * 1.5, parseInt(AppConstants.MAX_FEE)).toString();
+               if (fee === '1.5') {
+                    return AppConstants.MIN_FEE;
+               }
+               console.log(`Calculated transaction fee: ${fee} drops`);
                return fee;
           } catch (error: any) {
                console.error('Error calculating transaciton fee:', error);
