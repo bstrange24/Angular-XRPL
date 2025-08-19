@@ -7,26 +7,12 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { AccountSet, TransactionMetadataBase, DepositPreauth, SignerListSet, MPTokenIssuanceCreate } from 'xrpl';
+import { AccountSet, TransactionMetadataBase, DepositPreauth, SignerListSet, MPTokenIssuanceCreate, MPTokenIssuanceCreateFlags } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
 interface AccountFlags {
-     asfRequireDest: boolean;
-     asfRequireAuth: boolean;
-     asfDisallowXRP: boolean;
-     asfDisableMaster: boolean;
-     asfNoFreeze: boolean;
-     asfGlobalFreeze: boolean;
-     asfDefaultRipple: boolean;
-     asfDepositAuth: boolean;
-     // asfAuthorizedNFTokenMinter: boolean;
-     asfAllowTrustLineClawback: boolean;
-     asfDisallowIncomingNFTokenOffer: boolean;
-     asfDisallowIncomingCheck: boolean;
-     asfDisallowIncomingPayChan: boolean;
-     asfDisallowIncomingTrustline: boolean;
      isClawback: boolean;
      isLock: boolean;
      isRequireAuth: boolean;
@@ -63,6 +49,7 @@ export class MptComponent implements AfterViewChecked {
      isTicketEnabled = false;
      isMultiSign = false;
      multiSignAddress = '';
+     multiSignSeeds = '';
      signer1Account = '';
      signer2Account = '';
      signer3Account = '';
@@ -74,34 +61,15 @@ export class MptComponent implements AfterViewChecked {
      mptIssuanceIdField: string = '';
      tokenCountField: string = '';
      assetScaleField: string = '';
-     isUpdateMetaData = false;
-     isHolderConfiguration = false;
-     isExchangerConfiguration = false;
-     isIssuerConfiguration = false;
      isdepositAuthAddress = false;
-     isAuthorizedNFTokenMinter: boolean = false;
      depositAuthAddress = '';
-     tickSize = '';
-     transferRate = '';
      isMessageKey = false;
      transferFeeField = '';
      memoField = '';
+     amountField: string = '';
+     destinationField: string = '';
      spinnerMessage: string = '';
      flags: AccountFlags = {
-          asfRequireDest: false,
-          asfRequireAuth: false,
-          asfDisallowXRP: false,
-          asfDisableMaster: false,
-          asfNoFreeze: false,
-          asfGlobalFreeze: false,
-          asfDefaultRipple: false,
-          asfDepositAuth: false,
-          // asfAuthorizedNFTokenMinter: false,
-          asfAllowTrustLineClawback: false,
-          asfDisallowIncomingNFTokenOffer: false,
-          asfDisallowIncomingCheck: false,
-          asfDisallowIncomingPayChan: false,
-          asfDisallowIncomingTrustline: false,
           isClawback: false,
           isLock: false,
           isRequireAuth: false,
@@ -156,68 +124,11 @@ export class MptComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     onConfigurationChange() {
-          // Reset all flags to ensure a clean state
-          this.resetFlags();
-
-          console.log('Configuration changed to:', this.configurationType);
-          this.cdr.detectChanges();
-     }
-
-     // Optional: Add a method to reset flags to avoid conflicts
-     private resetFlags() {
-          this.flags = {
-               asfRequireDest: false,
-               asfRequireAuth: false,
-               asfDisallowXRP: false,
-               asfDisableMaster: false,
-               asfNoFreeze: false,
-               asfGlobalFreeze: false,
-               asfDefaultRipple: false,
-               asfDepositAuth: false,
-               // asfAuthorizedNFTokenMinter: false,
-               asfAllowTrustLineClawback: false,
-               asfDisallowIncomingNFTokenOffer: false,
-               asfDisallowIncomingCheck: false,
-               asfDisallowIncomingPayChan: false,
-               asfDisallowIncomingTrustline: false,
-               isClawback: false,
-               isLock: false,
-               isRequireAuth: false,
-               isTransferable: false,
-               isTradable: false,
-               isEscrow: false,
-          };
-
-          // Reset metadata fields
-          this.transferFeeField = '';
-          this.transferRate = '';
-          this.tickSize = '';
-
-          // Update UI elements
-          const domainFieldElem = document.getElementById('domainField') as HTMLInputElement | null;
-          if (domainFieldElem) domainFieldElem.value = '';
-          const transferRateFieldElem = document.getElementById('transferRateField') as HTMLInputElement | null;
-          if (transferRateFieldElem) transferRateFieldElem.value = '';
-          const tickSizeFieldElem = document.getElementById('tickSizeField') as HTMLInputElement | null;
-          if (tickSizeFieldElem) tickSizeFieldElem.value = '';
-
-          this.cdr.detectChanges();
-     }
-
-     toggleConfigurationTemplate() {
-          this.cdr.detectChanges();
-     }
-
      toggleMultiSign() {
           this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
-          this.cdr.detectChanges();
-     }
-
-     onAuthorizedNFTokenMinter() {
           this.cdr.detectChanges();
      }
 
@@ -231,18 +142,6 @@ export class MptComponent implements AfterViewChecked {
           this.spinner = true;
           this.updateSpinnerMessage(message);
           await new Promise(resolve => setTimeout(resolve, delayMs));
-     }
-
-     onNoFreezeChange() {
-          if (this.flags.asfNoFreeze) {
-               alert('Prevent Freezing Trust Lines (No Freeze) cannot be unset!');
-          }
-     }
-
-     onClawbackChange() {
-          if (this.flags.asfAllowTrustLineClawback) {
-               alert('Trust Line Clawback cannot be unset!');
-          }
      }
 
      async getMptDetails() {
@@ -276,29 +175,65 @@ export class MptComponent implements AfterViewChecked {
 
                this.showSpinnerWithDelay('Getting Account Details...', 200);
 
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+               const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               console.debug('Account Objects: ', mptokenObjects);
+               const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance' || o.LedgerEntryType === 'MPToken');
+               console.debug('MPT Objects: ', mptokens);
 
-               if (accountInfo.result.account_data.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
-                    return;
+               // Prepare data for renderAccountDetails
+               const data = {
+                    sections: [{}],
+               };
+
+               if (mptokens.length <= 0) {
+                    data.sections.push({
+                         title: 'MPT Tokens',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
+                    });
+               } else {
+                    // Sort tickets from oldest to newest.
+                    const sortedMPT = mptokens.sort((a, b) => {
+                         const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+                         const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+                         return seqA - seqB;
+                    });
+
+                    data.sections.push({
+                         title: `MPT Token (${mptokens.length})`,
+                         openByDefault: true,
+                         subItems: sortedMPT.map((mpt, counter) => {
+                              const { LedgerEntryType, PreviousTxnID, index } = mpt;
+                              // TicketSequence and Flags may not exist on all AccountObject types
+                              const ticketSequence = (mpt as any).TicketSequence;
+                              const flags = (mpt as any).Flags;
+                              const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
+                              return {
+                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+                                   openByDefault: false,
+                                   content: [
+                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
+                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
+                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+                                        ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
+                                        ...(flags !== undefined ? [{ key: 'Flags', value: String(flags) }] : []),
+                                        // Optionally display custom fields if present
+                                        ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
+                                        ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
+                                        ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
+                                        ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
+                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
+                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+                                   ],
+                              };
+                         }),
+                    });
                }
 
-               // Set flags from account info
-               AppConstants.FLAGS.forEach(flag => {
-                    const input = document.getElementById(flag.name) as HTMLInputElement;
-                    const flagKey = AppConstants.FLAGMAP[flag.name as keyof typeof AppConstants.FLAGMAP];
-                    if (input && flagKey) {
-                         input.checked = !!accountInfo.result.account_flags?.[flagKey as keyof typeof accountInfo.result.account_flags];
-                    }
-               });
-
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
-               this.refreshUiIAccountMetaData(accountInfo.result);
+               this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
 
-               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               const signerAccounts: string[] = this.checkForSignerAccounts(mptokenObjects);
                if (signerAccounts && signerAccounts.length > 0) {
                     if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
                          this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
@@ -314,7 +249,7 @@ export class MptComponent implements AfterViewChecked {
                     this.isMultiSign = false;
                }
 
-               const preAuthAccounts: string[] = this.findDepositPreauthObjects(accountObjects);
+               const preAuthAccounts: string[] = this.findDepositPreauthObjects(mptokenObjects);
                if (preAuthAccounts && preAuthAccounts.length > 0) {
                     this.depositAuthAddress = preAuthAccounts.map(account => account + ',\n').join('');
                     this.isdepositAuthAddress = true;
@@ -334,8 +269,8 @@ export class MptComponent implements AfterViewChecked {
           }
      }
 
-     async getnerateMpt() {
-          console.log('Entering getnerateMpt');
+     async generateMpt() {
+          console.log('Entering generateMpt');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -399,35 +334,35 @@ export class MptComponent implements AfterViewChecked {
                     }
                     updatedData = true;
                     accountSetTx.AssetScale = assetScale;
+               } else {
+                    updatedData = true;
+                    accountSetTx.AssetScale = 0;
                }
 
-               if (this.transferFeeField) {
-                    const transferRate = parseInt(this.transferFeeField);
-                    // if (transferRate > 100) {
-                    // return this.setError('ERROR: Transfer rate cannot be greater than 100%.');
-                    // }
-                    updatedData = true;
-                    accountSetTx.TransferFee = transferRate;
-                    // accountSetTx.TransferFee = this.utilsService.getTransferRate(transferRate);
+               if (this.flags.isTransferable) {
+                    if (this.transferFeeField) {
+                         if (isNaN(parseInt(this.transferFeeField)) || parseInt(this.transferFeeField) < 0 || parseInt(this.transferFeeField) > 1000000) {
+                              return this.setError('ERROR: Transfer Fee must be a number between 0 and 1,000,000.');
+                         }
+                         updatedData = true;
+                         accountSetTx.TransferFee = parseInt(this.transferFeeField);
+                    } else {
+                         updatedData = true;
+                         accountSetTx.TransferFee = 0;
+                    }
                }
 
                if (this.tokenCountField) {
                     updatedData = true;
                     accountSetTx.MaximumAmount = this.tokenCountField;
+               } else {
+                    accountSetTx.MaximumAmount = '10';
                }
 
                if (this.metaDataField) {
                     updatedData = true;
                     accountSetTx.MPTokenMetadata = xrpl.convertStringToHex(this.metaDataField);
                }
-
-               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
-               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
-               // }
-
-               // if (true) {
-               // return this.setError('ERROR: Crap');
-               // }
 
                if (updatedData) {
                     this.updateSpinnerMessage('Submitting transaction to the Ledger...');
@@ -447,7 +382,6 @@ export class MptComponent implements AfterViewChecked {
                     return;
                }
 
-               this.isUpdateMetaData = true;
                this.setSuccess(this.result);
 
                await this.updateXrpBalance(client, wallet);
@@ -457,29 +391,457 @@ export class MptComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving getnerateMpt in ${this.executionTime}ms`);
+               console.log(`Leaving generateMpt in ${this.executionTime}ms`);
+          }
+     }
+
+     async authorizeMpt() {
+          console.log('Entering authorizeMpt');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
+               }
+
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               const mptIssuanceId = this.mptIssuanceIdField;
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const authMptTx: xrpl.MPTokenAuthorize = {
+                    TransactionType: 'MPTokenAuthorize',
+                    Account: wallet.address,
+                    MPTokenIssuanceID: mptIssuanceId,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    Fee: fee,
+               };
+
+               if (this.memoField) {
+                    authMptTx.Memos = [
+                         {
+                              Memo: {
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    authMptTx.TicketSequence = Number(this.ticketSequence);
+                    authMptTx.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    authMptTx.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    // const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s); // removes empty strings
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: authMptTx, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         authMptTx.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(authMptTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    console.log('authMptTx:', JSON.stringify(authMptTx, null, 2));
+                    const preparedTx = await client.autofill(authMptTx);
+                    signedTx = wallet.sign(preparedTx);
+               }
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving authorizeMpt in ${this.executionTime}ms`);
+          }
+     }
+
+     async sendMpt() {
+          console.log('Entering sendMpt');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               amount: this.amountField,
+               destination: this.destinationField,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
+               }
+
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               if (parseInt(this.amountField) <= 0) {
+                    return this.setError('ERROR: Amount must be greater than 0');
+               }
+
+               // Check if destination can hold the MPT
+               const destObjects = await this.xrplService.getAccountObjects(client, this.destinationField, 'validated', '');
+               if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
+                    return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationField}`);
+               }
+               const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
+               console.debug('Destination MPT Tokens:', mptTokens);
+               console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
+
+               const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
+
+               if (!authorized) {
+                    return this.setError(`ERROR: Destination ${this.destinationField} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}).`);
+               }
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const sendMptTx: xrpl.Payment = {
+                    TransactionType: 'Payment',
+                    Account: wallet.classicAddress,
+                    Amount: {
+                         mpt_issuance_id: this.mptIssuanceIdField,
+                         value: this.amountField,
+                    },
+                    Destination: this.destinationField,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    Fee: fee,
+               };
+
+               if (this.memoField) {
+                    sendMptTx.Memos = [
+                         {
+                              Memo: {
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    sendMptTx.TicketSequence = Number(this.ticketSequence);
+                    sendMptTx.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    sendMptTx.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    // const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s); // removes empty strings
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: sendMptTx, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         sendMptTx.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(sendMptTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(sendMptTx);
+                    signedTx = wallet.sign(preparedTx);
+               }
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving sendMpt in ${this.executionTime}ms`);
+          }
+     }
+
+     async deleteMpt() {
+          console.log('Entering deleteMpt');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
+               }
+
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               if (parseInt(this.amountField) <= 0) {
+                    return this.setError('ERROR: Amount must be greater than 0');
+               }
+
+               // Check if destination can hold the MPT
+               // const destObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               // if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
+               //      return this.setError(`ERROR: Unable to fetch account objects for ${wallet.classicAddress}`);
+               // }
+               // const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
+               // console.debug('MPT Tokens:', mptTokens);
+               // console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
+
+               // const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
+
+               // if (!authorized) {
+               //      return this.setError(`ERROR: Destination ${wallet.classicAddress} is not authorized to delete this MPT (issuance ID ${this.mptIssuanceIdField}).`);
+               // }
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const deleteMptTx: xrpl.MPTokenIssuanceDestroy = {
+                    TransactionType: 'MPTokenIssuanceDestroy',
+                    Account: wallet.classicAddress,
+                    MPTokenIssuanceID: this.mptIssuanceIdField,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    Fee: fee,
+               };
+
+               if (this.memoField) {
+                    deleteMptTx.Memos = [
+                         {
+                              Memo: {
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    deleteMptTx.TicketSequence = Number(this.ticketSequence);
+                    deleteMptTx.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    deleteMptTx.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    // const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s); // removes empty strings
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: deleteMptTx, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         deleteMptTx.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(deleteMptTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(deleteMptTx);
+                    signedTx = wallet.sign(preparedTx);
+               }
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving deleteMpt in ${this.executionTime}ms`);
           }
      }
 
      getFlagsValue(flags: AccountFlags): number {
           let v_flags = 0;
-          if (this.flags.isClawback) {
-               v_flags += 64;
+          if (flags.isLock) {
+               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanLock; // 2
           }
-          if (this.flags.isLock) {
-               v_flags += 2;
+          if (flags.isRequireAuth) {
+               v_flags += MPTokenIssuanceCreateFlags.tfMPTRequireAuth; // 4;
           }
-          if (this.flags.isRequireAuth) {
-               v_flags += 4;
+          if (flags.isEscrow) {
+               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanEscrow; // 8;
           }
-          if (this.flags.isTransferable) {
-               v_flags += 32;
+          if (flags.isTradable) {
+               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanTrade; // 16;
           }
-          if (this.flags.isTradable) {
-               v_flags += 16;
+          if (flags.isTransferable) {
+               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanTransfer; // 32;
           }
-          if (this.flags.isEscrow) {
-               v_flags += 8;
+          if (flags.isClawback) {
+               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanClawback; // 64;
           }
           return v_flags;
      }
@@ -527,7 +889,7 @@ export class MptComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -554,6 +916,32 @@ export class MptComponent implements AfterViewChecked {
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
+          }
+          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
+               const addresses = inputs.multiSignAddresses
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.multiSignSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               // if (addresses.length !== seeds.length) {
+               //      return 'Number of signer addresses must match number of signer seeds';
+               // }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
           }
           return null;
      }
@@ -624,10 +1012,21 @@ export class MptComponent implements AfterViewChecked {
           this.assetScaleField = '';
           this.transferFeeField = '';
           this.mptIssuanceIdField = '';
+          this.tokenCountField = '';
+          this.amountField = '';
+          this.destinationField = '';
           this.isTicket = false;
           this.isMultiSign = false;
           this.multiSignAddress = '';
-          this.isUpdateMetaData = false;
+          this.flags.isClawback = false;
+          this.flags.isLock = false;
+          this.flags.isRequireAuth = false;
+          this.flags.isTransferable = false;
+          this.flags.isTradable = false;
+          this.flags.isEscrow = false;
+          this.ticketSequence = '';
+          this.signerQuorum = '';
+          this.isTicketEnabled = false;
           this.cdr.detectChanges();
      }
 
