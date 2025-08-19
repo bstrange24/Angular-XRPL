@@ -58,6 +58,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isTicketEnabled = false;
      isMultiSign = false;
      multiSignAddress = '';
+     isSetRegularKey = false;
+     regularKeyAccount = '';
+     regularKeyAccountSeed = '';
      signer1Account = '';
      signer2Account = '';
      signer3Account = '';
@@ -65,6 +68,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      signer2Weight = '';
      signer3Weight = '';
      signerQuorum = '';
+     multiSignSeeds = '';
      nfTokenMinterAddress = '';
      isUpdateMetaData = false;
      isHolderConfiguration = false;
@@ -419,6 +423,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                } else {
                     this.isAuthorizedNFTokenMinter = false;
                     this.nfTokenMinterAddress = '';
+               }
+
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+                    this.isSetRegularKey = true;
+                    this.regularKeyAccount = accountInfo.result.account_data.RegularKey;
+               } else {
+                    this.isSetRegularKey = false;
+                    this.regularKeyAccount = '';
                }
 
                await this.updateXrpBalance(client, wallet);
@@ -1026,6 +1038,148 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
+     async setRegularKey(enableRegularKeyFlag: 'Y' | 'N') {
+          console.log('Entering setRegularKey');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               regularKeyAccounts: this.regularKeyAccount ? this.regularKeyAccount : undefined,
+               regularKeyAccountSeeds: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               } else {
+                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
+               }
+
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               let setRegularKeyTx: xrpl.SetRegularKey;
+               if (enableRegularKeyFlag === 'Y') {
+                    setRegularKeyTx = {
+                         TransactionType: 'SetRegularKey',
+                         Account: wallet.classicAddress,
+                         RegularKey: this.regularKeyAccount,
+                         Fee: fee,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+               } else {
+                    // Important: omit RegularKey field to unset it
+                    setRegularKeyTx = {
+                         TransactionType: 'SetRegularKey',
+                         Account: wallet.classicAddress,
+                         Fee: fee,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+               }
+
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    setRegularKeyTx.TicketSequence = Number(this.ticketSequence);
+                    setRegularKeyTx.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    setRegularKeyTx.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               if (this.memoField) {
+                    setRegularKeyTx.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s); // removes empty strings
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: setRegularKeyTx, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         setRegularKeyTx.Signers = result.signers;
+
+                         console.log('Set regular key with signers:', JSON.stringify(setRegularKeyTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    console.log('Set regular key without signers:', JSON.stringify(setRegularKeyTx, null, 2));
+                    const preparedTx = await client.autofill(setRegularKeyTx);
+                    signedTx = wallet.sign(preparedTx);
+               }
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving setMultiSign in ${this.executionTime}ms`);
+          }
+     }
+
      async setNftMinterAddress(enableNftMinter: 'Y' | 'N') {
           console.log('Entering setMultiSign');
           const startTime = Date.now();
@@ -1280,7 +1434,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAccounts?: string; regularKeyAccountSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -1307,6 +1461,55 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
+          }
+          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
+               const addresses = inputs.multiSignAddresses
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.multiSignSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               // if (addresses.length !== seeds.length) {
+               //      return 'Number of signer addresses must match number of signer seeds';
+               // }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
+          }
+          if (inputs.regularKeyAccountSeeds && inputs.regularKeyAccounts) {
+               const addresses = inputs.regularKeyAccounts
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.regularKeyAccountSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required to set a Regular Key';
+               }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
           }
           return null;
      }
