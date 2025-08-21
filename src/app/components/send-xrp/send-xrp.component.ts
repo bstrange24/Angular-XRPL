@@ -47,6 +47,9 @@ export class SendXrpComponent implements AfterViewChecked {
      signerQuorum = '';
      spinner = false;
      isMultiSign = false;
+     isRegularKeyAddress = false;
+     regularKeySeed = '';
+     regularKeyAddress = '';
      isTicket = false;
      spinnerMessage: string = '';
 
@@ -128,6 +131,12 @@ export class SendXrpComponent implements AfterViewChecked {
                     this.isMultiSign = false;
                }
 
+               if (accountInfo.result.account_data.RegularKey) {
+                    this.isRegularKeyAddress = true;
+                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = '';
+               }
+
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                await this.updateXrpBalance(client, address);
           } catch (error: any) {
@@ -160,7 +169,21 @@ export class SendXrpComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
+                         return this.setError('ERROR: Regular Key Address is invalid or empty');
+                    }
+                    if (!this.regularKeySeed || !xrpl.isValidSecret(this.regularKeySeed)) {
+                         return this.setError('ERROR: Regular Key Seed is invalid or empty');
+                    }
+                    if (this.regularKeyAddress && this.regularKeySeed) {
+                         // Override seed with Regular Key Seed
+                         console.log('Using Regular Key Seed for transaction signing');
+                         seed = this.regularKeySeed;
+                    }
+               }
                const wallet = await this.utilsService.getWallet(seed, environment);
 
                if (!wallet) {

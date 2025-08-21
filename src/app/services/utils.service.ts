@@ -658,6 +658,7 @@ export class UtilsService {
                ...tx,
                SigningPubKey: '',
           } as xrpl.SubmittableTransaction);
+
           delete preparedTx.Signers;
           delete preparedTx.TxnSignature;
 
@@ -684,7 +685,7 @@ export class UtilsService {
 
                signers.push(decoded.Signers[0]);
                signedTx = signed;
-               break; // Exit after first signer if quorum is 1
+               // break; // Exit after first signer if quorum is 1
           }
 
           if (!signedTx) {

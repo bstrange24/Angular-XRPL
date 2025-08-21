@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { CredentialCreate, CredentialDelete } from 'xrpl';
+import { CredentialCreate, CredentialDelete, rippleTimeToISOTime } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -529,6 +529,139 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving removeCredentials in ${this.executionTime}ms`);
           }
+     }
+
+     async verifyCredential(client: xrpl.Client, issuer: string, subject: string, credentialType: string, binary = false) {
+          /**
+           * Check whether an XRPL account holds a specified credential,
+           * as of the most recently validated ledger.
+           * Parameters:
+           *  client - Client for interacting with rippled servers.
+           *  issuer - Address of the credential issuer, in base58.
+           *  subject - Address of the credential holder/subject, in base58.
+           *  credentialType - Credential type to check for as a string,
+           *                   which will be encoded as UTF-8 (1-128 characters long).
+           *  binary - Specifies that the credential type is provided in hexadecimal format.
+           * You must provide the credential_type as input.
+           * Returns True if the account holds the specified, valid credential.
+           * Returns False if the credential is missing, expired, or not accepted.
+           */
+
+          // Encode credentialType as uppercase hex, if needed
+          let credentialTypeHex = '';
+          if (binary) {
+               credentialTypeHex = credentialType.toUpperCase();
+          } else {
+               credentialTypeHex = xrpl.convertStringToHex(credentialType).toUpperCase();
+               console.info(`Encoded credential_type as hex: ${credentialTypeHex}`);
+          }
+
+          if (credentialTypeHex.length % 2 !== 0 || !AppConstants.CREDENTIAL_REGEX.test(credentialTypeHex)) {
+               // Hexadecimal is always 2 chars per byte, so an odd length is invalid.
+               throw new Error('Credential type must be 128 characters as hexadecimal.');
+          }
+
+          // Perform XRPL lookup of Credential ledger entry --------------------------
+          const ledgerEntryRequest = {
+               command: 'ledger_entry',
+               credential: {
+                    subject: subject,
+                    issuer: issuer,
+                    credential_type: credentialTypeHex,
+               },
+               ledger_index: 'validated',
+          };
+          console.info('Looking up credential...');
+          console.info(JSON.stringify(ledgerEntryRequest, null, 2));
+
+          let xrplResponse;
+          try {
+               xrplResponse = await client.request(ledgerEntryRequest as any);
+          } catch (error: any) {
+               if (error.data?.error === 'entryNotFound') {
+                    console.info('Credential was not found');
+                    return false;
+               } else {
+                    // Other errors, for example invalidly specified addresses.
+                    throw new Error(`Failed to check credential: ${error.message || 'Unknown error'}`);
+               }
+          }
+
+          const credential = (xrplResponse.result as any).node;
+          console.info('Found credential:');
+          console.info(JSON.stringify(credential, null, 2));
+
+          // Check if the credential has been accepted ---------------------------
+          if (!(credential.Flags & AppConstants.LSF_ACCEPTED)) {
+               console.info('Credential is not accepted.');
+               return false;
+          }
+
+          // Confirm that the credential is not expired ------------------------------
+          if (credential.Expiration) {
+               const expirationTime = rippleTimeToISOTime(credential.Expiration);
+               console.info(`Credential has expiration: ${expirationTime}`);
+               console.info('Looking up validated ledger to check for expiration.');
+
+               let ledgerResponse;
+               try {
+                    ledgerResponse = await client.request({
+                         command: 'ledger',
+                         ledger_index: 'validated',
+                    });
+               } catch (error: any) {
+                    throw new Error(`Failed to check credential: ${error.message || 'Unknown error'}`);
+               }
+
+               const closeTime = rippleTimeToISOTime(ledgerResponse.result.ledger.close_time);
+               console.info(`Most recent validated ledger is: ${closeTime}`);
+
+               if (new Date(closeTime) > new Date(expirationTime)) {
+                    console.info('Credential is expired.');
+                    return false;
+               }
+          }
+
+          // Credential has passed all checks ---------------------------------------
+          console.info('Credential is valid.');
+          return true;
+     }
+
+     async lookUpCredentials(client: xrpl.Client, issuer: string, subject: string, accepted = 'both') {
+          // const account = issuer || subject; // Use whichever is specified, issuer if both
+          // if (!account) {
+          //      throw new ValueError('Must specify issuer or subject');
+          // }
+          // accepted = accepted.toLowerCase();
+          // if (!['yes', 'no', 'both'].includes(accepted)) {
+          //      throw new ValueError("accepted must be 'yes', 'no', or 'both'");
+          // }
+          // const credentials = [];
+          // let request = {
+          //      command: 'account_objects',
+          //      account,
+          //      type: 'credential',
+          //      ledger_index: 'validated',
+          // };
+          // // Fetch first page
+          // let response = await client.request(request as any);
+          // while (true) {
+          //      for (const obj of response.result.account_objects) {
+          //           if (issuer && obj.Issuer !== issuer) continue;
+          //           if (subject && obj.Subject !== subject) continue;
+          //           const credAccepted = Boolean(obj.Flags & AppConstants.LSF_ACCEPTED);
+          //           if (accepted === 'yes' && !credAccepted) continue;
+          //           if (accepted === 'no' && credAccepted) continue;
+          //           credentials.push(obj);
+          //      }
+          //      if (!response.result.marker) break;
+          //      /**
+          //       * If there is a marker, request the next page using the convenience function "requestNextPage()".
+          //       * See https://js.xrpl.org/classes/Client.html#requestnextpage to learn more.
+          //       **/
+          //      response = await client.requestNextPage(request, response.result);
+          // }
+          // return credentials;
      }
 
      private updateSpinnerMessage(message: string) {

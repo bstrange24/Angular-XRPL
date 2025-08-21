@@ -57,6 +57,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isTicket = false;
      isTicketEnabled = false;
      isMultiSign = false;
+     useMultiSign = false;
      multiSignAddress = '';
      isSetRegularKey = false;
      regularKeyAccount = '';
@@ -64,6 +65,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      signer1Account = '';
      signer2Account = '';
      signer3Account = '';
+     signer1Seed = '';
+     signer2Seed = '';
+     signer3Seed = '';
      signer1Weight = '';
      signer2Weight = '';
      signer3Weight = '';
@@ -82,6 +86,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isMessageKey = false;
      domain = '';
      memoField = '';
+     avatarUrl = '';
      spinnerMessage: string = '';
      flags: AccountFlags = {
           asfRequireDest: false,
@@ -266,6 +271,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     toggleUseMultiSign() {
+          this.cdr.detectChanges();
+     }
+
      toggleTicketSequence() {
           this.cdr.detectChanges();
      }
@@ -390,48 +399,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.refreshUiIAccountMetaData(accountInfo.result);
+               this.refreshUiAccountObjects(accountObjects);
+               this.refreshUiAccountInfo(accountInfo);
                this.setSuccess(this.result);
-
-               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-               if (signerAccounts && signerAccounts.length > 0) {
-                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                         this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
-                         this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
-                         this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
-                         this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
-                         this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
-                         this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
-                         this.isMultiSign = true;
-                    }
-               } else {
-                    this.multiSignAddress = '';
-                    this.isMultiSign = false;
-               }
-
-               const preAuthAccounts: string[] = this.findDepositPreauthObjects(accountObjects);
-               if (preAuthAccounts && preAuthAccounts.length > 0) {
-                    this.depositAuthAddress = preAuthAccounts.map(account => account + ',\n').join('');
-                    this.isdepositAuthAddress = true;
-               } else {
-                    this.depositAuthAddress = '';
-                    this.isdepositAuthAddress = false;
-               }
-
-               if (accountInfo.result.account_data && accountInfo.result.account_data.NFTokenMinter) {
-                    this.isAuthorizedNFTokenMinter = true;
-                    this.nfTokenMinterAddress = accountInfo.result.account_data.NFTokenMinter;
-               } else {
-                    this.isAuthorizedNFTokenMinter = false;
-                    this.nfTokenMinterAddress = '';
-               }
-
-               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-                    this.isSetRegularKey = true;
-                    this.regularKeyAccount = accountInfo.result.account_data.RegularKey;
-               } else {
-                    this.isSetRegularKey = false;
-                    this.regularKeyAccount = '';
-               }
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -529,6 +499,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -597,30 +570,44 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                if (this.tickSize) {
                     const tickSize = parseInt(this.tickSize);
-                    if (tickSize < 3 || tickSize > 15) {
-                         return this.setError('ERROR: Tick size must be between 3 and 15.');
+                    if (tickSize == 0) {
+                         updatedData = true;
+                         accountSetTx.TickSize = tickSize;
+                    } else {
+                         if (tickSize < 3 || tickSize > 15) {
+                              return this.setError('ERROR: Tick size must be between 3 and 15.');
+                         }
+                         updatedData = true;
+                         accountSetTx.TickSize = tickSize;
                     }
-                    updatedData = true;
-                    accountSetTx.TickSize = tickSize;
                }
 
                if (this.transferRate) {
                     const transferRate = parseFloat(this.transferRate);
-                    if (transferRate > 100) {
-                         return this.setError('ERROR: Transfer rate cannot be greater than 100%.');
+                    if (transferRate == 0) {
+                         updatedData = true;
+                         accountSetTx.TransferRate = transferRate;
+                    } else {
+                         if (transferRate > 100) {
+                              return this.setError('ERROR: Transfer rate cannot be greater than 100%.');
+                         }
+                         updatedData = true;
+                         accountSetTx.TransferRate = this.utilsService.getTransferRate(transferRate);
                     }
-                    updatedData = true;
-                    accountSetTx.TransferRate = this.utilsService.getTransferRate(transferRate);
                }
 
                if (this.isMessageKey) {
                     updatedData = true;
                     accountSetTx.MessageKey = wallet.publicKey;
+               } else {
+                    accountSetTx.MessageKey = '';
                }
 
                if (this.domain) {
                     updatedData = true;
                     accountSetTx.Domain = Buffer.from(this.domain, 'utf8').toString('hex');
+               } else {
+                    accountSetTx.Domain = '';
                }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
@@ -647,6 +634,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.isUpdateMetaData = true;
                this.setSuccess(this.result);
+
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -802,6 +792,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                // All transactions successful
                this.utilsService.renderTransactionsResults(results, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
+
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1027,6 +1020,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -1168,6 +1164,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1311,6 +1310,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                // All transactions successful
                this.utilsService.renderTransactionsResults(results, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1514,64 +1517,75 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           return null;
      }
 
+     refreshUiAccountObjects(accountObjects: any) {
+          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+          if (signerAccounts && signerAccounts.length > 0) {
+               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                    this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
+                    this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
+                    this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
+                    this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
+                    this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
+                    this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
+                    this.isMultiSign = true;
+               }
+          } else {
+               this.multiSignAddress = '';
+               this.isMultiSign = false;
+          }
+
+          const preAuthAccounts: string[] = this.findDepositPreauthObjects(accountObjects);
+          if (preAuthAccounts && preAuthAccounts.length > 0) {
+               this.depositAuthAddress = preAuthAccounts.map(account => account + ',\n').join('');
+               this.isdepositAuthAddress = true;
+          } else {
+               this.depositAuthAddress = '';
+               this.isdepositAuthAddress = false;
+          }
+     }
+
      refreshUiIAccountMetaData(accountInfo: any) {
-          const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement;
-          if (tickSizeField) {
-               if (accountInfo.account_data.TickSize && accountInfo.account_data.TickSize != '') {
-                    tickSizeField.value = accountInfo.account_data.TickSize;
-               } else {
-                    tickSizeField.value = '';
-               }
+          const { TickSize, TransferRate, Domain, MessageKey } = accountInfo.account_data;
+
+          // this.isUpdateMetaData = !!(TickSize || TransferRate || Domain || MessageKey);
+
+          // if (!this.isUpdateMetaData) {
+          //      return;
+          // }
+
+          this.tickSize = TickSize || '';
+          this.transferRate = TransferRate ? ((TransferRate / 1_000_000_000 - 1) * 100).toFixed(3) : '';
+          this.domain = Domain ? this.utilsService.decodeHex(Domain) : '';
+          this.isMessageKey = !!MessageKey;
+
+          this.cdr.detectChanges();
+     }
+
+     refreshUiAccountInfo(accountInfo: any) {
+          if (accountInfo.result.account_data && accountInfo.result.account_data.NFTokenMinter) {
+               this.isAuthorizedNFTokenMinter = true;
+               this.nfTokenMinterAddress = accountInfo.result.account_data.NFTokenMinter;
+          } else {
+               this.isAuthorizedNFTokenMinter = false;
+               this.nfTokenMinterAddress = '';
           }
 
-          const transferRateField = document.getElementById('transferRateField') as HTMLInputElement;
-          if (transferRateField) {
-               if (accountInfo.account_data.TransferRate && accountInfo.account_data.TransferRate != '') {
-                    transferRateField.value = ((accountInfo.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(3);
-               } else {
-                    transferRateField.value = '';
-               }
-          }
-
-          const domainField = document.getElementById('domainField') as HTMLInputElement;
-          if (domainField) {
-               if (accountInfo.account_data.Domain && accountInfo.account_data.Domain != '') {
-                    domainField.value = this.utilsService.decodeHex(accountInfo.account_data.Domain);
-               } else {
-                    domainField.value = '';
-               }
-          }
-
-          const isMessageKeyField = document.getElementById('isMessageKey') as HTMLInputElement;
-          if (isMessageKeyField) {
-               if (accountInfo.account_data.MessageKey && accountInfo.account_data.MessageKey != '') {
-                    isMessageKeyField.checked = true;
-               } else {
-                    isMessageKeyField.checked = false;
-               }
+          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+               this.isSetRegularKey = true;
+               this.regularKeyAccount = accountInfo.result.account_data.RegularKey;
+          } else {
+               this.isSetRegularKey = false;
+               this.regularKeyAccount = '';
           }
      }
 
      clearUiIAccountMetaData() {
-          const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement | null;
-          if (tickSizeField) {
-               tickSizeField.value = '';
-          }
+          this.tickSize = '';
+          this.transferRate = '';
+          this.domain = '';
+          this.isMessageKey = false;
 
-          const transferRateField = document.getElementById('transferRateField') as HTMLInputElement | null;
-          if (transferRateField) {
-               transferRateField.value = '';
-          }
-
-          const domainField = document.getElementById('domainField') as HTMLInputElement | null;
-          if (domainField) {
-               domainField.value = '';
-          }
-
-          const isMessageKeyField = document.getElementById('isMessageKey') as HTMLInputElement;
-          if (isMessageKeyField) {
-               isMessageKeyField.checked = false;
-          }
+          this.cdr.detectChanges();
      }
 
      clearFields() {

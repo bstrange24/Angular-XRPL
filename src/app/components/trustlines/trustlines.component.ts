@@ -85,7 +85,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngOnInit() {
-          const storedIssuers = this.storageService.getKnownIssuers('knownTrustLinesIssuers');
+          const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
           if (storedIssuers) {
                this.knownTrustLinesIssuers = storedIssuers;
           }
@@ -1169,7 +1169,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return;
                }
                this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
-               this.storageService.setKnownIssuers('knownTrustLinesIssuers', this.knownTrustLinesIssuers);
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                this.updateCurrencies();
                this.newCurrency = '';
                this.newIssuer = '';
@@ -1184,7 +1184,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      removeToken() {
           if (this.tokenToRemove) {
                delete this.knownTrustLinesIssuers[this.tokenToRemove];
-               this.storageService.setKnownIssuers('knownTrustLinesIssuers', this.knownTrustLinesIssuers);
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                this.updateCurrencies();
                this.setSuccess(`Removed ${this.tokenToRemove}`);
                this.tokenToRemove = '';

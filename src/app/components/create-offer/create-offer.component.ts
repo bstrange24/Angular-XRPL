@@ -391,24 +391,68 @@ export class CreateOfferComponent implements AfterViewChecked {
                console.log('we_want:', we_want);
                console.log('we_spend:', we_spend);
 
-               // Fetch order book for XRP/RLUSD (buy RLUSD with XRP)
-               const orderBook = await client.request({
-                    command: 'book_offers',
-                    taker: this.selectedAccount === 'account1' ? this.account1.address : 'rDefaultTaker',
-                    ledger_index: 'current',
-                    taker_gets: we_want,
-                    taker_pays: we_spend,
+               // Build destination_amount for path_find (must include value for tokens)
+               let destination_amount: string | { currency: string; issuer: string; value: string };
+               if (we_want.currency === 'XRP') {
+                    destination_amount = we_want.value;
+               } else {
+                    destination_amount = {
+                         currency: we_want.currency,
+                         issuer: (we_want as CurrencyObjectToken).issuer,
+                         value: we_want.value,
+                    };
+               }
+
+               const pathFind = await client.request({
+                    command: 'ripple_path_find',
+                    source_account: this.selectedAccount === 'account1' ? this.account1.address : 'rDefaultTaker',
+                    destination_account: this.selectedAccount === 'account1' ? this.account1.address : 'rDefaultTaker',
+                    source_amount: we_spend,
+                    destination_amount,
                });
 
-               // Calculate price from order book
-               if (orderBook.result.offers.length > 0) {
-                    const stats = this.computeAverageExchangeRateBothWays(orderBook.result.offers, 1);
-                    this.xrpPrice = stats.forward.vwap.toFixed(8); // RLUSD per 1 XRP (XRP/RLUSD)
-                    console.log(`1 RLUSD will buy: ${this.xrpPrice} XRP`);
+               // Extract the best delivered amount (CTZ per 1 XRP)
+               // if (pathFind.result && 'alternatives' in pathFind.result && Array.isArray((pathFind.result as any).alternatives) && (pathFind.result as any).alternatives.length > 0) {
+               //      const bestPath = (pathFind.result as any).alternatives[0];
+               //      const deliveredAmount = typeof bestPath.destination_amount === 'string' ? parseFloat(bestPath.destination_amount) : parseFloat(bestPath.destination_amount.value);
+               //      this.xrpPrice = deliveredAmount.toFixed(8); // CTZ per 1 XRP
+               //      console.log(`1 XRP will buy: ${this.xrpPrice} CTZ`);
+               // } else {
+               //      this.xrpPrice = 'N/A';
+               //      console.log('No paths found for XRP/CTZ');
+               // }
+
+               if (pathFind.result && 'alternatives' in pathFind.result && Array.isArray((pathFind.result as any).alternatives) && (pathFind.result as any).alternatives.length > 0) {
+                    const bestPath = (pathFind.result as any).alternatives[0];
+
+                    const amountObj = bestPath.source_amount;
+                    const deliveredAmount = typeof amountObj === 'string' ? parseFloat(amountObj) : parseFloat(amountObj.value);
+
+                    this.xrpPrice = deliveredAmount.toFixed(8);
+                    console.log(`1 XRP will buy: ${this.xrpPrice} ${displayWeWantCurrency}`);
                } else {
                     this.xrpPrice = 'N/A';
-                    console.log('No offers found for XRP/RLUSD');
+                    console.log(`No paths found for ${displayWeSpendCurrency}/${displayWeWantCurrency}`);
                }
+
+               // // Fetch order book for XRP/RLUSD (buy RLUSD with XRP)
+               // const orderBook = await client.request({
+               //      command: 'book_offers',
+               //      taker: this.selectedAccount === 'account1' ? this.account1.address : 'rDefaultTaker',
+               //      ledger_index: 'current',
+               //      taker_gets: we_want,
+               //      taker_pays: we_spend,
+               // });
+
+               // // Calculate price from order book
+               // if (orderBook.result.offers.length > 0) {
+               //      const stats = this.computeAverageExchangeRateBothWays(orderBook.result.offers, 1);
+               //      this.xrpPrice = stats.forward.vwap.toFixed(8); // RLUSD per 1 XRP (XRP/RLUSD)
+               //      console.log(`1 RLUSD will buy: ${this.xrpPrice} XRP`);
+               // } else {
+               //      this.xrpPrice = 'N/A';
+               //      console.log('No offers found for XRP/RLUSD');
+               // }
 
                this.cdr.detectChanges(); // Trigger UI update
           } catch (error: any) {
@@ -426,9 +470,9 @@ export class CreateOfferComponent implements AfterViewChecked {
      startPriceRefresh() {
           // Fetch price immediately
           // this.fetchXrpPrice();
-          // Set interval to refresh every 10 seconds
+          // // Set interval to refresh every 10 seconds
           // this.priceRefreshInterval = setInterval(() => {
-          // this.fetchXrpPrice();
+          //      this.fetchXrpPrice();
           // }, 10000);
      }
 

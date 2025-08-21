@@ -25,6 +25,9 @@ export const AppConstants = {
           DEVNET: 'https://devnet.xrplwin.com/tx/',
      },
 
+     CREDENTIAL_REGEX: /^[0-9A-F]{2,128}$/,
+     LSF_ACCEPTED: 0x00010000,
+
      // Encryption Algorithms
      ENCRYPTION: {
           ED25519: 'ed25519' as ECDSA,

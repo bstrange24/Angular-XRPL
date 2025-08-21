@@ -157,13 +157,15 @@ table {
 #issuerField,
 #weWantIssuerField,
 #weSpendIssuerField,
-#depositAuthAddress,
 #nfTokenMinterAddress,
 #signer1AccountField,
 #signer2AccountField,
 #signer3AccountField,
 #multiSignAddress,
-#transactionField {
+#transactionField,
+#regularKeyAddress,
+#regularKeyAccountField,
+#depositAuthAddress {
      color: #4CAF50;
 }
 
