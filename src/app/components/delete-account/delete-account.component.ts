@@ -266,7 +266,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.isMemoEnabled = false;
                this.memoField = '';
 
-               await this.updateXrpBalance(client, wallet.classicAddress);
+               // await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);

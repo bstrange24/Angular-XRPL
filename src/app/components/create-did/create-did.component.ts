@@ -310,7 +310,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.updateSpinnerMessage('Setting Trustline...');
+               this.updateSpinnerMessage('Setting DID...');
 
                // const didDocument = {
                //      '@context': 'https://www.w3.org/ns/did/v1',
@@ -375,7 +375,10 @@ export class CreateDidComponent implements AfterViewChecked {
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
 
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signers provided for multi-signing');
@@ -475,7 +478,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.updateSpinnerMessage('Removing Trustline...');
+               this.updateSpinnerMessage('Removing DID...');
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'did');
 
@@ -531,7 +534,10 @@ export class CreateDidComponent implements AfterViewChecked {
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
 
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signers provided for multi-signing');

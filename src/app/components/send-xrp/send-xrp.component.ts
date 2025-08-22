@@ -262,11 +262,10 @@ export class SendXrpComponent implements AfterViewChecked {
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    // const signerAddresses = this.multiSignAddress.split(',').map(s => s.trim());
                     const signerAddresses = this.multiSignAddress
                          .split(',')
                          .map(s => s.trim())
-                         .filter(s => s); // removes empty strings
+                         .filter(s => s.length > 0); // removes empty strings
 
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signers provided for multi-signing');
