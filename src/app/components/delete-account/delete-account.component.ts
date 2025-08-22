@@ -11,6 +11,13 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
+// Define the interface for signer entries
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string; // Note: 'SingnerSeed' seems to be a typo in your JSON, should it be 'SignerSeed'?
+}
+
 @Component({
      selector: 'app-delete-account',
      standalone: true,
@@ -21,7 +28,6 @@ import { AppConstants } from '../../core/app.constants';
 export class DeleteAccountComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     // selectedAccount: 'account1' | 'account2' | null = null;
      selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput = '';
@@ -36,9 +42,14 @@ export class DeleteAccountComponent implements AfterViewChecked {
      executionTime = '';
      destinationField = '';
      destinationTagField = '';
+     signerQuorum = '';
+     isMemoEnabled = false;
      memoField = '';
      isMultiSignTransaction = false;
      isMultiSign = false;
+     isRegularKeyAddress = false;
+     regularKeyAddress = '';
+     regularKeySeed = '';
      multiSignAddress = '';
      multiSignSeeds = '';
      spinner = false;
@@ -76,6 +87,10 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     validateQuorum() {
+          this.cdr.detectChanges();
+     }
+
      onAccountChange() {
           if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
@@ -102,6 +117,37 @@ export class DeleteAccountComponent implements AfterViewChecked {
                }
 
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+
+               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               if (signerAccounts && signerAccounts.length > 0) {
+                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
+                         this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                         this.multiSignSeeds = signerAccounts
+                              .map(account => {
+                                   const address = account.split('~')[0];
+                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                   return entry ? entry.SingnerSeed : null;
+                              })
+                              .filter(seed => seed !== null)
+                              .join(',\n');
+                         this.isMultiSign = true;
+                    }
+               } else {
+                    this.multiSignAddress = '';
+                    this.isMultiSign = false;
+               }
+
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+                    this.isRegularKeyAddress = true;
+                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = this.storageService.get('regularKeySeed');
+               } else {
+                    this.isRegularKeyAddress = false;
+                    this.regularKeyAddress = '';
+                    this.regularKeySeed = '';
+               }
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                await this.updateXrpBalance(client, address);
@@ -134,12 +180,23 @@ export class DeleteAccountComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
+                         return this.setError('ERROR: Regular Key Address is invalid or empty');
+                    }
+                    if (!this.regularKeySeed || !xrpl.isValidSecret(this.regularKeySeed)) {
+                         return this.setError('ERROR: Regular Key Seed is invalid or empty');
+                    }
+                    if (this.regularKeyAddress && this.regularKeySeed) {
+                         // Override seed with Regular Key Seed
+                         console.log('Using Regular Key Seed for transaction signing');
+                         seed = this.regularKeySeed;
+                    }
                }
+
+               const wallet = await this.utilsService.getWallet(seed, environment);
 
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -206,6 +263,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
                await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
@@ -215,6 +275,23 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving deleteAccount in ${this.executionTime}ms`);
           }
+     }
+
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum.toString();
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {

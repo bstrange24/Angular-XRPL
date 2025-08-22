@@ -11,6 +11,13 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 
+// Define the interface for signer entries
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string; // Note: 'SingnerSeed' seems to be a typo in your JSON, should it be 'SignerSeed'?
+}
+
 @Component({
      selector: 'app-create-credentials',
      standalone: true,
@@ -40,12 +47,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      ownerCount = '';
      totalXrpReserves = '';
      executionTime = '';
+     isRegularKeyAddress = false;
+     regularKeyAddress = '';
+     regularKeySeed = '';
      isMultiSign = false;
      multiSignAddress = '';
      isUpdateMetaData = false;
      multiSignSeeds = '';
      signerQuorum = '';
      memoField = '';
+     isMemoEnabled = false;
      credentialType: string = '';
      credentialData: string = '';
      credentialID: string = '';
@@ -171,10 +182,20 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
 
-               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               const signerAccounts: string[] = this.checkForSignerAccounts(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
                if (signerAccounts && signerAccounts.length > 0) {
                     if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
                          this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                         this.multiSignSeeds = signerAccounts
+                              .map(account => {
+                                   const address = account.split('~')[0];
+                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                   return entry ? entry.SingnerSeed : null;
+                              })
+                              .filter(seed => seed !== null)
+                              .join(',\n');
                          this.isMultiSign = true;
                     }
                } else {
@@ -247,6 +268,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
 
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+                    this.isRegularKeyAddress = true;
+                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = this.storageService.get('regularKeySeed');
+               } else {
+                    this.isRegularKeyAddress = false;
+                    this.regularKeyAddress = '';
+                    this.regularKeySeed = '';
+               }
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -278,8 +309,21 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
 
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
+                         return this.setError('ERROR: Regular Key Address is invalid or empty');
+                    }
+                    if (!this.regularKeySeed || !xrpl.isValidSecret(this.regularKeySeed)) {
+                         return this.setError('ERROR: Regular Key Seed is invalid or empty');
+                    }
+                    if (this.regularKeyAddress && this.regularKeySeed) {
+                         // Override seed with Regular Key Seed
+                         console.log('Using Regular Key Seed for transaction signing');
+                         seed = this.regularKeySeed;
+                    }
+               }
                const wallet = await this.utilsService.getWallet(seed, environment);
 
                if (!wallet) {
@@ -377,6 +421,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -408,7 +455,21 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
+                         return this.setError('ERROR: Regular Key Address is invalid or empty');
+                    }
+                    if (!this.regularKeySeed || !xrpl.isValidSecret(this.regularKeySeed)) {
+                         return this.setError('ERROR: Regular Key Seed is invalid or empty');
+                    }
+                    if (this.regularKeyAddress && this.regularKeySeed) {
+                         // Override seed with Regular Key Seed
+                         console.log('Using Regular Key Seed for transaction signing');
+                         seed = this.regularKeySeed;
+                    }
+               }
                const wallet = await this.utilsService.getWallet(seed, environment);
 
                if (!wallet) {
@@ -519,6 +580,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
