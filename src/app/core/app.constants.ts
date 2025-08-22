@@ -39,6 +39,69 @@ export const AppConstants = {
           TES_SUCCESS: 'tesSUCCESS',
      },
 
+     ACCOUNT_SET_FLAGS: {
+          1: 'asfRequireDest',
+          2: 'asfRequireAuth',
+          3: 'asfDisallowXRP',
+          4: 'asfDisableMaster',
+          5: 'asfAccountTxnID',
+          6: 'asfNoFreeze',
+          7: 'asfGlobalFreeze',
+          8: 'asfDefaultRipple',
+          9: 'asfDepositAuth',
+          10: 'asfAuthorizedNFTokenMinter',
+          12: 'asfDisallowIncomingNFTokenOffer',
+          13: 'asfDisallowIncomingCheck',
+          14: 'asfDisallowIncomingPayChan',
+          15: 'asfDisallowIncomingTrustline',
+          16: 'asfAllowTrustLineClawback',
+     },
+     ACCOUNT_ROOT_FLAGS: {
+          0x00010000: 'Regular Key Set',
+          0x00020000: 'Require Destination Tag',
+          0x00040000: 'Require Authorization',
+          0x00080000: 'Disallow Incoming XRP',
+          0x00100000: 'DisableMaster Key',
+          0x00200000: 'No Freeze',
+          0x00400000: 'Global Freeze',
+          0x00800000: 'Default Ripple',
+          0x01000000: 'Deposit Auth',
+          // If new flags are added later, just extend this map
+     },
+
+     // Payment tx flags
+     PAYMENT_FLAGS: {
+          0x00010000: 'tfNoDirectRipple',
+          0x00020000: 'tfPartialPayment',
+          0x00040000: 'tfLimitQuality',
+     },
+
+     OFFER_CREATE_FLAGS: {
+          0x00010000: 'tfPassive',
+          0x00020000: 'tfImmediateOrCancel',
+          0x00040000: 'tfFillOrKill',
+          0x00080000: 'tfSell',
+     },
+
+     // OfferCancel has no flags (just included for structure)
+
+     // TrustSet tx flags
+     TRUST_SET_FLAGS: {
+          0x00010000: 'tfSetAuth',
+          0x00020000: 'tfSetNoRipple',
+          0x00040000: 'tfClearNoRipple',
+          0x00080000: 'tfSetFreeze',
+          0x00100000: 'tfClearFreeze',
+     },
+
+     // EscrowCreate tx flags
+     ESCROW_CREATE_FLAGS: {
+          0x00020000: 'tfFinishAfter',
+          0x00040000: 'tfCancelAfter',
+     },
+
+     // You can extend with CheckCash, AMM, etc.
+
      // Account Flags (from your flagList in AccountComponent)
      FLAGS: [
           { name: 'asfRequireDest', label: 'Require Destination Tag', value: 1, xrplName: 'requireDestinationTag', xrplEnum: xrpl.AccountSetAsfFlags.asfRequireDest },
@@ -57,6 +120,7 @@ export const AppConstants = {
           { name: 'asfDisallowIncomingTrustline', label: 'Block Trust Lines', value: 15, xrplName: 'disallowIncomingTrustline', xrplEnum: xrpl.AccountSetAsfFlags.asfDisallowIncomingTrustline },
           { name: 'asfAllowTrustLineClawback', label: 'Allow Trust Line Clawback', value: 16, xrplName: 'allowTrustLineClawback', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineClawback },
           // { name: 'asfAllowTrustLineLocking', label: 'Allow Trust Line Locking', value: 17, xrplName: 'asfAllowTrustLineLocking', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineClawback },
+          { name: 'passwordSpent', label: 'Set Regular Key', value: 100, xrplName: 'passwordSpent', xrplEnum: '' },
      ],
 
      FLAGMAP: {

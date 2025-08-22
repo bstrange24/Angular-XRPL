@@ -10,6 +10,13 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
+// Define the interface for signer entries
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string; // Note: 'SingnerSeed' seems to be a typo in your JSON, should it be 'SignerSeed'?
+}
+
 @Component({
      selector: 'app-account',
      standalone: true,
@@ -40,6 +47,8 @@ export class SendXrpComponent implements AfterViewChecked {
      invoiceIdField: string = '';
      ticketSequence: string = '';
      memoField = '';
+     isMemoEnabled = false;
+     isInvoiceIdEnabled = false;
      isMultiSignTransaction = false;
      isTicketEnabled = false;
      multiSignAddress = '';
@@ -123,7 +132,17 @@ export class SendXrpComponent implements AfterViewChecked {
                const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
                if (signerAccounts && signerAccounts.length > 0) {
                     if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
                          this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                         this.multiSignSeeds = signerAccounts
+                              .map(account => {
+                                   const address = account.split('~')[0];
+                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                   return entry ? entry.SingnerSeed : null;
+                              })
+                              .filter(seed => seed !== null)
+                              .join(',\n');
                          this.isMultiSign = true;
                     }
                } else {
@@ -131,9 +150,13 @@ export class SendXrpComponent implements AfterViewChecked {
                     this.isMultiSign = false;
                }
 
-               if (accountInfo.result.account_data.RegularKey) {
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
                     this.isRegularKeyAddress = true;
                     this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = this.storageService.get('regularKeySeed');
+               } else {
+                    this.isRegularKeyAddress = false;
+                    this.regularKeyAddress = '';
                     this.regularKeySeed = '';
                }
 
@@ -293,6 +316,11 @@ export class SendXrpComponent implements AfterViewChecked {
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+               this.isInvoiceIdEnabled = false;
+               this.invoiceIdField = '';
 
                await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {

@@ -112,7 +112,7 @@ input:read-only {
 }
 
 #resultField {
-     width: 60%;
+     /* width: 60%; */
      resize: none;
      font-size: 12px;
      padding: 15px;
@@ -128,9 +128,9 @@ input:read-only {
      margin: 10px 0;
 }
 
-table {
+/* table {
      padding-right: 5px;
-}
+} */
 
 .table-container {
      display: flex;
@@ -803,7 +803,9 @@ input:focus+.slider {
 
 .result-container {
      width: 100%;
+     min-height: 80px;
      max-width: none;
+     border: 1px solid #888;
      margin: 20px 0;
      padding: 15px;
      background: #2a2c31;
@@ -1694,3 +1696,52 @@ mark {
      padding: 4px;
      border-radius: 10px;
 }
+
+.transaction-layout {
+     display: grid;
+     grid-template-columns: 2fr 1fr;
+     /* left = 2x width of right */
+     gap: 20px;
+     align-items: start;
+}
+
+.left-column {
+     display: flex;
+     flex-direction: column;
+     gap: 15px;
+}
+
+/* .right-column {
+     display: flex;
+     flex-direction: column;
+} */
+
+.right-column {
+     justify-self: start;
+     width: 100%;
+     /* make sure it grows naturally */
+}
+
+.flags-layout {
+     display: grid;
+     grid-template-columns: 2.5fr 1fr 1fr;
+     /* wide first table, narrower flags */
+     gap: 20px;
+     /* space between tables */
+     align-items: start;
+}
+
+.flags-layout table {
+     flex: 1;
+     /* let them share width equally */
+}
+
+.button-container {
+     /* margin-top: 20px; */
+     width: 100%;
+}
+
+/* .button-container {
+     grid-column: 1 / -1;
+     width: 100%;
+} */

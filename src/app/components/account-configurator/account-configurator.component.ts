@@ -12,6 +12,17 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string;
+}
+
+interface RegularKeyEntry {
+     Account: string;
+     RegularKeySeed: string;
+}
+
 interface AccountFlags {
      asfRequireDest: boolean;
      asfRequireAuth: boolean;
@@ -56,6 +67,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket = false;
      isTicketEnabled = false;
+     isMemoEnabled = false;
      isMultiSign = false;
      useMultiSign = false;
      multiSignAddress = '';
@@ -168,7 +180,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     // Optional: Add a method to reset flags to avoid conflicts
      private resetFlags() {
           this.flags = {
                asfRequireDest: false,
@@ -272,6 +283,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      toggleUseMultiSign() {
+          if (this.useMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
+               const signers = this.storageService.get('signerEntries');
+               const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
+               const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
+               this.multiSignAddress = addresses;
+               this.multiSignSeeds = seeds;
+          } else {
+               this.multiSignAddress = 'No Multi-Sign address configured for account';
+          }
           this.cdr.detectChanges();
      }
 
@@ -280,6 +300,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      onAuthorizedNFTokenMinter() {
+          this.cdr.detectChanges();
+     }
+
+     onEnableMemo() {
           this.cdr.detectChanges();
      }
 
@@ -844,12 +868,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const fee = await this.xrplService.calculateTransactionFee(client);
 
                let signerListTx: SignerListSet;
+               let signerEntries;
                if (enableMultiSignFlag === 'Y') {
                     // Create array of signer accounts and their weights
-                    const signerEntries = [
-                         { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight) },
-                         { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight) },
-                         { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight) },
+                    signerEntries = [
+                         { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight), SingnerSeed: this.signer1Seed },
+                         { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight), SingnerSeed: this.signer2Seed },
+                         { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight), SingnerSeed: this.signer3Seed },
                     ].filter(entry => entry.Account && entry.SignerWeight > 0); // Filter out empty or invalid entries
 
                     // Validate: At least one valid signer
@@ -1023,6 +1048,12 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
 
+               if (enableMultiSignFlag === 'Y') {
+                    this.storageService.set('signerEntries', signerEntries);
+               } else {
+                    this.storageService.removeValue('signerEntries');
+               }
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -1044,7 +1075,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-               regularKeyAccounts: this.regularKeyAccount ? this.regularKeyAccount : undefined,
+               regularKeyAccount: this.regularKeyAccount ? this.regularKeyAccount : undefined,
                regularKeyAccountSeeds: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
           });
           if (validationError) {
@@ -1114,16 +1145,24 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress
-                         .split(',')
-                         .map(s => s.trim())
-                         .filter(s => s); // removes empty strings
+                    let signerAddresses: string[] = [];
+                    let signerSeeds: string[] = [];
 
-                    if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signers provided for multi-signing');
+                    const signerAccounts: string[] = this.checkForSignerAccounts(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+                    if (signerAccounts && signerAccounts.length > 0) {
+                         if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                              const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+                              signerAddresses = signerAccounts.map(account => account?.split('~')[0]).filter((address): address is string => address !== undefined && address !== '');
+
+                              signerSeeds = signerAccounts
+                                   .map(account => {
+                                        const address = account?.split('~')[0];
+                                        const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                        return entry?.SingnerSeed;
+                                   })
+                                   .filter((seed): seed is string => seed !== undefined && seed !== '');
+                         }
                     }
-
-                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: setRegularKeyTx, signerAddresses, signerSeeds, fee });
@@ -1167,6 +1206,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+
+               if (enableRegularKeyFlag === 'Y') {
+                    this.storageService.set('regularKey', this.regularKeyAccount);
+                    this.storageService.set('regularKeySeed', this.regularKeyAccountSeed);
+               } else {
+                    this.storageService.removeValue('regularKey');
+                    this.storageService.removeValue('regularKeySeed');
+               }
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1437,7 +1484,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAccounts?: string; regularKeyAccountSeeds?: string }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAccount?: string; regularKeyAccountSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -1491,8 +1538,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                }
           }
-          if (inputs.regularKeyAccountSeeds && inputs.regularKeyAccounts) {
-               const addresses = inputs.regularKeyAccounts
+          if (inputs.regularKeyAccountSeeds && inputs.regularKeyAccount) {
+               const addresses = inputs.regularKeyAccount
                     .split(',')
                     .map(addr => addr.trim())
                     .filter(addr => addr);
@@ -1521,16 +1568,46 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
           if (signerAccounts && signerAccounts.length > 0) {
                if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                    const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
+                    // Assign account addresses and weights
                     this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
                     this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
+                    this.signer1Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer1Account)?.SingnerSeed || '';
+
                     this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
                     this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
+                    this.signer2Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer2Account)?.SingnerSeed || '';
+
                     this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
                     this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
+                    this.signer3Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer3Account)?.SingnerSeed || '';
+
+                    // Extract matching seeds and join with commas
+                    // this.multiSignSeeds = signerAccounts
+                    //      .slice(0, 3) // Limit to first 3 accounts to match signer1, signer2, signer3
+                    //      .map((account, index) => {
+                    //           const address = account?.split('~')[0];
+                    //           const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                    //           return entry ? entry.SingnerSeed : null;
+                    //      })
+                    //      .filter((seed): seed is string => seed !== null) // Type guard to filter out null
+                    //      .join(',');
+
                     this.isMultiSign = true;
                }
           } else {
+               this.signer1Account = '';
+               this.signer1Weight = '';
+               this.signer1Seed = '';
+               this.signer2Account = '';
+               this.signer2Weight = '';
+               this.signer2Seed = '';
+               this.signer3Account = '';
+               this.signer3Weight = '';
+               this.signer3Seed = '';
                this.multiSignAddress = '';
+               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
                this.isMultiSign = false;
           }
 
@@ -1542,6 +1619,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.depositAuthAddress = '';
                this.isdepositAuthAddress = false;
           }
+          this.isMemoEnabled = false;
+          this.memoField = '';
      }
 
      refreshUiIAccountMetaData(accountInfo: any) {
@@ -1573,9 +1652,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
                this.isSetRegularKey = true;
                this.regularKeyAccount = accountInfo.result.account_data.RegularKey;
+               this.regularKeyAccountSeed = this.storageService.get('regularKeySeed');
           } else {
                this.isSetRegularKey = false;
                this.regularKeyAccount = '';
+               this.regularKeyAccountSeed = '';
           }
      }
 

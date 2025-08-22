@@ -6,6 +6,8 @@ import { AppConstants } from '../core/app.constants';
 import { StorageService } from '../services/storage.service';
 import { sha256 } from 'js-sha256';
 
+type FlagResult = Record<string, boolean> | string | null;
+
 @Injectable({
      providedIn: 'root',
 })
@@ -21,6 +23,20 @@ export class UtilsService {
      isMessageKey = false;
      memo = '';
      spinner = false;
+
+     // XRPL AccountRoot flags (from xrpl.org docs)
+     // AccountRootFlags: Record<number, string> = {
+     //      0x00010000: 'Regular Key Set',
+     //      0x00020000: 'Require Destination Tag',
+     //      0x00040000: 'Require Authorization',
+     //      0x00080000: 'Disallow Incoming XRP',
+     //      0x00100000: 'DisableMaster Key',
+     //      0x00200000: 'No Freeze',
+     //      0x00400000: 'Global Freeze',
+     //      0x00800000: 'Default Ripple',
+     //      0x01000000: 'Deposit Auth',
+     //      // If new flags are added later, just extend this map
+     // };
 
      constructor(private xrplService: XrplService, private storageService: StorageService) {}
 
@@ -612,10 +628,6 @@ export class UtilsService {
      }
 
      async handleMultiSignTransaction({ client, wallet, environment, tx, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; tx: xrpl.Transaction; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
-          // if (signerAddresses.length !== signerSeeds.length) {
-          //      throw new Error('Signer address count must match signer seed count');
-          // }
-
           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
           const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');
           if (!signerList) {
@@ -664,8 +676,7 @@ export class UtilsService {
 
           console.log('PreparedTx before signing:', JSON.stringify(preparedTx, null, 2));
 
-          const signers: xrpl.Signer[] = [];
-          let signedTx: { tx_blob: string; hash: string } | null = null;
+          const signerBlobs: string[] = [];
 
           for (let i = 0; i < signerAddresses.length; i++) {
                const signerWallet = await this.getWallet(signerSeeds[i], environment);
@@ -674,109 +685,32 @@ export class UtilsService {
                     throw new Error(`Seed mismatch for signer ${signerAddresses[i]}`);
                }
 
-               const signed = signerWallet.sign(preparedTx, true);
+               const signed = signerWallet.sign(preparedTx, true); // true = multisign
                console.log('Signed Transaction:', JSON.stringify(signed, null, 2));
 
-               const decoded = xrpl.decode(signed.tx_blob) as xrpl.Transaction;
-
-               if (!decoded.Signers || !Array.isArray(decoded.Signers)) {
-                    throw new Error(`Could not extract Signer from ${signerWallet.classicAddress}`);
+               if (signed.tx_blob) {
+                    signerBlobs.push(signed.tx_blob);
                }
-
-               signers.push(decoded.Signers[0]);
-               signedTx = signed;
-               // break; // Exit after first signer if quorum is 1
           }
 
-          if (!signedTx) {
-               throw new Error('No valid signature collected for multisign transaction');
+          if (signerBlobs.length === 0) {
+               throw new Error('No valid signatures collected for multisign transaction');
           }
 
-          return { signedTx, signers };
+          console.log('PreparedTx after signing:', JSON.stringify(preparedTx, null, 2));
+          console.log('signerBlobs:', JSON.stringify(signerBlobs, null, 2));
+
+          // Combine all signatures into one final multisigned transaction
+          const multisignedTxBlob = xrpl.multisign(signerBlobs);
+
+          console.log('Final multisignedTxBlob:', multisignedTxBlob);
+
+          // Decode the multisigned transaction to get signers
+          const decodedMultisigned = xrpl.decode(multisignedTxBlob) as any;
+          const signers = decodedMultisigned.Signers || [];
+
+          return { signedTx: { tx_blob: multisignedTxBlob, hash: xrpl.hashes.hashSignedTx(multisignedTxBlob) }, signers };
      }
-
-     // async handleMultiSignPayment({ client, wallet, environment, payment, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; payment: xrpl.Payment; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
-     //      if (signerAddresses.length !== signerSeeds.length) {
-     //           throw new Error('Signer address count must match signer seed count');
-     //      }
-
-     //      const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-     //      const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');
-     //      if (!signerList) {
-     //           throw new Error('Account does not have a SignerList');
-     //      }
-
-     //      if (!('SignerEntries' in signerList) || !Array.isArray((signerList as any).SignerEntries)) {
-     //           throw new Error('SignerList object does not have SignerEntries');
-     //      }
-     //      const validSigners = (signerList as { SignerEntries: any[] }).SignerEntries.map((entry: any) => entry.SignerEntry.Account);
-     //      const quorum = (signerList as any).SignerQuorum;
-
-     //      let totalWeight = 0;
-     //      signerAddresses.forEach(addr => {
-     //           const signerEntry = (signerList as any).SignerEntries.find((entry: any) => entry.SignerEntry.Account === addr);
-     //           if (signerEntry) {
-     //                totalWeight += signerEntry.SignerEntry.SignerWeight;
-     //           }
-     //      });
-
-     //      if (totalWeight < quorum) {
-     //           throw new Error(`Total signer weight (${totalWeight}) does not meet quorum (${quorum})`);
-     //      }
-
-     //      if (signerAddresses.some(addr => !validSigners.includes(addr))) {
-     //           throw new Error('One or more signer addresses are not in the SignerList');
-     //      }
-
-     //      console.log('SignerList:', JSON.stringify(signerList, null, 2));
-     //      console.log('Valid Signers:', validSigners);
-     //      console.log('Provided Signers:', signerAddresses);
-     //      console.log('Quorum:', quorum);
-
-     //      // Fee = baseFee × (1 + number of signers)
-     //      const feeDrops = Number(fee) * (1 + signerAddresses.length);
-     //      payment.Fee = String(feeDrops);
-     //      payment.SigningPubKey = '';
-
-     //      const preparedTx = await client.autofill({
-     //           ...payment,
-     //           SigningPubKey: '',
-     //      });
-     //      delete preparedTx.Signers;
-     //      delete preparedTx.TxnSignature;
-
-     //      console.log('PreparedTx before signing:', JSON.stringify(preparedTx, null, 2));
-
-     //      const signers: xrpl.Signer[] = [];
-     //      let signedTx: { tx_blob: string; hash: string } | null = null;
-
-     //      for (let i = 0; i < signerAddresses.length; i++) {
-     //           const signerWallet = await this.getWallet(signerSeeds[i], environment);
-
-     //           if (signerWallet.classicAddress !== signerAddresses[i]) {
-     //                throw new Error(`Seed mismatch for signer ${signerAddresses[i]}`);
-     //           }
-
-     //           const signed = signerWallet.sign(preparedTx, true);
-     //           console.log('Signed Transaction:', JSON.stringify(signed, null, 2));
-
-     //           const decoded = xrpl.decode(signed.tx_blob) as xrpl.Transaction;
-
-     //           if (!decoded.Signers || !Array.isArray(decoded.Signers)) {
-     //                throw new Error(`Could not extract Signer from ${signerWallet.classicAddress}`);
-     //           }
-
-     //           signers.push(decoded.Signers[0]);
-     //           signedTx = signed;
-     //           break; // Exit after first valid signer if quorum is 1
-     //      }
-
-     //      if (!signedTx) {
-     //           throw new Error('No valid signature collected for multisign transaction');
-     //      }
-
-     //      return { signedTx, signers };
-     // }
 
      getFlagName(value: string) {
           return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `Flag ${value}`;
@@ -869,6 +803,26 @@ export class UtilsService {
                default:
                     return false;
           }
+     }
+
+     decodeAccountFlags(accountInfo: any): string[] {
+          const activeFlags: string[] = [];
+
+          if (accountInfo?.result?.account_flags) {
+               for (const [flag, enabled] of Object.entries(accountInfo.result.account_flags)) {
+                    if (enabled === true) {
+                         const match = AppConstants.FLAGS.find(f => f.xrplName === flag);
+                         activeFlags.push(match ? match.label : flag); // Use label if found, else raw name
+                    }
+               }
+          }
+
+          return activeFlags;
+     }
+
+     formatFlags(flags: string[]): string {
+          if (flags.length <= 1) return flags[0] || '';
+          return flags.slice(0, -1).join(', ') + ' and ' + flags[flags.length - 1];
      }
 
      roundToEightDecimals(value: number): number {
@@ -1081,6 +1035,7 @@ export class UtilsService {
                     content: [
                          { key: 'Account', value: `<code>${accountInfo.result.account_data.Account}</code>` },
                          { key: 'Balance', value: (parseInt(accountInfo.result.account_data.Balance) / 1_000_000).toFixed(6) + ' XRP' },
+                         { key: 'Flags', value: accountInfo.result.account_data.Flags ? this.formatFlags(this.decodeAccountFlags(accountInfo)) : '0' },
                          { key: 'OwnerCount', value: accountInfo.result.account_data.OwnerCount },
                          { key: 'Sequence', value: accountInfo.result.account_data.Sequence },
                          { key: 'Regular Key', value: accountInfo.result.account_data.RegularKey ? `<code>${accountInfo.result.account_data.RegularKey}</code>` : 'Not Set' },
@@ -1089,19 +1044,19 @@ export class UtilsService {
                metadata: {
                     title: 'Account Meta Data',
                     content: [
-                         { key: 'BurnedNFTokens', value: accountInfo.result.account_data.BurnedNFTokens },
-                         { key: 'MintedNFTokens', value: accountInfo.result.account_data.MintedNFTokens },
+                         { key: 'BurnedNFTokens', value: accountInfo.result.account_data.BurnedNFTokens ? accountInfo.result.account_data.BurnedNFTokens : 'Not Set' },
+                         { key: 'MintedNFTokens', value: accountInfo.result.account_data.MintedNFTokens ? accountInfo.result.account_data.MintedNFTokens : 'Not Set' },
                          {
                               key: 'Domain',
                               value: accountInfo.result.account_data.Domain ? Buffer.from(accountInfo.result.account_data.Domain, 'hex').toString('ascii') : 'Not Set',
                          },
-                         { key: 'TickSize', value: accountInfo.result.account_data.TickSize },
+                         { key: 'TickSize', value: accountInfo.result.account_data.TickSize ? accountInfo.result.account_data.TickSize : 'Not Set' },
                          {
                               key: 'TransferRate',
                               value: accountInfo.result.account_data.TransferRate ? ((accountInfo.result.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(6) + '%' : 'Not Set',
                          },
                          // { key: 'TransferRate', value: (accountInfo.result.account_data.TransferRate / 1_000_000_000).toFixed(9) },
-                         { key: 'FirstNFTokenSequence', value: accountInfo.result.account_data.FirstNFTokenSequence },
+                         { key: 'FirstNFTokenSequence', value: accountInfo.result.account_data.FirstNFTokenSequence ? accountInfo.result.account_data.FirstNFTokenSequence : 'Not Set' },
                     ],
                },
                flags: {

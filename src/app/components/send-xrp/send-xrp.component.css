@@ -154,3 +154,91 @@ summary::marker {
      content: '▼ ';
      color: white;
 }
+
+.transaction-layout {
+     display: grid;
+     grid-template-columns: 2fr 1fr;
+     /* left = 2x width of right */
+     gap: 20px;
+     align-items: start;
+}
+
+.left-column {
+     display: flex;
+     flex-direction: column;
+     gap: 15px;
+}
+
+/* .right-column {
+     display: flex;
+     flex-direction: column;
+} */
+
+.right-column {
+     justify-self: start;
+     width: 100%;
+     /* make sure it grows naturally */
+}
+
+.flags-layout {
+     display: grid;
+     grid-template-columns: 4fr 0.1fr 1fr;
+     /* grid-template-columns: 2.5fr 1fr 1fr; */
+     /* wide first table, narrower flags */
+     gap: 20px;
+     /* space between tables */
+     align-items: start;
+}
+
+.flags-layout table {
+     flex: 1;
+}
+
+.button-container {
+     /* margin-top: 20px; */
+     width: 100%;
+}
+
+/* .button-container {
+     grid-column: 1 / -1;
+     width: 100%;
+} */
+
+/* table td:first-child {
+     white-space: nowrap;
+     width: 180px;
+     padding-right: 10px;
+     vertical-align: middle;
+} */
+
+/* table td:last-child {
+     width: 100%;
+} */
+
+/* table input[type="text"],
+table input[type="number"],
+table select,
+table textarea {
+     width: 100%;
+     max-width: 400px;
+     box-sizing: border-box;
+} */
+
+table textarea {
+     resize: vertical;
+     height: 60px;
+}
+
+#flags,
+#meta td:first-child {
+     white-space: nowrap;
+     width: 150px;
+     padding-right: 10px;
+     text-align: right;
+     vertical-align: middle;
+}
+
+#flags,
+#meta td:last-child {
+     width: auto;
+}
