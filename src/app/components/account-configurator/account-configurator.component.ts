@@ -283,14 +283,18 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      toggleUseMultiSign() {
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
+               this.cdr.detectChanges();
+               return;
+          }
+
           if (this.useMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
                const signers = this.storageService.get('signerEntries');
                const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
                const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
                this.multiSignAddress = addresses;
                this.multiSignSeeds = seeds;
-          } else {
-               this.multiSignAddress = 'No Multi-Sign address configured for account';
           }
           this.cdr.detectChanges();
      }
@@ -1583,17 +1587,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
                     this.signer3Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer3Account)?.SingnerSeed || '';
 
-                    // Extract matching seeds and join with commas
-                    // this.multiSignSeeds = signerAccounts
-                    //      .slice(0, 3) // Limit to first 3 accounts to match signer1, signer2, signer3
-                    //      .map((account, index) => {
-                    //           const address = account?.split('~')[0];
-                    //           const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
-                    //           return entry ? entry.SingnerSeed : null;
-                    //      })
-                    //      .filter((seed): seed is string => seed !== null) // Type guard to filter out null
-                    //      .join(',');
+                    let signerEntries_ = [
+                         { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight), SingnerSeed: this.signer1Seed },
+                         { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight), SingnerSeed: this.signer2Seed },
+                         { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight), SingnerSeed: this.signer3Seed },
+                    ].filter(entry => entry.Account && entry.SignerWeight > 0); // Filter out empty or invalid entries
 
+                    this.storageService.removeValue('signerEntries');
+                    this.storageService.set('signerEntries', signerEntries_);
+
+                    const addresses = signerEntries_.map((item: { Account: any }) => item.Account + ',\n').join('');
+                    const seeds = signerEntries_.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
+                    this.multiSignAddress = addresses;
+                    this.multiSignSeeds = seeds;
                     this.isMultiSign = true;
                }
           } else {
@@ -1606,9 +1612,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.signer3Account = '';
                this.signer3Weight = '';
                this.signer3Seed = '';
-               this.multiSignAddress = '';
+               this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = ''; // Clear seeds if no signer accounts
                this.isMultiSign = false;
+               this.useMultiSign = false;
           }
 
           const preAuthAccounts: string[] = this.findDepositPreauthObjects(accountObjects);

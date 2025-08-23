@@ -91,6 +91,19 @@ export class SendXrpComponent implements AfterViewChecked {
      }
 
      toggleMultiSign() {
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
+               this.cdr.detectChanges();
+               return;
+          }
+
+          if (this.isMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
+               const signers = this.storageService.get('signerEntries');
+               const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
+               const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
+               this.multiSignAddress = addresses;
+               this.multiSignSeeds = seeds;
+          }
           this.cdr.detectChanges();
      }
 
@@ -146,7 +159,9 @@ export class SendXrpComponent implements AfterViewChecked {
                          this.isMultiSign = true;
                     }
                } else {
-                    this.multiSignAddress = '';
+                    this.multiSignAddress = 'No Multi-Sign address configured for account';
+                    this.multiSignSeeds = '';
+                    this.signerQuorum = '';
                     this.isMultiSign = false;
                }
 
@@ -388,6 +403,10 @@ export class SendXrpComponent implements AfterViewChecked {
           this.isTicket = false;
           this.isMultiSign = false;
           this.multiSignAddress = '';
+          this.multiSignSeeds = '';
+          this.signerQuorum = '';
+          this.regularKeyAddress = '';
+          this.regularKeySeed = '';
           this.cdr.detectChanges();
      }
 
