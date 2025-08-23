@@ -23,6 +23,13 @@ interface PaymentChannelObject {
      PublicKey: string;
 }
 
+// Define the interface for signer entries
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string; // Note: 'SingnerSeed' seems to be a typo in your JSON, should it be 'SignerSeed'?
+}
+
 @Component({
      selector: 'app-account',
      standalone: true,
@@ -58,6 +65,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      channelAction: string = 'create';
      renewChannel = false;
      memoField = '';
+     isMemoEnabled = false;
      isMultiSignTransaction = false;
      ticketSequence: string = '';
      isTicket = false;
@@ -65,8 +73,18 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      isMultiSign = false;
      multiSignAddress = '';
      multiSignSeeds = '';
+     isRegularKeyAddress = false;
+     regularKeySeed = '';
+     regularKeyAddress = '';
+     signerQuorum = '';
      spinner = false;
      spinnerMessage: string = '';
+     actions = [
+          { value: 'create', label: 'Create' },
+          { value: 'fund', label: 'Fund' },
+          { value: 'claim', label: 'Claim' },
+          { value: 'close', label: 'Close' },
+     ];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
@@ -107,11 +125,42 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      toggleMultiSign() {
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
+               this.cdr.detectChanges();
+               return;
+          }
+
+          if (this.isMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
+               const signers = this.storageService.get('signerEntries');
+               const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
+               const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
+               this.multiSignAddress = addresses;
+               this.multiSignSeeds = seeds;
+          }
           this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
           this.cdr.detectChanges();
+     }
+
+     validateQuorum() {
+          this.cdr.detectChanges();
+     }
+
+     selectAction(action: string) {
+          this.channelAction = action;
+          this.cdr.detectChanges(); // Trigger change detection to update UI
+     }
+
+     getSelectionWidth(): string {
+          return `${100 / this.actions.length}%`; // Each option takes equal width
+     }
+
+     getSelectionLeft(): string {
+          const index = this.actions.findIndex(action => action.value === this.channelAction);
+          return `${(index * 100) / this.actions.length}%`; // Position the highlight based on selected index
      }
 
      async getPaymentChannels() {
@@ -146,6 +195,29 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                const response = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
                console.debug('Payment channel:', response);
                const channels = response.result.account_objects as PaymentChannelObject[];
+
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               if (signerAccounts && signerAccounts.length > 0) {
+                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
+                         this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                         this.multiSignSeeds = signerAccounts
+                              .map(account => {
+                                   const address = account.split('~')[0];
+                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                   return entry ? entry.SingnerSeed : null;
+                              })
+                              .filter(seed => seed !== null)
+                              .join(',\n');
+                         this.isMultiSign = true;
+                    }
+               } else {
+                    this.multiSignAddress = 'No Multi-Sign address configured for account';
+                    this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+                    this.isMultiSign = false;
+               }
 
                const data = {
                     sections: [{}],
@@ -183,8 +255,18 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
-
                this.setSuccess(this.result);
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+                    this.isRegularKeyAddress = true;
+                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = this.storageService.get('regularKeySeed');
+               } else {
+                    this.isRegularKeyAddress = false;
+                    this.regularKeyAddress = '';
+                    this.regularKeySeed = '';
+               }
 
                await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
@@ -212,8 +294,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${validationError}`);
           }
 
-          const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
-          const action = actionElement ? actionElement.value : '';
+          // const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
+          // const action = actionElement ? actionElement.value : '';
+          const action = this.channelAction;
 
           if (action !== 'close') {
                const validationError = this.validateInputs({
@@ -227,12 +310,22 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
+                         return this.setError('ERROR: Regular Key Address is invalid or empty');
+                    }
+                    if (!this.regularKeySeed || !xrpl.isValidSecret(this.regularKeySeed)) {
+                         return this.setError('ERROR: Regular Key Seed is invalid or empty');
+                    }
+                    if (this.regularKeyAddress && this.regularKeySeed) {
+                         // Override seed with Regular Key Seed
+                         console.log('Using Regular Key Seed for transaction signing');
+                         seed = this.regularKeySeed;
+                    }
                }
+               const wallet = await this.utilsService.getWallet(seed, environment);
 
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -610,6 +703,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                this.setSuccess(this.result);
 
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
                await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
@@ -621,433 +717,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
           }
      }
-
-     // async handlePaymentChannelAction() {
-     //      console.log('Entering handlePaymentChannelAction');
-     //      const startTime = Date.now();
-     //      this.setSuccessProperties();
-
-     //      const validationError = this.validateInputs({
-     //           selectedAccount: this.selectedAccount,
-     //           seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
-     //           multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-     //           multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-     //      });
-     //      if (validationError) {
-     //           return this.setError(`ERROR: ${validationError}`);
-     //      }
-
-     //      const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
-     //      const action = actionElement ? actionElement.value : '';
-
-     //      if (action !== 'close') {
-     //           const validationError = this.validateInputs({
-     //                amount: this.amountField,
-     //           });
-     //           if (validationError) {
-     //                return this.setError(`ERROR: ${validationError}`);
-     //           }
-     //      }
-
-     //      try {
-     //           const { net, environment } = this.xrplService.getNet();
-     //           const client = await this.xrplService.getClient();
-     //           let wallet;
-     //           if (this.selectedAccount === 'account1') {
-     //                wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-     //           } else if (this.selectedAccount === 'account2') {
-     //                wallet = await this.utilsService.getWallet(this.account2.seed, environment);
-     //           }
-
-     //           if (!wallet) {
-     //                return this.setError('ERROR: Wallet could not be created or is undefined');
-     //           }
-
-     //           const fee = await this.xrplService.calculateTransactionFee(client);
-
-     //           if (action === 'create') {
-     //                if (!this.utilsService.validateInput(this.destinationField)) {
-     //                     return this.setError('ERROR: Destination cannot be empty');
-     //                }
-
-     //                let tx: PaymentChannelCreate;
-
-     //                this.updateSpinnerMessage('Creating Payment Channel...');
-
-     //                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-     //                if (this.ticketSequence) {
-     //                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-     //                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-     //                     }
-
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelCreate',
-     //                          Account: wallet.classicAddress,
-     //                          Amount: xrpl.xrpToDrops(this.amountField),
-     //                          Destination: this.destinationField,
-     //                          SettleDelay: parseInt(this.settleDelayField),
-     //                          PublicKey: wallet.publicKey,
-     //                          Sequence: 0,
-     //                          TicketSequence: Number(this.ticketSequence),
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                } else {
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelCreate',
-     //                          Account: wallet.classicAddress,
-     //                          Amount: xrpl.xrpToDrops(this.amountField),
-     //                          Destination: this.destinationField,
-     //                          SettleDelay: parseInt(this.settleDelayField),
-     //                          PublicKey: wallet.publicKey,
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                }
-
-     //                if (this.memoField) {
-     //                     tx.Memos = [
-     //                          {
-     //                               Memo: {
-     //                                    MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-     //                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-     //                               },
-     //                          },
-     //                     ];
-     //                }
-
-     //                if (this.destinationTagField) {
-     //                     if (parseInt(this.destinationTagField) <= 0) {
-     //                          return this.setError('ERROR: Destination Tag must be a valid number and greater than zero');
-     //                     }
-     //                     tx.DestinationTag = parseInt(this.destinationTagField, 10);
-     //                }
-
-     //                if (this.paymentChannelCancelAfterTimeField) {
-     //                     const cancelAfterTime = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
-     //                     console.log(`cancelTime: ${this.paymentChannelCancelAfterTimeField} cancelUnit: ${this.paymentChannelCancelAfterTimeUnit}`);
-     //                     console.log(`cancelTime: ${this.utilsService.convertXRPLTime(cancelAfterTime)}`);
-     //                     const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client); // Implement this in xrplService
-     //                     if (cancelAfterTime <= currentLedgerTime) {
-     //                          return this.setError('ERROR: Cancel After time must be in the future');
-     //                     }
-     //                     tx.CancelAfter = cancelAfterTime;
-     //                }
-
-     //                if (this.publicKeyField) {
-     //                     tx.PublicKey = this.publicKeyField;
-     //                }
-
-     //                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-     //                     return this.setError('ERROR: Insufficent XRP to complete transaction');
-     //                }
-
-     //                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-     //                const signed = wallet.sign(tx);
-     //                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-
-     //                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-     //                const response = await client.submitAndWait(signed.tx_blob);
-     //                console.log('response', JSON.stringify(response, null, 2));
-
-     //                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-     //                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                     this.resultField.nativeElement.classList.add('error');
-     //                     this.setErrorProperties();
-     //                     return;
-     //                }
-
-     //                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                this.resultField.nativeElement.classList.add('success');
-     //           } else if (action === 'fund') {
-     //                let tx: PaymentChannelFund;
-     //                if (!this.utilsService.validateInput(this.channelIDField)) {
-     //                     return this.setError('Channel ID cannot be empty');
-     //                }
-
-     //                if (!this.utilsService.validateInput(this.destinationField)) {
-     //                     return this.setError('ERROR: Destination cannot be empty');
-     //                }
-
-     //                this.updateSpinnerMessage('Funding Payment Channel...');
-
-     //                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-     //                if (this.ticketSequence) {
-     //                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-     //                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-     //                     }
-
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelFund',
-     //                          Account: wallet.classicAddress,
-     //                          Channel: this.channelIDField,
-     //                          Amount: xrpl.xrpToDrops(this.amountField),
-     //                          TicketSequence: Number(this.ticketSequence),
-     //                          Sequence: 0,
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                } else {
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelFund',
-     //                          Account: wallet.classicAddress,
-     //                          Channel: this.channelIDField,
-     //                          Amount: xrpl.xrpToDrops(this.amountField),
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                }
-
-     //                if (this.memoField) {
-     //                     tx.Memos = [
-     //                          {
-     //                               Memo: {
-     //                                    MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-     //                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-     //                               },
-     //                          },
-     //                     ];
-     //                }
-
-     //                if (this.renewChannel && this.paymentChannelCancelAfterTimeField) {
-     //                     const newExpiration = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
-     //                     const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client);
-     //                     if (newExpiration <= currentLedgerTime) {
-     //                          return this.setError('ERROR: New expiration time must be in the future');
-     //                     }
-     //                     tx.Expiration = newExpiration;
-     //                }
-
-     //                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-     //                     return this.setError('ERROR: Insufficent XRP to complete transaction');
-     //                }
-
-     //                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-     //                const signed = wallet.sign(tx);
-     //                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-
-     //                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-     //                const response = await client.submitAndWait(signed.tx_blob);
-     //                console.log('response', JSON.stringify(response, null, 2));
-
-     //                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-     //                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                     this.resultField.nativeElement.classList.add('error');
-     //                     this.setErrorProperties();
-     //                     return;
-     //                }
-
-     //                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                this.resultField.nativeElement.classList.add('success');
-     //           } else if (action === 'claim') {
-     //                let tx: PaymentChannelClaim;
-     //                if (!this.utilsService.validateInput(this.channelIDField)) {
-     //                     return this.setError('Channel ID cannot be empty');
-     //                }
-
-     //                this.updateSpinnerMessage('Claiming Payment Channel...');
-
-     //                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-     //                // Get payment channel details to verify creator and receiver
-     //                const payChannelResponse = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
-     //                const channels = payChannelResponse.result.account_objects as PaymentChannelObject[];
-     //                const channel = channels.find(c => c.index === this.channelIDField);
-     //                if (!channel) {
-     //                     return this.setError(`ERROR: Payment channel ${this.channelIDField} not found`);
-     //                }
-
-     //                // Determine if the selected account is the creator or receiver
-     //                const isReceiver = channel.Destination === wallet.classicAddress;
-     //                let signature = this.channelClaimSignatureField;
-
-     //                if (isReceiver) {
-     //                     // Receiver is claiming; signature must be provided by the creator
-     //                     if (!this.utilsService.validateInput(this.channelClaimSignatureField)) {
-     //                          return this.setError('ERROR: Claim signature is required for receiver to claim');
-     //                     }
-     //                     if (!this.utilsService.validateInput(this.publicKeyField)) {
-     //                          return this.setError('ERROR: Public key is required for receiver to claim');
-     //                     }
-     //                } else {
-     //                     // Creator is claiming; generate signature if not provided
-     //                     if (!signature) {
-     //                          signature = this.generateChannelSignature(this.channelIDField, this.amountField, wallet);
-     //                     }
-     //                }
-
-     //                if (this.ticketSequence) {
-     //                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-     //                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-     //                     }
-
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelClaim',
-     //                          Account: wallet.classicAddress,
-     //                          Channel: this.channelIDField,
-     //                          Balance: xrpl.xrpToDrops(this.amountField),
-     //                          Signature: signature,
-     //                          PublicKey: isReceiver ? this.publicKeyField : wallet.publicKey,
-     //                          TicketSequence: Number(this.ticketSequence),
-     //                          Sequence: 0,
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                } else {
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelClaim',
-     //                          Account: wallet.classicAddress,
-     //                          Channel: this.channelIDField,
-     //                          Balance: xrpl.xrpToDrops(this.amountField),
-     //                          Signature: signature,
-     //                          PublicKey: isReceiver ? this.publicKeyField : wallet.publicKey,
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                }
-
-     //                if (this.memoField) {
-     //                     tx.Memos = [
-     //                          {
-     //                               Memo: {
-     //                                    MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-     //                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-     //                               },
-     //                          },
-     //                     ];
-     //                }
-
-     //                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-     //                     return this.setError('ERROR: Insufficent XRP to complete transaction');
-     //                }
-
-     //                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-     //                const signed = wallet.sign(tx);
-     //                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-
-     //                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-     //                const response = await client.submitAndWait(signed.tx_blob);
-     //                console.log('response', JSON.stringify(response, null, 2));
-
-     //                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-     //                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                     this.resultField.nativeElement.classList.add('error');
-     //                     this.setErrorProperties();
-     //                     return;
-     //                }
-
-     //                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                this.resultField.nativeElement.classList.add('success');
-     //           } else if (action === 'close') {
-     //                let tx: PaymentChannelClaim;
-     //                if (!this.utilsService.validateInput(this.channelIDField)) {
-     //                     return this.setError('Channel ID cannot be empty');
-     //                }
-
-     //                const paymentChannel = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
-     //                const channels = paymentChannel.result.account_objects as PaymentChannelObject[];
-     //                const channel = channels.find(c => c.index === this.channelIDField);
-     //                if (!channel) {
-     //                     return this.setError(`ERROR: Payment channel ${this.channelIDField} not found`);
-     //                }
-
-     //                const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client);
-     //                if (channel.Expiration && channel.Expiration > currentLedgerTime) {
-     //                     return this.setError('ERROR: Cannot close channel before expiration');
-     //                }
-
-     //                const remaining = BigInt(channel.Amount) - BigInt(channel.Balance);
-     //                if (remaining > 0n) {
-     //                     return this.setError(`ERROR: Cannot close channel with non-zero balance. ${xrpl.dropsToXrp(remaining.toString())} XRP still available to claim.`);
-     //                }
-
-     //                // if (channel.Balance !== '0') {
-     //                // return this.setError('ERROR: Cannot close channel with non-zero balance. Please claim the balance first.');
-     //                // }
-
-     //                this.updateSpinnerMessage('Closing Payment Channel...');
-
-     //                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-     //                if (this.ticketSequence) {
-     //                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-     //                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-     //                     }
-
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelClaim',
-     //                          Account: wallet.classicAddress,
-     //                          Channel: this.channelIDField,
-     //                          Flags: xrpl.PaymentChannelClaimFlags.tfClose,
-     //                          TicketSequence: Number(this.ticketSequence),
-     //                          Sequence: 0,
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                } else {
-     //                     tx = await client.autofill({
-     //                          TransactionType: 'PaymentChannelClaim',
-     //                          Account: wallet.classicAddress,
-     //                          Channel: this.channelIDField,
-     //                          Flags: xrpl.PaymentChannelClaimFlags.tfClose,
-     //                          Fee: fee,
-     //                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //                     });
-     //                }
-
-     //                if (this.memoField) {
-     //                     tx.Memos = [
-     //                          {
-     //                               Memo: {
-     //                                    MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-     //                                    MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-     //                               },
-     //                          },
-     //                     ];
-     //                }
-
-     //                if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-     //                     return this.setError('ERROR: Insufficent XRP to complete transaction');
-     //                }
-
-     //                console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-     //                const signed = wallet.sign(tx);
-     //                console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-     //                const response = await client.submitAndWait(signed.tx_blob);
-
-     //                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-     //                console.log('response', JSON.stringify(response, null, 2));
-
-     //                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-     //                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                     this.resultField.nativeElement.classList.add('error');
-     //                     this.setErrorProperties();
-     //                     return;
-     //                }
-
-     //                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-     //                this.resultField.nativeElement.classList.add('success');
-     //           }
-
-     //           this.setSuccess(this.result);
-
-     //           await this.updateXrpBalance(client, wallet.classicAddress);
-     //      } catch (error: any) {
-     //           console.error('Error:', error);
-     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-     //      } finally {
-     //           this.spinner = false;
-     //           this.executionTime = (Date.now() - startTime).toString();
-     //           this.cdr.detectChanges();
-     //           console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
-     //      }
-     // }
 
      async generateCreatorClaimSignature() {
           console.log('Entering generateCreatorClaimSignature');
@@ -1139,6 +808,23 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           } catch (error: any) {
                throw new Error(`Failed to generate channel signature: ${error.message}`);
           }
+     }
+
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum.toString();
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
      }
 
      updateSpinnerMessage(message: string) {
