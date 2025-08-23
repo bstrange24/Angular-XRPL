@@ -147,6 +147,44 @@
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
                                    </td>
                               </tr>
+                              <details class="send-xrp-info">
+                                   <summary>Send XRP Info</summary>
+                                   <fieldset class="send-xrp-fieldset">
+                                        <details class="send-xrp-subdetails">
+                                             <summary>Send XRP Constraints</summary>
+                                             <div class="send-xrp-table">
+                                                  <div class="send-xrp-row send-xrp-header">
+                                                       <div class="send-xrp-cell">Send XRP Constraints</div>
+                                                       <div class="send-xrp-cell">Description</div>
+                                                  </div>
+                                                  <div class="send-xrp-row">
+                                                       <div class="send-xrp-cell"><code>DestinationTag</code></div>
+                                                       <div class="send-xrp-cell">A tag to help the destination account identify the purpose of the payment (common for exchanges or multi-user wallets).</div>
+                                                  </div>
+                                                  <div class="send-xrp-row">
+                                                       <div class="send-xrp-cell"><code>InvoiceID</code></div>
+                                                       <div class="send-xrp-cell">Arbitrary 256-bit identifier for identifying this payment (e.g. to match a payment to an invoice).</div>
+                                                  </div>
+                                                  <div class="send-xrp-row">
+                                                       <div class="send-xrp-cell"><code>Memo</code></div>
+                                                       <div class="send-xrp-cell">Add useful, or additional, inforation about the payment.</div>
+                                                  </div>
+                                                  <div class="send-xrp-row">
+                                                       <div class="send-xrp-cell"><code>LastLedgerSequence</code></div>
+                                                       <div class="send-xrp-cell">The last ledger in which the transaction can be validated. Prevents the transaction from being stuck indefinitely.</div>
+                                                  </div>
+                                                  <div class="send-xrp-row">
+                                                       <div class="send-xrp-cell"><code>Sequence</code></div>
+                                                       <div class="send-xrp-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
+                                                  </div>
+                                                  <div class="send-xrp-row">
+                                                       <div class="send-xrp-cell"><code>TicketSequence</code></div>
+                                                       <div class="send-xrp-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+                                   </fieldset>
+                              </details>
                          </table>
                     </div>
                </div>
@@ -315,43 +353,4 @@
                </div>
           </div>
      </fieldset>
-
-     <details class="send-xrp-info">
-          <summary>Send XRP Info</summary>
-          <fieldset class="send-xrp-fieldset">
-               <details class="send-xrp-subdetails">
-                    <summary>Send XRP Constraints</summary>
-                    <div class="send-xrp-table">
-                         <div class="send-xrp-row send-xrp-header">
-                              <div class="send-xrp-cell">Send XRP Constraints</div>
-                              <div class="send-xrp-cell">Description</div>
-                         </div>
-                         <div class="send-xrp-row">
-                              <div class="send-xrp-cell"><code>DestinationTag</code></div>
-                              <div class="send-xrp-cell">A tag to help the destination account identify the purpose of the payment (common for exchanges or multi-user wallets).</div>
-                         </div>
-                         <div class="send-xrp-row">
-                              <div class="send-xrp-cell"><code>InvoiceID</code></div>
-                              <div class="send-xrp-cell">Arbitrary 256-bit identifier for identifying this payment (e.g. to match a payment to an invoice).</div>
-                         </div>
-                         <div class="send-xrp-row">
-                              <div class="send-xrp-cell"><code>Memo</code></div>
-                              <div class="send-xrp-cell">Add useful, or additional, inforation about the payment.</div>
-                         </div>
-                         <div class="send-xrp-row">
-                              <div class="send-xrp-cell"><code>LastLedgerSequence</code></div>
-                              <div class="send-xrp-cell">The last ledger in which the transaction can be validated. Prevents the transaction from being stuck indefinitely.</div>
-                         </div>
-                         <div class="send-xrp-row">
-                              <div class="send-xrp-cell"><code>Sequence</code></div>
-                              <div class="send-xrp-cell">Required unless using `TicketSequence`. This will be used in autofill</div>
-                         </div>
-                         <div class="send-xrp-row">
-                              <div class="send-xrp-cell"><code>TicketSequence</code></div>
-                              <div class="send-xrp-cell">Optional if using a [Ticket](https://xrpl.org/tickets.html) instead of a direct `Sequence`.</div>
-                         </div>
-                    </div>
-               </details>
-          </fieldset>
-     </details>
 </form>
