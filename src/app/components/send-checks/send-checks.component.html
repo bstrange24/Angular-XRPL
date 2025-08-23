@@ -56,38 +56,6 @@
                                         <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
                                    </td>
                               </tr>
-                              <!-- <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                              <label for="xrpBalance1Field">Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
-                    </td>
-               </tr> -->
-
-                              <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
-                              <label for="issuerField">Issuer</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="issuerField" style="width: 280px; height: 25px"></select>
-                         <p></p>
-                    </td>
-               </tr>
-               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
-                              <label for="tokenBalance">Currency Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tokenBalance" size="40" readonly />
-                    </td>
-               </tr> -->
                               <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
@@ -134,9 +102,6 @@
                                         <select class="timeUnit" id="currencyField" style="width: 280px; height: 25px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
                                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
                                         </select>
-                                        <!-- <select class="timeUnit" id="currencyFieldDropDownValue" name="currencyFieldDropDownValue" style="width: 280px; height: 25px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()">
-                                             <option value="XRP">XRP</option>
-                                        </select> -->
                                         <p></p>
                                    </td>
                               </tr>
@@ -468,55 +433,5 @@
                     </table>
                </div>
           </div>
-
-          <!-- <table style="float: left">
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                              <label for="memoField">Memo</label>
-                         </span>
-                    </td>
-                    <td>
-                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequence</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isTicketEnabled"></label>
-                    </td>
-               </tr>
-               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
-                              <label for="ticketSequence"></label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check ID.">
-                              <label for="checkIdField">Check ID / Ledger Index</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="checkIdField" size="85" [(ngModel)]="checkIdField" name="checkIdField" />
-                         <br />
-                    </td>
-               </tr>
-          </table> -->
      </fieldset>
 </form>
