@@ -6,53 +6,57 @@
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                              <label for="accountName1Field">Name</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
-                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account1">Account 1</label>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                              <label for="accountAddress1Field">Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
-                         <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account2">Account 2</label>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                              <label for="accountSeed1Field">Seed</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                              <label for="xrpBalanceField">Spendable XRP Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
-                    </td>
-               </tr>
-               <!-- <tr>
+
+          <div class="transaction-layout">
+               <div class="left-column">
+                    <div class="flags-layout">
+                         <table id="flags">
+                              <th></th>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                                             <label for="accountName1Field">Name</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account1">Account 1</label>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                                             <label for="accountAddress1Field">Address</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account2">Account 2</label>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                                             <label for="accountSeed1Field">Seed</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                                             <label for="xrpBalanceField">Spendable XRP Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
+                                   </td>
+                              </tr>
+                              <!-- <tr>
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                               <label for="xrpBalance1Field">Balance</label>
@@ -62,31 +66,8 @@
                          <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                     </td>
                </tr> -->
-               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
-                              <label for="issuerField">Issuer</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="issuerField" style="width: 280px; height: 25px" [(ngModel)]="selectedIssuer" name="issuerField">
-                              <option value="" disabled selected>Select an issuer</option>
-                              <option *ngFor="let issuer of issuers" [value]="issuer">{{ issuer }}</option>
-                         </select>
-                         <p></p>
-                    </td>
-               </tr>
-               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
-                              <label for="tokenBalance">Currency Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tokenBalance" size="40" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
-                    </td>
-               </tr>
-               <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+
+                              <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
                               <label for="issuerField">Issuer</label>
@@ -107,103 +88,388 @@
                          <input type="text" id="tokenBalance" size="40" readonly />
                     </td>
                </tr> -->
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
-                              <label for="ownerCountField">Owner Count</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
-                              <label for="totalXrpReservesField">Total XRP Reserves</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
-                              <label for="totalExecutionTime">Total Execution Time in ms</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
-                    </td>
-               </tr>
-          </table>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                                             <label for="ownerCountField">Owner Count</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                                             <label for="totalXrpReservesField">Total XRP Reserves</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                   </td>
+                              </tr>
+                         </table>
 
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Currency code for the check.">
-                              <label for="currencyFieldDropDownValue">Currency Code</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="currencyFieldDropDownValue" name="currencyFieldDropDownValue" style="width: 280px; height: 25px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()">
-                              <option value="XRP">XRP</option>
-                         </select>
-                         <p></p>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amount of currency to send.">
-                              <label for="amountField">Amount</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
-                              <label for="destinationField">Destination</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
-                              <label for="destinationTagField">Destination Tag</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check will expire after this time.">
-                              <label for="expirationTimeField">Expiration Time</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="expirationTimeField" placeholder="Enter time" size="40" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
-                         <select class="timeUnit" id="checkExpirationTime" [(ngModel)]="checkExpirationTime" name="checkExpirationTime">
-                              <option value="seconds">Seconds</option>
-                              <option value="minutes">Minutes</option>
-                              <option value="hours">Hours</option>
-                              <option value="days">Days</option>
-                         </select>
-                    </td>
-               </tr>
+                         <table id="flags">
+                              <th></th>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Currency code for the check.">
+                                             <label for="currencyFieldDropDownValue">Currency Code</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="currencyField" style="width: 280px; height: 25px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                        <!-- <select class="timeUnit" id="currencyFieldDropDownValue" name="currencyFieldDropDownValue" style="width: 280px; height: 25px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()">
+                                             <option value="XRP">XRP</option>
+                                        </select> -->
+                                        <p></p>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Amount of currency to send.">
+                                             <label for="amountField">Amount</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
+                                             <label for="issuerField">Issuer</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="issuerField" style="width: 280px; height: 25px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                             <option value="" disabled selected>Select an issuer</option>
+                                             <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
+                                        </select>
+                                        <p></p>
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
+                                             <label for="tokenBalance">Currency Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="tokenBalance" size="40" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
+                                             <label for="destinationField">Destination</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
+                                             <label for="destinationTagField">Destination Tag</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Check will expire after this time.">
+                                             <label for="expirationTimeField">Expiration Time</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="expirationTimeField" placeholder="Enter time" size="40" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
+                                        <select class="timeUnit" id="checkExpirationTime" [(ngModel)]="checkExpirationTime" name="checkExpirationTime">
+                                             <option value="seconds">Seconds</option>
+                                             <option value="minutes">Minutes</option>
+                                             <option value="hours">Hours</option>
+                                             <option value="days">Days</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                         </table>
+                    </div>
+
+                    <div class="spinner-container">
+                         <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+                         <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+                    </div>
+
+                    <div class="button-container">
+                         <fieldset>
+                              <legend style="color: white">Manage Tokens</legend>
+                              <div style="margin-bottom: 10px">
+                                   <label>Add Token: </label>
+                                   <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
+                                   <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
+                                   <button type="button" (click)="addToken()">Add</button>
+                              </div>
+                              <div>
+                                   <label>Remove Token: </label>
+                                   <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                                        <option value="">Select a token</option>
+                                        <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                   </select>
+                                   <button type="button" (click)="removeToken()">Remove</button>
+                              </div>
+                         </fieldset>
+
+                         <table style="text-align: left; width: 100%">
+                              <th></th>
+                              <tr>
+                                   <td colspan="2">
+                                        <button type="button" (click)="getChecks()">Get Checks</button>
+                                        <button type="button" (click)="sendCheck()">Send Check</button>
+                                        <button type="button" (click)="cashCheck()">Cash Check</button>
+                                        <button type="button" (click)="cancelCheck()">Cancel Check</button>
+                                        <button type="button" (click)="clearFields()">Clear Fields</button>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td colspan="2">
+                                        <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                                   </td>
+                              </tr>
+                         </table>
+
+                         <details class="check-info">
+                              <summary>Check Info</summary>
+                              <fieldset class="check-fieldset">
+                                   <details class="check-subdetails">
+                                        <summary>Check Constraints</summary>
+                                        <div class="check-table">
+                                             <div class="check-row check-header">
+                                                  <div class="check-cell">Check Constraints</div>
+                                                  <div class="check-cell">Description</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Authorized Account Only</div>
+                                                  <div class="check-cell">Only the Destination account (set in CheckCreate) can cash the check.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Check Must Exist</div>
+                                                  <div class="check-cell">The check must still be in the ledger and not already cashed, expired, or canceled.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Sender Must Have Funds</div>
+                                                  <div class="check-cell">The sender (check creator) must have sufficient XRP or IOU balance to cover the amount at the time of CheckCash.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Specify Amount OR DeliverMin</div>
+                                                  <div class="check-cell">You must provide either Amount (exact cash amount) or DeliverMin (minimum acceptable), not both.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">No Partial XRP Checks</div>
+                                                  <div class="check-cell">XRP checks must specify exact Amount. DeliverMin is only allowed for IOU currencies.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Trust Line Required for IOUs</div>
+                                                  <div class="check-cell">The recipient must have a trust line to the issuer (if the check is for an issued currency like USD, RLUSD, etc.).</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Respect SendMax Limit</div>
+                                                  <div class="check-cell">The cashed Amount or DeliverMin must be less than or equal to the SendMax value from the original CheckCreate.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell">Check Can Expire</div>
+                                                  <div class="check-cell">If Expiration was set in CheckCreate, the check cannot be cashed after that time (based on XRPL close time).</div>
+                                             </div>
+                                        </div>
+                                   </details>
+
+                                   <details class="check-subdetails">
+                                        <summary>Check Transaction Settings</summary>
+                                        <div class="check-table">
+                                             <div class="check-row check-header">
+                                                  <div class="check-cell">Field</div>
+                                                  <div class="check-cell">Purpose</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell"><code>Amount</code></div>
+                                                  <div class="check-cell">Initial XRP locked in the channel.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell"><code>SettleDelay</code></div>
+                                                  <div class="check-cell">Minimum time (in seconds) before channel can close.</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell"><code>CancelAfter</code></div>
+                                                  <div class="check-cell">Absolute expiration time (in ledger close time)</div>
+                                             </div>
+                                             <div class="check-row">
+                                                  <div class="check-cell"><code>DestinationTag</code></div>
+                                                  <div class="check-cell">Optional tag to identify receiver context.</div>
+                                             </div>
+                                        </div>
+                                   </details>
+                              </fieldset>
+                         </details>
+                    </div>
+               </div>
+
+               <div class="right-column">
+                    <table id="meta">
+                         <!-- Start Memo Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Add memo to transaction.">
+                                        <label>Memo</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMemoEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMemoEnabled">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="memoField"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Memo Section -->
+                         <!-- Start Multi Sign Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                                        <label>Use Multi-Sign Address</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMultiSignAddressData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
+                                        <label for="multiSignAddress">Signer Addresses</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
+                                        <label for="multiSignSeeds">Signer Seeds</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum: </span>
+                                   <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Multi Sign Section -->
+                         <!-- Start Regular Key Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
+                                        <label>Use Regular Key</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isRegularKeyAddressData" [(ngModel)]="isRegularKeyAddress" (ngModelChange)="toggleMultiSign()" name="isRegularKeyAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isRegularKeyAddressData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
+                                        <label for="regularKeyAddress"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
+                                        <label for="regularKeySeed"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
+                              </td>
+                         </tr>
+                         <!-- End Regular Key Section -->
+                         <!-- Start Ticket Sequence Key Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                                        <label>Use Ticket Sequence</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isTicketEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                                        <label for="ticketSequence"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Ticket Sequence Key Section -->
+                    </table>
+               </div>
+          </div>
+
+          <!-- <table style="float: left">
                <tr style="vertical-align: top">
                     <td style="text-align: right">
                          <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
@@ -251,103 +517,6 @@
                          <br />
                     </td>
                </tr>
-          </table>
-
-          <!-- <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div> -->
-          <div class="spinner-container">
-               <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
-               <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
-          </div>
-
-          <table style="text-align: left; width: 100%">
-               <th></th>
-               <tr>
-                    <td colspan="2">
-                         <button type="button" (click)="getChecks()">Get Checks</button>
-                         <button type="button" (click)="sendCheck()">Send Check</button>
-                         <button type="button" (click)="cashCheck()">Cash Check</button>
-                         <button type="button" (click)="cancelCheck()">Cancel Check</button>
-                         <button type="button" (click)="clearFields()">Clear Fields</button>
-                    </td>
-               </tr>
-               <tr>
-                    <td colspan="2">
-                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
-                    </td>
-               </tr>
-          </table>
+          </table> -->
      </fieldset>
-
-     <details class="check-info">
-          <summary>Check Info</summary>
-          <fieldset class="check-fieldset">
-               <details class="check-subdetails">
-                    <summary>Check Constraints</summary>
-                    <div class="check-table">
-                         <div class="check-row check-header">
-                              <div class="check-cell">Check Constraints</div>
-                              <div class="check-cell">Description</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Authorized Account Only</div>
-                              <div class="check-cell">Only the Destination account (set in CheckCreate) can cash the check.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Check Must Exist</div>
-                              <div class="check-cell">The check must still be in the ledger and not already cashed, expired, or canceled.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Sender Must Have Funds</div>
-                              <div class="check-cell">The sender (check creator) must have sufficient XRP or IOU balance to cover the amount at the time of CheckCash.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Specify Amount OR DeliverMin</div>
-                              <div class="check-cell">You must provide either Amount (exact cash amount) or DeliverMin (minimum acceptable), not both.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">No Partial XRP Checks</div>
-                              <div class="check-cell">XRP checks must specify exact Amount. DeliverMin is only allowed for IOU currencies.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Trust Line Required for IOUs</div>
-                              <div class="check-cell">The recipient must have a trust line to the issuer (if the check is for an issued currency like USD, RLUSD, etc.).</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Respect SendMax Limit</div>
-                              <div class="check-cell">The cashed Amount or DeliverMin must be less than or equal to the SendMax value from the original CheckCreate.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell">Check Can Expire</div>
-                              <div class="check-cell">If Expiration was set in CheckCreate, the check cannot be cashed after that time (based on XRPL close time).</div>
-                         </div>
-                    </div>
-               </details>
-
-               <details class="check-subdetails">
-                    <summary>Check Transaction Settings</summary>
-                    <div class="check-table">
-                         <div class="check-row check-header">
-                              <div class="check-cell">Field</div>
-                              <div class="check-cell">Purpose</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell"><code>Amount</code></div>
-                              <div class="check-cell">Initial XRP locked in the channel.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell"><code>SettleDelay</code></div>
-                              <div class="check-cell">Minimum time (in seconds) before channel can close.</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell"><code>CancelAfter</code></div>
-                              <div class="check-cell">Absolute expiration time (in ledger close time)</div>
-                         </div>
-                         <div class="check-row">
-                              <div class="check-cell"><code>DestinationTag</code></div>
-                              <div class="check-cell">Optional tag to identify receiver context.</div>
-                         </div>
-                    </div>
-               </details>
-          </fieldset>
-     </details>
 </form>

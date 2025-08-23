@@ -24,7 +24,6 @@ interface TrustLine {
      quality_out: number;
 }
 
-// Define the interface for signer entries
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -40,7 +39,6 @@ interface SignerEntry {
 })
 export class TrustlinesComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     // selectedAccount: 'account1' | 'account2' | 'issuer' | null = null;
      selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1'; // Initialize to 'account1' for default selection
      private lastResult: string = '';
      transactionInput = '';
@@ -71,26 +69,17 @@ export class TrustlinesComponent implements AfterViewChecked {
      isRegularKeyAddress = false;
      regularKeySeed = '';
      regularKeyAddress = '';
-
      spinner = false;
      spinnerMessage: string = '';
      // Add a map of known issuers for tokens
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
      };
-     // currencies: string[] = Object.keys(this.knownTrustLinesIssuers); // Dynamic list of currencies
      currencies: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
      showTrustlineOptions: boolean = false; // default off
-
-     // conflicts: { [key: string]: string[] } = {
-     //      SetNoRipple: ['tfClearNoRipple'],
-     //      ClearNoRipple: ['tfSetNoRipple'],
-     //      SetFreeze: ['tfClearFreeze'],
-     //      ClearFreeze: ['tfSetFreeze'],
-     // };
 
      conflicts: { [key: string]: string[] } = {
           tfSetNoRipple: ['tfClearNoRipple'],
@@ -107,17 +96,6 @@ export class TrustlinesComponent implements AfterViewChecked {
           tfClearFreeze: false,
      };
 
-     // trustlineFlags: Record<string, boolean> = {
-     //      tfSetfAuth: false,
-     //      tfSetNoRipple: false,
-     //      tfClearNoRipple: false,
-     //      tfSetFreeze: false,
-     //      tfClearFreeze: false,
-     //      tfPartialPayment: false,
-     //      tfNoDirectRipple: false,
-     //      tfLimitQuality: false,
-     // };
-
      trustlineFlagList = [
           { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
           { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
@@ -125,17 +103,6 @@ export class TrustlinesComponent implements AfterViewChecked {
           { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
           { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
      ];
-
-     // trustlineFlagList = [
-     //      { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
-     //      { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
-     //      { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
-     //      { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
-     //      { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
-     //      { key: 'tfPartialPayment', label: 'Allow Partial Payments (tfPartialPayment)' },
-     //      { key: 'tfNoDirectRipple', label: 'Disallow Direct Ripple (tfNoDirectRipple)' },
-     //      { key: 'tfLimitQuality', label: 'Limit Quality (tfLimitQuality)' },
-     // ];
 
      flagMap: { [key: string]: number } = {
           tfSetfAuth: TrustSetFlags.tfSetfAuth,
@@ -154,7 +121,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
           this.updateCurrencies();
           this.currencyField = this.currencies[0] || ''; // Set default selected currency if available
-          this.onAccountChange();
+          // this.onAccountChange();
      }
 
      ngAfterViewInit() {

@@ -6,322 +6,428 @@
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                              <label for="accountName1Field">Name</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
-                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account1">Account 1</label>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                              <label for="accountAddress1Field">Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
-                         <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account2">Account 2</label>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                              <label for="accountSeed1Field">Seed</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                              <label for="xrpBalance1Field">Spendable XRP Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
-                              <label for="ownerCountField">Owner Count</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
-                              <label for="totalXrpReservesField">Total XRP Reserves</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
-                              <label for="totalExecutionTime">Total Execution Time in ms</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
-                    </td>
-               </tr>
-          </table>
 
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amount of XRP to send.">
-                              <label for="amountField">XRP Amount</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
-                              <label for="destinationField">Destination</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
-                              <label for="destinationTagField">Destination Tag</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Escrow finish time.">
-                              <label for="escrowFinishTimeField">Escrow Finish Time</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="escrowFinishTimeField" size="40" placeholder="Enter time" [(ngModel)]="escrowFinishTimeField" name="escrowFinishTimeField" />
-                         <select class="timeUnit" id="escrowFinishTimeUnit" [(ngModel)]="escrowFinishTimeUnit" name="escrowFinishTimeUnit">
-                              <option value="seconds">Seconds</option>
-                              <option value="minutes">Minutes</option>
-                              <option value="hours">Hours</option>
-                              <option value="days">Days</option>
-                         </select>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Escrow cancel time.">
-                              <label for="escrowCancelTimeField">Escrow Cancel Time</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="escrowCancelTimeField" size="40" placeholder="Enter time" [(ngModel)]="escrowCancelTimeField" name="escrowCancelTimeField" />
-                         <select class="timeUnit" id="escrowCancelTimeUnit" [(ngModel)]="escrowCancelTimeUnit" name="escrowCancelTimeUnit">
-                              <option value="seconds">Seconds</option>
-                              <option value="minutes">Minutes</option>
-                              <option value="hours">Hours</option>
-                              <option value="days">Days</option>
-                         </select>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Escrow sequence number, used when finishing the escrow.">
-                              <label for="escrowSequenceNumberField">Escrow Sequence Number</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="escrowSequenceNumberField" size="40" [(ngModel)]="escrowSequenceNumberField" (blur)="getEscrowOwnerAddress()" (keyup.enter)="getEscrowOwnerAddress()" name="escrowSequenceNumberField" />
-                         <br />
-                    </td>
-               </tr>
-          </table>
+          <div class="transaction-layout">
+               <div class="left-column">
+                    <div class="flags-layout">
+                         <table id="flags">
+                              <th></th>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                                             <label for="accountName1Field">Name</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account1">Account 1</label>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                                             <label for="accountAddress1Field">Address</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account2">Account 2</label>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                                             <label for="accountSeed1Field">Seed</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                                             <label for="xrpBalance1Field">Spendable XRP Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                                             <label for="ownerCountField">Owner Count</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                                             <label for="totalXrpReservesField">Total XRP Reserves</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                   </td>
+                              </tr>
+                         </table>
 
-          <table>
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
-                              <label for="escrowOwnerField">Escrow Owner</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="escrowOwnerField" size="40" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                              <label>Use Ticket Sequence</label>
-                         </span>
-                    </td>
-                    <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                         <label class="switch">
-                              <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
-                              <span class="slider round"></span>
-                         </label>
-                         <label for="isTicketEnabled"></label>
-                    </td>
-               </tr>
-               <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
-                              <label for="ticketSequence"></label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                              <label for="memoField">Memo</label>
-                         </span>
-                    </td>
-                    <td>
-                         <textarea style="width: 280px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
-                         <br />
-                    </td>
-               </tr>
-          </table>
+                         <table id="flags">
+                              <th></th>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Amount of XRP to send.">
+                                             <label for="amountField">XRP Amount</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
+                                             <label for="destinationField">Destination</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
+                                             <label for="destinationTagField">Destination Tag</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Escrow finish time.">
+                                             <label for="escrowFinishTimeField">Escrow Finish Time</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="escrowFinishTimeField" size="40" placeholder="Enter time" [(ngModel)]="escrowFinishTimeField" name="escrowFinishTimeField" />
+                                        <select class="timeUnit" id="escrowFinishTimeUnit" [(ngModel)]="escrowFinishTimeUnit" name="escrowFinishTimeUnit">
+                                             <option value="seconds">Seconds</option>
+                                             <option value="minutes">Minutes</option>
+                                             <option value="hours">Hours</option>
+                                             <option value="days">Days</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Escrow cancel time.">
+                                             <label for="escrowCancelTimeField">Escrow Cancel Time</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="escrowCancelTimeField" size="40" placeholder="Enter time" [(ngModel)]="escrowCancelTimeField" name="escrowCancelTimeField" />
+                                        <select class="timeUnit" id="escrowCancelTimeUnit" [(ngModel)]="escrowCancelTimeUnit" name="escrowCancelTimeUnit">
+                                             <option value="seconds">Seconds</option>
+                                             <option value="minutes">Minutes</option>
+                                             <option value="hours">Hours</option>
+                                             <option value="days">Days</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Escrow sequence number, used when finishing the escrow.">
+                                             <label for="escrowSequenceNumberField">Escrow Sequence Number</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="escrowSequenceNumberField" size="40" [(ngModel)]="escrowSequenceNumberField" (blur)="getEscrowOwnerAddress()" (keyup.enter)="getEscrowOwnerAddress()" name="escrowSequenceNumberField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                         </table>
+                    </div>
 
-          <div class="spinner-container">
-               <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
-               <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+                    <div class="spinner-container">
+                         <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+                         <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+                    </div>
+
+                    <div class="button-container">
+                         <table style="text-align: left; width: 100%">
+                              <th></th>
+                              <tr>
+                                   <td colspan="2">
+                                        <button type="button" (click)="getEscrows()">Get Escrows</button>
+                                        <button type="button" (click)="createTimeBasedEscrow()">Create Time-based Escrow</button>
+                                        <button type="button" (click)="finishTimeBasedEscrow()">Finish Time-based Escrow</button>
+                                        <button type="button" (click)="cancelEscrow()">Cancel Escrow</button>
+                                        <button type="button" (click)="clearFields()">Clear Fields</button>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td colspan="2">
+                                        <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                                   </td>
+                              </tr>
+                         </table>
+
+                         <details class="escrow-info">
+                              <summary>Escrow Info</summary>
+                              <fieldset class="escrow-fieldset">
+                                   <details class="escrow-subdetails">
+                                        <summary>Escrow Constraints</summary>
+                                        <div class="escrow-table">
+                                             <div class="escrow-row escrow-header">
+                                                  <div class="escrow-cell">Escrow Constraints</div>
+                                                  <div class="escrow-cell">Description</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell"><code>FinishAfter</code> (Required)</div>
+                                                  <div class="escrow-cell">The earliest time (in Ripple Epoch seconds) that the escrow can be finished. Must be in the future.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell"><code>CancelAfter</code> (Optional but common)</div>
+                                                  <div class="escrow-cell">The time after which the escrow can be **canceled** if not yet finished. Must be **after** `FinishAfter`.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell"><code>Condition</code> (Required for conditional)</div>
+                                                  <div class="escrow-cell">A cryptographic condition (usually a hash of a preimage). The escrow can only be finished by submitting the matching `Fulfillment`.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell"><code>Fulfillment</code> (Required to finish)</div>
+                                                  <div class="escrow-cell">The preimage that satisfies the `Condition`. Submitted with the `EscrowFinish` transaction.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell"><code>EscrowFinish</code> rules</div>
+                                                  <div class="escrow-cell">Must include both `Condition` and `Fulfillment` to succeed. Cannot be submitted before `FinishAfter`.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">**Only recipient can finish**</div>
+                                                  <div class="escrow-cell">The **Destination** of the escrow (recipient) must finish the escrow with the correct `Fulfillment`, and only after `FinishAfter`.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">**Only sender can cancel**</div>
+                                                  <div class="escrow-cell">The original escrow sender can cancel the escrow, but only **after `CancelAfter`**, and only if it hasn’t already been finished.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">Ledger time vs system time</div>
+                                                  <div class="escrow-cell">Times are in **Ripple Epoch**, not UNIX. Use XRPL server time for accurate conversions.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">Immutable once created</div>
+                                                  <div class="escrow-cell">You cannot modify `FinishAfter`, `CancelAfter`, `Condition`, or `Amount` after creation.</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">XRP-only</div>
+                                                  <div class="escrow-cell">Escrow transactions only support **XRP**, not IOUs or issued currencies.</div>
+                                             </div>
+                                        </div>
+                                   </details>
+
+                                   <details class="escrow-subdetails">
+                                        <summary>Escrow Fields</summary>
+                                        <div class="escrow-table">
+                                             <div class="escrow-row escrow-header">
+                                                  <div class="escrow-cell">Time Condition</div>
+                                                  <div class="escrow-cell">Can Finish?</div>
+                                                  <div class="escrow-cell">Can Cancel?</div>
+                                                  <div class="escrow-cell">Who Can Do It?</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">Before <code>Escrow Finish Time</code></div>
+                                                  <div class="escrow-cell">No</div>
+                                                  <div class="escrow-cell">No</div>
+                                                  <div class="escrow-cell">Anyone</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">Between <code>Escrow Finish Time</code> and <code>Escrow Cancel Time</code></div>
+                                                  <div class="escrow-cell">Yes</div>
+                                                  <div class="escrow-cell">No</div>
+                                                  <div class="escrow-cell">Anyone</div>
+                                             </div>
+                                             <div class="escrow-row">
+                                                  <div class="escrow-cell">After <code>Escrow Cancel Time</code></div>
+                                                  <div class="escrow-cell">No</div>
+                                                  <div class="escrow-cell">Yes</div>
+                                                  <div class="escrow-cell">Only escrow creator</div>
+                                             </div>
+                                        </div>
+                                   </details>
+                              </fieldset>
+                         </details>
+                    </div>
+               </div>
+
+               <div class="right-column">
+                    <table id="meta">
+                         <th></th>
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
+                                        <label for="escrowOwnerField">Escrow Owner</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="escrowOwnerField" size="40" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- Start Memo Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Add memo to transaction.">
+                                        <label>Memo</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMemoEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMemoEnabled">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="memoField"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Memo Section -->
+                         <!-- Start Multi Sign Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                                        <label>Use Multi-Sign Address</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMultiSignAddressData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
+                                        <label for="multiSignAddress">Signer Addresses</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
+                                        <label for="multiSignSeeds">Signer Seeds</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum: </span>
+                                   <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Multi Sign Section -->
+                         <!-- Start Regular Key Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
+                                        <label>Use Regular Key</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isRegularKeyAddressData" [(ngModel)]="isRegularKeyAddress" (ngModelChange)="toggleMultiSign()" name="isRegularKeyAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isRegularKeyAddressData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
+                                        <label for="regularKeyAddress"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
+                                        <label for="regularKeySeed"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
+                              </td>
+                         </tr>
+                         <!-- End Regular Key Section -->
+                         <!-- Start Ticket Sequence Key Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                                        <label>Use Ticket Sequence</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isTicketEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                                        <label for="ticketSequence"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Ticket Sequence Key Section -->
+                    </table>
+               </div>
           </div>
-
-          <table style="text-align: left; width: 100%">
-               <th></th>
-               <tr>
-                    <td colspan="2">
-                         <button type="button" (click)="getEscrows()">Get Escrows</button>
-                         <button type="button" (click)="createTimeBasedEscrow()">Create Time-based Escrow</button>
-                         <button type="button" (click)="finishTimeBasedEscrow()">Finish Time-based Escrow</button>
-                         <button type="button" (click)="cancelEscrow()">Cancel Escrow</button>
-                         <button type="button" (click)="clearFields()">Clear Fields</button>
-                    </td>
-               </tr>
-               <tr>
-                    <td colspan="2">
-                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
-                    </td>
-               </tr>
-          </table>
      </fieldset>
-
-     <details class="escrow-info">
-          <summary>Escrow Info</summary>
-          <fieldset class="escrow-fieldset">
-               <details class="escrow-subdetails">
-                    <summary>Escrow Constraints</summary>
-                    <div class="escrow-table">
-                         <div class="escrow-row escrow-header">
-                              <div class="escrow-cell">Escrow Constraints</div>
-                              <div class="escrow-cell">Description</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell"><code>FinishAfter</code> (Required)</div>
-                              <div class="escrow-cell">The earliest time (in Ripple Epoch seconds) that the escrow can be finished. Must be in the future.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell"><code>CancelAfter</code> (Optional but common)</div>
-                              <div class="escrow-cell">The time after which the escrow can be **canceled** if not yet finished. Must be **after** `FinishAfter`.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell"><code>Condition</code> (Required for conditional)</div>
-                              <div class="escrow-cell">A cryptographic condition (usually a hash of a preimage). The escrow can only be finished by submitting the matching `Fulfillment`.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell"><code>Fulfillment</code> (Required to finish)</div>
-                              <div class="escrow-cell">The preimage that satisfies the `Condition`. Submitted with the `EscrowFinish` transaction.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell"><code>EscrowFinish</code> rules</div>
-                              <div class="escrow-cell">Must include both `Condition` and `Fulfillment` to succeed. Cannot be submitted before `FinishAfter`.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">**Only recipient can finish**</div>
-                              <div class="escrow-cell">The **Destination** of the escrow (recipient) must finish the escrow with the correct `Fulfillment`, and only after `FinishAfter`.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">**Only sender can cancel**</div>
-                              <div class="escrow-cell">The original escrow sender can cancel the escrow, but only **after `CancelAfter`**, and only if it hasn’t already been finished.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">Ledger time vs system time</div>
-                              <div class="escrow-cell">Times are in **Ripple Epoch**, not UNIX. Use XRPL server time for accurate conversions.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">Immutable once created</div>
-                              <div class="escrow-cell">You cannot modify `FinishAfter`, `CancelAfter`, `Condition`, or `Amount` after creation.</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">XRP-only</div>
-                              <div class="escrow-cell">Escrow transactions only support **XRP**, not IOUs or issued currencies.</div>
-                         </div>
-                    </div>
-               </details>
-
-               <details class="escrow-subdetails">
-                    <summary>Escrow Fields</summary>
-                    <div class="escrow-table">
-                         <div class="escrow-row escrow-header">
-                              <div class="escrow-cell">Time Condition</div>
-                              <div class="escrow-cell">Can Finish?</div>
-                              <div class="escrow-cell">Can Cancel?</div>
-                              <div class="escrow-cell">Who Can Do It?</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">Before <code>Escrow Finish Time</code></div>
-                              <div class="escrow-cell">No</div>
-                              <div class="escrow-cell">No</div>
-                              <div class="escrow-cell">Anyone</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">Between <code>Escrow Finish Time</code> and <code>Escrow Cancel Time</code></div>
-                              <div class="escrow-cell">Yes</div>
-                              <div class="escrow-cell">No</div>
-                              <div class="escrow-cell">Anyone</div>
-                         </div>
-                         <div class="escrow-row">
-                              <div class="escrow-cell">After <code>Escrow Cancel Time</code></div>
-                              <div class="escrow-cell">No</div>
-                              <div class="escrow-cell">Yes</div>
-                              <div class="escrow-cell">Only escrow creator</div>
-                         </div>
-                    </div>
-               </details>
-          </fieldset>
-     </details>
 </form>

@@ -294,10 +294,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${validationError}`);
           }
 
-          // const actionElement = document.querySelector('input[name="channelAction"]:checked') as HTMLInputElement | null;
-          // const action = actionElement ? actionElement.value : '';
           const action = this.channelAction;
-
           if (action !== 'close') {
                const validationError = this.validateInputs({
                     amount: this.amountField,
