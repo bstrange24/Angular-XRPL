@@ -85,11 +85,18 @@ export class TrustlinesComponent implements AfterViewChecked {
      tokenToRemove: string = '';
      showTrustlineOptions: boolean = false; // default off
 
+     // conflicts: { [key: string]: string[] } = {
+     //      SetNoRipple: ['tfClearNoRipple'],
+     //      ClearNoRipple: ['tfSetNoRipple'],
+     //      SetFreeze: ['tfClearFreeze'],
+     //      ClearFreeze: ['tfSetFreeze'],
+     // };
+
      conflicts: { [key: string]: string[] } = {
-          SetNoRipple: ['tfClearNoRipple'],
-          ClearNoRipple: ['tfSetNoRipple'],
-          SetFreeze: ['tfClearFreeze'],
-          ClearFreeze: ['tfSetFreeze'],
+          tfSetNoRipple: ['tfClearNoRipple'],
+          tfClearNoRipple: ['tfSetNoRipple'],
+          tfSetFreeze: ['tfClearFreeze'],
+          tfClearFreeze: ['tfSetFreeze'],
      };
 
      trustlineFlags: Record<string, boolean> = {
@@ -98,10 +105,18 @@ export class TrustlinesComponent implements AfterViewChecked {
           tfClearNoRipple: false,
           tfSetFreeze: false,
           tfClearFreeze: false,
-          tfPartialPayment: false,
-          tfNoDirectRipple: false,
-          tfLimitQuality: false,
      };
+
+     // trustlineFlags: Record<string, boolean> = {
+     //      tfSetfAuth: false,
+     //      tfSetNoRipple: false,
+     //      tfClearNoRipple: false,
+     //      tfSetFreeze: false,
+     //      tfClearFreeze: false,
+     //      tfPartialPayment: false,
+     //      tfNoDirectRipple: false,
+     //      tfLimitQuality: false,
+     // };
 
      trustlineFlagList = [
           { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
@@ -109,10 +124,18 @@ export class TrustlinesComponent implements AfterViewChecked {
           { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
           { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
           { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
-          { key: 'tfPartialPayment', label: 'Allow Partial Payments (tfPartialPayment)' },
-          { key: 'tfNoDirectRipple', label: 'Disallow Direct Ripple (tfNoDirectRipple)' },
-          { key: 'tfLimitQuality', label: 'Limit Quality (tfLimitQuality)' },
      ];
+
+     // trustlineFlagList = [
+     //      { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
+     //      { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
+     //      { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
+     //      { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
+     //      { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
+     //      { key: 'tfPartialPayment', label: 'Allow Partial Payments (tfPartialPayment)' },
+     //      { key: 'tfNoDirectRipple', label: 'Disallow Direct Ripple (tfNoDirectRipple)' },
+     //      { key: 'tfLimitQuality', label: 'Limit Quality (tfLimitQuality)' },
+     // ];
 
      flagMap: { [key: string]: number } = {
           tfSetfAuth: TrustSetFlags.tfSetfAuth,
@@ -415,25 +438,57 @@ export class TrustlinesComponent implements AfterViewChecked {
                const currency = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
                const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
 
-               if (rippleState && 'Flags' in rippleState) {
-                    const flagsNumber = rippleState.Flags;
+               if (rippleState && 'LedgerEntryType' in rippleState && rippleState.LedgerEntryType === 'RippleState') {
+                    const flagsNumber: number = rippleState.Flags ?? 0;
 
-                    const flagMap: { [key: string]: number } = {
-                         tfSetNoRipple: 0x00020000,
-                         tfClearNoRipple: 0x00010000,
-                         tfSetFreeze: 0x00100000,
-                         tfClearFreeze: 0x00200000,
-                         tfSetfAuth: 0x00040000,
+                    const ledgerFlagMap: { [key: string]: number } = {
+                         lsfNoRipple: 0x00020000,
+                         lsfLowFreeze: 0x00400000,
+                         lsfHighFreeze: 0x00800000,
+                         lsfLowAuth: 0x00010000,
+                         lsfHighAuth: 0x00040000,
                     };
 
-                    Object.keys(this.trustlineFlags).forEach(key => {
-                         this.trustlineFlags[key] = !!(Number(flagsNumber) & flagMap[key]);
-                    });
+                    const isLowAddress = wallet.classicAddress < (rippleState as xrpl.LedgerEntry.RippleState).HighLimit.issuer;
+
+                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & (isLowAddress ? ledgerFlagMap['lsfLowAuth'] : ledgerFlagMap['lsfHighAuth']));
+                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & ledgerFlagMap['lsfNoRipple']);
+                    this.trustlineFlags['tfClearNoRipple'] = !(flagsNumber & ledgerFlagMap['lsfNoRipple']);
+                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & (isLowAddress ? ledgerFlagMap['lsfLowFreeze'] : ledgerFlagMap['lsfHighFreeze']));
+                    this.trustlineFlags['tfClearFreeze'] = !(flagsNumber & (isLowAddress ? ledgerFlagMap['lsfLowFreeze'] : ledgerFlagMap['lsfHighFreeze']));
+                    this.trustlineFlags['tfPartialPayment'] = false;
+                    this.trustlineFlags['tfNoDirectRipple'] = false;
+                    this.trustlineFlags['tfLimitQuality'] = false;
+
+                    this.cdr.detectChanges();
                } else {
                     Object.keys(this.trustlineFlags).forEach(key => {
                          this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
                     });
+                    this.cdr.detectChanges();
                }
+
+               // const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
+
+               // if (rippleState && 'Flags' in rippleState) {
+               //      const flagsNumber = rippleState.Flags;
+
+               //      const flagMap: { [key: string]: number } = {
+               //           tfSetNoRipple: 0x00020000,
+               //           tfClearNoRipple: 0x00010000,
+               //           tfSetFreeze: 0x00100000,
+               //           tfClearFreeze: 0x00200000,
+               //           tfSetfAuth: 0x00040000,
+               //      };
+
+               //      Object.keys(this.trustlineFlags).forEach(key => {
+               //           this.trustlineFlags[key] = !!(Number(flagsNumber) & flagMap[key]);
+               //      });
+               // } else {
+               //      Object.keys(this.trustlineFlags).forEach(key => {
+               //           this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
+               //      });
+               // }
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -488,6 +543,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.updateSpinnerMessage('Setting Trustline...');
+
+               // Validate flag combinations
+               if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
+                    return this.setError('ERROR: Cannot set both tfSetNoRipple and tfClearNoRipple');
+               }
+               if (this.trustlineFlags['tfSetFreeze'] && this.trustlineFlags['tfClearFreeze']) {
+                    return this.setError('ERROR: Cannot set both tfSetFreeze and tfClearFreeze');
+               }
 
                let cur;
                if (this.currencyField.length > 3) {
@@ -656,6 +719,14 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               // Validate flag combinations
+               if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
+                    return this.setError('ERROR: Cannot set both tfSetNoRipple and tfClearNoRipple');
+               }
+               if (this.trustlineFlags['tfSetFreeze'] && this.trustlineFlags['tfClearFreeze']) {
+                    return this.setError('ERROR: Cannot set both tfSetFreeze and tfClearFreeze');
                }
 
                this.updateSpinnerMessage('Removing Trustline...');
@@ -1380,15 +1451,15 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.spinner = false;
      }
 
-     selectTrustlineOption(option: 'tfSetfAuth' | 'tfSetNoRipple' | 'tfClearNoRipple' | 'tfSetFreeze' | 'tfClearFreeze' | 'tfPartialPayment' | 'tfNoDirectRipple' | 'tfLimitQuality') {
-          // Reset all options to false
-          Object.keys(this.trustlineFlags).forEach(key => {
-               this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-          });
+     // selectTrustlineOption(option: 'tfSetfAuth' | 'tfSetNoRipple' | 'tfClearNoRipple' | 'tfSetFreeze' | 'tfClearFreeze' | 'tfPartialPayment' | 'tfNoDirectRipple' | 'tfLimitQuality') {
+     //      // Reset all options to false
+     //      Object.keys(this.trustlineFlags).forEach(key => {
+     //           this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
+     //      });
 
-          // Set the clicked one to true
-          this.trustlineFlags[option] = true;
-     }
+     //      // Set the clicked one to true
+     //      this.trustlineFlags[option] = true;
+     // }
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
