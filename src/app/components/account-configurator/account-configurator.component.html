@@ -307,6 +307,121 @@
                                    </td>
                               </tr>
                          </table>
+
+                         <details class="account-flag-info">
+                              <summary>Account Flag Info</summary>
+                              <fieldset class="flag-fieldset">
+                                   <div class="flag-table">
+                                        <!-- Header Row -->
+                                        <div class="flag-row flag-header">
+                                             <div class="flag-cell">Flag</div>
+                                             <div class="flag-cell">Purpose</div>
+                                             <div class="flag-cell">Set Once?</div>
+                                             <div class="flag-cell">Mutually Exclusive</div>
+                                             <div class="flag-cell">Notes</div>
+                                        </div>
+                                        <!-- Data Rows -->
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfRequireDest</div>
+                                             <div class="flag-cell">Require a destination tag to send transactions to this account.</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Protects against ambiguous payments</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfRequireAuth</div>
+                                             <div class="flag-cell">Require authorization for users to hold balances issued by this address.</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Used for compliance (e.g., KYC/AML). Can only be enabled if the address has no trust lines connected to it.</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDisallowXRP</div>
+                                             <div class="flag-cell">XRP should not be sent to this account.</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Not enforced by rippled; client-respected</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDisableMaster</div>
+                                             <div class="flag-cell">Disallow use of the master key pair.</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Can only be enabled if the account has configured another way to sign transactions, such as a Regular Key or a Signer List.</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfNoFreeze</div>
+                                             <div class="flag-cell">Permanently give up the ability to freeze individual trust lines or disable Global Freeze.</div>
+                                             <div class="flag-cell">Yes</div>
+                                             <div class="flag-cell">asfGlobalFreeze</div>
+                                             <div class="flag-cell">Irreversible once set</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfGlobalFreeze</div>
+                                             <div class="flag-cell">Freezes all issued tokens</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">asfNoFreeze</div>
+                                             <div class="flag-cell">Can be toggled unless asfNoFreeze is set</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDefaultRipple</div>
+                                             <div class="flag-cell">Enables rippling on trust lines</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Recommended for issuers</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDepositAuth</div>
+                                             <div class="flag-cell">Enable Deposit Authorization on this account.</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Controls incoming funds</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfAuthorizedNFTokenMinter</div>
+                                             <div class="flag-cell">Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Specify the authorized account in the NFTokenMinter field of the AccountRoot object. To remove an authorized minter, enable this flag and omit the NFTokenMinter field.</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDisallowIncomingNFTokenOffer</div>
+                                             <div class="flag-cell">Blocks incoming NFT offers</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Controls NFT interactions</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDisallowIncomingCheck</div>
+                                             <div class="flag-cell">Blocks incoming checks</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Prevents check transactions</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDisallowIncomingPayChan</div>
+                                             <div class="flag-cell">Blocks incoming payment channels</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Restricts payment channels</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfDisallowIncomingTrustline</div>
+                                             <div class="flag-cell">Blocks incoming trust lines</div>
+                                             <div class="flag-cell">No</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Useful for token issuers</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">asfAllowTrustLineClawback</div>
+                                             <div class="flag-cell">Enables IOU clawback</div>
+                                             <div class="flag-cell">Yes</div>
+                                             <div class="flag-cell">None</div>
+                                             <div class="flag-cell">Irreversible; for regulatory use</div>
+                                        </div>
+                                   </div>
+                              </fieldset>
+                         </details>
                     </div>
                </div>
 
@@ -407,33 +522,6 @@
                               </td>
                          </tr>
                          <!-- End NFT Minter Section -->
-                         <!-- Start Ticket Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                                        <label>Use Ticket Sequence</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
-                                        <span class="slider round"></span>
-                                   </label>
-                                   <label for="isTicketEnabled"></label>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
-                                        <label for="ticketSequence"></label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                                   <br />
-                              </td>
-                         </tr>
-                         <!-- End Ticket Section -->
                          <!-- Start Meta Data Section -->
                          <tr class="metaData" style="vertical-align: top">
                               <td style="text-align: right">
@@ -636,21 +724,21 @@
                          <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
                               <td style="text-align: right">
                                    <span class="tooltip" tooltip-data="Add address to set regular key.">
-                                        <label for="regularKeyAccountField">Account</label>
+                                        <label for="regularKeyAccount">Account</label>
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAccountField" size="40" [(ngModel)]="regularKeyAccount" name="regularKeyAccountField" />
+                                   <input type="text" id="regularKeyAccount" placeholder="Enter Regular Key Address" size="40" [(ngModel)]="regularKeyAccount" name="regularKeyAccount" />
                               </td>
                          </tr>
                          <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
                               <td style="text-align: right">
                                    <span class="tooltip" tooltip-data="Add seed to set regular key. This is a comma separated list">
-                                        <label for="regularKeyAccountSeedField">Seed</label>
+                                        <label for="regularKeySeed">Seed</label>
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAccountSeedField" size="40" [(ngModel)]="regularKeyAccountSeed" name="regularKeyAccountSeedField" />
+                                   <input type="text" id="regularKeySeed" size="40" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeyAccountSeed" name="regularKeySeed" />
                               </td>
                          </tr>
                          <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
@@ -708,123 +796,35 @@
                               </td>
                          </tr>
                          <!-- End Enabled Multi-Sign Section -->
+                         <!-- Start Ticket Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                                        <label>Use Ticket Sequence</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isTicketEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                                        <label for="ticketSequence"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <br />
+                              </td>
+                         </tr>
+                         <!-- End Ticket Section -->
                     </table>
                </div>
           </div>
      </fieldset>
-
-     <details class="account-flag-info">
-          <summary>Account Flag Info</summary>
-          <fieldset class="flag-fieldset">
-               <div class="flag-table">
-                    <!-- Header Row -->
-                    <div class="flag-row flag-header">
-                         <div class="flag-cell">Flag</div>
-                         <div class="flag-cell">Purpose</div>
-                         <div class="flag-cell">Set Once?</div>
-                         <div class="flag-cell">Mutually Exclusive</div>
-                         <div class="flag-cell">Notes</div>
-                    </div>
-                    <!-- Data Rows -->
-                    <div class="flag-row">
-                         <div class="flag-cell">asfRequireDest</div>
-                         <div class="flag-cell">Require a destination tag to send transactions to this account.</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Protects against ambiguous payments</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfRequireAuth</div>
-                         <div class="flag-cell">Require authorization for users to hold balances issued by this address.</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Used for compliance (e.g., KYC/AML). Can only be enabled if the address has no trust lines connected to it.</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDisallowXRP</div>
-                         <div class="flag-cell">XRP should not be sent to this account.</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Not enforced by rippled; client-respected</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDisableMaster</div>
-                         <div class="flag-cell">Disallow use of the master key pair.</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Can only be enabled if the account has configured another way to sign transactions, such as a Regular Key or a Signer List.</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfNoFreeze</div>
-                         <div class="flag-cell">Permanently give up the ability to freeze individual trust lines or disable Global Freeze.</div>
-                         <div class="flag-cell">Yes</div>
-                         <div class="flag-cell">asfGlobalFreeze</div>
-                         <div class="flag-cell">Irreversible once set</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfGlobalFreeze</div>
-                         <div class="flag-cell">Freezes all issued tokens</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">asfNoFreeze</div>
-                         <div class="flag-cell">Can be toggled unless asfNoFreeze is set</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDefaultRipple</div>
-                         <div class="flag-cell">Enables rippling on trust lines</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Recommended for issuers</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDepositAuth</div>
-                         <div class="flag-cell">Enable Deposit Authorization on this account.</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Controls incoming funds</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfAuthorizedNFTokenMinter</div>
-                         <div class="flag-cell">Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Specify the authorized account in the NFTokenMinter field of the AccountRoot object. To remove an authorized minter, enable this flag and omit the NFTokenMinter field.</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDisallowIncomingNFTokenOffer</div>
-                         <div class="flag-cell">Blocks incoming NFT offers</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Controls NFT interactions</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDisallowIncomingCheck</div>
-                         <div class="flag-cell">Blocks incoming checks</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Prevents check transactions</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDisallowIncomingPayChan</div>
-                         <div class="flag-cell">Blocks incoming payment channels</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Restricts payment channels</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfDisallowIncomingTrustline</div>
-                         <div class="flag-cell">Blocks incoming trust lines</div>
-                         <div class="flag-cell">No</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Useful for token issuers</div>
-                    </div>
-                    <div class="flag-row">
-                         <div class="flag-cell">asfAllowTrustLineClawback</div>
-                         <div class="flag-cell">Enables IOU clawback</div>
-                         <div class="flag-cell">Yes</div>
-                         <div class="flag-cell">None</div>
-                         <div class="flag-cell">Irreversible; for regulatory use</div>
-                    </div>
-               </div>
-          </fieldset>
-     </details>
 </form>

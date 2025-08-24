@@ -11,11 +11,10 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
-// Define the interface for signer entries
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
-     SingnerSeed: string; // Note: 'SingnerSeed' seems to be a typo in your JSON, should it be 'SignerSeed'?
+     SingnerSeed: string;
 }
 
 @Component({
@@ -30,29 +29,29 @@ export class DeleteAccountComponent implements AfterViewChecked {
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
-     transactionInput = '';
+     transactionInput: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     ownerCount = '';
-     totalXrpReserves = '';
-     executionTime = '';
-     destinationField = '';
-     destinationTagField = '';
-     signerQuorum = '';
-     isMemoEnabled = false;
-     memoField = '';
-     isMultiSignTransaction = false;
-     isMultiSign = false;
-     isRegularKeyAddress = false;
-     regularKeyAddress = '';
-     regularKeySeed = '';
-     multiSignAddress = '';
-     multiSignSeeds = '';
-     spinner = false;
+     ownerCount: string = '';
+     totalXrpReserves: string = '';
+     executionTime: string = '';
+     destinationField: string = '';
+     destinationTagField: string = '';
+     signerQuorum: string = '';
+     isMemoEnabled: boolean = false;
+     memoField: string = '';
+     isMultiSignTransaction: boolean = false;
+     isMultiSign: boolean = false;
+     isRegularKeyAddress: boolean = false;
+     regularKeyAddress: string = '';
+     regularKeySeed: string = '';
+     multiSignAddress: string = '';
+     multiSignSeeds: string = '';
+     spinner: boolean = false;
      spinnerMessage: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
@@ -170,6 +169,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
                destination: this.destinationField,
+               regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
@@ -180,24 +181,16 @@ export class DeleteAccountComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
                if (this.isRegularKeyAddress && !this.isMultiSign) {
-                    if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
-                         return this.setError('ERROR: Regular Key Address is invalid or empty');
-                    }
-                    if (!this.regularKeySeed || !xrpl.isValidSecret(this.regularKeySeed)) {
-                         return this.setError('ERROR: Regular Key Seed is invalid or empty');
-                    }
-                    if (this.regularKeyAddress && this.regularKeySeed) {
-                         // Override seed with Regular Key Seed
-                         console.log('Using Regular Key Seed for transaction signing');
-                         seed = this.regularKeySeed;
-                    }
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
-
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
@@ -215,12 +208,16 @@ export class DeleteAccountComponent implements AfterViewChecked {
                if (accountObjects.result.account_objects.length) {
                     return this.setError('ERROR: There are blocking objects on the account. Remove objects and try to again.');
                }
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                let payment: AccountDelete = {
                     TransactionType: 'AccountDelete',
                     Account: wallet.classicAddress,
                     Destination: this.destinationField,
+                    Sequence: accountInfo.result.account_data.Sequence,
+                    Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
@@ -243,12 +240,56 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     ];
                }
 
-               let preparedTx = await client.autofill(payment);
-               const signed = wallet.sign(preparedTx);
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0); // removes empty strings
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: payment, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         payment.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(payment, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         payment.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(payment);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
-               const response = await client.submitAndWait(signed.tx_blob);
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
@@ -265,8 +306,6 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
-
-               // await this.updateXrpBalance(client, wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -321,7 +360,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -348,6 +387,12 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
+          }
+          if (inputs.regularKeyAddress != undefined && !xrpl.isValidAddress(this.regularKeyAddress)) {
+               return 'Regular Key Address is invalid or empty';
+          }
+          if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
+               return 'ERROR: Regular Key Seed is invalid or empty';
           }
           if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
                const addresses = inputs.multiSignAddresses

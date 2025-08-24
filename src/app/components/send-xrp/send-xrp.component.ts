@@ -312,6 +312,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     }
                }
 
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(payment), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, payment, fee)) {

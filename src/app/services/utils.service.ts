@@ -1021,7 +1021,8 @@ export class UtilsService {
                     content: [
                          { key: 'Account', value: `<code>${accountInfo.result.account_data.Account}</code>` },
                          { key: 'Balance', value: (parseInt(accountInfo.result.account_data.Balance) / 1_000_000).toFixed(6) + ' XRP' },
-                         { key: 'Flags', value: accountInfo.result.account_data.Flags ? this.formatFlags(this.decodeAccountFlags(accountInfo)) : '0' },
+                         { key: 'My Flags', value: accountInfo.result.account_data.Flags ? this.formatFlags(this.decodeAccountFlags(accountInfo)) : '0' },
+                         { key: 'Flags', value: accountInfo.result.account_data.Flags ? flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) : '0' },
                          { key: 'OwnerCount', value: accountInfo.result.account_data.OwnerCount },
                          { key: 'Sequence', value: accountInfo.result.account_data.Sequence },
                          { key: 'Regular Key', value: accountInfo.result.account_data.RegularKey ? `<code>${accountInfo.result.account_data.RegularKey}</code>` : 'Not Set' },
