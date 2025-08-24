@@ -1,6 +1,7 @@
 import { ElementRef, ViewChild } from '@angular/core';
 import { Injectable } from '@angular/core';
 import * as xrpl from 'xrpl';
+import { flagNames } from 'flagnames';
 import { XrplService } from '../services/xrpl.service';
 import { AppConstants } from '../core/app.constants';
 import { StorageService } from '../services/storage.service';
@@ -13,30 +14,15 @@ type FlagResult = Record<string, boolean> | string | null;
 })
 export class UtilsService {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     transactionInput = '';
+     // transactionInput = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     ownerCount = '';
-     totalXrpReserves = '';
-     transferRate = '';
-     isMessageKey = false;
-     memo = '';
-     spinner = false;
-
-     // XRPL AccountRoot flags (from xrpl.org docs)
-     // AccountRootFlags: Record<number, string> = {
-     //      0x00010000: 'Regular Key Set',
-     //      0x00020000: 'Require Destination Tag',
-     //      0x00040000: 'Require Authorization',
-     //      0x00080000: 'Disallow Incoming XRP',
-     //      0x00100000: 'DisableMaster Key',
-     //      0x00200000: 'No Freeze',
-     //      0x00400000: 'Global Freeze',
-     //      0x00800000: 'Default Ripple',
-     //      0x01000000: 'Deposit Auth',
-     //      // If new flags are added later, just extend this map
-     // };
+     // ownerCount = '';
+     // totalXrpReserves = '';
+     // transferRate = '';
+     // isMessageKey: boolean = false;
+     spinner: boolean = false;
 
      constructor(private xrplService: XrplService, private storageService: StorageService) {}
 
@@ -713,7 +699,7 @@ export class UtilsService {
      }
 
      getFlagName(value: string) {
-          return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `Flag ${value}`;
+          return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `${value}`;
      }
 
      getFlagUpdates(currentFlags: any) {

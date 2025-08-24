@@ -56,6 +56,7 @@ export const AppConstants = {
           15: 'asfDisallowIncomingTrustline',
           16: 'asfAllowTrustLineClawback',
      },
+
      ACCOUNT_ROOT_FLAGS: {
           0x00010000: 'Regular Key Set',
           0x00020000: 'Require Destination Tag',
