@@ -101,6 +101,14 @@ export const AppConstants = {
           0x00040000: 'tfCancelAfter',
      },
 
+     NFT_FLAGS: {
+          tfBurnable: 1,
+          tfOnlyXRP: 2,
+          tfTrustLine: 4,
+          tfTransferable: 8,
+          tfMutable: 16,
+     },
+
      // You can extend with CheckCash, AMM, etc.
 
      // Account Flags (from your flagList in AccountComponent)

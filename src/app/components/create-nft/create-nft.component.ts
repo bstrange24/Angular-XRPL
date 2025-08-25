@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { AccountSet, NFTokenMint, TransactionMetadataBase, Batch, Transaction, NFTokenBurn, NFTokenAcceptOffer, NFTokenCreateOffer, NFTokenCancelOffer, NFTokenModify } from 'xrpl';
+import { AccountSet, NFTokenMint, TransactionMetadataBase, NFTokenBurn, NFTokenAcceptOffer, NFTokenCreateOffer, NFTokenCancelOffer, NFTokenModify } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -27,6 +27,12 @@ interface AccountFlags {
      asfDisallowIncomingTrustline: boolean;
 }
 
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string;
+}
+
 @Component({
      selector: 'app-create-nft',
      standalone: true,
@@ -37,30 +43,37 @@ interface AccountFlags {
 export class CreateNftComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     // selectedAccount: 'account1' | 'account2' | null = null;
      selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
-     transactionInput = '';
+     transactionInput: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', balance: '' };
      account2 = { name: '', address: '', seed: '', balance: '' };
-     ownerCount = '';
-     totalXrpReserves = '';
-     executionTime = '';
-     isMultiSign = false;
-     multiSignAddress = '';
-     isUpdateMetaData = false;
-     tickSize = '';
-     transferRate = '';
-     isMessageKey = false;
-     domain = '';
-     memo = '';
-     isTicket = false;
-     isTicketEnabled = false;
-     ticketSequence = '';
+     ownerCount: string = '';
+     totalXrpReserves: string = '';
+     executionTime: string = '';
+     isMultiSign: boolean = false;
+     multiSignAddress: string = '';
+     multiSignSeeds: string = '';
+     isUpdateMetaData: boolean = false;
+     isUpdateNFTMetaData: boolean = false;
+     tickSize: string = '';
+     transferRate: string = '';
+     isMessageKey: boolean = false;
+     domain: string = '';
+     memo: string = '';
+     memoField: string = '';
+     isMemoEnabled: boolean = false;
+     isRegularKeyAddress: boolean = false;
+     regularKeySeed: string = '';
+     regularKeyAddress: string = '';
+     isTicket: boolean = false;
+     isTicketEnabled: boolean = false;
+     ticketSequence: string = '';
+     signerQuorum: string = '';
      burnableNft: { checked: any } | undefined;
      onlyXrpNft: { checked: any } | undefined;
      transferableNft: { checked: any } | undefined;
@@ -136,6 +149,27 @@ export class CreateNftComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     validateQuorum() {
+          this.cdr.detectChanges();
+     }
+
+     toggleMultiSign() {
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
+               this.cdr.detectChanges();
+               return;
+          }
+
+          if (this.isMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
+               const signers = this.storageService.get('signerEntries');
+               const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
+               const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
+               this.multiSignAddress = addresses;
+               this.multiSignSeeds = seeds;
+          }
+          this.cdr.detectChanges();
+     }
+
      updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
@@ -153,33 +187,49 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
-               }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account NFTs\n\n`;
-
                const accountNfts = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
                console.debug(`accountNfts ${accountNfts}`);
+
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+               if (signerAccounts && signerAccounts.length > 0) {
+                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
+                         this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                         this.multiSignSeeds = signerAccounts
+                              .map(account => {
+                                   const address = account.split('~')[0];
+                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                   return entry ? entry.SingnerSeed : null;
+                              })
+                              .filter(seed => seed !== null)
+                              .join(',\n');
+                         this.isMultiSign = true;
+                    }
+               } else {
+                    this.multiSignAddress = 'No Multi-Sign address configured for account';
+                    this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+                    this.isMultiSign = false;
+               }
 
                // Prepare data for renderAccountDetails
                const data = {
@@ -228,13 +278,28 @@ export class CreateNftComponent implements AfterViewChecked {
                               return {
                                    key: `NFT ${index + 1} (ID: ${NFTokenID.slice(0, 8)}...)`,
                                    openByDefault: false,
-                                   content: [{ key: 'NFToken ID', value: `<code>${NFTokenID}</code>` }, { key: 'Taxon', value: String(NFTokenTaxon) }, ...(Issuer ? [{ key: 'Issuer', value: `<code>${Issuer}</code>` }] : []), ...(URI ? [{ key: 'URI', value: `<code>${URI}</code>` }] : []), { key: 'Flags', value: String(Flags) }, ...(TransferFee ? [{ key: 'Transfer Fee', value: `${TransferFee / 1000}%` }] : [])],
+                                   content: [{ key: 'NFToken ID', value: `<code>${NFTokenID}</code>` }, { key: 'Taxon', value: String(NFTokenTaxon) }, ...(Issuer ? [{ key: 'Issuer', value: `<code>${Issuer}</code>` }] : []), ...(URI ? [{ key: 'URI', value: `<code>${this.utilsService.decodeHex(URI)}</code>` }] : []), { key: 'Flags', value: String(this.decodeNftFlags(Flags)) }, ...(TransferFee ? [{ key: 'Transfer Fee', value: `${TransferFee / 1000}%` }] : [])],
                               };
                          }),
                     });
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.setSuccess(this.result);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+                    this.isRegularKeyAddress = true;
+                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = this.storageService.get('regularKeySeed');
+               } else {
+                    this.isRegularKeyAddress = false;
+                    this.regularKeyAddress = 'No RegularKey configured for account';
+                    this.regularKeySeed = '';
+               }
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -252,13 +317,12 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           if (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze) {
@@ -270,54 +334,131 @@ export class CreateNftComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nMinting single NFT\n\n`;
-
+               const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
                const transaction: NFTokenMint = {
                     TransactionType: 'NFTokenMint',
                     Account: wallet.classicAddress,
                     Flags: flags,
                     NFTokenTaxon: 0,
-                    LastLedgerSequence: currentLedger + 20,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
                if (this.issuerAddressField) {
                     if (!xrpl.isValidAddress(this.issuerAddressField)) {
                          this.setError('ERROR: Invalid Account address');
                     }
-                    (transaction as NFTokenMint).Issuer = this.issuerAddressField;
+                    transaction.Issuer = this.issuerAddressField;
                }
 
                if (this.uriField) {
-                    (transaction as NFTokenMint).URI = xrpl.convertStringToHex(this.uriField);
+                    transaction.URI = xrpl.convertStringToHex(this.uriField);
                }
 
-               const preparedTx = await client.autofill(transaction as NFTokenMint);
-               const signedTx = wallet.sign(preparedTx);
-               const tx = await client.submitAndWait(signedTx.tx_blob);
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    transaction.TicketSequence = Number(this.ticketSequence);
+                    transaction.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
 
-               console.log('Mint NFT tx', tx);
+               if (this.memoField) {
+                    transaction.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
 
-               if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         transaction.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         transaction.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(transaction);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
+
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
                     return;
                }
 
-               // Render all successful transactions
-               this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
@@ -342,6 +483,183 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+
+          if (!this.utilsService.validateInput(seed)) {
+               return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          const flags = this.setNftFlags();
+
+          try {
+               const { environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
+               }
+
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               const transactionResults = [];
+
+               // Build and submit each NFTokenMint
+               for (let i = 0; i < parseInt(this.nftCountField); i++) {
+                    const fee = await this.xrplService.calculateTransactionFee(client);
+                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+                    const transaction: NFTokenMint = {
+                         TransactionType: 'NFTokenMint',
+                         Account: wallet.classicAddress,
+                         URI: xrpl.convertStringToHex(this.uriField),
+                         Flags: flags,
+                         NFTokenTaxon: 0,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+
+                    if (this.ticketSequence) {
+                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                         }
+                         transaction.TicketSequence = Number(this.ticketSequence);
+                         transaction.Sequence = 0;
+                    } else {
+                         const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                         transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+                    }
+
+                    if (this.memoField) {
+                         transaction.Memos = [
+                              {
+                                   Memo: {
+                                        MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                        MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                                   },
+                              },
+                         ];
+                    }
+
+                    try {
+                         let signedTx: { tx_blob: string; hash: string } | null = null;
+
+                         if (this.isMultiSign) {
+                              const signerAddresses = this.multiSignAddress
+                                   .split(',')
+                                   .map(s => s.trim())
+                                   .filter(s => s.length > 0);
+
+                              if (signerAddresses.length === 0) {
+                                   return this.setError('ERROR: No signers provided for multi-signing');
+                              }
+
+                              const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                              try {
+                                   const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                                   signedTx = result.signedTx;
+                                   transaction.Signers = result.signers;
+
+                                   console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                                   console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                                   if (!signedTx) {
+                                        return this.setError('ERROR: No valid signature collected for multisign transaction');
+                                   }
+
+                                   const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                                   console.log(`multiSignFee: ${multiSignFee}`);
+                                   transaction.Fee = multiSignFee;
+                                   const finalTx = xrpl.decode(signedTx.tx_blob);
+                                   console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                              } catch (err: any) {
+                                   return this.setError(`ERROR: ${err.message}`);
+                              }
+                         } else {
+                              const preparedTx = await client.autofill(transaction);
+                              if (useRegularKeyWalletSignTx) {
+                                   signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                              } else {
+                                   signedTx = wallet.sign(preparedTx);
+                              }
+                         }
+
+                         console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+                         this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: Failed to sign transaction.');
+                         }
+
+                         const response = await client.submitAndWait(signedTx.tx_blob);
+                         console.log('Submit Response:', JSON.stringify(response, null, 2));
+                         // // Autofill handles Fee, Sequence, LastLedgerSequence
+                         // const preparedTx = await client.autofill(transaction);
+                         // const signedTx = wallet.sign(preparedTx);
+                         // const singleTx = await client.submitAndWait(signedTx.tx_blob);
+
+                         if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                              this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                              this.resultField.nativeElement.classList.add('error');
+                              this.setErrorProperties();
+                              return;
+                         }
+
+                         transactionResults.push(response);
+                    } catch (singleError: any) {
+                         console.error('Individual Transaction Error:', singleError);
+
+                         // Retry if LastLedgerSequence expired
+                         if (singleError.message.includes('LastLedgerSequence')) {
+                              console.warn('Retrying transaction with updated LastLedgerSequence');
+                              const preparedTx = await client.autofill(transaction);
+                              const signedTx = wallet.sign(preparedTx);
+                              const singleTx = await client.submitAndWait(signedTx.tx_blob);
+                              transactionResults.push(singleTx);
+                         } else {
+                              throw singleError; // Rethrow other errors
+                         }
+                    }
+               }
+
+               console.log('All NFT Mint Results:', transactionResults);
+
+               // Render the last result (you could also render all if you prefer)
+               const lastTx = transactionResults[transactionResults.length - 1];
+               this.utilsService.renderTransactionsResults(lastTx, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving mintBatchNFT in ${this.executionTime}ms`);
+          }
+     }
+
+     async mintBatchNFT1() {
+          console.log('Entering mintBatchNFT');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          if (!this.selectedAccount) {
+               return this.setError('Please select an account');
+          }
+
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -351,18 +669,23 @@ export class CreateNftComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nMinting Batch NFTs\n\n`;
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                // Define tfInnerBatchTxn flag (try different values if 0x00010000 fails)
                const TF_INNER_BATCH_TXN = 1073741824; // 262144 in decimal
@@ -522,42 +845,123 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.nftIdField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               nftIdField: this.nftIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nBurning NFT\n\n`;
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const transaction: NFTokenBurn = {
                     TransactionType: 'NFTokenBurn',
                     Account: wallet.classicAddress,
                     NFTokenID: this.nftIdField,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               const response = await client.submitAndWait(transaction, { wallet });
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    transaction.TicketSequence = Number(this.ticketSequence);
+                    transaction.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               if (this.memoField) {
+                    transaction.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         transaction.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         transaction.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(transaction);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
+
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -585,34 +989,23 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.nftIdField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               nftIdField: this.nftIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
-               }
-
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account NFT Offers\n\n`;
 
                // Prepare data for rendering
                type SectionContent = { key: string; value: string };
@@ -654,6 +1047,29 @@ export class CreateNftComponent implements AfterViewChecked {
                }
 
                try {
+                    const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+                    const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+                    if (signerAccounts && signerAccounts.length > 0) {
+                         if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                              const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+
+                              this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
+                              this.multiSignSeeds = signerAccounts
+                                   .map(account => {
+                                        const address = account.split('~')[0];
+                                        const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
+                                        return entry ? entry.SingnerSeed : null;
+                                   })
+                                   .filter(seed => seed !== null)
+                                   .join(',\n');
+                              this.isMultiSign = true;
+                         }
+                    } else {
+                         this.multiSignAddress = 'No Multi-Sign address configured for account';
+                         this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+                         this.isMultiSign = false;
+                    }
+
                     const nftInfo = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
                     console.debug(`accountNfts ${nftInfo}`);
                     const nfts = nftInfo.result.account_nfts || [];
@@ -849,6 +1265,21 @@ export class CreateNftComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+                    this.isRegularKeyAddress = true;
+                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+                    this.regularKeySeed = this.storageService.get('regularKeySeed');
+               } else {
+                    this.isRegularKeyAddress = false;
+                    this.regularKeyAddress = 'No RegularKey configured for account';
+                    this.regularKeySeed = '';
+               }
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -865,34 +1296,31 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.nftIdField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               nftIdField: this.nftIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nBuying NFT\n\n`;
 
                let sellOffersResponse;
                try {
@@ -940,14 +1368,96 @@ export class CreateNftComponent implements AfterViewChecked {
                     console.log(`This NFT is only purchasable by: ${selectedOffer.Destination}`);
                }
 
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
                const transaction: NFTokenAcceptOffer = {
                     TransactionType: 'NFTokenAcceptOffer',
                     Account: wallet.classicAddress,
                     NFTokenSellOffer: selectedOffer.nft_offer_index,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Buy the NFT
-               const response = await client.submitAndWait(transaction, { wallet });
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    transaction.TicketSequence = Number(this.ticketSequence);
+                    transaction.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               if (this.memoField) {
+                    transaction.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         transaction.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         transaction.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(transaction);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
+
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -975,41 +1485,43 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.nftIdField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               nftIdField: this.nftIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling NFT Offers\n\n`;
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const transaction: NFTokenCreateOffer = {
                     TransactionType: 'NFTokenCreateOffer',
                     Account: wallet.classicAddress,
                     NFTokenID: this.nftIdField,
                     Amount: xrpl.xrpToDrops(this.amountField),
-                    Flags: 1, // Sell offer
+                    Flags: 1, // Sell offer,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
                // Add expiration if provided
@@ -1019,7 +1531,85 @@ export class CreateNftComponent implements AfterViewChecked {
                     transaction.Expiration = Math.floor(expirationDate.getTime() / 1000);
                }
 
-               const response = await client.submitAndWait(transaction, { wallet });
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    transaction.TicketSequence = Number(this.ticketSequence);
+                    transaction.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               if (this.memoField) {
+                    transaction.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         transaction.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         transaction.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(transaction);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
+
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -1047,42 +1637,123 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.nftIdField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               nftIdField: this.nftIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling NFT Buy Offer\n\n`;
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const transaction: NFTokenCancelOffer = {
                     TransactionType: 'NFTokenCancelOffer',
                     Account: wallet.classicAddress,
                     NFTokenOffers: [this.nftIndexField],
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               const response = await client.submitAndWait(transaction, { wallet });
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    transaction.TicketSequence = Number(this.ticketSequence);
+                    transaction.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               if (this.memoField) {
+                    transaction.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         transaction.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         transaction.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(transaction);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
+
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               // const response = await client.submitAndWait(transaction, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -1110,42 +1781,122 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.nftIdField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               nftIdField: this.nftIdField,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isRegularKeyAddress && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
+                    useRegularKeyWalletSignTx = true;
                }
 
+               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling NFT Sell Offer\n\n`;
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
                const transaction: NFTokenCancelOffer = {
                     TransactionType: 'NFTokenCancelOffer',
                     Account: wallet.classicAddress,
                     NFTokenOffers: [this.nftIndexField],
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               const response = await client.submitAndWait(transaction, { wallet });
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    transaction.TicketSequence = Number(this.ticketSequence);
+                    transaction.Sequence = 0;
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    transaction.Sequence = getAccountInfo.result.account_data.Sequence;
+               }
+
+               if (this.memoField) {
+                    transaction.Memos = [
+                         {
+                              Memo: {
+                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                              },
+                         },
+                    ];
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: transaction, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         transaction.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(transaction, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         transaction.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(transaction);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+               }
+
+               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(transaction), null, '\t')}`);
+               this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, transaction, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -1168,68 +1919,66 @@ export class CreateNftComponent implements AfterViewChecked {
           }
      }
 
-     async setAuthorizedMinter() {
-          console.log('Entering setAuthorizedMinter');
-          const startTime = Date.now();
-          this.setSuccessProperties();
+     // async setAuthorizedMinter() {
+     //      console.log('Entering setAuthorizedMinter');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
+     //      if (!this.selectedAccount) {
+     //           return this.setError('Please select an account');
+     //      }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
-          }
+     //      const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+     //      if (!this.utilsService.validateInput(seed)) {
+     //           return this.setError('ERROR: Account seed cannot be empty');
+     //      }
 
-          if (!this.utilsService.validateInput(this.minterAddressField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
-          }
+     //      if (!this.utilsService.validateInput(this.minterAddressField)) {
+     //           return this.setError('ERROR: NFT ID cannot be empty');
+     //      }
 
-          try {
-               const { net, environment } = this.xrplService.getNet();
-               const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
-               }
+     //      try {
+     //           const { net, environment } = this.xrplService.getNet();
+     //           const client = await this.xrplService.getClient();
+     //           let wallet;
+     //           if (this.selectedAccount === 'account1') {
+     //                wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+     //           } else if (this.selectedAccount === 'account2') {
+     //                wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+     //           }
 
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+     //           if (!wallet) {
+     //                return this.setError('ERROR: Wallet could not be created or is undefined');
+     //           }
 
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nSet Authorized NFT Minter Address\n\n`;
+     //           const transaction: AccountSet = {
+     //                TransactionType: 'AccountSet',
+     //                Account: wallet.classicAddress,
+     //                NFTokenMinter: this.minterAddressField,
+     //           };
 
-               const transaction: AccountSet = {
-                    TransactionType: 'AccountSet',
-                    Account: wallet.classicAddress,
-                    NFTokenMinter: this.minterAddressField,
-               };
+     //           const response = await client.submitAndWait(transaction, { wallet });
+     //           if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+     //                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+     //                this.resultField.nativeElement.classList.add('error');
+     //                this.setErrorProperties();
+     //                return;
+     //           }
 
-               const response = await client.submitAndWait(transaction, { wallet });
-               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
-                    return;
-               }
+     //           this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+     //           this.resultField.nativeElement.classList.add('success');
+     //           this.setSuccess(this.result);
 
-               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               await this.updateXrpBalance(client, wallet);
-          } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving cancelSellOffer in ${this.executionTime}ms`);
-          }
-     }
+     //           await this.updateXrpBalance(client, wallet);
+     //      } catch (error: any) {
+     //           console.error('Error:', error);
+     //           return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving cancelSellOffer in ${this.executionTime}ms`);
+     //      }
+     // }
 
      async updateNFTMetadata() {
           console.log('Entering updateNFTMetadata');
@@ -1243,14 +1992,6 @@ export class CreateNftComponent implements AfterViewChecked {
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.minterAddressField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
-          }
-
-          if (!this.utilsService.validateInput(this.minterAddressField)) {
-               return this.setError('ERROR: NFT ID cannot be empty');
           }
 
           if (!this.utilsService.validateInput(this.uriField)) {
@@ -1270,8 +2011,6 @@ export class CreateNftComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nUpdate NFT Meta Data\n\n`;
 
                const transaction: NFTokenModify = {
                     TransactionType: 'NFTokenModify',
@@ -1303,6 +2042,16 @@ export class CreateNftComponent implements AfterViewChecked {
           }
      }
 
+     decodeNftFlags(value: number): string[] {
+          const active: string[] = [];
+          for (const [name, bit] of Object.entries(AppConstants.NFT_FLAGS)) {
+               if ((value & bit) !== 0) {
+                    active.push(name);
+               }
+          }
+          return active;
+     }
+
      setNftFlags() {
           let flags = 0;
           if (this.burnableNft) {
@@ -1325,12 +2074,59 @@ export class CreateNftComponent implements AfterViewChecked {
           return flags;
      }
 
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum.toString();
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
+     }
+
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; checkId?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; nftIdField?: string }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
+               return 'Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          if (inputs.checkId != undefined && !this.utilsService.validateInput(inputs.checkId)) {
+               return 'Check ID cannot be empty';
+          }
+          if (inputs.nftIdField != undefined && !this.utilsService.validateInput(inputs.nftIdField)) {
+               return 'NFT ID cannot be empty';
+          }
+          return null;
      }
 
      clearFields() {
@@ -1341,8 +2137,8 @@ export class CreateNftComponent implements AfterViewChecked {
           this.nftIdField = '';
           this.nftIndexField = '';
           this.nftCountField = '';
-          // this.memoField = '';
-          // this.isTicket = false;
+          this.memoField = '';
+          this.isTicket = false;
           this.cdr.detectChanges();
      }
 
