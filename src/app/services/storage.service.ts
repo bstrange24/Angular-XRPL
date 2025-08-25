@@ -19,7 +19,7 @@ export class StorageService {
           'create-nft': 'NFTs',
           'create-tickets': 'Tickets',
           'create-payment-channel': 'Payment Channel',
-          trustlines: 'Manage Trustlines',
+          trustlines: 'Trustlines',
           'create-amm': 'AMM',
           'fiat-on-off-ramp': 'Fiat On/Off Ramp',
      };

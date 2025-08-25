@@ -144,7 +144,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     this.regularKeySeed = this.storageService.get('regularKeySeed');
                } else {
                     this.isRegularKeyAddress = false;
-                    this.regularKeyAddress = '';
+                    this.regularKeyAddress = 'No RegularKey configured for account';
                     this.regularKeySeed = '';
                }
 

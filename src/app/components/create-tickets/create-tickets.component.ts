@@ -144,6 +144,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
+
                let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
@@ -225,7 +226,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     this.regularKeySeed = this.storageService.get('regularKeySeed');
                } else {
                     this.isRegularKeyAddress = false;
-                    this.regularKeyAddress = '';
+                    this.regularKeyAddress = 'No RegularKey configured for account';
                     this.regularKeySeed = '';
                }
 

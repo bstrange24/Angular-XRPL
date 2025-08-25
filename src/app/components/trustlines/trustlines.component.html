@@ -45,7 +45,7 @@
                                    <td>
                                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
                                         <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="accountIssuer">Issuer</label>
+                                        <label for="accountIssuer">Account 3</label>
                                    </td>
                               </tr>
                               <tr>
@@ -139,17 +139,6 @@
                                    </td>
                                    <td>
                                         <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
-                                        <br />
-                                   </td>
-                              </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                                             <label for="memoField">Memo</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <textarea style="width: 280px; height: 100px" class="memoField" id="memoField" placeholder="Optional memo" [(ngModel)]="memoField" name="memoField"></textarea>
                                         <br />
                                    </td>
                               </tr>
@@ -412,7 +401,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <textarea class="memoField" style="width: 280px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
                                    <br />
                               </td>
                          </tr>

@@ -1709,7 +1709,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.regularKeyAccountSeed = this.storageService.get('regularKeySeed');
           } else {
                this.isSetRegularKey = false;
-               this.regularKeyAccount = '';
+               this.regularKeyAccount = 'No RegularKey configured for account';
                this.regularKeyAccountSeed = '';
           }
      }

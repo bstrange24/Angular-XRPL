@@ -80,7 +80,7 @@ export class UtilsService {
           RippleState: {
                fields: [
                     { key: 'Balance', format: (v: any) => (typeof v === 'object' ? this.formatXRPLAmount(v) : v || null) },
-                    { key: 'Flags', format: (v: any) => v || '0' },
+                    { key: 'Flags', format: (v: any) => this.decodeRippleStateFlags(v) || '0' },
                     { key: 'HighLimit', format: (v: any) => (typeof v === 'object' ? this.formatXRPLAmount(v) : v || null) },
                     { key: 'HighNode', format: (v: any) => v || null },
                     { key: 'LedgerEntryType', format: (v: any) => v || null },
@@ -698,9 +698,49 @@ export class UtilsService {
           return { signedTx: { tx_blob: multisignedTxBlob, hash: xrpl.hashes.hashSignedTx(multisignedTxBlob) }, signers };
      }
 
-     getFlagName(value: string) {
-          return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `${value}`;
+     decodeRippleStateFlags(flagValue: any) {
+          const TRUSTLINE_FLAGS = {
+               lsfLowReserve: 0x00020000, // 131072
+               lsfHighReserve: 0x00040000, // 262144
+               lsfLowAuth: 0x00010000, // 65536
+               lsfHighAuth: 0x00020000, // 131072 (shared with lsfLowReserve, but depends on perspective)
+               lsfLowNoRipple: 0x00100000, // 1048576
+               lsfHighNoRipple: 0x00200000, // 2097152
+               lsfLowFreeze: 0x00400000, // 4194304
+               lsfHighFreeze: 0x00800000, // 8388608
+          };
+
+          const results = [];
+
+          for (const [name, bit] of Object.entries(TRUSTLINE_FLAGS)) {
+               if ((flagValue & bit) !== 0) {
+                    results.push(name);
+               }
+          }
+
+          return results.length > 0 ? results : ['No Flags Set'];
      }
+
+     getFlagName(value: string): string {
+          // 1. Try AppConstants.FLAGS
+          const appFlag = AppConstants.FLAGS.find(f => f.value.toString() === value)?.name;
+          if (appFlag) {
+               return appFlag;
+          }
+
+          // 2. Try decodeRippleStateFlags
+          const rippleFlags = this.decodeRippleStateFlags(Number(value));
+          if (rippleFlags.length > 0) {
+               return rippleFlags.join(', ');
+          }
+
+          // 3. Fallback: return raw value
+          return `${value}`;
+     }
+
+     // getFlagName(value: string) {
+     //      return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `${value}`;
+     // }
 
      getFlagUpdates(currentFlags: any) {
           const setFlags: any[] = [];
