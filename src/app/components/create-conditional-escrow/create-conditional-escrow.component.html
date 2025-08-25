@@ -184,6 +184,17 @@
                                         <input type="text" id="escrowFulfillmentField" size="40" [(ngModel)]="escrowFulfillmentField" name="escrowFulfillmentField" />
                                    </td>
                               </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
+                                             <label for="escrowOwnerField">Escrow Owner</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="escrowOwnerField" size="40" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
+                                        <br />
+                                   </td>
+                              </tr>
                          </table>
                     </div>
 
@@ -302,17 +313,6 @@
                <div class="right-column">
                     <table id="meta">
                          <th></th>
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
-                                        <label for="escrowOwnerField">Escrow Owner</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <input type="text" id="escrowOwnerField" size="40" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
-                                   <br />
-                              </td>
-                         </tr>
                          <!-- Start Memo Section -->
                          <tr style="vertical-align: top">
                               <td style="text-align: right">

@@ -795,7 +795,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           if (inputs.credentialType != undefined && !this.utilsService.validateInput(inputs.credentialType)) {
                return 'Credential Type cannot be empty';
           }
-          if (inputs.regularKeyAddress != undefined && !xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
                return 'Regular Key Address is invalid or empty';
           }
           if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {

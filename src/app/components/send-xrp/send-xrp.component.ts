@@ -275,7 +275,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     const signerAddresses = this.multiSignAddress
                          .split(',')
                          .map(s => s.trim())
-                         .filter(s => s.length > 0); // removes empty strings
+                         .filter(s => s.length > 0);
 
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signers provided for multi-signing');
@@ -453,7 +453,7 @@ export class SendXrpComponent implements AfterViewChecked {
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
                return 'Destination cannot be empty';
           }
-          if (inputs.regularKeyAddress != undefined && !xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
                return 'Regular Key Address is invalid or empty';
           }
           if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
