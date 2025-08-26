@@ -603,6 +603,72 @@
                          </tr>
                          <!-- End Meta Data Section -->
                          <!-- Start Multi-Sign Section -->
+                         <!-- Enable Multi-Sign Toggle -->
+                         <!-- <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                                        <label>Enable Multi-Sign Address</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                         </tr>
+
+                         <ng-container *ngIf="isMultiSign">
+                              <ng-container *ngFor="let signer of signers; let i = index">
+                                   <tr class="multisignAddressClass" style="vertical-align: top">
+                                        <td style="text-align: right">
+                                             <label for="signerAccountField{{ i }}">Signer {{ i + 1 }} Account</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="signerAccountField{{ i }}" size="40" [(ngModel)]="signer.account" name="signerAccountField{{ i }}" />
+                                        </td>
+                                   </tr>
+
+                                   <tr class="multisignAddressClass" style="vertical-align: top">
+                                        <td style="text-align: right">
+                                             <label for="signerSeedField{{ i }}">Signer {{ i + 1 }} Seed</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="signerSeedField{{ i }}" size="40" [(ngModel)]="signer.seed" name="signerSeedField{{ i }}" />
+                                             <span class="tooltip" tooltip-data="Relative value of the signer's vote on approvals.">Weight</span>
+                                             &nbsp;&nbsp;
+                                             <input type="number" id="signerWeightField{{ i }}" size="5" [(ngModel)]="signer.weight" name="signerWeightField{{ i }}" />
+                                             <button type="button" (click)="removeSigner(i)" *ngIf="signers.length > 1">Remove</button>
+                                             <br />
+                                        </td>
+                                   </tr>
+                              </ng-container>
+
+                              <tr>
+                                   <td></td>
+                                   <td>
+                                        <button type="button" (click)="addSigner()">+ Add Signer</button>
+                                   </td>
+                              </tr>
+
+                              <tr class="multisignAddressClass" style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum</span>
+                                   </td>
+                                   <td>
+                                        <input type="number" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                                   </td>
+                              </tr>
+
+                              <tr class="multisignAddressClass" style="vertical-align: top">
+                                   <td></td>
+                                   <td>
+                                        <button type="button" (click)="setMultiSign('Y')">Set Multi-Sign</button>
+                                        <button type="button" (click)="setMultiSign('N')">Remove Multi-Sign</button>
+                                   </td>
+                              </tr>
+                         </ng-container> -->
+
                          <tr style="vertical-align: top">
                               <td style="text-align: right">
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">

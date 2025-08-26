@@ -698,6 +698,18 @@ export class UtilsService {
           return { signedTx: { tx_blob: multisignedTxBlob, hash: xrpl.hashes.hashSignedTx(multisignedTxBlob) }, signers };
      }
 
+     findDepositPreauthObjects(accountObjects: xrpl.AccountObjectsResponse) {
+          const depositPreauthAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'DepositPreauth' && obj.Authorize) {
+                         depositPreauthAccounts.push(obj.Authorize);
+                    }
+               });
+          }
+          return depositPreauthAccounts;
+     }
+
      decodeRippleStateFlags(flagValue: any) {
           const TRUSTLINE_FLAGS = {
                lsfAMMNode: 0x01000000, // 16777216
@@ -740,10 +752,6 @@ export class UtilsService {
           // 3. Fallback: return raw value
           return `${value}`;
      }
-
-     // getFlagName(value: string) {
-     //      return AppConstants.FLAGS.find(f => f.value.toString() === value)?.name || `${value}`;
-     // }
 
      getFlagUpdates(currentFlags: any) {
           const setFlags: any[] = [];

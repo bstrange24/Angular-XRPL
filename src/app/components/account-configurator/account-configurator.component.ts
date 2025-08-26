@@ -115,6 +115,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           asfDisallowIncomingTrustline: false,
      };
      spinner: boolean = false;
+     signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
@@ -158,6 +159,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      validateQuorum() {
+          // Example validation: quorum <= sum of weights
+          // const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          // if (this.signerQuorum > totalWeight) {
+          //      this.signerQuorum = totalWeight;
+          // }
           this.cdr.detectChanges();
      }
 
@@ -277,7 +283,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      toggleMultiSign() {
+          // if (!this.isMultiSign) {
+          //      this.signers = [{ account: '', seed: '', weight: 1 }];
+          //      this.signerQuorum = 0;
+          // }
           this.cdr.detectChanges();
+     }
+
+     addSigner() {
+          this.signers.push({ account: '', seed: '', weight: 1 });
+     }
+
+     removeSigner(index: number) {
+          this.signers.splice(index, 1);
      }
 
      toggleUseMultiSign() {
@@ -404,6 +422,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (signerAccounts && signerAccounts.length > 0) {
                     if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
                          const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+                         // const signerEntries: SignerEntry[] = this.storageService.get<SignerEntry[]>('signerEntries') || [];
 
                          this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
                          this.multiSignSeeds = signerAccounts
@@ -553,10 +572,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     isValidResponse(response: any): response is { success: boolean; message: xrpl.TxResponse<xrpl.SubmittableTransaction> | string } {
-          return response && typeof response === 'object' && 'success' in response && 'message' in response;
-     }
-
      async updateMetaData() {
           console.log('Entering updateMetaData');
           const startTime = Date.now();
@@ -573,6 +588,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isSetRegularKey && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
+                    useRegularKeyWalletSignTx = true;
+               }
+
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
@@ -652,8 +676,63 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                if (updatedData) {
-                    this.updateSpinnerMessage('Submitting transaction to the Ledger...');
-                    const response = await client.submitAndWait(accountSetTx, { wallet });
+                    let signedTx: { tx_blob: string; hash: string } | null = null;
+
+                    if (this.isMultiSign) {
+                         const signerAddresses = this.multiSignAddress
+                              .split(',')
+                              .map(s => s.trim())
+                              .filter(s => s.length > 0);
+
+                         if (signerAddresses.length === 0) {
+                              return this.setError('ERROR: No signers provided for multi-signing');
+                         }
+
+                         const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                         try {
+                              const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: accountSetTx, signerAddresses, signerSeeds, fee });
+                              signedTx = result.signedTx;
+                              accountSetTx.Signers = result.signers;
+
+                              console.log('Payment with Signers:', JSON.stringify(accountSetTx, null, 2));
+                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                              if (!signedTx) {
+                                   return this.setError('ERROR: No valid signature collected for multisign transaction');
+                              }
+
+                              const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                              console.log(`multiSignFee: ${multiSignFee}`);
+                              accountSetTx.Fee = multiSignFee;
+                              const finalTx = xrpl.decode(signedTx.tx_blob);
+                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                         } catch (err: any) {
+                              return this.setError(`ERROR: ${err.message}`);
+                         }
+                    } else {
+                         const preparedTx = await client.autofill(accountSetTx);
+                         if (useRegularKeyWalletSignTx) {
+                              signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                         } else {
+                              signedTx = wallet.sign(preparedTx);
+                         }
+                    }
+
+                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(accountSetTx), null, '\t')}`);
+                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+
+                    if (!signedTx) {
+                         return this.setError('ERROR: Failed to sign transaction.');
+                    }
+
+                    const response = await client.submitAndWait(signedTx.tx_blob);
+                    console.log('Submit Response:', JSON.stringify(response, null, 2));
+
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`response ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -717,6 +796,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isSetRegularKey && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
+                    useRegularKeyWalletSignTx = true;
+               }
+
                const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
                const wallet = await this.utilsService.getWallet(seed, environment);
                if (!wallet) {
@@ -800,17 +888,74 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          ];
                     }
 
-                    // Check XRP balance for each transaction
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
-                         return this.setError(`ERROR: Insufficient XRP to complete transaction for ${authorizedAddress}`);
+                    let signedTx: { tx_blob: string; hash: string } | null = null;
+
+                    if (this.isMultiSign) {
+                         const signerAddresses = this.multiSignAddress
+                              .split(',')
+                              .map(s => s.trim())
+                              .filter(s => s.length > 0);
+
+                         if (signerAddresses.length === 0) {
+                              return this.setError('ERROR: No signers provided for multi-signing');
+                         }
+
+                         const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                         try {
+                              const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: depositPreauthTx, signerAddresses, signerSeeds, fee });
+                              signedTx = result.signedTx;
+                              depositPreauthTx.Signers = result.signers;
+
+                              console.log('Payment with Signers:', JSON.stringify(depositPreauthTx, null, 2));
+                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                              if (!signedTx) {
+                                   return this.setError('ERROR: No valid signature collected for multisign transaction');
+                              }
+
+                              const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                              console.log(`multiSignFee: ${multiSignFee}`);
+                              depositPreauthTx.Fee = multiSignFee;
+                              const finalTx = xrpl.decode(signedTx.tx_blob);
+                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                         } catch (err: any) {
+                              return this.setError(`ERROR: ${err.message}`);
+                         }
+                    } else {
+                         const preparedTx = await client.autofill(depositPreauthTx);
+                         if (useRegularKeyWalletSignTx) {
+                              signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                         } else {
+                              signedTx = wallet.sign(preparedTx);
+                         }
                     }
 
+                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(depositPreauthTx), null, '\t')}`);
                     this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
 
-                    // Submit transaction
-                    const response = await client.submitAndWait(depositPreauthTx, { wallet });
-                    const result = response.result;
-                    results.push({ result });
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+
+                    if (!signedTx) {
+                         return this.setError('ERROR: Failed to sign transaction.');
+                    }
+
+                    const response = await client.submitAndWait(signedTx.tx_blob);
+                    console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+                    // // Check XRP balance for each transaction
+                    // if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
+                    //      return this.setError(`ERROR: Insufficient XRP to complete transaction for ${authorizedAddress}`);
+                    // }
+
+                    // this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
+
+                    // // Submit transaction
+                    // const response = await client.submitAndWait(depositPreauthTx, { wallet });
+                    // const result = response.result;
+                    // results.push({ result });
 
                     // Check transaction result
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -820,6 +965,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          this.setErrorProperties();
                          return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
                     }
+
+                    const result = response.result;
+                    results.push({ result });
                }
 
                // All transactions successful
@@ -877,6 +1025,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let signerEntries;
                if (enableMultiSignFlag === 'Y') {
                     // Create array of signer accounts and their weights
+                    // const signerEntries = this.signers
+                    //      .filter(s => s.account && s.weight > 0)
+                    //      .map(s => ({
+                    //           Account: s.account,
+                    //           SignerWeight: Number(s.weight),
+                    //           SingnerSeed: s.seed,
+                    //      }));
                     signerEntries = [
                          { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight), SingnerSeed: this.signer1Seed },
                          { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight), SingnerSeed: this.signer2Seed },
@@ -1051,14 +1206,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
-
                if (enableMultiSignFlag === 'Y') {
                     this.storageService.set('signerEntries', signerEntries);
                } else {
                     this.storageService.removeValue('signerEntries');
+                    this.signerQuorum = '';
                }
+
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1492,35 +1648,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
-          const signerAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
-                         obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
-                                   this.signerQuorum = obj.SignerQuorum.toString();
-                              }
-                         });
-                    }
-               });
-          }
-          return signerAccounts;
-     }
-
-     private findDepositPreauthObjects(accountObjects: xrpl.AccountObjectsResponse) {
-          const depositPreauthAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'DepositPreauth' && obj.Authorize) {
-                         depositPreauthAccounts.push(obj.Authorize);
-                    }
-               });
-          }
-          return depositPreauthAccounts;
-     }
-
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
           this.ownerCount = ownerCount;
@@ -1640,11 +1767,20 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight), SingnerSeed: this.signer3Seed },
                     ].filter(entry => entry.Account && entry.SignerWeight > 0); // Filter out empty or invalid entries
 
+                    // this.signers = signerAccounts.map(acc => {
+                    //      const [account, weight] = acc.split('~');
+                    //      const seed = signerEntries.find(e => e.Account === account)?.SingnerSeed || '';
+                    //      return { account, seed, weight: Number(weight) };
+                    // });
+
                     this.storageService.removeValue('signerEntries');
                     this.storageService.set('signerEntries', signerEntries_);
 
                     const addresses = signerEntries_.map((item: { Account: any }) => item.Account + ',\n').join('');
                     const seeds = signerEntries_.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
+                    // this.storageService.set('signerEntries', this.signers);
+                    // this.multiSignAddress = this.signers.map(s => s.account).join(',\n');
+                    // this.multiSignSeeds = this.signers.map(s => s.seed).join(',\n');
                     this.multiSignAddress = addresses;
                     this.multiSignSeeds = seeds;
                     this.isMultiSign = true;
@@ -1663,9 +1799,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.multiSignSeeds = ''; // Clear seeds if no signer accounts
                this.isMultiSign = false;
                this.useMultiSign = false;
+               this.storageService.removeValue('signerEntries');
           }
 
-          const preAuthAccounts: string[] = this.findDepositPreauthObjects(accountObjects);
+          const preAuthAccounts: string[] = this.utilsService.findDepositPreauthObjects(accountObjects);
           if (preAuthAccounts && preAuthAccounts.length > 0) {
                this.depositAuthAddress = preAuthAccounts.map(account => account + ',\n').join('');
                this.isdepositAuthAddress = true;
@@ -1712,6 +1849,27 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.regularKeyAccount = 'No RegularKey configured for account';
                this.regularKeyAccountSeed = '';
           }
+     }
+
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum.toString();
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
+     }
+
+     isValidResponse(response: any): response is { success: boolean; message: xrpl.TxResponse<xrpl.SubmittableTransaction> | string } {
+          return response && typeof response === 'object' && 'success' in response && 'message' in response;
      }
 
      clearUiIAccountMetaData() {
