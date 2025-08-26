@@ -277,12 +277,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               const activeTrustLines: TrustLine[] = (activeTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.limit) > 0);
+               // const activeTrustLines: TrustLine[] = (activeTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.limit) > 0);
+               const activeTrustLines: TrustLine[] = activeTrustLine as TrustLine[];
                if (activeTrustLines.length === 0) {
                     data.sections.push({
                          title: 'Trust Lines',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No active trust lines found for <code>${wallet.classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No active trust lines found for <code>${this.currencyField}</code> and <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Group trust lines by currency and issuer, and calculate total balance for each
@@ -387,6 +388,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
+               this.amountField = '';
 
                if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
                     this.isRegularKeyAddress = true;
@@ -1426,6 +1428,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.destinationField = this.knownTrustLinesIssuers[this.currencyField];
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
                if (currencyBalanceField) {

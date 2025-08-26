@@ -741,6 +741,7 @@ export class XrplService {
                     command: 'gateway_balances',
                     account: address,
                     ledger_index: ledgerIndex,
+                    // hotwallet: ['rLAm8JW7rmFhMNGW9AbviLh22Pn9oHdU3F'],
                });
                return response;
           } catch (error: any) {

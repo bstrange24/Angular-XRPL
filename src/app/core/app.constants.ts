@@ -95,6 +95,15 @@ export const AppConstants = {
           0x00100000: 'tfClearFreeze',
      },
 
+     RIPPLE_STATE_FLAGS: {
+          0x00010000: 'lsfLowReserve',
+          0x00020000: 'lsfHighReserve',
+          0x00040000: 'lsfLowNoRipple',
+          0x00080000: 'lsfHighNoRipple',
+          0x00100000: 'lsfLowFreeze',
+          0x00200000: 'lsfHighFreeze',
+     },
+
      // EscrowCreate tx flags
      ESCROW_CREATE_FLAGS: {
           0x00020000: 'tfFinishAfter',
