@@ -2455,16 +2455,6 @@ export class UtilsService {
                     `;
                     txDataTable.appendChild(row);
                });
-               //      txDataContent.forEach(item => {
-               //           console.debug(`ite ${item.key} ${item.value}`);
-               //           const row = document.createElement('div');
-               //           row.className = 'result-row';
-               //           row.innerHTML = `
-               //       <div class="result-cell key">${item.key}</div>
-               //       <div class="result-cell value">${item.value}</div>
-               //     `;
-               //           txDataTable.appendChild(row);
-               //      });
 
                const txDataDetails = document.createElement('details');
                txDataDetails.className = 'nested-object';
@@ -2559,21 +2549,25 @@ export class UtilsService {
                     const nodeHeader = document.createElement('div');
                     nodeHeader.className = 'result-row result-header';
                     nodeHeader.innerHTML = `
-                <div class="result-cell key">Key</div>
-                <div class="result-cell value">Value</div>
-              `;
+        <div class="result-cell key">Key</div>
+        <div class="result-cell value">Value</div>
+    `;
                     nodeTable.appendChild(nodeHeader);
 
                     node.content.forEach(item => {
                          const row = document.createElement('div');
                          row.className = 'result-row';
-                         row.innerHTML = `
-                  <div class="result-cell key">${item.key}</div>
-                  <div class="result-cell value">${item.value || ''}</div>
-                `;
+
                          if (item.content) {
+                              // Keep proper key + value structure
+                              row.innerHTML = `<div class="result-cell key">${item.key}</div>`;
+
+                              const valueCell = document.createElement('div');
+                              valueCell.className = 'result-cell value';
+
                               const nestedDetails = document.createElement('details');
                               nestedDetails.className = 'nested-object';
+
                               const nestedSummary = document.createElement('summary');
                               nestedSummary.textContent = item.key;
                               nestedDetails.appendChild(nestedSummary);
@@ -2583,25 +2577,35 @@ export class UtilsService {
                               const nestedHeader = document.createElement('div');
                               nestedHeader.className = 'result-row result-header';
                               nestedHeader.innerHTML = `
-                    <div class="result-cell key">Key</div>
-                    <div class="result-cell value">Value</div>
-                  `;
+        <div class="result-cell key">Key</div>
+        <div class="result-cell value">Value</div>
+    `;
                               nestedTable.appendChild(nestedHeader);
 
                               item.content.forEach((nestedItem: { key: string; value?: string }) => {
                                    const nestedRow = document.createElement('div');
                                    nestedRow.className = 'result-row';
                                    nestedRow.innerHTML = `
-                      <div class="result-cell key">${nestedItem.key}</div>
-                      <div class="result-cell value">${nestedItem.value || ''}</div>
-                    `;
+            <div class="result-cell key">${nestedItem.key}</div>
+            <div class="result-cell value">${nestedItem.value || ''}</div>
+        `;
                                    nestedTable.appendChild(nestedRow);
                               });
+
                               nestedDetails.appendChild(nestedTable);
-                              row.appendChild(nestedDetails);
+                              valueCell.appendChild(nestedDetails);
+                              row.appendChild(valueCell);
+                         } else {
+                              // Normal key-value row
+                              row.innerHTML = `
+                <div class="result-cell key">${item.key}</div>
+                <div class="result-cell value">${item.value || ''}</div>
+            `;
                          }
+
                          nodeTable.appendChild(row);
                     });
+
                     nodeDetails.appendChild(nodeTable);
                     affectedNodesDetails.appendChild(nodeDetails);
                });
@@ -2615,22 +2619,6 @@ export class UtilsService {
 
           container.appendChild(details);
 
-          // Toggle event listeners
-          // document.querySelectorAll('.result-section, .nested-object').forEach(details => {
-          //      const summary = details.querySelector('summary');
-          //      if (summary) {
-          //           const title = summary.textContent;
-          //           const savedState = localStorage.getItem(`collapse_${title}`);
-          //           if (savedState === 'closed') details.removeAttribute('open');
-          //           else details.setAttribute('open', 'open');
-          //           details.addEventListener('toggle', () => {
-          //                localStorage.setItem(`collapse_${title}`, (details as HTMLDetailsElement).open ? 'open' : 'closed');
-          //                container.offsetHeight;
-          //                container.style.height = 'auto';
-          //           });
-          //      }
-          // });
-          // Add toggle event listeners (unchanged)
           document.querySelectorAll('.result-section, .nested-object').forEach(details => {
                const summary = details.querySelector('summary');
                if (summary) {
