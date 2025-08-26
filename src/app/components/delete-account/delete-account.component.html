@@ -2,7 +2,7 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
@@ -19,9 +19,9 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" #accountName1Field id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
                                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="account1">Deleted Account</label>
+                                        <label for="account1">Account 1</label>
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
@@ -31,7 +31,9 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" #accountAddress1Field id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account2">Account 2</label>
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
@@ -41,7 +43,9 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" #accountSeed1Field id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="accountIssuer">Account 3</label>
                                    </td>
                               </tr>
                               <tr>
