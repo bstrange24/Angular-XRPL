@@ -70,7 +70,16 @@ export class StorageService {
      }
 
      // Store a generic key-value pair
+     // set(key: string, value: any): void {
+     //      localStorage.setItem(key, JSON.stringify(value));
+     // }
+
      set(key: string, value: any): void {
+          if (value === undefined) {
+               // Don't store "undefined" string
+               localStorage.removeItem(key);
+               return;
+          }
           localStorage.setItem(key, JSON.stringify(value));
      }
 
@@ -79,16 +88,6 @@ export class StorageService {
           const value = localStorage.getItem(key);
           return value ? JSON.parse(value) : null;
      }
-
-     // get<T>(key: string): T | null {
-     //      const item = localStorage.getItem(key);
-     //      if (!item) return null;
-     //      try {
-     //           return JSON.parse(item) as T;
-     //      } catch {
-     //           return null;
-     //      }
-     // }
 
      // Store knownIssuers object
      setKnownIssuers(key: string, knownIssuers: { [key: string]: string }): void {

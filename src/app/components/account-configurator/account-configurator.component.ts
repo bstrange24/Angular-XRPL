@@ -17,6 +17,12 @@ interface SignerEntry {
      SingnerSeed: string;
 }
 
+interface SignerEntry {
+     account: string;
+     seed: string;
+     weight: number;
+}
+
 interface RegularKeyEntry {
      Account: string;
      RegularKeySeed: string;
@@ -72,16 +78,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isSetRegularKey: boolean = false;
      regularKeyAccount: string = '';
      regularKeyAccountSeed: string = '';
-     signer1Account: string = '';
-     signer2Account: string = '';
-     signer3Account: string = '';
-     signer1Seed: string = '';
-     signer2Seed: string = '';
-     signer3Seed: string = '';
-     signer1Weight: string = '';
-     signer2Weight: string = '';
-     signer3Weight: string = '';
-     signerQuorum: string = '';
+     signerQuorum: number = 0;
      multiSignSeeds: string = '';
      nfTokenMinterAddress: string = '';
      isUpdateMetaData: boolean = false;
@@ -119,8 +116,17 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     ngAfterViewInit() {
-          this.cdr.detectChanges();
+     ngOnInit(): void {}
+
+     async ngAfterViewInit() {
+          try {
+               const wallet = await this.getWallet();
+               this.loadSignerList(wallet.classicAddress);
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
+          }
      }
 
      ngAfterViewChecked() {
@@ -160,10 +166,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      validateQuorum() {
           // Example validation: quorum <= sum of weights
-          // const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
-          // if (this.signerQuorum > totalWeight) {
-          //      this.signerQuorum = totalWeight;
-          // }
+          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          if (this.signerQuorum > totalWeight) {
+               this.signerQuorum = totalWeight;
+          }
           this.cdr.detectChanges();
      }
 
@@ -282,12 +288,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     toggleMultiSign() {
-          // if (!this.isMultiSign) {
-          //      this.signers = [{ account: '', seed: '', weight: 1 }];
-          //      this.signerQuorum = 0;
-          // }
-          this.cdr.detectChanges();
+     async toggleMultiSign() {
+          try {
+               if (!this.isMultiSign) {
+                    this.clearSignerList();
+               } else {
+                    const wallet = await this.getWallet();
+                    this.loadSignerList(wallet.classicAddress);
+               }
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
+          }
      }
 
      addSigner() {
@@ -298,21 +311,30 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.signers.splice(index, 1);
      }
 
-     toggleUseMultiSign() {
-          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-               this.multiSignSeeds = '';
-               this.cdr.detectChanges();
-               return;
-          }
+     async toggleUseMultiSign() {
+          try {
+               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+                    this.multiSignSeeds = '';
+                    this.cdr.detectChanges();
+                    return;
+               }
 
-          if (this.useMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
-               const signers = this.storageService.get('signerEntries');
-               const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
-               const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
-               this.multiSignAddress = addresses;
-               this.multiSignSeeds = seeds;
+               // const wallet = await this.getWallet();
+
+               // const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+               // if (this.useMultiSign && this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
+               //      console.log(`toggleUseMultiSign: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+               //      const signers = this.storageService.get(singerEntriesAccount);
+               //      const addresses = signers.map((item: { SignerEntry: any }) => item.SignerEntry.Account + ',\n').join('');
+               //      const seeds = signers.map((item: { SignerEntry: any }) => item.SignerEntry.seed + ',\n').join('');
+               //      this.multiSignAddress = addresses;
+               //      this.multiSignSeeds = seeds;
+               // }
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
           }
-          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -364,13 +386,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                console.debug('accountInfo', accountInfo);
@@ -399,13 +416,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.showSpinnerWithDelay('Getting Account Details...', 200);
 
@@ -416,29 +428,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
-               }
-
-               const signerAccounts: string[] = this.checkForSignerAccounts(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
-               if (signerAccounts && signerAccounts.length > 0) {
-                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
-                         // const signerEntries: SignerEntry[] = this.storageService.get<SignerEntry[]>('signerEntries') || [];
-
-                         this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
-                         this.multiSignSeeds = signerAccounts
-                              .map(account => {
-                                   const address = account.split('~')[0];
-                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
-                                   return entry ? entry.SingnerSeed : null;
-                              })
-                              .filter(seed => seed !== null)
-                              .join(',\n');
-                         this.isMultiSign = true;
-                    }
-               } else {
-                    this.multiSignAddress = 'No Multi-Sign address configured for account';
-                    this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-                    this.isMultiSign = false;
                }
 
                // Set flags from account info
@@ -452,8 +441,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.refreshUiIAccountMetaData(accountInfo.result);
-               this.refreshUiAccountObjects(accountObjects);
+               this.refreshUiAccountObjects(accountObjects, wallet);
                this.refreshUiAccountInfo(accountInfo);
+               this.loadSignerList(wallet.classicAddress);
                this.setSuccess(this.result);
 
                await this.updateXrpBalance(client, wallet);
@@ -486,14 +476,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.clearUiIAccountMetaData();
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.updateSpinnerMessage('Updating Account Flags...');
 
@@ -559,7 +543,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.memoField = '';
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -597,11 +581,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     useRegularKeyWalletSignTx = true;
                }
 
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.updateSpinnerMessage('Updating Meta Data...');
 
@@ -755,7 +735,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.memoField = '';
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -805,11 +785,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     useRegularKeyWalletSignTx = true;
                }
 
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                // Validate: Self-address not included
                const selfAddress = wallet.classicAddress;
@@ -945,18 +921,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     const response = await client.submitAndWait(signedTx.tx_blob);
                     console.log('Submit Response:', JSON.stringify(response, null, 2));
 
-                    // // Check XRP balance for each transaction
-                    // if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
-                    //      return this.setError(`ERROR: Insufficient XRP to complete transaction for ${authorizedAddress}`);
-                    // }
-
-                    // this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
-
-                    // // Submit transaction
-                    // const response = await client.submitAndWait(depositPreauthTx, { wallet });
-                    // const result = response.result;
-                    // results.push({ result });
-
                     // Check transaction result
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Response for ${authorizedAddress}: ${JSON.stringify(response, null, 2)}`);
@@ -979,7 +943,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.memoField = '';
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1006,16 +970,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
-
-               console.log(`this.signer1Account ${this.signer1Account} this.signer2Account ${this.signer2Account} this.signer3Account ${this.signer3Account}`);
-               console.log(`this.signer1Weight ${this.signer1Weight} this.signer2Weight ${this.signer2Weight} this.signer3Weight ${this.signer3Weight} this.signerQuorum ${this.signerQuorum}`);
+               const wallet = await this.getWallet();
 
                this.updateSpinnerMessage('Setting Multi Sign...');
 
@@ -1025,18 +981,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let signerEntries;
                if (enableMultiSignFlag === 'Y') {
                     // Create array of signer accounts and their weights
-                    // const signerEntries = this.signers
-                    //      .filter(s => s.account && s.weight > 0)
-                    //      .map(s => ({
-                    //           Account: s.account,
-                    //           SignerWeight: Number(s.weight),
-                    //           SingnerSeed: s.seed,
-                    //      }));
-                    signerEntries = [
-                         { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight), SingnerSeed: this.signer1Seed },
-                         { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight), SingnerSeed: this.signer2Seed },
-                         { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight), SingnerSeed: this.signer3Seed },
-                    ].filter(entry => entry.Account && entry.SignerWeight > 0); // Filter out empty or invalid entries
+                    signerEntries = this.signers
+                         .filter(s => s.account && s.weight > 0)
+                         .map(s => ({
+                              Account: s.account,
+                              SignerWeight: Number(s.weight),
+                              seed: s.seed,
+                         }));
 
                     // Validate: At least one valid signer
                     if (!signerEntries.length) {
@@ -1076,6 +1027,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     if (SignerQuorum <= 0) {
                          return this.setError('ERROR: Quorum must be greater than 0');
                     }
+
+                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+                    this.storageService.set(singerEntriesAccount, signerEntries);
 
                     // Format SignerEntries for XRPL transaction
                     const formattedSignerEntries = signerEntries.map(entry => ({
@@ -1207,14 +1161,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.setSuccess(this.result);
 
                if (enableMultiSignFlag === 'Y') {
-                    this.storageService.set('signerEntries', signerEntries);
+                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+                    this.storageService.set(singerEntriesAccount, signerEntries);
                } else {
                     this.storageService.removeValue('signerEntries');
-                    this.signerQuorum = '';
+                    this.signerQuorum = 0;
                }
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1247,11 +1202,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -1305,14 +1256,16 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     const signerAccounts: string[] = this.checkForSignerAccounts(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
                     if (signerAccounts && signerAccounts.length > 0) {
                          if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                              const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+                              const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+                              const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
+                              console.log(`setRegularKey: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
                               signerAddresses = signerAccounts.map(account => account?.split('~')[0]).filter((address): address is string => address !== undefined && address !== '');
 
                               signerSeeds = signerAccounts
                                    .map(account => {
                                         const address = account?.split('~')[0];
-                                        const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
-                                        return entry?.SingnerSeed;
+                                        const entry = signerEntries.find((entry: SignerEntry) => entry.account === address);
+                                        return entry?.seed;
                                    })
                                    .filter((seed): seed is string => seed !== undefined && seed !== '');
                          }
@@ -1370,7 +1323,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1410,11 +1363,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           try {
                const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.updateSpinnerMessage('Setting NFT Minter...');
 
@@ -1513,7 +1462,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.memoField = '';
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1530,8 +1479,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
 
-          const { net, environment } = this.xrplService.getNet();
-
           if (flagPayload.SetFlag) {
                const flagToUpdate = Array.from(AppConstants.FLAGS.values()).find((flag: any) => flag.value === flagPayload.SetFlag);
                this.updateSpinnerMessage(`Submitting ${flagToUpdate ? flagToUpdate.label : 'Flag'} set flag to the Ledger...`);
@@ -1542,15 +1489,17 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage(`Submitting ${flagToUpdate ? flagToUpdate.label : 'Flag'} clear flag to the Ledger...`);
           }
 
-          let regularKeyWalletSignTx: any = '';
-          let useRegularKeyWalletSignTx = false;
-          if (this.isSetRegularKey && !this.isMultiSign) {
-               console.log('Using Regular Key Seed for transaction signing');
-               regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
-               useRegularKeyWalletSignTx = true;
-          }
-
           try {
+               const { net, environment } = this.xrplService.getNet();
+
+               let regularKeyWalletSignTx: any = '';
+               let useRegularKeyWalletSignTx = false;
+               if (this.isSetRegularKey && !this.isMultiSign) {
+                    console.log('Using Regular Key Seed for transaction signing');
+                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
+                    useRegularKeyWalletSignTx = true;
+               }
+
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -1742,59 +1691,22 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           return null;
      }
 
-     refreshUiAccountObjects(accountObjects: any) {
+     refreshUiAccountObjects(accountObjects: any, wallet: any) {
           const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
           if (signerAccounts && signerAccounts.length > 0) {
                if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
+                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
+                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
 
-                    // Assign account addresses and weights
-                    this.signer1Account = signerAccounts[0]?.split('~')[0] || '';
-                    this.signer1Weight = signerAccounts[0]?.split('~')[1] || '';
-                    this.signer1Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer1Account)?.SingnerSeed || '';
-
-                    this.signer2Account = signerAccounts[1]?.split('~')[0] || '';
-                    this.signer2Weight = signerAccounts[1]?.split('~')[1] || '';
-                    this.signer2Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer2Account)?.SingnerSeed || '';
-
-                    this.signer3Account = signerAccounts[2]?.split('~')[0] || '';
-                    this.signer3Weight = signerAccounts[2]?.split('~')[1] || '';
-                    this.signer3Seed = signerEntries.find((entry: SignerEntry) => entry.Account === this.signer3Account)?.SingnerSeed || '';
-
-                    let signerEntries_ = [
-                         { Account: this.signer1Account, SignerWeight: Number(this.signer1Weight), SingnerSeed: this.signer1Seed },
-                         { Account: this.signer2Account, SignerWeight: Number(this.signer2Weight), SingnerSeed: this.signer2Seed },
-                         { Account: this.signer3Account, SignerWeight: Number(this.signer3Weight), SingnerSeed: this.signer3Seed },
-                    ].filter(entry => entry.Account && entry.SignerWeight > 0); // Filter out empty or invalid entries
-
-                    // this.signers = signerAccounts.map(acc => {
-                    //      const [account, weight] = acc.split('~');
-                    //      const seed = signerEntries.find(e => e.Account === account)?.SingnerSeed || '';
-                    //      return { account, seed, weight: Number(weight) };
-                    // });
-
-                    this.storageService.removeValue('signerEntries');
-                    this.storageService.set('signerEntries', signerEntries_);
-
-                    const addresses = signerEntries_.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries_.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
-                    // this.storageService.set('signerEntries', this.signers);
-                    // this.multiSignAddress = this.signers.map(s => s.account).join(',\n');
-                    // this.multiSignSeeds = this.signers.map(s => s.seed).join(',\n');
-                    this.multiSignAddress = addresses;
+                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
+                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
                     this.multiSignSeeds = seeds;
+                    this.multiSignAddress = addresses;
                     this.isMultiSign = true;
                }
           } else {
-               this.signer1Account = '';
-               this.signer1Weight = '';
-               this.signer1Seed = '';
-               this.signer2Account = '';
-               this.signer2Weight = '';
-               this.signer2Seed = '';
-               this.signer3Account = '';
-               this.signer3Weight = '';
-               this.signer3Seed = '';
+               this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = ''; // Clear seeds if no signer accounts
                this.isMultiSign = false;
@@ -1859,13 +1771,41 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          obj.SignerEntries.forEach((entry: any) => {
                               if (entry.SignerEntry && entry.SignerEntry.Account) {
                                    signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
-                                   this.signerQuorum = obj.SignerQuorum.toString();
+                                   this.signerQuorum = obj.SignerQuorum;
                               }
                          });
                     }
                });
           }
           return signerAccounts;
+     }
+
+     loadSignerList(account: string) {
+          const singerEntriesAccount = account + 'signerEntries';
+          if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
+               this.signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
+                    account: s.Account,
+                    seed: s.seed,
+                    weight: s.SignerWeight,
+               }));
+          } else {
+               this.clearSignerList();
+          }
+     }
+
+     clearSignerList() {
+          this.signers = [{ account: '', seed: '', weight: 1 }];
+          this.signerQuorum = 0;
+     }
+
+     async getWallet() {
+          const { net, environment } = this.xrplService.getNet();
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
      }
 
      isValidResponse(response: any): response is { success: boolean; message: xrpl.TxResponse<xrpl.SubmittableTransaction> | string } {

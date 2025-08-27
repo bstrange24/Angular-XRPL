@@ -170,6 +170,27 @@ input:read-only {
      color: #4CAF50;
 }
 
+.multisignMultiAddress {
+     color: #4CAF50;
+}
+
+.multisignMultiAddressAccount {
+     background: #1a1c21;
+     color: #fff;
+     border: none;
+     border-radius: 10px;
+     border: 1px solid white;
+     cursor: pointer;
+}
+
+.signer-label {
+     display: inline-block;
+     width: 80px;
+     /* same width for all labels */
+     text-align: right;
+     margin-right: 10px;
+}
+
 button {
      padding: 10px 1px;
      margin: 10px 5px;
