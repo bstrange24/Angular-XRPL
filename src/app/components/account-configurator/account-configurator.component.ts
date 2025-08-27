@@ -389,6 +389,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
+               this.showSpinnerWithDelay('Toggle Meta Data ...', 250);
+
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                console.debug('accountInfo', accountInfo);
                this.refreshUiIAccountMetaData(accountInfo.result);
@@ -575,7 +577,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
-               if (this.isSetRegularKey && !this.isMultiSign) {
+               if (this.isSetRegularKey && !this.useMultiSign) {
                     console.log('Using Regular Key Seed for transaction signing');
                     regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
                     useRegularKeyWalletSignTx = true;
@@ -658,7 +660,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (updatedData) {
                     let signedTx: { tx_blob: string; hash: string } | null = null;
 
-                    if (this.isMultiSign) {
+                    if (this.useMultiSign) {
                          const signerAddresses = this.multiSignAddress
                               .split(',')
                               .map(s => s.trim())
@@ -779,7 +781,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
-               if (this.isSetRegularKey && !this.isMultiSign) {
+               if (this.isSetRegularKey && !this.useMultiSign) {
                     console.log('Using Regular Key Seed for transaction signing');
                     regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
                     useRegularKeyWalletSignTx = true;
@@ -866,7 +868,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     let signedTx: { tx_blob: string; hash: string } | null = null;
 
-                    if (this.isMultiSign) {
+                    if (this.useMultiSign) {
                          const signerAddresses = this.multiSignAddress
                               .split(',')
                               .map(s => s.trim())
@@ -1249,7 +1251,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     let signerAddresses: string[] = [];
                     let signerSeeds: string[] = [];
 
@@ -1494,7 +1496,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
-               if (this.isSetRegularKey && !this.isMultiSign) {
+               if (this.isSetRegularKey && !this.useMultiSign) {
                     console.log('Using Regular Key Seed for transaction signing');
                     regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeyAccountSeed, environment);
                     useRegularKeyWalletSignTx = true;
@@ -1535,7 +1537,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.multiSignAddress
                          .split(',')
                          .map(s => s.trim())
@@ -1571,6 +1573,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     console.log('Tx:', JSON.stringify(tx, null, 2));
                     const preparedTx = await client.autofill(tx);
                     if (useRegularKeyWalletSignTx) {
+                         console.log('Using RegularKey to sign transaction');
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
                          signedTx = wallet.sign(preparedTx);
@@ -1703,7 +1706,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
                     this.multiSignSeeds = seeds;
                     this.multiSignAddress = addresses;
-                    this.isMultiSign = true;
+                    // this.isMultiSign = true;
                }
           } else {
                this.signerQuorum = 0;
@@ -1753,7 +1756,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               this.isSetRegularKey = true;
+               // this.isSetRegularKey = true;
                this.regularKeyAccount = accountInfo.result.account_data.RegularKey;
                this.regularKeyAccountSeed = this.storageService.get('regularKeySeed');
           } else {
@@ -1780,6 +1783,16 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
+     async getWallet() {
+          const { net, environment } = this.xrplService.getNet();
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
+     }
+
      loadSignerList(account: string) {
           const singerEntriesAccount = account + 'signerEntries';
           if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
@@ -1796,16 +1809,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      clearSignerList() {
           this.signers = [{ account: '', seed: '', weight: 1 }];
           this.signerQuorum = 0;
-     }
-
-     async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
-          if (!wallet) {
-               throw new Error('ERROR: Wallet could not be created or is undefined');
-          }
-          return wallet;
      }
 
      isValidResponse(response: any): response is { success: boolean; message: xrpl.TxResponse<xrpl.SubmittableTransaction> | string } {
@@ -1826,6 +1829,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.ticketSequence = '';
           this.isTicket = false;
           this.isMultiSign = false;
+          this.useMultiSign = false;
           this.multiSignAddress = '';
           this.isUpdateMetaData = false;
           this.cdr.detectChanges();

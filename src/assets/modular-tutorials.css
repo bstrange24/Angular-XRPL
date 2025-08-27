@@ -1585,7 +1585,8 @@ mark {
 }
 
 .spinner-container {
-     position: absolute;
+     /* position: absolute; */
+     position: fixed;
      top: 20%;
      left: 50%;
      transform: translate(-50%, -50%);
@@ -1609,7 +1610,7 @@ mark {
      /* color: #4CAF50; */
      border-radius: 50%;
      animation: spin 1s linear infinite;
-     margin: 10px auto;
+     /* margin: 10px auto; */
 }
 
 .spinner-text {
@@ -1630,6 +1631,25 @@ mark {
 
 @media (max-width: 600px) {
      .spinner-container {
+          width: 100vw;
+          height: 100vh;
+          padding: 15px;
+     }
+
+     .spinner {
+          width: 30px;
+          height: 30px;
+          border-width: 3px;
+     }
+
+     .spinner-text {
+          font-size: 13px;
+          max-width: 200px;
+     }
+}
+
+/* @media (max-width: 600px) {
+     .spinner-container {
           min-width: 200px;
           max-width: 80%;
           padding: 15px;
@@ -1645,7 +1665,7 @@ mark {
           font-size: 13px;
           max-width: 200px;
      }
-}
+} */
 
 .nft-note {
      color: white;

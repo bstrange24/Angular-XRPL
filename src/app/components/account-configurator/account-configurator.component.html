@@ -602,7 +602,6 @@
                               </td>
                          </tr>
                          <!-- End Meta Data Section -->
-                         <!-- Start Multi-Sign Section -->
                          <!-- Enable Multi-Sign Toggle -->
                          <tr style="vertical-align: top">
                               <td style="text-align: right">
@@ -669,54 +668,11 @@
                               </tr>
                          </ng-container>
                          <!-- End Multi-Sign Section -->
-                         <!-- Start Regular Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Check this to enable Set Regular Key">
-                                        <label>Enable Set Regular Key</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="isSetRegularKeyData" [(ngModel)]="isSetRegularKey" (ngModelChange)="toggleMultiSign()" name="isSetRegularKeyData" />
-                                        <span class="slider round"></span>
-                                   </label>
-                                   <label for="isSetRegularKeyData"></label>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Add address to set regular key.">
-                                        <label for="regularKeyAccount">Account</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <input type="text" id="regularKeyAccount" placeholder="Enter Regular Key Address" size="40" [(ngModel)]="regularKeyAccount" name="regularKeyAccount" />
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Add seed to set regular key. This is a comma separated list">
-                                        <label for="regularKeySeed">Seed</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <input type="text" id="regularKeySeed" size="40" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeyAccountSeed" name="regularKeySeed" />
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
-                              <td></td>
-                              <td>
-                                   <button type="button" (click)="setRegularKey('Y')">Set Regular Key</button>
-                                   <button type="button" (click)="setRegularKey('N')">Remove Regular Key</button>
-                              </td>
-                         </tr>
-                         <!-- End Regular Key Section -->
                          <!-- Start Enabled Multi-Sign Section -->
                          <tr style="vertical-align: top">
                               <td style="text-align: right">
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                        <label>Use Multi-Sign Address</label>
+                                        <label>Use Multi-Sign</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -759,6 +715,49 @@
                               </td>
                          </tr>
                          <!-- End Enabled Multi-Sign Section -->
+                         <!-- Start Regular Key Section -->
+                         <tr style="vertical-align: top">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Check this to enable Set Regular Key">
+                                        <label>Setup/Use Regular Key</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isSetRegularKeyData" [(ngModel)]="isSetRegularKey" (ngModelChange)="toggleMultiSign()" name="isSetRegularKeyData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isSetRegularKeyData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Add address to set regular key.">
+                                        <label for="regularKeyAccount">Account</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeyAccount" placeholder="Enter Regular Key Address" size="40" [(ngModel)]="regularKeyAccount" name="regularKeyAccount" />
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
+                              <td style="text-align: right">
+                                   <span class="tooltip" tooltip-data="Add seed to set regular key. This is a comma separated list">
+                                        <label for="regularKeySeed">Seed</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeySeed" size="40" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeyAccountSeed" name="regularKeySeed" />
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
+                              <td></td>
+                              <td>
+                                   <button type="button" (click)="setRegularKey('Y')">Set Regular Key</button>
+                                   <button type="button" (click)="setRegularKey('N')">Remove Regular Key</button>
+                              </td>
+                         </tr>
+                         <!-- End Regular Key Section -->
                          <!-- Start Ticket Section -->
                          <tr style="vertical-align: top">
                               <td style="text-align: right">
