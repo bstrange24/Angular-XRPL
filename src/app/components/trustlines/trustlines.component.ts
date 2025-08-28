@@ -127,7 +127,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.knownTrustLinesIssuers = storedIssuers;
           }
           this.updateCurrencies();
-          this.currencyField = this.currencies[0] || ''; // Set default selected currency if available
+          // this.currencyField = this.currencies[0] || ''; // Set default selected currency if available
+          this.currencyField = 'BOB'; // Set default selected currency if available
      }
 
      async ngAfterViewInit() {
@@ -809,9 +810,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return;
                }
 
-               // console.log(parseBalanceChanges(response.result.meta));
-               // var parseBalanceChanges = require(‘ripple-lib-transactionparser’).parseBalanceChanges; … var balanceChanges = parseBalanceChanges(transactionResponse.meta);
-
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1015,14 +1013,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     const response = await client.submitAndWait(signedTx.tx_blob);
                     console.log('Response', response);
 
-                    // if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
-                    //      return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    // }
-
-                    // const preparedAccountSet = await client.autofill(accountSetTx);
-                    // const signedAccountSet = wallet.sign(preparedAccountSet);
-                    // tx = await client.submitAndWait(signedAccountSet.tx_blob);
-
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -1145,14 +1135,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Response', response);
 
-               // if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, paymentTx, fee)) {
-               //      return this.setError('ERROR: Insufficent XRP to complete transaction');
-               // }
-
-               // const pay_prepared = await client.autofill(paymentTx);
-               // const pay_signed = wallet.sign(pay_prepared);
-               // const pay_result = await client.submitAndWait(pay_signed.tx_blob);
-
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -1243,23 +1225,16 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      async onCurrencyChange() {
-          const currencyField = document.getElementById('currencyField') as HTMLInputElement | null;
-          const currencyBalanceField = document.getElementById('currencyBalanceField') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
           if (!this.selectedAccount) {
                this.setError('Please select an account');
-               if (currencyBalanceField) {
-                    currencyBalanceField.value = '0';
-               }
+               this.currencyBalanceField = '0';
                this.setErrorProperties();
                return;
           }
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
-               if (currencyBalanceField) {
-                    currencyBalanceField.value = '0';
-               }
+               this.currencyBalanceField = '0';
                this.setErrorProperties();
                return;
           }
@@ -1269,17 +1244,13 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.spinner = true;
                let balance: string;
-               const currencyCode = currencyField && currencyField.value.length > 3 ? this.utilsService.encodeCurrencyCode(currencyField.value) : currencyField ? currencyField.value : '';
-               if (accountAddress1Field) {
-                    const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountAddress1Field);
+               const currencyCode = this.currencyField && this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField ? this.currencyField : '';
+               if (address) {
+                    const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, address);
                     balance = balanceResult !== null ? balanceResult.toString() : '0';
-                    if (currencyBalanceField) {
-                         currencyBalanceField.value = balance;
-                    }
+                    this.currencyBalanceField = balance;
                } else {
-                    if (currencyBalanceField) {
-                         currencyBalanceField.value = '0';
-                    }
+                    this.currencyBalanceField = '0';
                }
 
                // Fetch token balances
@@ -1394,9 +1365,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.destinationField = this.knownTrustLinesIssuers[this.currencyField];
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
-               if (currencyBalanceField) {
-                    currencyBalanceField.value = '0';
-               }
+               this.currencyBalanceField = '0';
                return this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;

@@ -3344,10 +3344,10 @@ export class UtilsService {
           }
      }
 
-     async getCurrencyBalance(currency: string, accountAddressField: HTMLElement) {
+     async getCurrencyBalance(currency: string, accountAddressField: string) {
           try {
-               const address = accountAddressField && 'value' in accountAddressField ? (accountAddressField as HTMLInputElement).value : '';
-               const response = await this.getAccountObjects(address);
+               // const address = accountAddressField && 'value' in accountAddressField ? (accountAddressField as HTMLInputElement).value : '';
+               const response = await this.getAccountObjects(accountAddressField);
                let accountObjects: any[] = [];
                if (response && !Array.isArray(response) && response.result && Array.isArray(response.result.account_objects)) {
                     accountObjects = response.result.account_objects;

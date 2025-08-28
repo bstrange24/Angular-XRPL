@@ -99,7 +99,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="currencyField" style="width: 280px; height: 25px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                        <select class="timeUnit" id="currencyField" style="width: 320px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
                                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
                                         </select>
                                         <p></p>
@@ -112,7 +112,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                        <input type="text" id="amountField" size="44" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
                                    </td>
                               </tr>
                               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
@@ -122,7 +122,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="issuerField" style="width: 280px; height: 25px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                        <select class="timeUnit" id="issuerField" style="width: 320px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
                                              <option value="" disabled selected>Select an issuer</option>
                                              <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
                                         </select>
@@ -136,7 +136,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="tokenBalance" size="40" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
+                                        <input type="text" id="tokenBalance" size="44" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
@@ -146,7 +146,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
+                                        <input type="text" id="destinationField" size="44" [(ngModel)]="destinationField" name="destinationField" />
                                         <br />
                                    </td>
                               </tr>
@@ -157,7 +157,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        <input type="text" id="destinationTagField" size="44" [(ngModel)]="destinationTagField" name="destinationTagField" />
                                         <br />
                                    </td>
                               </tr>
@@ -168,7 +168,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="expirationTimeField" placeholder="Enter time" size="40" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
+                                        <input type="text" id="expirationTimeField" placeholder="Enter time" size="44" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
                                         <select class="timeUnit" id="checkExpirationTime" [(ngModel)]="checkExpirationTime" name="checkExpirationTime">
                                              <option value="seconds">Seconds</option>
                                              <option value="minutes">Minutes</option>
@@ -184,7 +184,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="checkIdField" size="40" [(ngModel)]="checkIdField" name="checkIdField" />
+                                        <input type="text" id="checkIdField" size="44" [(ngModel)]="checkIdField" name="checkIdField" />
                                         <br />
                                    </td>
                               </tr>

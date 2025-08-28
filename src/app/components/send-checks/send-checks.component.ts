@@ -188,6 +188,11 @@ export class SendChecksComponent implements AfterViewChecked {
                          const tokenBalanceData = await this.utilsService.getTokenBalance(client, address, this.currencyFieldDropDownValue);
                          this.issuers = tokenBalanceData.issuers;
                          this.tokenBalance = tokenBalanceData.total.toString();
+                         const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, address);
+                         console.log(`balanceResult ${balanceResult}`);
+                         if (balanceResult) {
+                              this.tokenBalance = Math.abs(balanceResult).toString();
+                         }
                          if (this.selectedAccount === 'account1') {
                               this.account1.balance = tokenBalanceData.xrpBalance.toString();
                          } else {
@@ -221,7 +226,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');
-               console.debug('Check objects:', check_objects);
+               console.debug(`Check objects: ${JSON.stringify(check_objects, null, '\t')}`);
 
                const data = {
                     sections: [{}],
@@ -245,12 +250,10 @@ export class SendChecksComponent implements AfterViewChecked {
                               const InvoiceID = (check as any)['InvoiceID'];
                               const DestinationTag = (check as any)['DestinationTag'];
                               const SourceTag = (check as any)['SourceTag'];
-                              // const LedgerEntryType = (check as any)['LedgerEntryType'];
                               const PreviousTxnID = (check as any)['PreviousTxnID'];
                               const PreviousTxnLgrSeq = (check as any)['PreviousTxnLgrSeq'];
                               const Sequence = (check as any)['Sequence'];
                               const index = (check as any)['index'];
-                              // Use Amount if available, otherwise fall back to SendMax if present
                               const sendMax = (check as any).SendMax;
                               const amountValue = Amount || sendMax;
                               const amountDisplay = amountValue ? (typeof amountValue === 'string' ? `${xrpl.dropsToXrp(amountValue)} XRP` : `${amountValue.value} ${amountValue.currency} (<code>${amountValue.issuer}</code>)`) : 'N/A';
@@ -263,7 +266,6 @@ export class SendChecksComponent implements AfterViewChecked {
                                         { key: 'Check ID / Ledger Index', value: `<code>${index}</code>` },
                                         { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
                                         { key: 'Previous Txn Ledger Sequence', value: `<code>${PreviousTxnLgrSeq}</code>` },
-                                        // { key: 'Ledger Entry Type', value: LedgerEntryType },
                                         { key: Amount ? 'Amount' : 'SendMax', value: amountDisplay },
                                         { key: 'Sequence', value: `<code>${Sequence}</code>` },
                                         ...(Expiration ? [{ key: 'Expiration', value: new Date(Expiration * 1000).toLocaleString() }] : []),
@@ -334,9 +336,9 @@ export class SendChecksComponent implements AfterViewChecked {
                     return this.setError('ERROR: Token balance must be greater than 0');
                }
 
-               // if (parseFloat(balance.toString()) > parseFloat(this.amountField)) {
-               // return this.setError(`ERROR: Insufficient token balance. Amount is to high`);
-               // }
+               if (parseFloat(balance.toString()) < parseFloat(this.amountField)) {
+                    return this.setError(`ERROR: Insufficient token balance. Amount is to high`);
+               }
           }
 
           if (this.issuers && this.tokenBalance != '' && Number(this.tokenBalance) > 0 && this.issuers.length === 0) {
@@ -488,15 +490,6 @@ export class SendChecksComponent implements AfterViewChecked {
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
 
-               // console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-               // const signed = wallet.sign(tx);
-               // console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-
-               // this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-               // const response = await client.submitAndWait(signed.tx_blob);
-               // console.log('response', JSON.stringify(response, null, 2));
-
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -549,6 +542,16 @@ export class SendChecksComponent implements AfterViewChecked {
 
                const wallet = await this.getWallet();
 
+               if (this.currencyFieldDropDownValue !== AppConstants.XRP_CURRENCY) {
+                    const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');
+                    console.debug(`Check objects: ${JSON.stringify(check_objects, null, '\t')}`);
+                    const issuer = this.getIssuerForCheck(check_objects.result.account_objects, this.checkIdField);
+                    console.log('Issuer:', issuer);
+                    if (issuer) {
+                         this.selectedIssuer = issuer;
+                    }
+               }
+
                // Build amount object depending on currency
                const amountToCash =
                     this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY
@@ -582,15 +585,9 @@ export class SendChecksComponent implements AfterViewChecked {
                     tx.Sequence = getAccountInfo.result.account_data.Sequence;
                }
 
-               // if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-               //      if (await this.utilsService.isInsufficientXrpBalance(client, this.currencyFieldDropDownValue, wallet.classicAddress, tx, fee)) {
-               //           return this.setError('ERROR: Insufficent XRP to complete transaction');
-               //      }
-               // } else {
                if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
-               // }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
@@ -633,6 +630,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
+                    console.info(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                }
 
                console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
@@ -648,16 +646,6 @@ export class SendChecksComponent implements AfterViewChecked {
 
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
-
-               // console.log(`Cashing check for ${this.amountField} ${this.currencyFieldDropDownValue}`);
-               // console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-               // const signed = wallet.sign(tx);
-               // console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-
-               // this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-               // const response = await client.submitAndWait(signed.tx_blob);
-               // console.log('response', JSON.stringify(tx, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -805,16 +793,6 @@ export class SendChecksComponent implements AfterViewChecked {
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
 
-               // console.log(`Cancelling check for ${this.currencyFieldDropDownValue}`);
-               // console.log(`tx: ${JSON.stringify(tx, null, 2)}`);
-               // const signed = wallet.sign(tx);
-               // console.log(`signed: ${JSON.stringify(signed, null, 2)}`);
-               // const response = await client.submitAndWait(signed.tx_blob);
-
-               // this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-               // console.log('CheckCancel response', JSON.stringify(response, null, 2));
-
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
@@ -954,6 +932,11 @@ export class SendChecksComponent implements AfterViewChecked {
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
           }
+     }
+
+     getIssuerForCheck(checks: any[], checkIndex: string): string | null {
+          const check = checks.find(c => c.index === checkIndex);
+          return check?.SendMax?.issuer || null;
      }
 
      private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; checkId?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {

@@ -273,7 +273,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfNoFreeze = false;
           this.flags.asfGlobalFreeze = false;
           this.flags.asfDefaultRipple = true;
-          this.flags.asfDepositAuth = true;
+          this.flags.asfDepositAuth = false;
           // this.flags.asfAuthorizedNFTokenMinter = false;
           this.flags.asfAllowTrustLineClawback = false;
           this.flags.asfDisallowIncomingNFTokenOffer = true;
