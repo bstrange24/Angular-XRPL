@@ -1,3 +1,4 @@
+import { NgModule } from '@angular/core';
 import { MatSortModule, MatSort } from '@angular/material/sort';
 import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
 import { MatInputModule } from '@angular/material/input';
@@ -29,14 +30,13 @@ export class AccountChangesComponent {
      @ViewChild('accountForm') accountForm!: NgForm;
      @ViewChild(MatSort) sort!: MatSort;
      @ViewChild(MatPaginator) paginator!: MatPaginator;
-
      selectedAccount: 'account1' | 'account2' | null = 'account1'; // Initialize to 'account1' for default selection
      configurationType: 'holder' | 'exchanger' | 'issuer' | null = null; // New property to track configuration type
      displayedColumns: string[] = ['date', 'hash', 'type', 'change', 'currency', 'balanceBefore', 'balanceAfter', 'counterparty'];
      balanceChanges: any[] = []; // Array of processed tx with balance changes
      balanceChangesDataSource = new MatTableDataSource<any>(this.balanceChanges);
-     loadingMore = false;
-     hasMoreData = true;
+     loadingMore: boolean = false;
+     hasMoreData: boolean = true;
      marker: any = undefined; // For pagination
      currentBalance: number = 0; // Track running balance (start from current, subtract backwards since tx are newest-first)
      currencyBalances: Map<string, number> = new Map(); // Key: 'XRP' or 'currency+issuer'
@@ -48,12 +48,12 @@ export class AccountChangesComponent {
      account1 = { name: '', address: '', seed: '', balance: '' };
      account2 = { name: '', address: '', seed: '', balance: '' };
      issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     ownerCount = '';
-     totalXrpReserves = '';
-     executionTime = '';
-     isMessageKey = false;
+     ownerCount: string = '';
+     totalXrpReserves: string = '';
+     executionTime: string = '';
+     isMessageKey: boolean = false;
      spinnerMessage: string = '';
-     spinner = false;
+     spinner: boolean = false;
      url: string = '';
      filterValue: string = '';
 
@@ -61,6 +61,7 @@ export class AccountChangesComponent {
 
      ngAfterViewInit() {
           console.log('ngAfterViewInit: Viewport initialized:', this.viewport);
+          console.log('Balance changes data:', this.balanceChangesDataSource.data);
           if (this.viewport) {
                this.viewport.checkViewportSize(); // Force viewport to recalculate
           }
@@ -159,15 +160,10 @@ export class AccountChangesComponent {
                     this.marker = undefined;
                     this.hasMoreData = true;
 
-                    // Fetch current balances first (XRP + tokens)
-                    if (this.xrplService.getNet().environment === 'mainnet') {
-                         this.url = AppConstants.XRPL_WIN_URL.MAINNET;
-                    } else if (this.xrplService.getNet().environment === 'testnet') {
-                         this.url = AppConstants.XRPL_WIN_URL.TESTNET;
-                    } else {
-                         this.url = AppConstants.XRPL_WIN_URL.DEVNET;
-                    }
-                    // this.url = this.xrplService.getNet().environment === 'mainnet' ? AppConstants.XRPL_WIN_URL.MAINNET : AppConstants.XRPL_WIN_URL.TESTNET;
+                    type EnvKey = keyof typeof AppConstants.XRPL_WIN_URL; // "MAINNET" | "TESTNET" | "DEVNET"
+                    const env = this.xrplService.getNet().environment.toUpperCase() as EnvKey;
+                    this.url = AppConstants.XRPL_WIN_URL[env] || AppConstants.XRPL_WIN_URL.DEVNET;
+
                     const client = await this.xrplService.getClient();
                     const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
                     this.currentBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance); // XRP

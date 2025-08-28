@@ -36,10 +36,37 @@ export class XrplService {
           if (!this.client || !this.client.isConnected()) {
                const { net } = this.getNet();
                this.client = new xrpl.Client(net);
-               await this.client.connect();
+
+               // Retry configuration
+               const maxRetries = 5;
+               const retryDelay = 1000; // Delay in milliseconds between retries
+
+               for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                         await this.client.connect();
+                         if (this.client.isConnected()) {
+                              break; // Connection successful, exit retry loop
+                         }
+                    } catch (error: any) {
+                         if (attempt === maxRetries) {
+                              throw new Error(`Failed to connect to XRPL after ${maxRetries} attempts: ${error.message}`);
+                         }
+                         // Wait before retrying
+                         await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    }
+               }
           }
           return this.client;
      }
+
+     // async getClient(): Promise<xrpl.Client> {
+     //      if (!this.client || !this.client.isConnected()) {
+     //           const { net } = this.getNet();
+     //           this.client = new xrpl.Client(net);
+     //           await this.client.connect();
+     //      }
+     //      return this.client;
+     // }
 
      async disconnect() {
           if (this.client) {
