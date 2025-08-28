@@ -9,7 +9,6 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
-// import { parseBalanceChanges } from 'ripple-lib-transactionparser';
 
 interface SignerEntry {
      Account: string;
@@ -549,7 +548,7 @@ export class SendXrpComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

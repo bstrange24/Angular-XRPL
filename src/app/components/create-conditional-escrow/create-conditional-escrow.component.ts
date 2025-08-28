@@ -11,7 +11,6 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import * as cc from 'five-bells-condition';
-// import { parseBalanceChanges } from 'ripple-lib-transactionparser';
 
 interface EscrowObject {
      Account: string;
