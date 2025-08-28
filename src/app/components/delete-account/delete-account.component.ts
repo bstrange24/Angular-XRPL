@@ -420,7 +420,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      clearSignerList() {
           this.signers = [{ account: '', seed: '', weight: 1 }];
-          this.signerQuorum = 0;
+          // this.signerQuorum = 0;
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {

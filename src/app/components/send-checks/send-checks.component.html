@@ -310,6 +310,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <!-- Start Memo Section -->
                          <tr style="vertical-align: top">
                               <td style="text-align: right">
@@ -352,29 +353,42 @@
                                    <label for="isMultiSignAddressData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
-                                        <label for="multiSignAddress">Signer Addresses</label>
-                                   </span>
-                              </td>
+                         <tr *ngIf="isMultiSign">
+                              <td></td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
-                                        <label for="multiSignSeeds">Signer Seeds</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
-                              </td>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">Signer Quorum: </span>
-                                   <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                                   <br />
+                                   <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
+                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                                             <td style="text-align: right">
+                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
+                                                       <label for="multiSignAddress">Signer Addresses</label>
+                                                  </span>
+                                             </td>
+                                             <td>
+                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
+                                             <td style="text-align: right">
+                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
+                                                       <label for="multiSignSeeds">Signer Seeds</label>
+                                                  </span>
+                                             </td>
+                                             <td>
+                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr style="vertical-align: top" class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td style="text-align: right">
+                                                  <span class="tooltip" tooltip-data="Credential ID to remove credentials from the account.">
+                                                       <label for="credentialID">Signer Quorum:</label>
+                                                  </span>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                                                  <br />
+                                             </td>
+                                        </tr>
+                                   </fieldset>
                               </td>
                          </tr>
                          <!-- End Multi Sign Section -->

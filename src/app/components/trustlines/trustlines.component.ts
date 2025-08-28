@@ -5,11 +5,12 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TrustSet, TransactionMetadataBase, AccountSet, Payment, CredentialCreate, TrustSetFlags } from 'xrpl';
+import { TrustSet, TransactionMetadataBase, AccountSet, Payment, TrustSetFlags } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
+// import { parseBalanceChanges } from 'ripple-lib-transactionparser';
 
 interface TrustLine {
      currency: string;
@@ -18,6 +19,7 @@ interface TrustLine {
      balance: string;
      limit: string;
      limit_peer: string;
+     flags: number;
      no_ripple: boolean | undefined;
      no_ripple_peer: boolean | undefined;
      quality_in: number;
@@ -28,6 +30,12 @@ interface SignerEntry {
      Account: string;
      SignerWeight: number;
      SingnerSeed: string;
+}
+
+interface SignerEntry {
+     account: string;
+     seed: string;
+     weight: number;
 }
 
 @Component({
@@ -63,7 +71,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      multiSignAddress: string = '';
      isUpdateMetaData = false;
      multiSignSeeds: string = '';
-     signerQuorum: string = '';
+     signerQuorum: number = 0;
      memoField: string = '';
      isMemoEnabled = false;
      isRegularKeyAddress = false;
@@ -79,6 +87,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      newIssuer: string = '';
      tokenToRemove: string = '';
      showTrustlineOptions: boolean = false; // default off
+     signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      conflicts: { [key: string]: string[] } = {
           tfSetNoRipple: ['tfClearNoRipple'],
@@ -120,11 +129,17 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
           this.updateCurrencies();
           this.currencyField = this.currencies[0] || ''; // Set default selected currency if available
-          // this.onAccountChange();
      }
 
-     ngAfterViewInit() {
-          this.cdr.detectChanges();
+     async ngAfterViewInit() {
+          try {
+               const wallet = await this.getWallet();
+               this.loadSignerList(wallet.classicAddress);
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
+          }
      }
 
      ngAfterViewChecked() {
@@ -161,21 +176,33 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     toggleMultiSign() {
-          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-               this.multiSignSeeds = '';
+     async toggleMultiSign() {
+          try {
+               if (!this.isMultiSign) {
+                    this.clearSignerList();
+               } else {
+                    const wallet = await this.getWallet();
+                    this.loadSignerList(wallet.classicAddress);
+               }
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
                this.cdr.detectChanges();
-               return;
           }
+     }
 
-          if (this.isMultiSign && this.storageService.get('signerEntries') != null && this.storageService.get('signerEntries').length > 0) {
-               const signers = this.storageService.get('signerEntries');
-               const addresses = signers.map((item: { Account: any }) => item.Account + ',\n').join('');
-               const seeds = signers.map((item: { SingnerSeed: any }) => item.SingnerSeed + ',\n').join('');
-               this.multiSignAddress = addresses;
-               this.multiSignSeeds = seeds;
+     async toggleUseMultiSign() {
+          try {
+               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+                    this.multiSignSeeds = '';
+                    this.cdr.detectChanges();
+                    return;
+               }
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
           }
-          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -183,6 +210,10 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      validateQuorum() {
+          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          if (this.signerQuorum > totalWeight) {
+               this.signerQuorum = totalWeight;
+          }
           this.cdr.detectChanges();
      }
 
@@ -208,14 +239,8 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.showSpinnerWithDelay('Getting Trustlines...', 200);
 
@@ -228,28 +253,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
-
-               const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-               if (signerAccounts && signerAccounts.length > 0) {
-                    if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                         const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
-
-                         this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
-                         this.multiSignSeeds = signerAccounts
-                              .map(account => {
-                                   const address = account.split('~')[0];
-                                   const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
-                                   return entry ? entry.SingnerSeed : null;
-                              })
-                              .filter(seed => seed !== null)
-                              .join(',\n');
-                         this.isMultiSign = true;
-                    }
-               } else {
-                    this.multiSignAddress = 'No Multi-Sign address configured for account';
-                    this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-                    this.isMultiSign = false;
-               }
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
                console.debug(`Trust lines for ${wallet.classicAddress}:`, trustLines);
@@ -384,21 +387,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountInfo(accountInfo);
+               this.loadSignerList(wallet.classicAddress);
                this.setSuccess(this.result);
 
                this.isMemoEnabled = false;
                this.memoField = '';
                this.amountField = '';
-
-               if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-                    this.isRegularKeyAddress = true;
-                    this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
-                    this.regularKeySeed = this.storageService.get('regularKeySeed');
-               } else {
-                    this.isRegularKeyAddress = false;
-                    this.regularKeyAddress = 'No RegularKey configured for account';
-                    this.regularKeySeed = '';
-               }
 
                const currency = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
                const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
@@ -432,28 +428,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                     this.cdr.detectChanges();
                }
-
-               // const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
-
-               // if (rippleState && 'Flags' in rippleState) {
-               //      const flagsNumber = rippleState.Flags;
-
-               //      const flagMap: { [key: string]: number } = {
-               //           tfSetNoRipple: 0x00020000,
-               //           tfClearNoRipple: 0x00010000,
-               //           tfSetFreeze: 0x00100000,
-               //           tfClearFreeze: 0x00200000,
-               //           tfSetfAuth: 0x00040000,
-               //      };
-
-               //      Object.keys(this.trustlineFlags).forEach(key => {
-               //           this.trustlineFlags[key] = !!(Number(flagsNumber) & flagMap[key]);
-               //      });
-               // } else {
-               //      Object.keys(this.trustlineFlags).forEach(key => {
-               //           this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-               //      });
-               // }
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -495,11 +469,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     useRegularKeyWalletSignTx = true;
                }
 
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.updateSpinnerMessage('Setting Trustline...');
 
@@ -511,14 +481,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Cannot set both tfSetFreeze and tfClearFreeze');
                }
 
-               let cur;
-               if (this.currencyField.length > 3) {
-                    cur = this.utilsService.encodeCurrencyCode(this.currencyField);
-               } else {
-                    cur = this.currencyField;
-               }
+               let currencyFieldTemp: string = this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField;
 
-               if (!/^[A-Z0-9]{3}$|^[0-9A-Fa-f]{40}$/.test(cur)) {
+               if (!/^[A-Z0-9]{3}$|^[0-9A-Fa-f]{40}$/.test(currencyFieldTemp)) {
                     throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
                }
 
@@ -536,7 +501,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     TransactionType: 'TrustSet',
                     Account: wallet.classicAddress,
                     LimitAmount: {
-                         currency: cur,
+                         currency: currencyFieldTemp,
                          issuer: this.destinationField,
                          value: this.amountField,
                     },
@@ -681,11 +646,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     useRegularKeyWalletSignTx = true;
                }
 
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                // Validate flag combinations
                if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
@@ -717,6 +678,15 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return;
                }
 
+               for (const line of trustLines.result.lines) {
+                    const check = this.canRemoveTrustline(line);
+                    if (!check.canRemove) {
+                         return this.setError(`Cannot remove trustline ${line.currency}/${line.account}: ${check.reasons}`);
+                    } else {
+                         console.log(`Trustline ${line.currency}/${line.account} is removable ✅`);
+                    }
+               }
+
                if (trustLine.peer_authorized) {
                     return this.setError('ERROR: Cannot remove authorized trust line. Authorization flag prevents deletion.');
                }
@@ -726,11 +696,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError(`ERROR: Cannot remove trust line: Balance is ${trustLine.balance}. Balance must be 0.`);
                }
 
-               let currencyFieldTemp: string = '';
-               if (this.currencyField.length > 3) {
-                    // this.currencyField = this.utilsService.encodeCurrencyCode(this.currencyField);
-                    currencyFieldTemp = this.utilsService.encodeCurrencyCode(this.currencyField);
-               }
+               let currencyFieldTemp: string = this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField;
 
                let flags = 0;
                Object.keys(this.trustlineFlags).forEach(key => {
@@ -747,14 +713,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     Account: wallet.classicAddress,
                     LimitAmount: {
                          currency: currencyFieldTemp,
-                         // currency: this.currencyField,
                          issuer: this.destinationField,
                          value: '0',
                     },
-                    // SetFlags: xrpl.TrustSetFlags.tfSetNoRipple | xrpl.TrustSetFlags.tfClearFreeze,
-                    Flags: flags, // numeric bitmask of selected options
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
+
+               delete trustSetTx.Flags;
 
                if (this.ticketSequence) {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
@@ -845,6 +810,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return;
                }
 
+               // console.log(parseBalanceChanges(response.result.meta));
+               // var parseBalanceChanges = require(‘ripple-lib-transactionparser’).parseBalanceChanges; … var balanceChanges = parseBalanceChanges(transactionResponse.meta);
+
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -895,11 +863,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     useRegularKeyWalletSignTx = true;
                }
 
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const wallet = await this.utilsService.getWallet(seed, environment);
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                this.updateSpinnerMessage('Issuing Currency...');
 
@@ -1466,6 +1430,42 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
+     refreshUiAccountObjects(accountObjects: any, wallet: any) {
+          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+          if (signerAccounts && signerAccounts.length > 0) {
+               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
+                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+
+                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
+                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
+                    this.multiSignSeeds = seeds;
+                    this.multiSignAddress = addresses;
+               }
+          } else {
+               this.signerQuorum = 0;
+               this.multiSignAddress = 'No Multi-Sign address configured for account';
+               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+               this.isMultiSign = false;
+               this.storageService.removeValue('signerEntries');
+          }
+
+          this.isMemoEnabled = false;
+          this.memoField = '';
+     }
+
+     refreshUiAccountInfo(accountInfo: any) {
+          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+               this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+               this.regularKeySeed = this.storageService.get('regularKeySeed');
+          } else {
+               this.isRegularKeyAddress = false;
+               this.regularKeyAddress = 'No RegularKey configured for account';
+               this.regularKeySeed = '';
+          }
+     }
+
      private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
@@ -1534,7 +1534,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          obj.SignerEntries.forEach((entry: any) => {
                               if (entry.SignerEntry && entry.SignerEntry.Account) {
                                    signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
-                                   this.signerQuorum = obj.SignerQuorum.toString();
+                                   this.signerQuorum = obj.SignerQuorum;
                               }
                          });
                     }
@@ -1585,18 +1585,72 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.spinner = false;
      }
 
-     // selectTrustlineOption(option: 'tfSetfAuth' | 'tfSetNoRipple' | 'tfClearNoRipple' | 'tfSetFreeze' | 'tfClearFreeze' | 'tfPartialPayment' | 'tfNoDirectRipple' | 'tfLimitQuality') {
-     //      // Reset all options to false
-     //      Object.keys(this.trustlineFlags).forEach(key => {
-     //           this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-     //      });
-
-     //      // Set the clicked one to true
-     //      this.trustlineFlags[option] = true;
-     // }
-
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+     }
+
+     async getWallet() {
+          const { net, environment } = this.xrplService.getNet();
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
+     }
+
+     loadSignerList(account: string) {
+          const singerEntriesAccount = account + 'signerEntries';
+          if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
+               this.signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
+                    account: s.Account,
+                    seed: s.seed,
+                    weight: s.SignerWeight,
+               }));
+          } else {
+               this.clearSignerList();
+          }
+     }
+
+     clearSignerList() {
+          this.signers = [{ account: '', seed: '', weight: 1 }];
+          // this.signerQuorum = 0;
+     }
+
+     /**
+      * Checks if a trustline can be removed.
+      * @param line The trustline object from account_lines
+      * @returns { canRemove: boolean, reasons: string[] }
+      */
+     canRemoveTrustline(line: any): { canRemove: boolean; reasons: string[] } {
+          const reasons: string[] = [];
+
+          // 1. Balance must be 0
+          if (parseFloat(line.balance) !== 0) {
+               reasons.push(`Balance is ${line.balance} (must be 0)`);
+          }
+
+          // 2. Limit must be 0
+          // if (parseFloat(line.limit) !== 0) {
+          // reasons.push(`Limit is ${line.limit} (must be 0)`);
+          // }
+
+          // 3. Flags must be clear
+          if (line.no_ripple) {
+               reasons.push(`NoRipple flag is set`);
+          }
+          if (line.freeze) {
+               reasons.push(`Freeze flag is set`);
+          }
+          if (line.authorized) {
+               reasons.push(`Authorized flag is set (issuer must unauthorize before deletion)`);
+          }
+
+          // If no reasons, it's removable
+          return {
+               canRemove: reasons.length === 0,
+               reasons,
+          };
      }
 
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {

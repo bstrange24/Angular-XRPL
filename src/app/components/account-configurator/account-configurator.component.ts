@@ -318,18 +318,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.cdr.detectChanges();
                     return;
                }
-
-               // const wallet = await this.getWallet();
-
-               // const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-               // if (this.useMultiSign && this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
-               //      console.log(`toggleUseMultiSign: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
-               //      const signers = this.storageService.get(singerEntriesAccount);
-               //      const addresses = signers.map((item: { SignerEntry: any }) => item.SignerEntry.Account + ',\n').join('');
-               //      const seeds = signers.map((item: { SignerEntry: any }) => item.SignerEntry.seed + ',\n').join('');
-               //      this.multiSignAddress = addresses;
-               //      this.multiSignSeeds = seeds;
-               // }
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -352,7 +340,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message);
+          console.debug('Spinner message updated:', message);
      }
 
      async showSpinnerWithDelay(message: string, delayMs: number = 200) {
@@ -392,7 +380,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Toggle Meta Data ...', 250);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               console.debug('accountInfo', accountInfo);
+               console.debug(`accountInfo, ${JSON.stringify(accountInfo, null, '\t')}`);
                this.refreshUiIAccountMetaData(accountInfo.result);
           } catch (error: any) {
                console.error('Error:', error);
@@ -425,7 +413,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, '\t')} accountInfo ${JSON.stringify(accountInfo, null, '\t')}`);
 
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
@@ -484,7 +472,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Updating Account Flags...');
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               console.debug('accountInfo', accountInfo);
+               console.debug('accountInfo:', JSON.stringify(accountInfo, null, 2));
 
                const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
 
@@ -534,7 +522,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.setErrorProperties();
                }
 
-               console.debug(`transactions ${JSON.stringify(transactions, null, 2)}`);
+               console.log(`transactions ${JSON.stringify(transactions, null, '\t')}`);
 
                // Render all successful transactions
                this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
@@ -672,6 +660,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                          const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
 
+                         if (signerSeeds.length === 0) {
+                              return this.setError('ERROR: No signers seeds provided for multi-signing');
+                         }
+
                          try {
                               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: accountSetTx, signerAddresses, signerSeeds, fee });
                               signedTx = result.signedTx;
@@ -688,7 +680,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                               console.log(`multiSignFee: ${multiSignFee}`);
                               accountSetTx.Fee = multiSignFee;
                               const finalTx = xrpl.decode(signedTx.tx_blob);
-                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                              console.debug('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
                          } catch (err: any) {
                               return this.setError(`ERROR: ${err.message}`);
                          }
@@ -701,7 +693,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                     }
 
-                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(accountSetTx), null, '\t')}`);
+                    console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(accountSetTx), null, '\t')}`);
                     this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
@@ -713,7 +705,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
 
                     const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, 2));
+                    console.log('Submit Response:', JSON.stringify(response, null, '\t'));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`response ${JSON.stringify(response, null, 2)}`);
@@ -880,6 +872,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                          const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
 
+                         if (signerSeeds.length === 0) {
+                              return this.setError('ERROR: No signers seeds provided for multi-signing');
+                         }
+
                          try {
                               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: depositPreauthTx, signerAddresses, signerSeeds, fee });
                               signedTx = result.signedTx;
@@ -909,7 +905,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                     }
 
-                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(depositPreauthTx), null, '\t')}`);
+                    console.log(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(depositPreauthTx), null, '\t')}`);
                     this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, depositPreauthTx, fee)) {
@@ -921,7 +917,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
 
                     const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, 2));
+                    console.log('Submit Response:', JSON.stringify(response, null, '\t'));
 
                     // Check transaction result
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -1150,6 +1146,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                const response = await client.submitAndWait(signerListTx, { wallet });
+               console.log(`response, ${JSON.stringify(response, null, '\t')}`);
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`response ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -1252,25 +1249,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.useMultiSign) {
-                    let signerAddresses: string[] = [];
-                    let signerSeeds: string[] = [];
+                    const signerAddresses = this.multiSignAddress
+                         .split(',')
+                         .map(s => s.trim())
+                         .filter(s => s.length > 0);
 
-                    const signerAccounts: string[] = this.checkForSignerAccounts(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''));
-                    if (signerAccounts && signerAccounts.length > 0) {
-                         if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                              const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                              const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                              console.log(`setRegularKey: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
-                              signerAddresses = signerAccounts.map(account => account?.split('~')[0]).filter((address): address is string => address !== undefined && address !== '');
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signers provided for multi-signing');
+                    }
 
-                              signerSeeds = signerAccounts
-                                   .map(account => {
-                                        const address = account?.split('~')[0];
-                                        const entry = signerEntries.find((entry: SignerEntry) => entry.account === address);
-                                        return entry?.seed;
-                                   })
-                                   .filter((seed): seed is string => seed !== undefined && seed !== '');
-                         }
+                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signers seeds provided for multi-signing');
                     }
 
                     try {
@@ -1299,7 +1290,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
+               console.log('Submit Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
@@ -1442,6 +1433,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     // Submit transaction
                     const response = await client.submitAndWait(accountSetTx, { wallet });
+                    console.debug(`response, ${JSON.stringify(response, null, '\t')}`);
+
                     const result = response.result;
                     results.push({ result });
 
@@ -1548,6 +1541,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
 
                     const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signers seeds provided for multi-signing');
+                    }
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
@@ -1700,7 +1697,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
                     const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
                     const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+                    console.debug(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
 
                     const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
                     const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
@@ -1808,7 +1805,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      clearSignerList() {
           this.signers = [{ account: '', seed: '', weight: 1 }];
-          this.signerQuorum = 0;
+          // this.signerQuorum = 0;
      }
 
      isValidResponse(response: any): response is { success: boolean; message: xrpl.TxResponse<xrpl.SubmittableTransaction> | string } {

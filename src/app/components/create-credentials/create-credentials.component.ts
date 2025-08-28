@@ -909,7 +909,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
      clearSignerList() {
           this.signers = [{ account: '', seed: '', weight: 1 }];
-          this.signerQuorum = 0;
+          // this.signerQuorum = 0;
      }
 
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {

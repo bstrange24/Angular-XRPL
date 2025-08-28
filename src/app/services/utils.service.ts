@@ -502,7 +502,7 @@ export class UtilsService {
 
      async getWallet(seed: string, environment: string): Promise<xrpl.Wallet> {
           const savedEncryptionType = this.storageService.getInputValue('encryptionType');
-          console.log(`savedEncryptionType: ${savedEncryptionType}`);
+          // console.log(`savedEncryptionType: ${savedEncryptionType}`);
           if (savedEncryptionType === 'true') {
                return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 });
           } else {
