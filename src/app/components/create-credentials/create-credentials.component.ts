@@ -206,13 +206,14 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Getting Credentials...', 200);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
-
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
                }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                type Section = {
                     title: string;
@@ -313,7 +314,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -466,7 +467,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -885,7 +886,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

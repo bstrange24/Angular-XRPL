@@ -334,11 +334,10 @@ export class WalletMultiInputComponent {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                const tempDiv = document.createElement('div');
-               tempDiv.innerHTML = `Connected to ${environment} ${net}\n\nFetching Transaction\n`;
 
                let txResponse;
                if (this.utilsService.isValidTransactionHash(input)) {

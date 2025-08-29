@@ -179,14 +179,18 @@ export class SendXrpComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Getting Account Details ...', 250);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
                }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               if (accountObjects.result.account_objects.length <= 0) {
+                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
+                    return;
+               }
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
@@ -228,7 +232,7 @@ export class SendXrpComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -324,6 +328,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(payment);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {

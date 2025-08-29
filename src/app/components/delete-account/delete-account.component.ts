@@ -168,45 +168,18 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Getting Account Details ...', 250);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
                }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
-
-               // const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-               // if (signerAccounts && signerAccounts.length > 0) {
-               //      if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-               //           const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
-
-               //           this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
-               //           this.multiSignSeeds = signerAccounts
-               //                .map(account => {
-               //                     const address = account.split('~')[0];
-               //                     const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
-               //                     return entry ? entry.SingnerSeed : null;
-               //                })
-               //                .filter(seed => seed !== null)
-               //                .join(',\n');
-               //           this.isMultiSign = true;
-               //      }
-               // } else {
-               //      this.multiSignAddress = '';
-               //      this.isMultiSign = false;
-               // }
-
-               // if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               //      this.isRegularKeyAddress = true;
-               //      this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
-               //      this.regularKeySeed = this.storageService.get('regularKeySeed');
-               // } else {
-               //      this.isRegularKeyAddress = false;
-               //      this.regularKeyAddress = 'No RegularKey configured for account';
-               //      this.regularKeySeed = '';
-               // }
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               if (accountObjects.result.account_objects.length <= 0) {
+                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
+                    return;
+               }
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.refreshUiAccountObjects(accountObjects, wallet);
@@ -244,7 +217,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -396,7 +369,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

@@ -210,16 +210,16 @@ export class MptComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                this.showSpinnerWithDelay('Getting Account Details...', 200);
 
                const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug('Account Objects: ', mptokenObjects);
+               console.debug(`MPT Account Objects: ${JSON.stringify(mptokenObjects, null, '\t')}`);
                const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance' || o.LedgerEntryType === 'MPToken');
-               console.debug('MPT Objects: ', mptokens);
+               console.debug(`MPT Objects: ${JSON.stringify(mptokens, null, '\t')}`);
 
                // Prepare data for renderAccountDetails
                const data = {
@@ -305,7 +305,7 @@ export class MptComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -422,6 +422,7 @@ export class MptComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(mPTokenIssuanceCreateTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -480,7 +481,7 @@ export class MptComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -563,6 +564,7 @@ export class MptComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(authMptTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -625,7 +627,7 @@ export class MptComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -648,7 +650,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationField}`);
                }
                const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
-               console.debug('Destination MPT Tokens:', mptTokens);
+               console.debug(`Destination MPT Tokens: ${JSON.stringify(mptTokens, null, '\t')}`);
                console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
 
                const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
@@ -729,6 +731,7 @@ export class MptComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(sendMptTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -789,7 +792,7 @@ export class MptComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -889,6 +892,7 @@ export class MptComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(deleteMptTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1153,7 +1157,7 @@ export class MptComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

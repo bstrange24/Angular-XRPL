@@ -127,7 +127,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.knownTrustLinesIssuers = storedIssuers;
           }
           this.updateCurrencies();
-          // this.currencyField = this.currencies[0] || ''; // Set default selected currency if available
           this.currencyField = 'BOB'; // Set default selected currency if available
      }
 
@@ -245,26 +244,27 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Getting Trustlines...', 200);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
                }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)} accountInfo ${JSON.stringify(accountInfo, null, 2)}`);
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               if (accountObjects.result.account_objects.length <= 0) {
+                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
+                    return;
+               }
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               console.debug(`Trust lines for ${wallet.classicAddress}:`, trustLines);
-               // const activeTrustLine = trustLines.result.lines.filter((line: any) => parseFloat(line.limit) > 0);
+               console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
                const activeTrustLine = trustLines.result.lines.filter((line: any) => {
                     // Decode currency for comparison
                     const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-                    // return parseFloat(line.limit) > 0 && parseFloat(line.balance) > 0 && line.account === this.destinationField && (this.destinationField ? decodedCurrency === this.currencyField : true);
-                    // return line.account === this.destinationField && (line.currency ? decodedCurrency === this.currencyField : true);
                     return line.currency ? decodedCurrency === this.currencyField : true;
                });
-               console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLine);
+               console.debug(`Active Trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
 
                type Section = {
                     title: string;
@@ -280,7 +280,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               // const activeTrustLines: TrustLine[] = (activeTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.limit) > 0);
                const activeTrustLines: TrustLine[] = activeTrustLine as TrustLine[];
                if (activeTrustLines.length === 0) {
                     data.sections.push({
@@ -458,7 +457,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -506,9 +505,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          value: this.amountField,
                     },
                     Flags: flags, // numeric bitmask of selected options
-                    // Flags: {
-                    //      tfSetNoRipple: true,
-                    // },
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
@@ -571,6 +567,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                } else {
                     console.log(`trustSetTx: ${JSON.stringify(trustSetTx, null, '\t')}`);
                     const preparedTx = await client.autofill(trustSetTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -588,7 +585,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
-               console.log(`signed: ${JSON.stringify(signedTx, null, 2)}`);
+               console.log('signed:', signedTx);
 
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Response', response);
@@ -635,7 +632,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -659,7 +656,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Removing Trustline...');
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               console.debug(`All trust lines for ${wallet.classicAddress}:`, trustLines);
+               console.debug(`All trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
 
                // Normalize currency for comparison
                const currencyMatch = this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField;
@@ -780,6 +777,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                } else {
                     console.log(`trustSetTx: ${JSON.stringify(trustSetTx, null, '\t')}`);
                     const preparedTx = await client.autofill(trustSetTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -797,7 +795,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
-               console.log(`signed: ${JSON.stringify(signedTx, null, 2)}`);
+               console.log('signed:', signedTx);
 
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Response', response);
@@ -843,13 +841,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${validationError}`);
           }
 
-          const currencyBalanceField = document.getElementById('currencyBalanceField') as HTMLInputElement | null;
+          // const currencyBalanceField = document.getElementById('currencyBalanceField') as HTMLInputElement | null;
           // if (parseFloat(this.amountField) > parseFloat(currencyBalanceField?.value || '0')) {
-          //      return this.setError('ERROR: Currency Amount must be less than the currecny balance.');
+          //      return this.setError('ERROR: Currency Amount must be less than the currency balance.');
           // }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -874,17 +872,16 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (accountInfo == null) {
                     return this.setError(`Issuer account ${wallet.classicAddress} is not funded.`);
                }
-               console.debug('accountInfo', accountInfo);
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
                console.debug(`Trust lines for ${wallet.classicAddress}:`, trustLines);
                const activeTrustLine = trustLines.result.lines.filter((line: any) => {
                     // Decode currency for comparison
                     const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-                    // return parseFloat(line.limit) > 0 && parseFloat(line.balance) > 0 && line.account === this.destinationField && (this.destinationField ? decodedCurrency === this.currencyField : true);
                     return line.account === this.destinationField && (line.currency ? decodedCurrency === this.currencyField : true);
                });
-               console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLine);
+               console.debug(`Active trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
 
                type Section = {
                     title: string;
@@ -990,7 +987,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                               return this.setError(`ERROR: ${err.message}`);
                          }
                     } else {
+                         console.log(`accountSetTx: ${JSON.stringify(accountSetTx, null, '\t')}`);
                          const preparedTx = await client.autofill(accountSetTx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -1008,7 +1007,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign transaction.');
                     }
 
-                    console.log(`signed: ${JSON.stringify(signedTx, null, 2)}`);
+                    console.log('signed:', signedTx);
 
                     const response = await client.submitAndWait(signedTx.tx_blob);
                     console.log('Response', response);
@@ -1025,7 +1024,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 
-                    console.debug('DefaultRipple enabled', JSON.stringify(tx, null, 2));
+                    console.debug(`DefaultRipple enabled ${wallet.classicAddress}:`, tx);
+                    console.debug(`DefaultRipple enabled ${wallet.classicAddress} ${JSON.stringify(tx, null, '\t')}`);
+
                     data.sections.push({
                          title: 'DefaultRipple Enabled',
                          openByDefault: true,
@@ -1113,6 +1114,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(paymentTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1130,7 +1132,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
-               console.log(`signed: ${JSON.stringify(signedTx, null, 2)}`);
+               console.log('signed:', signedTx);
 
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Response', response);
@@ -1151,7 +1153,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     [key: string]: any;
                }
 
-               console.debug(`updatedTrustLines ${JSON.stringify(updatedTrustLines.result, null, 2)}`);
+               console.debug(`UpdatedTrustLines ${wallet.classicAddress} ${JSON.stringify(updatedTrustLines.result, null, '\t')}`);
+
                const newTrustLine: UpdatedTrustLine | undefined = updatedTrustLines.result.lines.find((line: UpdatedTrustLine) => line.account === wallet.classicAddress && line.currency === this.utilsService.decodeCurrencyCode(this.currencyField));
                data.sections.push({
                     title: 'New Balance',
@@ -1187,14 +1190,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                               ],
                          })),
                     });
+               } else {
+                    data.sections.push({
+                         title: 'Issuer Obligations',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: 'No obligations issued' }],
+                    });
                }
-               // else {
-               //      data.sections.push({
-               //           title: 'Issuer Obligations',
-               //           openByDefault: true,
-               //           content: [{ key: 'Status', value: 'No obligations issued' }],
-               //      });
-               // }
 
                // Account Details section
                data.sections.push({
@@ -1225,6 +1227,10 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      async onCurrencyChange() {
+          console.log('Entering onCurrencyChange');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
           if (!this.selectedAccount) {
                this.setError('Please select an account');
                this.currencyBalanceField = '0';
@@ -1255,7 +1261,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                // Fetch token balances
                const gatewayBalances = await this.xrplService.getTokenBalance(client, address, 'validated', '');
-               console.debug('gatewayBalances', gatewayBalances);
+               console.debug(`gatewayBalances ${address} ${JSON.stringify(gatewayBalances.result, null, '\t')}`);
 
                // Prepare data for rendering
                interface SectionContent {
@@ -1304,7 +1310,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          title: `Issuer Obligations (${Object.keys(gatewayBalances.result.obligations).length})`,
                          openByDefault: true,
                          subItems: Object.entries(gatewayBalances.result.obligations).map(([oblCurrency, amount], index) => {
-                              // Decode if length > 3
                               const displayCurrency = oblCurrency.length > 3 ? this.utilsService.decodeCurrencyCode(oblCurrency) : oblCurrency;
                               return {
                                    key: `Obligation ${index + 1} (${displayCurrency})`,
@@ -1369,7 +1374,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                return this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
-               this.cdr.detectChanges();
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
           }
      }
 
@@ -1558,7 +1564,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
@@ -1582,7 +1588,6 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      clearSignerList() {
           this.signers = [{ account: '', seed: '', weight: 1 }];
-          // this.signerQuorum = 0;
      }
 
      /**
@@ -1593,17 +1598,10 @@ export class TrustlinesComponent implements AfterViewChecked {
      canRemoveTrustline(line: any): { canRemove: boolean; reasons: string[] } {
           const reasons: string[] = [];
 
-          // 1. Balance must be 0
           if (parseFloat(line.balance) !== 0) {
                reasons.push(`Balance is ${line.balance} (must be 0)`);
           }
 
-          // 2. Limit must be 0
-          // if (parseFloat(line.limit) !== 0) {
-          // reasons.push(`Limit is ${line.limit} (must be 0)`);
-          // }
-
-          // 3. Flags must be clear
           if (line.no_ripple) {
                reasons.push(`NoRipple flag is set`);
           }
@@ -1614,7 +1612,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                reasons.push(`Authorized flag is set (issuer must unauthorize before deletion)`);
           }
 
-          // If no reasons, it's removable
           return {
                canRemove: reasons.length === 0,
                reasons,

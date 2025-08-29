@@ -183,7 +183,7 @@ export class XrplService {
           const key = `${currency}:${issuer}`;
           const cached = this.tokenCacheService.getDate(key);
           if (cached) {
-               console.info(`Token creation date for ${key} found in cache: ${cached}`);
+               console.debug(`Token creation date for ${key} found in cache: ${cached}`);
                return cached;
           }
 
@@ -687,6 +687,51 @@ export class XrplService {
           }
      }
 
+     async getNFTHistory(client: Client, ledgerIndex: xrpl.LedgerIndex, nft_id: string) {
+          try {
+               const response = await client.request({
+                    command: 'nft_history',
+                    nft_id: nft_id,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching gateway_balances:', error);
+               throw new Error(`Failed to fetch gateway_balances: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getNFTsByIssuer(client: Client, ledgerIndex: xrpl.LedgerIndex, nft_id: string, issuer: string) {
+          try {
+               const response = await client.request({
+                    command: 'nfts_by_issuer',
+                    nft_id: nft_id,
+                    issuer: issuer,
+                    ledger_index: ledgerIndex,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching gateway_balances:', error);
+               throw new Error(`Failed to fetch gateway_balances: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getChannelVerifiy(client: Client, channelId: string, amount: string, publicKey: string, signature: string): Promise<any> {
+          try {
+               const response = await client.request({
+                    command: 'channel_verify',
+                    amount: amount,
+                    public_key: publicKey,
+                    signature: signature,
+                    channel_id: channelId,
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error verifying channel:', error);
+               throw new Error(`Failed to verifying channel: ${error.message || 'Unknown error'}`);
+          }
+     }
+
      async getNFTBuyOffers(client: Client, nftId: string): Promise<any> {
           try {
                const response = await client.request({
@@ -851,7 +896,7 @@ export class XrplService {
           }
      }
 
-     async getAccountNoRippleCheck(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+     async getAccountNoRippleCheck(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, role: string) {
           try {
                const response = await client.request({
                     command: 'noripple_check',

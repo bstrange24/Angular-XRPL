@@ -228,12 +228,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const accountNfts = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountNfts ${accountNfts}`);
+               console.debug(`Account Nft objects: ${JSON.stringify(accountNfts, null, '\t')}`);
 
                // Prepare data for renderAccountDetails
                const data = {
@@ -328,7 +327,7 @@ export class CreateNftComponent implements AfterViewChecked {
           const flags = this.setNftFlags();
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -427,6 +426,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(transaction);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -580,6 +580,7 @@ export class CreateNftComponent implements AfterViewChecked {
                               }
                          } else {
                               const preparedTx = await client.autofill(transaction);
+                              console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                               if (useRegularKeyWalletSignTx) {
                                    signedTx = regularKeyWalletSignTx.sign(preparedTx);
                               } else {
@@ -600,10 +601,6 @@ export class CreateNftComponent implements AfterViewChecked {
 
                          const response = await client.submitAndWait(signedTx.tx_blob);
                          console.log('Submit Response:', JSON.stringify(response, null, 2));
-                         // // Autofill handles Fee, Sequence, LastLedgerSequence
-                         // const preparedTx = await client.autofill(transaction);
-                         // const signedTx = wallet.sign(preparedTx);
-                         // const singleTx = await client.submitAndWait(signedTx.tx_blob);
 
                          if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -620,6 +617,7 @@ export class CreateNftComponent implements AfterViewChecked {
                          if (singleError.message.includes('LastLedgerSequence')) {
                               console.warn('Retrying transaction with updated LastLedgerSequence');
                               const preparedTx = await client.autofill(transaction);
+                              console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                               const signedTx = wallet.sign(preparedTx);
                               const singleTx = await client.submitAndWait(signedTx.tx_blob);
                               transactionResults.push(singleTx);
@@ -665,7 +663,7 @@ export class CreateNftComponent implements AfterViewChecked {
           const flags = this.setNftFlags();
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -735,6 +733,7 @@ export class CreateNftComponent implements AfterViewChecked {
                                         Flags: flags, // Remove tfInnerBatchTxn for individual transactions
                                         LastLedgerSequence: undefined, // Let autofill set a fresh LastLedgerSequence
                                    } as NFTokenMint);
+                                   console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                                    const signedTx = wallet.sign(preparedTx);
                                    const singleTx = await client.submitAndWait(signedTx.tx_blob);
                                    if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -753,6 +752,7 @@ export class CreateNftComponent implements AfterViewChecked {
                                              Flags: flags,
                                              LastLedgerSequence: undefined, // Retry with fresh LastLedgerSequence
                                         } as NFTokenMint);
+                                        console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                                         const signedTx = wallet.sign(preparedTx);
                                         const singleTx = await client.submitAndWait(signedTx.tx_blob);
                                         if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -779,6 +779,7 @@ export class CreateNftComponent implements AfterViewChecked {
                                    Flags: flags, // Remove tfInnerBatchTxn for individual transactions
                                    LastLedgerSequence: undefined, // Let autofill set a fresh LastLedgerSequence
                               } as NFTokenMint);
+                              console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                               const signedTx = wallet.sign(preparedTx);
                               const singleTx = await client.submitAndWait(signedTx.tx_blob);
                               if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -797,6 +798,7 @@ export class CreateNftComponent implements AfterViewChecked {
                                         Flags: flags,
                                         LastLedgerSequence: undefined, // Retry with fresh LastLedgerSequence
                                    } as NFTokenMint);
+                                   console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                                    const signedTx = wallet.sign(preparedTx);
                                    const singleTx = await client.submitAndWait(signedTx.tx_blob);
                                    if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
@@ -855,7 +857,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -942,6 +944,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(transaction);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1000,7 +1003,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               // const { net, environment } = this.xrplService.getNet();
+               // const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                // let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
@@ -1073,7 +1076,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
 
                     const nftInfo = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
-                    console.debug(`accountNfts ${nftInfo}`);
+                    console.debug(`Account Nft objects: ${JSON.stringify(nftInfo, null, '\t')}`);
                     const nfts = nftInfo.result.account_nfts || [];
                     interface AccountNFT {
                          NFTokenID: string;
@@ -1308,7 +1311,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
@@ -1440,6 +1443,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(transaction);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1498,7 +1502,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
@@ -1593,6 +1597,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(transaction);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1651,7 +1656,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
@@ -1737,6 +1742,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(transaction);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1796,7 +1802,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
@@ -1882,6 +1888,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(transaction);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1944,7 +1951,7 @@ export class CreateNftComponent implements AfterViewChecked {
      //      }
 
      //      try {
-     //           const { net, environment } = this.xrplService.getNet();
+     //           const environment = this.xrplService.getNet().environment;
      //           const client = await this.xrplService.getClient();
      //           let wallet;
      //           if (this.selectedAccount === 'account1') {
@@ -2005,7 +2012,7 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                // let wallet;
@@ -2173,7 +2180,7 @@ export class CreateNftComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

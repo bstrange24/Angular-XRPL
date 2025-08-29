@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
-import { TrustSet, OfferCreate, TransactionMetadataBase, Client, OfferCreateFlags, Currency, BookOffer, IssuedCurrencyAmount, AMMInfoRequest } from 'xrpl';
+import { TrustSet, OfferCreate, TransactionMetadataBase, OfferCreateFlags, BookOffer, IssuedCurrencyAmount, AMMInfoRequest } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -99,7 +99,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount = 'account1';
      private lastResult: string = '';
-     transactionInput = '';
+     transactionInput: string = '';
      result: string = '';
      currencyFieldDropDownValue: string = 'XRP';
      checkExpirationTime: string = 'seconds';
@@ -115,33 +115,33 @@ export class CreateOfferComponent implements AfterViewChecked {
      isMarketOrder: boolean = false;
      isFillOrKill: boolean = false;
      isPassive: boolean = false;
-     ticketCountField = '';
+     ticketCountField: string = '';
      ticketSequence: string = '';
-     isTicket = false;
-     isTicketEnabled = false;
-     expirationTimeField = '';
+     isTicket: boolean = false;
+     isTicketEnabled: boolean = false;
+     expirationTimeField: string = '';
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     xrpBalance1Field = '';
-     ownerCount = '';
-     totalXrpReserves = '';
-     executionTime = '';
-     amountField = '';
-     currentTimeField = '';
-     memoField = '';
-     isMemoEnabled = false;
-     isMultiSignTransaction = false;
+     xrpBalance1Field: string = '';
+     ownerCount: string = '';
+     totalXrpReserves: string = '';
+     executionTime: string = '';
+     amountField: string = '';
+     currentTimeField: string = '';
+     memoField: string = '';
+     isMemoEnabled: boolean = false;
+     isMultiSignTransaction: boolean = false;
      multiSignAddress: string = '';
-     isMultiSign = false;
-     multiSignSeeds = '';
-     isRegularKeyAddress = false;
-     regularKeySeed = '';
-     regularKeyAddress = '';
-     signerQuorum = '';
+     isMultiSign: boolean = false;
+     multiSignSeeds: string = '';
+     isRegularKeyAddress: boolean = false;
+     regularKeySeed: string = '';
+     regularKeyAddress: string = '';
+     signerQuorum: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
-     spinner = false;
+     spinner: boolean = false;
      issuers: string[] = [];
      selectedIssuer: string = '';
      tokenBalance: string = '';
@@ -382,8 +382,6 @@ export class CreateOfferComponent implements AfterViewChecked {
 
           try {
                const client = await this.xrplService.getClient();
-               const { net, environment } = this.xrplService.getNet();
-               console.log(`Connected to ${environment} ${net}`);
 
                interface CurrencyObjectXRP {
                     currency: string;
@@ -528,18 +526,8 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               }
-
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account Offers\n\n`;
+               const wallet = await this.getWallet();
 
                // Fetch offers
                const offersResponse = await this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '');
@@ -659,7 +647,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
 
@@ -677,8 +665,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                     }
                }
                const wallet = await this.utilsService.getWallet(seed, environment);
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Order Book\n\n`;
 
                // Initialize currency objects with proper typing
                const we_want: CurrencyAmount =
@@ -884,7 +870,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
 
@@ -906,8 +892,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating Offer\n\n`;
 
                interface SpendObject {
                     amount?: string; // For XRP
@@ -1474,7 +1458,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
 
@@ -1496,8 +1480,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Offers\n\n`;
 
                // Define interfaces for rendering
                interface SectionContent {
@@ -1683,7 +1665,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.utilsService.getWallet(this.account1.seed, environment);
 
@@ -2256,8 +2238,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.spinner = true;
 
                const client = await this.xrplService.getClient();
-               const { net, environment } = this.xrplService.getNet();
-               console.log(`Connected to ${environment} ${net}`);
+               const environment = this.xrplService.getNet().environment;
 
                if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -2485,8 +2466,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
                const client = await this.xrplService.getClient();
-               const { net, environment } = this.xrplService.getNet();
-               console.log(`Connected to ${environment} ${net}`);
+               const environment = this.xrplService.getNet().environment;
 
                if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -2750,6 +2730,16 @@ export class CreateOfferComponent implements AfterViewChecked {
      clearMemeTokens() {
           // this.memeTokensSubject.next([]);
           this.dataSource.data = [];
+     }
+
+     async getWallet() {
+          const environment = this.xrplService.getNet().environment;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
      }
 
      async displayOfferDataForAccount1() {

@@ -178,7 +178,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                const ticket_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
-               console.debug('Ticket Objects: ', ticket_objects);
+               console.debug(`Ticket objects: ${JSON.stringify(ticket_objects, null, '\t')}`);
 
                // Prepare data for renderAccountDetails
                const data = {
@@ -251,7 +251,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -332,6 +332,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -391,7 +392,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -486,6 +487,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -646,7 +648,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

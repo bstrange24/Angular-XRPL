@@ -185,7 +185,7 @@ export class SendChecksComponent implements AfterViewChecked {
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
-                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, address, this.currencyFieldDropDownValue);
+                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, address, this.currencyFieldDropDownValue, '');
                          this.issuers = tokenBalanceData.issuers;
                          this.tokenBalance = tokenBalanceData.total.toString();
                          const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, address);
@@ -346,7 +346,7 @@ export class SendChecksComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -469,6 +469,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -476,7 +477,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     }
                }
 
-               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
+               console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
@@ -529,7 +530,7 @@ export class SendChecksComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -625,15 +626,16 @@ export class SendChecksComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
-                    console.info(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
+                    console.debug(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                }
 
-               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
+               console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
@@ -697,7 +699,7 @@ export class SendChecksComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -772,6 +774,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -779,7 +782,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     }
                }
 
-               console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
+               console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
@@ -969,7 +972,7 @@ export class SendChecksComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

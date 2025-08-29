@@ -211,9 +211,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                this.showSpinnerWithDelay('Getting Payment Channels...', 200);
 
-               const response = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
-               console.debug('Payment channel:', response);
-               const channels = response.result.account_objects as PaymentChannelObject[];
+               const paymentChannelObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
+               console.debug(`Payment channel objects: ${JSON.stringify(paymentChannelObjects, null, '\t')}`);
+               const channels = paymentChannelObjects.result.account_objects as PaymentChannelObject[];
 
                const data = {
                     sections: [{}],
@@ -298,7 +298,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -410,6 +410,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          }
                     } else {
                          const preparedTx = await client.autofill(tx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -526,6 +527,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          }
                     } else {
                          const preparedTx = await client.autofill(tx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -659,6 +661,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          }
                     } else {
                          const preparedTx = await client.autofill(tx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -784,6 +787,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          }
                     } else {
                          const preparedTx = await client.autofill(tx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -863,7 +867,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                return this.setError('Channel ID cannot be empty');
           }
 
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           let wallet;
           if (this.selectedAccount === 'account1') {
                wallet = await this.utilsService.getWallet(this.account1.seed, environment);
@@ -1055,7 +1059,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

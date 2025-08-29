@@ -268,8 +268,7 @@ export class OffersComponent implements AfterViewChecked {
 
           try {
                const client = await this.xrplService.getClient();
-               const { net, environment } = this.xrplService.getNet();
-               console.log(`Connected to ${environment} ${net}`);
+               const environment = this.xrplService.getNet().environment;
 
                // Define the trading pair (XRP/RLUSD)
                // const we_want = { currency: this.utilsService.encodeCurrencyCode('RLUSD'), issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De' }; // RLUSD as taker_gets
@@ -376,7 +375,7 @@ export class OffersComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -386,8 +385,6 @@ export class OffersComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Account Offers\n\n`;
 
                // Fetch offers
                const offersResponse = await this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '');
@@ -476,7 +473,7 @@ export class OffersComponent implements AfterViewChecked {
           };
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -488,8 +485,6 @@ export class OffersComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting Order Book\n\n`;
 
                // Initialize currency objects with proper typing
                const we_want: CurrencyAmount =
@@ -696,7 +691,7 @@ export class OffersComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -708,8 +703,6 @@ export class OffersComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating Offer\n\n`;
 
                interface SpendObject {
                     amount?: string; // For XRP
@@ -1301,7 +1294,7 @@ export class OffersComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -1313,8 +1306,6 @@ export class OffersComponent implements AfterViewChecked {
                if (!wallet) {
                     return this.setError('ERROR: Wallet could not be created or is undefined');
                }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCancelling Offers\n\n`;
 
                // Define interfaces for rendering
                interface SectionContent {
@@ -1500,7 +1491,7 @@ export class OffersComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -2073,8 +2064,7 @@ export class OffersComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
                const client = await this.xrplService.getClient();
-               const { net, environment } = this.xrplService.getNet();
-               console.log(`Connected to ${environment} ${net}`);
+               const environment = this.xrplService.getNet().environment;
 
                if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -2314,8 +2304,7 @@ export class OffersComponent implements AfterViewChecked {
      //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
      //           const client = await this.xrplService.getClient();
-     //           const { net, environment } = this.xrplService.getNet();
-     //           console.log(`Connected to ${environment} ${net}`);
+     //           const environment = this.xrplService.getNet().environment;
 
      //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
      //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -2526,8 +2515,7 @@ export class OffersComponent implements AfterViewChecked {
      //           // this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
      //           const client = await this.xrplService.getClient();
-     //           const { net, environment } = this.xrplService.getNet();
-     //           console.log(`Connected to ${environment} ${net}`);
+     //           const environment = this.xrplService.getNet().environment;
 
      //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
      //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -2782,8 +2770,7 @@ export class OffersComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
                const client = await this.xrplService.getClient();
-               const { net, environment } = this.xrplService.getNet();
-               console.log(`Connected to ${environment} ${net}`);
+               const environment = this.xrplService.getNet().environment;
 
                if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -3021,8 +3008,7 @@ export class OffersComponent implements AfterViewChecked {
      //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
      //           const client = await this.xrplService.getClient();
-     //           const { net, environment } = this.xrplService.getNet();
-     //           console.log(`Connected to ${environment} ${net}`);
+     //           const environment = this.xrplService.getNet().environment;
 
      //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
      //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -3222,8 +3208,7 @@ export class OffersComponent implements AfterViewChecked {
      //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
      //           const client = await this.xrplService.getClient();
-     //           const { net, environment } = this.xrplService.getNet();
-     //           console.log(`Connected to ${environment} ${net}`);
+     //           const environment = this.xrplService.getNet().environment;
 
      //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
      //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -3456,8 +3441,7 @@ export class OffersComponent implements AfterViewChecked {
      //           this.showSpinnerWithDelay('Fetching Token balance and market data...', 2000);
 
      //           const client = await this.xrplService.getClient();
-     //           const { net, environment } = this.xrplService.getNet();
-     //           console.log(`Connected to ${environment} ${net}`);
+     //           const environment = this.xrplService.getNet().environment;
 
      //           if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
      //                console.warn('Not connected to Mainnet. Results may differ from XPMarket.');

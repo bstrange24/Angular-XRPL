@@ -165,7 +165,7 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -205,7 +205,7 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -279,7 +279,7 @@ export class AccountComponent implements AfterViewChecked {
           this.clearUiIAccountMetaData();
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -370,7 +370,7 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -496,7 +496,7 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {
@@ -601,7 +601,7 @@ export class AccountComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;
                if (this.selectedAccount === 'account1') {

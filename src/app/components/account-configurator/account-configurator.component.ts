@@ -380,7 +380,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Toggle Meta Data ...', 250);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountInfo, ${JSON.stringify(accountInfo, null, '\t')}`);
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+
                this.refreshUiIAccountMetaData(accountInfo.result);
           } catch (error: any) {
                console.error('Error:', error);
@@ -412,13 +413,18 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.showSpinnerWithDelay('Getting Account Details...', 200);
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, '\t')} accountInfo ${JSON.stringify(accountInfo, null, '\t')}`);
-
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
                }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               if (accountObjects.result.account_objects.length <= 0) {
+                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
+                    return;
+               }
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                // Set flags from account info
                AppConstants.FLAGS.forEach(flag => {
@@ -472,7 +478,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Updating Account Flags...');
 
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               console.debug('accountInfo:', JSON.stringify(accountInfo, null, 2));
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
 
@@ -560,7 +566,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -680,12 +686,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                               console.log(`multiSignFee: ${multiSignFee}`);
                               accountSetTx.Fee = multiSignFee;
                               const finalTx = xrpl.decode(signedTx.tx_blob);
-                              console.debug('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+                              console.debug(`Decoded Final Tx: ${JSON.stringify(finalTx, null, '\t')}`);
                          } catch (err: any) {
                               return this.setError(`ERROR: ${err.message}`);
                          }
                     } else {
                          const preparedTx = await client.autofill(accountSetTx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -693,7 +700,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                     }
 
-                    console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(accountSetTx), null, '\t')}`);
+                    console.debug(`Parse Tx Flags: ${wallet.classicAddress} ${JSON.stringify(xrpl.parseTransactionFlags(accountSetTx), null, '\t')}`);
+
                     this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, accountSetTx, fee)) {
@@ -768,7 +776,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -801,7 +809,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                // Get account objects once for efficiency
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)}`);
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                // Validate each address
                for (const authorizedAddress of addressesArray) {
@@ -815,7 +823,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                          throw error;
                     }
-                    console.debug(`accountInfo for ${authorizedAddress}: ${JSON.stringify(accountInfo, null, 2)}`);
+                    console.debug(`accountInfo for ${authorizedAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                     // if (!accountInfo.result.account_flags?.depositAuth) {
                     //      return this.setError(`ERROR: Account ${authorizedAddress} must have asfDepositAuth flag enabled`);
@@ -898,6 +906,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                     } else {
                          const preparedTx = await client.autofill(depositPreauthTx);
+                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          if (useRegularKeyWalletSignTx) {
                               signedTx = regularKeyWalletSignTx.sign(preparedTx);
                          } else {
@@ -1199,7 +1208,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
@@ -1354,7 +1363,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
@@ -1380,7 +1389,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                // Get account objects once for efficiency
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth');
-               console.debug(`accountObjects ${JSON.stringify(accountObjects, null, 2)}`);
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                // Validate each address
                for (const authorizedAddress of addressesArray) {
@@ -1394,7 +1403,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          }
                          throw error;
                     }
-                    console.debug(`accountInfo for ${authorizedAddress}: ${JSON.stringify(accountInfo, null, 2)}`);
+                    console.debug(`accountInfo for ${authorizedAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
                }
 
                this.updateSpinnerMessage('Setting NFT Minter Address...');
@@ -1433,7 +1442,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     // Submit transaction
                     const response = await client.submitAndWait(accountSetTx, { wallet });
-                    console.debug(`response, ${JSON.stringify(response, null, '\t')}`);
+                    console.debug(`response ${wallet.classicAddress} ${JSON.stringify(response, null, '\t')}`);
 
                     const result = response.result;
                     results.push({ result });
@@ -1485,7 +1494,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
 
                let regularKeyWalletSignTx: any = '';
                let useRegularKeyWalletSignTx = false;
@@ -1569,6 +1578,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                } else {
                     console.log('Tx:', JSON.stringify(tx, null, 2));
                     const preparedTx = await client.autofill(tx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          console.log('Using RegularKey to sign transaction');
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
@@ -1697,7 +1707,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
                     const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
                     const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.debug(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+                    console.debug(`refreshUiAccountObjects singerEntriesAccount ${wallet.classicAddress} ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
 
                     const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
                     const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
@@ -1781,7 +1791,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {

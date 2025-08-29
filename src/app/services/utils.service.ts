@@ -3239,20 +3239,13 @@ export class UtilsService {
           }
      }
 
-     async getTokenBalance(
-          client: xrpl.Client,
-          address: string,
-          currency: string
-     ): Promise<{
-          issuers: string[];
-          total: number;
-          xrpBalance: number;
-     }> {
+     async getTokenBalance(client: xrpl.Client, address: string, currency: string, hotwallet: string): Promise<{ issuers: string[]; total: number; xrpBalance: number }> {
           try {
                const gatewayBalances = await client.request({
                     command: 'gateway_balances',
                     account: address,
                     ledger_index: 'validated',
+                    // hotwallet: hotwallet,
                });
 
                console.log('gatewayBalances', gatewayBalances);
@@ -3336,7 +3329,6 @@ export class UtilsService {
                     account: address,
                     ledger_index: 'validated',
                });
-               console.debug(`account_objects: ${accountObjects}`);
                return accountObjects;
           } catch (error) {
                console.error('Error fetching account objects:', error);

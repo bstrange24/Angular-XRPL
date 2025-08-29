@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TransactionMetadataBase, EscrowCancel, EscrowCreate, EscrowFinish } from 'xrpl';
+import { TransactionMetadataBase } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -228,25 +228,25 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                this.showSpinnerWithDelay('Getting Escrows ...', 250);
 
-               const tx = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
-               console.debug('Escrow objects:', tx);
+               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               console.debug(`Escrow objects: ${JSON.stringify(escrowObjects, null, '\t')}`);
 
                const data = {
                     sections: [{}],
                };
 
-               if (tx.result.account_objects.length <= 0) {
+               if (escrowObjects.result.account_objects.length <= 0) {
                     data.sections.push({
                          title: 'Escrows',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No escrows found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
-                    const previousTxnIDs = tx.result.account_objects.map(obj => obj.PreviousTxnID);
+                    const previousTxnIDs = escrowObjects.result.account_objects.map(obj => obj.PreviousTxnID);
                     console.log('PreviousTxnIDs:', previousTxnIDs);
 
                     // Fetch Sequence for each PreviousTxnID
-                    const escrows = tx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
+                    const escrows = escrowObjects.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
                     for (const [index, previousTxnID] of previousTxnIDs.entries()) {
                          if (typeof previousTxnID === 'string') {
                               const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
@@ -341,7 +341,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -441,6 +441,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(escrowTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -514,7 +515,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -623,6 +624,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(escrowTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -681,7 +683,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
+               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                let regularKeyWalletSignTx: any = '';
@@ -804,6 +806,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(escrowTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     if (useRegularKeyWalletSignTx) {
                          signedTx = regularKeyWalletSignTx.sign(preparedTx);
                     } else {
@@ -1041,7 +1044,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      }
 
      async getWallet() {
-          const { net, environment } = this.xrplService.getNet();
+          const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
