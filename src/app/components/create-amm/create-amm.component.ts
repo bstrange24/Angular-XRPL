@@ -1,11 +1,10 @@
-import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
-import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
-import { TrustSet, OfferCreate, TransactionMetadataBase, Client, OfferCreateFlags, Currency, BookOffer, IssuedCurrencyAmount, AMMInfoRequest } from 'xrpl';
+import { OfferCreate, TransactionMetadataBase, OfferCreateFlags, BookOffer, IssuedCurrencyAmount, AMMInfoRequest, TrustSetFlags } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -18,6 +17,19 @@ import { MatTableModule } from '@angular/material/table';
 import { MatSortModule } from '@angular/material/sort';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatButtonModule } from '@angular/material/button';
+import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
+
+interface SignerEntry {
+     Account: string;
+     SignerWeight: number;
+     SingnerSeed: string;
+}
+
+interface SignerEntry {
+     account: string;
+     seed: string;
+     weight: number;
+}
 
 // Helper interfaces for proper typing
 interface AMMAsset {
@@ -46,6 +58,24 @@ interface CurrencyObjectToken {
      currency: string;
      issuer: string;
      value: string;
+}
+
+interface SectionContent {
+     key: string;
+     value: string;
+}
+
+interface SectionSubItem {
+     key: string;
+     openByDefault: boolean;
+     content: SectionContent[];
+}
+
+interface Section {
+     title: string;
+     openByDefault: boolean;
+     content?: SectionContent[];
+     subItems?: SectionSubItem[];
 }
 
 interface AMMInfoResponse {
@@ -78,7 +108,7 @@ type CustomBookOffer = Partial<Omit<BookOffer, 'TakerGets' | 'TakerPays'>> & {
 @Component({
      selector: 'app-create-amm',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe, MatTableModule, MatSortModule, MatPaginatorModule, MatButtonModule],
+     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe, MatTableModule, MatSortModule, MatPaginatorModule, MatButtonModule],
      templateUrl: './create-amm.component.html',
      styleUrl: './create-amm.component.css',
 })
@@ -89,10 +119,9 @@ export class CreateAmmComponent implements AfterViewChecked {
      @ViewChild(MatSort) sort!: MatSort;
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     // selectedAccount: 'account1' | 'account2' | null = null;
-     selectedAccount: 'account1' | 'account2' | null = 'account1';
-     private lastResult: string = '';
-     transactionInput = '';
+     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
+     lastResult: string = '';
+     transactionInput: string = '';
      result: string = '';
      currencyFieldDropDownValue: string = 'XRP';
      checkExpirationTime: string = 'seconds';
@@ -106,24 +135,33 @@ export class CreateAmmComponent implements AfterViewChecked {
      weSpendAmountField: string = '';
      weSpendTokenBalanceField: string = '';
      isMarketOrder: boolean = false;
-     ticketCountField = '';
+     ticketCountField: string = '';
      ticketSequence: string = '';
-     isTicket = false;
+     isTicket: boolean = false;
      isTicketEnabled = false;
-     expirationTimeField = '';
+     expirationTimeField: string = '';
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     xrpBalance1Field = '';
-     ownerCount = '';
-     totalXrpReserves = '';
-     executionTime = '';
-     amountField = '';
-     currentTimeField = '';
-     memoField = '';
+     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     xrpBalance1Field: string = '';
+     ownerCount: string = '';
+     totalXrpReserves: string = '';
+     executionTime: string = '';
+     amountField: string = '';
+     currentTimeField: string = '';
+     memoField: string = '';
+     isMemoEnabled = false;
+     isMultiSign = false;
+     multiSignAddress: string = '';
+     multiSignSeeds: string = '';
+     signerQuorum: number = 0;
+     isRegularKeyAddress = false;
+     regularKeySeed: string = '';
+     regularKeyAddress: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
-     spinner = false;
+     spinner: boolean = false;
      issuers: string[] = [];
      selectedIssuer: string = '';
      tokenBalance: string = '';
@@ -150,17 +188,73 @@ export class CreateAmmComponent implements AfterViewChecked {
           firstPoolOnly: false,
           secondPoolOnly: false,
      };
+     private knownTrustLinesIssuers: { [key: string]: string } = {
+          RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+     };
+     currencies: string[] = [];
+     newCurrency: string = '';
+     newIssuer: string = '';
+     tokenToRemove: string = '';
+     showTrustlineOptions: boolean = false; // default off
+     signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
+
+     conflicts: { [key: string]: string[] } = {
+          tfSetNoRipple: ['tfClearNoRipple'],
+          tfClearNoRipple: ['tfSetNoRipple'],
+          tfSetFreeze: ['tfClearFreeze'],
+          tfClearFreeze: ['tfSetFreeze'],
+     };
+
+     trustlineFlags: Record<string, boolean> = {
+          tfSetfAuth: false,
+          tfSetNoRipple: false,
+          tfClearNoRipple: false,
+          tfSetFreeze: false,
+          tfClearFreeze: false,
+     };
+
+     trustlineFlagList = [
+          { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
+          { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
+          { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
+          { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
+          { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
+     ];
+
+     flagMap: { [key: string]: number } = {
+          tfSetfAuth: TrustSetFlags.tfSetfAuth,
+          tfSetNoRipple: TrustSetFlags.tfSetNoRipple,
+          tfClearNoRipple: TrustSetFlags.tfClearNoRipple,
+          tfSetFreeze: TrustSetFlags.tfSetFreeze,
+          tfClearFreeze: TrustSetFlags.tfClearFreeze,
+     };
 
      private priceRefreshInterval: any; // For polling
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
+     ngOnInit() {
+          const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
+          if (storedIssuers) {
+               this.knownTrustLinesIssuers = storedIssuers;
+          }
+          this.updateCurrencies();
+          this.weWantCurrencyField = 'BOB'; // Set default selected currency if available
+     }
+
      async ngAfterViewInit() {
-          this.dataSource.paginator = this.paginator;
-          this.dataSource.sort = this.sort;
-          this.cdr.detectChanges();
-          // this.startPriceRefresh(); // Start polling for price
-          // await this.updateTokenBalanceAndExchange(); // Fetch Token balance and calculate XRP
+          try {
+               const wallet = await this.getWallet();
+               this.loadSignerList(wallet.classicAddress);
+               this.dataSource.paginator = this.paginator;
+               this.dataSource.sort = this.sort;
+               // this.startPriceRefresh(); // Start polling for price
+               // await this.updateTokenBalanceAndExchange(); // Fetch Token balance and calculate XRP
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
+          }
      }
 
      ngOnDestroy() {
@@ -178,9 +272,10 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any }) {
+     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
+          this.issuer = { ...event.issuer, balance: '0' };
           this.onAccountChange();
      }
 
@@ -201,10 +296,21 @@ export class CreateAmmComponent implements AfterViewChecked {
      onAccountChange() {
           if (!this.selectedAccount) return;
           if (this.selectedAccount === 'account1') {
-               this.displayOfferDataForAccount1();
+               this.displayDataForAccount1();
+          } else if (this.selectedAccount === 'account2') {
+               this.displayDataForAccount2();
+          } else {
+               this.displayDataForAccount3();
           }
-          // this.updateTokenBalanceAndExchange();
      }
+
+     // onAccountChange() {
+     //      if (!this.selectedAccount) return;
+     //      if (this.selectedAccount === 'account1') {
+     //           this.displayOfferDataForAccount1();
+     //      }
+     //      // this.updateTokenBalanceAndExchange();
+     // }
 
      toggleTicketSequence() {
           this.cdr.detectChanges();
@@ -214,6 +320,51 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
           console.log('Spinner message updated:', message);
+     }
+
+     onFlagChange(flag: string) {
+          if (this.trustlineFlags[flag]) {
+               this.conflicts[flag]?.forEach(conflict => {
+                    this.trustlineFlags[conflict] = false;
+               });
+          }
+     }
+
+     async toggleMultiSign() {
+          try {
+               if (!this.isMultiSign) {
+                    this.clearSignerList();
+               } else {
+                    const wallet = await this.getWallet();
+                    this.loadSignerList(wallet.classicAddress);
+               }
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
+          }
+     }
+
+     async toggleUseMultiSign() {
+          try {
+               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+                    this.multiSignSeeds = '';
+                    this.cdr.detectChanges();
+                    return;
+               }
+          } catch (error) {
+               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } finally {
+               this.cdr.detectChanges();
+          }
+     }
+
+     validateQuorum() {
+          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          if (this.signerQuorum > totalWeight) {
+               this.signerQuorum = totalWeight;
+          }
+          this.cdr.detectChanges();
      }
 
      async showSpinnerWithDelay(message: string, delayMs: number = 200) {
@@ -352,29 +503,19 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
-               const { net, environment } = this.xrplService.getNet();
                const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
 
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               }
-
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
-
-               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nGetting AMM Pool Info\n\n`;
+               this.showSpinnerWithDelay('Getting AMM Pool Info...', 200);
 
                // Ensure correct typing for XRPL 'Currency' type
                const toXRPLCurrency = (currency: string, issuer: string) => {
@@ -389,39 +530,44 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                const asset = toXRPLCurrency(this.weWantCurrencyField, this.weWantIssuerField);
                const asset2 = toXRPLCurrency(this.weSpendCurrencyField, this.weSpendIssuerField);
+               console.debug(`asset ${JSON.stringify(asset, null, '\t')}`);
+               console.debug(`asset2 ${JSON.stringify(asset2, null, '\t')}`);
 
-               const ammResponse = await client.request({
+               const ammInfoRequest = {
                     command: 'amm_info',
                     asset: asset as any, // Type assertion to satisfy XRPL typings
                     asset2: asset2 as any,
                     ledger_index: 'validated',
-               });
+               };
+               console.info(JSON.stringify(ammInfoRequest, null, 2));
 
-               console.log('AMM Info:', ammResponse);
-
-               interface SectionContent {
-                    key: string;
-                    value: string;
-               }
-
-               interface SectionSubItem {
-                    key: string;
-                    openByDefault: boolean;
-                    content: SectionContent[];
-               }
-
-               interface Section {
-                    title: string;
-                    openByDefault: boolean;
-                    content?: SectionContent[];
-                    subItems?: SectionSubItem[];
+               let ammResponse: any;
+               try {
+                    ammResponse = await client.request({
+                         command: 'amm_info',
+                         asset: asset as any, // Type assertion to satisfy XRPL typings
+                         asset2: asset2 as any,
+                         ledger_index: 'validated',
+                    });
+               } catch (error: any) {
+                    if (error.name === 'RippledError') {
+                         if (error.data?.error === 'actNotFound') {
+                              console.warn('No AMM pool exists yet for this asset pair.');
+                         } else {
+                              console.error('RippledError:', error.data?.error_message || error.message);
+                         }
+                    } else {
+                         throw new Error(error);
+                    }
                }
 
                const data: { sections: Section[] } = {
                     sections: [],
                };
 
-               const amm = ammResponse.result?.amm;
+               console.debug(`AMM Info ${JSON.stringify(ammResponse?.result, null, '\t')}`);
+
+               const amm = ammResponse?.result?.amm;
 
                if (!amm) {
                     data.sections.push({
@@ -448,7 +594,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          data.sections.push({
                               title: 'Vote Slots',
                               openByDefault: false,
-                              subItems: amm.vote_slots.map((slot, index) => ({
+                              subItems: amm.vote_slots.map((slot: { account: any; trading_fee: number }, index: number) => ({
                                    key: `Vote Slot ${index + 1}`,
                                    openByDefault: false,
                                    content: [
@@ -478,6 +624,14 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.loadSignerList(wallet.classicAddress);
+               this.setSuccess(this.result);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+               this.amountField = '';
 
                this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
@@ -490,6 +644,266 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
+     async createAMM() {
+          console.log('Entering createAMM');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          if (!this.selectedAccount) {
+               return this.setError('Please select an account');
+          }
+
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          if (!this.utilsService.validateInput(seed)) {
+               return this.setError('ERROR: Account seed cannot be empty');
+          }
+
+          try {
+               const { net, environment } = this.xrplService.getNet();
+               const client = await this.xrplService.getClient();
+               let wallet;
+               if (this.selectedAccount === 'account1') {
+                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
+               } else if (this.selectedAccount === 'account2') {
+                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
+               }
+
+               if (!wallet) {
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               }
+
+               this.resultField.nativeElement.innerHTML = `Connected to ${environment} ${net}\nCreating AMM\n\n`;
+
+               interface SpendObject {
+                    amount?: string; // For XRP
+                    currency?: string; // For tokens
+                    value?: string; // For tokens
+                    issuer?: string; // For tokens
+               }
+
+               interface CurrencyObjectXRP {
+                    currency: string;
+                    value: string;
+               }
+
+               interface CurrencyObjectToken {
+                    currency: string;
+                    issuer: string;
+                    value: string;
+               }
+
+               // type CurrencyObject = CurrencyObjectXRP | CurrencyObjectToken;
+               // const buildCurrencyObject = (currency: string, issuer: string, value: string): CurrencyObject => (currency === AppConstants.XRP_CURRENCY ? { currency, value } : { currency, issuer, value });
+
+               // Prepare data for rendering
+               interface SectionContent {
+                    key: string;
+                    value: string;
+               }
+
+               interface SectionSubItem {
+                    key: string;
+                    openByDefault: boolean;
+                    content: SectionContent[];
+               }
+
+               interface Section {
+                    title: string;
+                    openByDefault: boolean;
+                    content?: SectionContent[];
+                    subItems?: SectionSubItem[];
+               }
+
+               const data: { sections: Section[] } = {
+                    sections: [],
+               };
+
+               // Trust line setup
+               let trustSetResult = null;
+               let issuerAddr, issuerCur;
+               if (this.weWantIssuerField === AppConstants.XRP_CURRENCY || this.weWantIssuerField === '') {
+                    issuerAddr = this.weSpendIssuerField;
+                    issuerCur = this.weSpendCurrencyField;
+               } else {
+                    issuerAddr = this.weWantIssuerField;
+                    issuerCur = this.weWantCurrencyField;
+               }
+
+               console.log(`issuerAddr ${issuerAddr}`);
+               console.log(`issuerCur ${issuerCur}`);
+
+               // const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
+               // console.log(`trustLines ${JSON.stringify(trustLines.result.lines, null, 2)}`);
+
+               // const doesTrustLinesExists = trustLines.result.lines.filter((line: any) => {
+               //      // Decode currency for comparison
+               //      const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+               //      return (
+               //           parseFloat(line.limit) > 0 &&
+               //           parseFloat(line.balance) >= 0 &&
+               //           line.account === issuerAddr && // Use 'account' as the issuer field
+               //           (issuerCur ? decodedCurrency === issuerCur : true)
+               //      );
+               // });
+               // console.debug(`Active trust lines for ${wallet.classicAddress}:`, doesTrustLinesExists);
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               // if (doesTrustLinesExists.length <= 0) {
+               //      const decodedCurrency = issuerCur.length > 3 ? this.utilsService.encodeCurrencyCode(issuerCur) : issuerCur;
+               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               //      const trustSetTx: TrustSet = {
+               //           TransactionType: 'TrustSet',
+               //           Account: wallet.classicAddress,
+               //           LimitAmount: {
+               //                currency: decodedCurrency,
+               //                issuer: issuerAddr,
+               //                value: '1000000',
+               //           },
+               //           Fee: fee,
+               //           LastLedgerSequence: currentLedger + 20,
+               //      };
+
+               //      const ts_prepared = await client.autofill(trustSetTx);
+               //      const ts_signed = wallet.sign(ts_prepared);
+               //      trustSetResult = await client.submitAndWait(ts_signed.tx_blob);
+
+               //      if (trustSetResult.result.meta && typeof trustSetResult.result.meta !== 'string' && (trustSetResult.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+               //           this.utilsService.renderTransactionsResults(trustSetResult, this.resultField.nativeElement);
+               //           this.resultField.nativeElement.classList.add('error');
+               //           this.setErrorProperties();
+               //           return;
+               //      }
+
+               //      data.sections.push({
+               //           title: 'Trust Line Setup',
+               //           openByDefault: true,
+               //           content: [
+               //                { key: 'Status', value: 'Trust line created' },
+               //                { key: 'Currency', value: issuerCur },
+               //                { key: 'Issuer', value: `<code>${issuerAddr}</code>` },
+               //                { key: 'Limit', value: this.amountField },
+               //           ],
+               //      });
+               // } else {
+               //      data.sections.push({
+               //           title: 'Trust Line Setup',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: 'Trust lines already exist' }],
+               //      });
+               // }
+
+               // // Fetch reserve information
+               const xrpReserve = await this.xrplService.getXrpReserveRequirements(client, wallet.address);
+
+               // data.sections.push({
+               //      title: 'Account Reserve Information',
+               //      openByDefault: true,
+               //      content: [
+               //           { key: 'Base Reserve', value: `${xrpReserve.baseReserve} XRP` },
+               //           { key: 'Owner Reserve (per object)', value: `${xrpReserve.ownerReserve} XRP` },
+               //           { key: 'Owner Count', value: String(xrpReserve.ownerCount) },
+               //           { key: 'Current Reserve', value: `${xrpReserve.currentReserve} XRP` },
+               //      ],
+               // });
+
+               // Initial balances
+               const initialXrpBalance = await client.getXrpBalance(wallet.address);
+               // console.log(`Initial XRP Balance ${initialXrpBalance} (drops): ${xrpl.xrpToDrops(initialXrpBalance)}`);
+               // const tokenBalance = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? this.weWantCurrencyField : this.weSpendCurrencyField;
+               // let initialTokenBalance;
+               // if (this.phnixBalance != '') {
+               // initialTokenBalance = this.phnixBalance;
+               // } else {
+               // const initialTokenBalance = await this.xrplService.getOnlyTokenBalance(client, wallet.address, tokenBalance);
+               // }
+               // console.log(`Initial ${tokenBalance} Balance: ${initialTokenBalance}`);
+               data.sections.push({
+                    title: 'Initial Balances',
+                    openByDefault: true,
+                    content: [
+                         { key: 'XRP', value: `${initialXrpBalance} (${xrpl.xrpToDrops(initialXrpBalance)} drops)` },
+                         // { key: tokenBalance, value: initialTokenBalance },
+                    ],
+               });
+
+               // Build currency objects
+               let we_want = this.weWantCurrencyField === AppConstants.XRP_CURRENCY ? { currency: AppConstants.XRP_CURRENCY, value: this.weWantAmountField } : { currency: this.weWantCurrencyField, issuer: this.weWantIssuerField, value: this.weWantAmountField };
+               let we_spend = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? { amount: this.weSpendAmountField } : { currency: this.weSpendCurrencyField, issuer: this.weSpendIssuerField, value: this.weSpendAmountField };
+
+               if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY) {
+                    if (!this.weSpendAmountField) {
+                         throw new Error('weSpendAmountField is required for XRP');
+                    }
+                    we_spend = { amount: this.weSpendAmountField };
+               } else {
+                    if (!this.weSpendAmountField || !this.weSpendIssuerField) {
+                         throw new Error('weSpendAmountField and weSpendIssuerField are required for token');
+                    }
+                    we_spend = {
+                         currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
+                         value: this.weSpendAmountField,
+                         issuer: this.weSpendIssuerField,
+                    };
+               }
+
+               // Validate balances
+               // if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY && Number(xrpl.xrpToDrops(initialXrpBalance)) < Number(this.weSpendAmountField)) {
+               //      this.setError('Insufficient XRP balance');
+               //      return;
+               // } else if (this.weSpendCurrencyField !== AppConstants.XRP_CURRENCY && Number(initialTokenBalance) < Number(this.weSpendAmountField)) {
+               //      this.setError(`Insufficient ${this.weSpendCurrencyField} balance`);
+               //      return;
+               // }
+
+               if (we_want.currency.length > 3) {
+                    we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
+               }
+               // if (we_spend.currency && we_spend.currency.length > 3) {
+               //      we_spend.currency = this.utilsService.encodeCurrencyCode(we_spend.currency);
+               // }
+
+               const offerType = we_spend.currency ? 'sell' : 'buy';
+               console.log(`Offer Type: ${offerType}`);
+
+               const tx: xrpl.AMMCreate = {
+                    TransactionType: 'AMMCreate',
+                    Account: wallet.classicAddress, // the funding account
+                    Amount: '10000000', // e.g., 10 XRP (in drops)
+                    Amount2: {
+                         currency: 'BOB',
+                         issuer: 'rQUch4yZo1UgqW2PdoMajVZp4Kw36itjeL',
+                         value: '10',
+                    },
+                    TradingFee: 500, // 0.5%
+                    // Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
+
+               const preparedTx = await client.autofill(tx);
+               console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
+               const signed = wallet.sign(preparedTx);
+               const result = await client.submitAndWait(signed.tx_blob);
+               console.log(`result: ${JSON.stringify(result, null, '\t')}`);
+
+               this.utilsService.renderTransactionsResults(result, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
+               this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving createAMM in ${this.executionTime}ms`);
+          }
+     }
+
      async getOrderBook() {
           console.log('Entering getOrderBook');
           const startTime = Date.now();
@@ -499,7 +913,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -727,7 +1141,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1276,6 +1690,9 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
                this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
                console.error('Error:', error);
@@ -1296,7 +1713,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1472,6 +1889,9 @@ export class CreateAmmComponent implements AfterViewChecked {
                // Render summary and details in data.sections
                this.utilsService.renderPaymentChannelDetails(data);
 
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
                if (hasError) {
                     this.setErrorProperties();
                } else {
@@ -1500,7 +1920,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1927,20 +2347,145 @@ export class CreateAmmComponent implements AfterViewChecked {
      async onWeWantCurrencyChange() {
           console.log('Entering onWeWantCurrencyChange');
           const startTime = Date.now();
+          this.setSuccessProperties();
 
           if (!this.selectedAccount) {
                this.setError('Please select an account');
                this.weWantTokenBalanceField = '0';
+               this.setErrorProperties();
                return;
           }
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.weWantTokenBalanceField = '0';
+               this.setErrorProperties();
                return;
           }
 
           try {
+               // const client = await this.xrplService.getClient();
+
+               // this.spinner = true;
+               // let balance: string;
+               // const currencyCode = this.weWantCurrencyField && this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField ? this.weWantCurrencyField : '';
+               // if (address) {
+               //      const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, address);
+               //      balance = balanceResult !== null ? balanceResult.toString() : '0';
+               //      this.weWantCurrencyField = balance;
+               // } else {
+               //      this.weWantCurrencyField = '0';
+               // }
+
+               // // Fetch token balances
+               // const gatewayBalances = await this.xrplService.getTokenBalance(client, address, 'validated', '');
+               // console.debug(`gatewayBalances ${address} ${JSON.stringify(gatewayBalances.result, null, '\t')}`);
+
+               // // Prepare data for rendering
+               // interface SectionContent {
+               //      key: string;
+               //      value: string;
+               // }
+
+               // interface SectionSubItem {
+               //      key: string;
+               //      openByDefault: boolean;
+               //      content: SectionContent[];
+               // }
+
+               // interface Section {
+               //      title: string;
+               //      openByDefault: boolean;
+               //      content?: SectionContent[];
+               //      subItems?: SectionSubItem[];
+               // }
+
+               // const data: { sections: Section[] } = {
+               //      sections: [],
+               // };
+
+               // interface SectionContent {
+               //      key: string;
+               //      value: string;
+               // }
+
+               // interface SectionSubItem {
+               //      key: string;
+               //      openByDefault: boolean;
+               //      content: SectionContent[];
+               // }
+
+               // interface Section {
+               //      title: string;
+               //      openByDefault: boolean;
+               //      content?: SectionContent[];
+               //      subItems?: SectionSubItem[];
+               // }
+
+               // // Obligations section (tokens issued by the account)
+               // if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
+               //      data.sections.push({
+               //           title: `Issuer Obligations (${Object.keys(gatewayBalances.result.obligations).length})`,
+               //           openByDefault: true,
+               //           subItems: Object.entries(gatewayBalances.result.obligations).map(([oblCurrency, amount], index) => {
+               //                const displayCurrency = oblCurrency.length > 3 ? this.utilsService.decodeCurrencyCode(oblCurrency) : oblCurrency;
+               //                return {
+               //                     key: `Obligation ${index + 1} (${displayCurrency})`,
+               //                     openByDefault: false,
+               //                     content: [
+               //                          { key: 'Currency', value: displayCurrency },
+               //                          { key: 'Amount', value: amount },
+               //                     ],
+               //                };
+               //           }),
+               //      });
+               // } else {
+               //      data.sections.push({
+               //           title: 'Issuer Obligations',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: 'No obligations issued' }],
+               //      });
+               // }
+
+               // // Balances section (tokens held by the account)
+               // if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+               //      const balanceItems = [];
+               //      for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+               //           for (const { currency, value } of currencies) {
+               //                let displayCurrency = currency;
+               //                if (currency.length > 3) {
+               //                     const tempCurrency = currency;
+               //                     displayCurrency = this.utilsService.decodeCurrencyCode(currency);
+               //                     if (displayCurrency.length > 8) {
+               //                          displayCurrency = tempCurrency;
+               //                     }
+               //                }
+               //                balanceItems.push({
+               //                     key: `${displayCurrency} from ${issuer.slice(0, 8)}...`,
+               //                     openByDefault: false,
+               //                     content: [
+               //                          { key: 'Currency', value: displayCurrency },
+               //                          { key: 'Issuer', value: `<code>${issuer}</code>` },
+               //                          { key: 'Amount', value: value },
+               //                     ],
+               //                });
+               //           }
+               //      }
+               //      data.sections.push({
+               //           title: `Balances (${balanceItems.length})`,
+               //           openByDefault: true,
+               //           subItems: balanceItems,
+               //      });
+               // } else {
+               //      data.sections.push({
+               //           title: 'Balances',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: 'No balances (tokens held by you)' }],
+               //      });
+               // }
+
+               // this.utilsService.renderPaymentChannelDetails(data);
+               // this.weWantCurrencyField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
                this.spinner = true;
                let balance: string;
                if (this.weWantCurrencyField === 'XRP') {
@@ -1948,6 +2493,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
                     balance = (await this.getCurrencyBalance(address, currencyCode)) ?? '0';
+                    this.weWantIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
                }
                this.weWantTokenBalanceField = balance !== null ? balance : '0';
                // this.phnixBalance = Number(this.weWantTokenBalanceField).toFixed(6);
@@ -1984,7 +2530,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.weSpendTokenBalanceField = '0';
                return;
           }
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.weSpendTokenBalanceField = '0';
@@ -2064,8 +2610,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                return;
           }
 
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
-
+          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.phnixBalance = '0';
@@ -2319,8 +2864,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                return;
           }
 
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
-
+          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.phnixBalance = '0';
@@ -2554,6 +3098,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      //      }
 
      //      const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+     //      const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
 
      //      if (!this.utilsService.validateInput(address)) {
      //           this.setError('ERROR: Account address cannot be empty');
@@ -2707,6 +3252,52 @@ export class CreateAmmComponent implements AfterViewChecked {
      //      }
      // }
 
+     addToken() {
+          if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
+               const currency = this.newCurrency.trim();
+               if (this.knownTrustLinesIssuers[currency]) {
+                    this.setError(`Currency ${currency} already exists`);
+                    return;
+               }
+               if (!this.utilsService.isValidCurrencyCode(currency)) {
+                    this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
+                    return;
+               }
+               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+                    this.setError('Invalid issuer address');
+                    return;
+               }
+               this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+               this.updateCurrencies();
+               this.newCurrency = '';
+               this.newIssuer = '';
+               this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+               this.cdr.detectChanges();
+          } else {
+               this.setError('Currency code and issuer address are required');
+          }
+          this.spinner = false;
+     }
+
+     removeToken() {
+          if (this.tokenToRemove) {
+               delete this.knownTrustLinesIssuers[this.tokenToRemove];
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+               this.updateCurrencies();
+               this.setSuccess(`Removed ${this.tokenToRemove}`);
+               this.tokenToRemove = '';
+               this.cdr.detectChanges();
+          } else {
+               this.setError('Select a token to remove');
+          }
+          this.spinner = false;
+     }
+
+     private updateCurrencies() {
+          this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+     }
+
      swapBalances() {
           // Store the current values
           const tempToken = this.phnixBalance;
@@ -2722,6 +3313,59 @@ export class CreateAmmComponent implements AfterViewChecked {
           } else {
                this.updateTokenBalanceAndExchange();
           }
+     }
+
+     refreshUiAccountObjects(accountObjects: any, wallet: any) {
+          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
+          if (signerAccounts && signerAccounts.length > 0) {
+               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
+                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
+                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+
+                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
+                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
+                    this.multiSignSeeds = seeds;
+                    this.multiSignAddress = addresses;
+               }
+          } else {
+               this.signerQuorum = 0;
+               this.multiSignAddress = 'No Multi-Sign address configured for account';
+               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+               this.isMultiSign = false;
+               this.storageService.removeValue('signerEntries');
+          }
+
+          this.isMemoEnabled = false;
+          this.memoField = '';
+     }
+
+     refreshUiAccountInfo(accountInfo: any) {
+          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
+               this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+               this.regularKeySeed = this.storageService.get('regularKeySeed');
+          } else {
+               this.isRegularKeyAddress = false;
+               this.regularKeyAddress = 'No RegularKey configured for account';
+               this.regularKeySeed = '';
+          }
+     }
+
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerAccounts: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                         obj.SignerEntries.forEach((entry: any) => {
+                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   this.signerQuorum = obj.SignerQuorum;
+                              }
+                         });
+                    }
+               });
+          }
+          return signerAccounts;
      }
 
      async getXrpBalance(address: string): Promise<string> {
@@ -2746,6 +3390,69 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
+     loadSignerList(account: string) {
+          const singerEntriesAccount = account + 'signerEntries';
+          if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
+               this.signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
+                    account: s.Account,
+                    seed: s.seed,
+                    weight: s.SignerWeight,
+               }));
+          } else {
+               this.clearSignerList();
+          }
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string }): string | null {
+          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+               return 'Please select an account';
+          }
+          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
+               return 'Amount cannot be empty';
+          }
+          if (inputs.amount != undefined) {
+               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+                    return 'Amount must be a valid number';
+               }
+          }
+          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
+               return 'Amount must be a positive number';
+          }
+          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
+               return 'Destination cannot be empty';
+          }
+          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
+               const addresses = inputs.multiSignAddresses
+                    .split(',')
+                    .map(addr => addr.trim())
+                    .filter(addr => addr);
+               const seeds = inputs.multiSignSeeds
+                    .split(',')
+                    .map(seed => seed.trim())
+                    .filter(seed => seed);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               for (const addr of addresses) {
+                    if (!xrpl.isValidAddress(addr)) {
+                         return `Invalid signer address: ${addr}`;
+                    }
+               }
+               for (const seed of seeds) {
+                    if (!xrpl.isValidSecret(seed)) {
+                         return 'One or more signer seeds are invalid';
+                    }
+               }
+          }
+          return null;
+     }
+
      clearFields() {
           this.memoField = '';
           this.ticketSequence = '';
@@ -2757,6 +3464,86 @@ export class CreateAmmComponent implements AfterViewChecked {
      clearMemeTokens() {
           // this.memeTokensSubject.next([]);
           this.dataSource.data = [];
+     }
+
+     clearSignerList() {
+          this.signers = [{ account: '', seed: '', weight: 1 }];
+     }
+
+     async getWallet() {
+          const environment = this.xrplService.getNet().environment;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
+     }
+
+     private async displayDataForAccount1() {
+          await this.displayDataForAccount('account1');
+     }
+
+     private async displayDataForAccount2() {
+          await this.displayDataForAccount('account2');
+     }
+
+     private async displayDataForAccount3() {
+          await this.displayDataForAccount('issuer');
+     }
+
+     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+
+          let name;
+          let address;
+          let seed;
+
+          // Fetch stored values
+          if (prefix === 'issuer') {
+               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
+               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
+               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
+          } else {
+               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
+               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
+               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
+          }
+
+          // Update account data
+          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
+          account.name = name;
+          account.address = address;
+          account.seed = seed;
+
+          // DOM manipulation
+          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
+          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
+          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+
+          if (accountName1Field) accountName1Field.value = name;
+          if (accountAddress1Field) accountAddress1Field.value = address;
+          if (accountSeed1Field) accountSeed1Field.value = seed;
+
+          // Trigger change detection to sync with ngModel
+          this.cdr.detectChanges();
+
+          // Update destination field (set to other account's address)
+          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
+          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
+
+          // Fetch account details and trustlines
+          try {
+               if (address && xrpl.isValidAddress(address)) {
+                    await this.onWeWantCurrencyChange();
+                    await this.onWeSpendCurrencyChange();
+                    await this.getAMMPoolInfo();
+               } else if (address) {
+                    this.setError('Invalid XRP address');
+               }
+          } catch (error: any) {
+               this.setError(`Error fetching account details: ${error.message}`);
+          }
      }
 
      async displayOfferDataForAccount1() {

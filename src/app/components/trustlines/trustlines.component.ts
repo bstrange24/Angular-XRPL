@@ -875,7 +875,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               console.debug(`Trust lines for ${wallet.classicAddress}:`, trustLines);
+               console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
+
                const activeTrustLine = trustLines.result.lines.filter((line: any) => {
                     // Decode currency for comparison
                     const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
@@ -1050,7 +1051,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     Amount: {
                          currency: curr,
                          value: this.amountField,
-                         issuer: wallet.classicAddress,
+                         issuer: this.issuer.address,
+                         // issuer: wallet.classicAddress,
                     },
                     Fee: fee,
                     LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -1131,11 +1133,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
-
-               console.log('signed:', signedTx);
+               console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
 
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response', response);
+               console.log(`Response: ${JSON.stringify(response, null, '\t')}`);
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
@@ -1155,7 +1156,8 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                console.debug(`UpdatedTrustLines ${wallet.classicAddress} ${JSON.stringify(updatedTrustLines.result, null, '\t')}`);
 
-               const newTrustLine: UpdatedTrustLine | undefined = updatedTrustLines.result.lines.find((line: UpdatedTrustLine) => line.account === wallet.classicAddress && line.currency === this.utilsService.decodeCurrencyCode(this.currencyField));
+               const decodedCurrency = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
+               const newTrustLine: UpdatedTrustLine | undefined = updatedTrustLines.result.lines.find((line: UpdatedTrustLine) => line.currency === decodedCurrency && (line.account === this.issuer.address || line.account === this.destinationField));
                data.sections.push({
                     title: 'New Balance',
                     openByDefault: true,
@@ -1210,7 +1212,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                });
 
                this.utilsService.renderPaymentChannelDetails(data);
-               this.utilsService.renderTransactionsResults1(response, this.resultField.nativeElement, false);
+               // this.utilsService.renderTransactionsResults1(response, this.resultField.nativeElement, false);
+               (response.result as any).clearInnerHtml = false;
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 

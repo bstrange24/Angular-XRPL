@@ -1,0 +1,92 @@
+.transaction-layout {
+     display: grid;
+     grid-template-columns: 2fr 1fr;
+     gap: 20px;
+     align-items: start;
+}
+
+.left-column {
+     display: flex;
+     flex-direction: column;
+     gap: 15px;
+}
+
+.right-column {
+     justify-self: start;
+     width: 100%;
+}
+
+.flags-layout {
+     display: grid;
+     grid-template-columns: 4fr 0.1fr 1fr;
+     gap: 20px;
+     align-items: start;
+}
+
+.flags-layout table {
+     flex: 1;
+}
+
+.button-container {
+     width: 100%;
+}
+
+table textarea {
+     resize: vertical;
+     height: 60px;
+}
+
+#flags,
+#meta td:first-child {
+     white-space: nowrap;
+     width: 150px;
+     padding-right: 10px;
+     text-align: right;
+     vertical-align: middle;
+}
+
+#flags,
+#meta td:last-child {
+     width: auto;
+}
+
+.switch {
+     position: relative;
+     display: inline-block;
+     width: 40px;
+     height: 20px;
+     padding: 10px;
+}
+
+.switch input {
+     opacity: 0;
+     width: 0;
+     height: 0;
+}
+
+
+.flag-row {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     margin: 6px 0;
+     /* spacing between rows */
+     padding: 4px 0;
+     /* optional inner padding */
+}
+
+/* span.tooltip {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     width: 165px;
+     margin-bottom: 5px;
+}
+
+span.tooltip.full-width {
+     width: 100%;
+}
+
+label.switch {
+     margin: 0;
+} */

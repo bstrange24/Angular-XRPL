@@ -2277,7 +2277,11 @@ export class UtilsService {
                return;
           }
           container.classList.remove('error', 'success');
-          container.innerHTML = ''; // Clear content
+          // container.innerHTML = ''; // Clear content
+
+          if (txArray[0].result.clearInnerHtml === undefined || txArray[0].result.clearInnerHtml) {
+               container.innerHTML = ''; // Clear content
+          }
 
           // Add search bar (if not already present)
           let searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
