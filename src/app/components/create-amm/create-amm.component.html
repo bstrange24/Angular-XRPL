@@ -98,7 +98,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="lpTokenBalanceField" size="42" readonly />
+                                        <input type="text" id="lpTokenBalanceField" size="42" [(ngModel)]="lpTokenBalanceField" readonly name="lpTokenBalanceField" />
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
@@ -108,7 +108,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="withdrawlLpTokenFromPoolField" size="42" />
+                                        <input type="text" id="withdrawlLpTokenFromPoolField" size="42" [(ngModel)]="withdrawlLpTokenFromPoolField" name="withdrawlLpTokenFromPoolField" />
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
@@ -361,22 +361,10 @@
                                         <button type="button" (click)="getAMMPoolInfo()">Get AMM Pool Info</button>
                                         <button type="button" (click)="createAMM()">Create AMM</button>
                                         <button type="button" (click)="depositToAMM()">Deposit to AMM</button>
-                                        <button type="button" (click)="cancelOffer()">Withdrawl from AMM</button>
-                                        <button type="button" (click)="clearFields()">Swap via AMM</button>
-                                        <button type="button" (click)="clearFields()">Invert AMM Pool</button>
-                                        <!-- <button type="button" (click)="getOrderBook()">Create AMM Pool</button> -->
-                                        <!-- <button type="button" (click)="getTokenBalance()">Delete AMM Pool</button> -->
-                                        <!-- <button type="button" (click)="invertOrder()">Invert Order</button> -->
+                                        <button type="button" (click)="withdrawlFromAMM()">Withdrawl from AMM</button>
+                                        <button type="button" (click)="swapViaAMM()">Swap via AMM</button>
                                    </td>
                               </tr>
-                              <!-- <tr>
-                    <td colspan="2">
-                         <button type="button" (click)="createOffer()">Deposit to AMM</button>
-                         <button type="button" (click)="cancelOffer()">Withdrawl from AMM</button>
-                         <button type="button" (click)="clearFields()">Swap via AMM</button>
-                         <button type="button" (click)="clearFields()">Invert AMM Pool</button>
-                    </td>
-               </tr> -->
                               <tr>
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
