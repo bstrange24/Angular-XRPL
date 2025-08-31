@@ -291,6 +291,10 @@ export class UtilsService {
           return Buffer.from(jsonStr, 'utf8').toString('hex').toUpperCase();
      }
 
+     issuedAmount(currency: string, issuer: string, value: any) {
+          return { currency, issuer, value: value.toString() };
+     }
+
      convertXRPLTime(rippleTime: any) {
           // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
           const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
@@ -798,6 +802,9 @@ export class UtilsService {
           if (key === 'Domain' || key === 'EmailHash' || key === 'URI') {
                return this.decodeHex(value);
           }
+          if (key === 'Balance' && typeof value === 'object') {
+               return `${value.value} ${value.currency}${value.issuer ? ` (<code>${value.issuer}</code>)` : ''}`;
+          }
           if (key === 'Balance' || key === 'Fee') {
                return this.formatXRPLAmount(value);
           }
@@ -988,6 +995,7 @@ export class UtilsService {
                          DepositPreauth: [],
                          AMMBid: ['BidMin', 'BidMax', 'AuthAccounts'],
                          AMM: ['LPTokenBalance', 'TradingFee', 'Asset', 'Asset2'],
+                         AMMWithdraw: ['LPTokenBalance', 'TradingFee', 'Asset', 'Asset2'],
                     };
                     const nestedFields = typeMap[group.type as keyof typeof typeMap] || [];
 
@@ -2458,6 +2466,9 @@ export class UtilsService {
                          if (item.key === 'Account' || item.key === 'OfferSequence' || item.key === 'SigningPubKey' || item.key === 'TxnSignature' || item.key === 'ctid') {
                               // if (item.key === 'Account' || item.key === 'SigningPubKey' || item.key === 'TxnSignature' || item.key === 'ctid') {
                               displayValue = `<code>${displayValue}</code>`;
+                         }
+                         if ((item.key == 'Asset' || item.key == 'Asset2') && item.value.includes('undefined')) {
+                              displayValue = item.value.split(' ')[1];
                          }
                     }
 

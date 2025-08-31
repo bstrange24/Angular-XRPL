@@ -127,7 +127,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.knownTrustLinesIssuers = storedIssuers;
           }
           this.updateCurrencies();
-          this.currencyField = 'BOB'; // Set default selected currency if available
+          this.currencyField = 'USD'; // BOB Set default selected currency if available
      }
 
      async ngAfterViewInit() {
