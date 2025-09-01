@@ -578,24 +578,6 @@ export class CreateAmmComponent implements AfterViewChecked {
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               // Prepare data for rendering
-               // interface SectionContent {
-               //      key: string;
-               //      value: string;
-               // }
-
-               // interface SectionSubItem {
-               //      key: string;
-               //      openByDefault: boolean;
-               //      content: SectionContent[];
-               // }
-
-               // interface Section {
-               //      title: string;
-               //      openByDefault: boolean;
-               //      content?: SectionContent[];
-               //      subItems?: SectionSubItem[];
-               // }
 
                const data: { sections: Section[] } = {
                     sections: [],

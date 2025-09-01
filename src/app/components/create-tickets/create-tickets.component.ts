@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
-import { WalletInputComponent } from '../wallet-input/wallet-input.component';
+import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { StorageService } from '../../services/storage.service';
 import { AccountSet, TransactionMetadataBase, TicketCreate } from 'xrpl';
 import * as xrpl from 'xrpl';
@@ -26,14 +26,14 @@ interface SignerEntry {
 @Component({
      selector: 'app-create-tickets',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './create-tickets.component.html',
      styleUrl: './create-tickets.component.css',
 })
 export class CreateTicketsComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = 'account1';
+     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
      private lastResult: string = '';
      transactionInput: string = '';
      result: string = '';
@@ -46,6 +46,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
      isEditable: boolean = false;
      account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      xrpBalance1Field: string = '';
      checkIdField: string = '';
      ownerCount: string = '';
@@ -96,10 +97,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any }) {
+     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
-          this.onAccountChange();
+          this.issuer = { ...event.issuer, balance: '0' };
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
@@ -116,6 +117,8 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.displayDataForAccount1();
           } else if (this.selectedAccount === 'account2') {
                this.displayDataForAccount2();
+          } else {
+               this.displayDataForAccount3();
           }
      }
 
@@ -167,7 +170,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -243,7 +246,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
                ticketCount: this.ticketCountField,
           });
           if (validationError) {
@@ -384,7 +387,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
                ticketSequence: this.ticketSequence,
           });
           if (validationError) {
@@ -649,7 +652,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
@@ -683,39 +686,45 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     private displayDataForAccount(accountKey: 'account1' | 'account2') {
-          const prefix = accountKey === 'account1' ? 'account1' : 'account2';
-          const otherPrefix = accountKey === 'account1' ? 'account2' : 'account1';
+     private displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+
+          let name;
+          let address;
+          let seed;
 
           // Fetch stored values
-          const name = this.storageService.getInputValue(`${prefix}name`) || '';
-          const address = this.storageService.getInputValue(`${prefix}address`) || '';
-          const seed = this.storageService.getInputValue(`${prefix}seed`) || '';
-          const mnemonic = this.storageService.getInputValue(`${prefix}mnemonic`) || '';
-          const secretNumbers = this.storageService.getInputValue(`${prefix}secretNumbers`) || '';
-          const otherAddress = this.storageService.getInputValue(`${otherPrefix}address`) || '';
+          if (prefix === 'issuer') {
+               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
+               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
+               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
+          } else {
+               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
+               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
+               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
+          }
 
+          // Update account data
+          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
+          account.name = name;
+          account.address = address;
+          account.seed = seed;
+
+          // DOM manipulation
           const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
           const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
           const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
 
-          // Update account data
-          const account = accountKey === 'account1' ? this.account1 : this.account2;
-          account.name = name;
-          if (accountName1Field) {
-               accountName1Field.value = account.name;
-          }
-          account.address = address;
-          if (accountAddress1Field) {
-               accountAddress1Field.value = account.address;
-          }
-          account.seed = seed || mnemonic || secretNumbers;
-          if (accountSeed1Field) {
-               accountSeed1Field.value = account.seed;
-          }
-          this.destinationField = otherAddress;
+          if (accountName1Field) accountName1Field.value = name;
+          if (accountAddress1Field) accountAddress1Field.value = address;
+          if (accountSeed1Field) accountSeed1Field.value = seed;
 
+          // Trigger change detection to sync with ngModel
           this.cdr.detectChanges();
+
+          // Update destination field (set to other account's address)
+          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
+          this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
 
           if (account.address && xrpl.isValidAddress(account.address)) {
                this.getTickets();
@@ -730,6 +739,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
      async displayDataForAccount2() {
           this.displayDataForAccount('account2');
+     }
+
+     private displayDataForAccount3() {
+          this.displayDataForAccount('issuer');
      }
 
      private setErrorProperties() {

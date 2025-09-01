@@ -2,7 +2,7 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
@@ -44,16 +44,18 @@
                                    </td>
                                    <td>
                                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="accountIssuer">Account 3</label>
                                    </td>
                               </tr>
                               <tr>
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                                             <label for="xrpBalanceField">Spendable XRP Balance</label>
+                                             <label for="xrpBalance1Field">Spendable XRP Balance</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
+                                        <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">

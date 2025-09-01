@@ -119,6 +119,20 @@ export class TrustlinesComponent implements AfterViewChecked {
           tfClearFreeze: TrustSetFlags.tfClearFreeze,
      };
 
+     decodeRippleStateFlags(flags: number): string[] {
+          const ledgerFlagMap: { [key: string]: number } = {
+               lsfLowAuth: 0x00010000,
+               lsfHighAuth: 0x00040000,
+               lsfNoRipple: 0x00020000,
+               lsfLowFreeze: 0x00400000,
+               lsfHighFreeze: 0x00800000,
+          };
+
+          return Object.entries(ledgerFlagMap)
+               .filter(([_, bit]) => (flags & bit) !== 0)
+               .map(([name]) => name);
+     }
+
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngOnInit() {
@@ -253,14 +267,23 @@ export class TrustlinesComponent implements AfterViewChecked {
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
-               const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
-               const activeTrustLine = trustLines.result.lines.filter((line: any) => {
-                    // Decode currency for comparison
-                    const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-                    return line.currency ? decodedCurrency === this.currencyField : true;
+               const trustLinesFromObjects = accountObjects.result.account_objects.filter(obj => obj.LedgerEntryType === 'RippleState');
+
+               // Optional: filter by currency if you only want one
+               const activeTrustLines = trustLinesFromObjects.filter((line: any) => {
+                    const decodedCurrency = line.Balance.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.Balance.currency) : line.Balance.currency;
+                    return decodedCurrency === this.currencyField;
                });
-               console.debug(`Active Trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
+               // const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
+               // console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
+               // const activeTrustLine = trustLines.result.lines.filter((line: any) => {
+               //      // Decode currency for comparison
+               //      const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+               //      return line.currency ? decodedCurrency === this.currencyField : true;
+               // });
+               // console.debug(`Active Trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
+
+               let tokenBal: string = '';
 
                type Section = {
                     title: string;
@@ -276,7 +299,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               const activeTrustLines: TrustLine[] = activeTrustLine as TrustLine[];
+               // const activeTrustLines: TrustLine[] = activeTrustLine as TrustLine[];
                if (activeTrustLines.length === 0) {
                     data.sections.push({
                          title: 'Trust Lines',
@@ -285,13 +308,24 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                } else {
                     // Group trust lines by currency and issuer, and calculate total balance for each
-                    const balanceByToken = activeTrustLines.reduce((acc: { [key: string]: number }, line: TrustLine) => {
-                         const currency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-                         const issuer = line.issuer || 'no-issuer'; // Handle cases with no issuer
+                    const balanceByToken = activeTrustLines.reduce((acc: { [key: string]: number }, line: xrpl.LedgerEntry.RippleState) => {
+                         const currency = line.Balance.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.Balance.currency) : line.Balance.currency;
+
+                         const isLow = wallet.classicAddress < line.HighLimit.issuer;
+                         const issuer = isLow ? line.HighLimit.issuer : line.LowLimit.issuer;
+                         const balance = parseFloat(line.Balance.value);
+
                          const key = `${currency}:${issuer}`;
-                         acc[key] = (acc[key] || 0) + parseFloat(line.balance);
+                         acc[key] = (acc[key] || 0) + balance;
                          return acc;
-                    }, {});
+                    }, {} as { [key: string]: number });
+                    // const balanceByToken = activeTrustLines.reduce((acc: { [key: string]: number }, line: TrustLine) => {
+                    //      const currency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+                    //      const issuer = line.issuer || 'no-issuer'; // Handle cases with no issuer
+                    //      const key = `${currency}:${issuer}`;
+                    //      acc[key] = (acc[key] || 0) + parseFloat(line.balance);
+                    //      return acc;
+                    // }, {});
 
                     // Format totals for display
                     const totalBalances = Object.entries(balanceByToken).map(([key, balance]) => {
@@ -308,25 +342,46 @@ export class TrustlinesComponent implements AfterViewChecked {
                          openByDefault: true,
                          content: totalBalances, // Display all token totals
                          subItems: activeTrustLines.map((line, index) => {
-                              const displayCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+                              const currency = line.Balance.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.Balance.currency) : line.Balance.currency;
+                              const isLow = wallet.classicAddress < line.HighLimit.issuer;
+                              const issuer = isLow ? line.HighLimit.issuer : line.LowLimit.issuer;
+                              const limit = isLow ? line.LowLimit.value : line.HighLimit.value;
+                              const balance = line.Balance.value;
+
                               return {
-                                   key: `Trust Line ${index + 1} (${displayCurrency}${line.issuer ? `, Issuer: ${line.issuer}` : ''})`,
+                                   key: `Trust Line ${index + 1} (${currency}, Issuer: ${issuer})`,
                                    openByDefault: false,
                                    content: [
-                                        { key: 'Currency', value: displayCurrency ?? '' },
-                                        { key: 'Issuer', value: line.issuer ? `<code>${line.issuer}</code>` : '' },
-                                        { key: 'Account', value: line.account ?? '' },
-                                        { key: 'Limit', value: line.limit ?? '' },
-                                        { key: 'Balance', value: line.balance != null ? `${line.balance} ${displayCurrency}` : '' },
-                                        // { key: 'Freeze', value: line.freeze ?? '' }, // Removed: TrustLine does not have 'freeze'
-                                        { key: 'Limit Peer', value: line.limit_peer ?? '' },
-                                        { key: 'No Ripple', value: line.no_ripple != null ? String(line.no_ripple) : '' },
-                                        { key: 'No Ripple Peer', value: line.no_ripple_peer != null ? String(line.no_ripple_peer) : '' },
-                                        { key: 'Quality In', value: line.quality_in != null ? String(line.quality_in) : '' },
-                                        { key: 'Quality Out', value: line.quality_out != null ? String(line.quality_out) : '' },
+                                        { key: 'Currency', value: currency },
+                                        { key: 'Issuer', value: `<code>${issuer}</code>` },
+                                        { key: 'Balance', value: `${balance} ${currency}` },
+                                        { key: 'Limit', value: limit },
+                                        { key: 'Flags', value: this.decodeRippleStateFlags(line.Flags).join(', ') || 'None' },
+                                        { key: 'PreviousTxnID', value: String(line.PreviousTxnID) },
+                                        { key: 'Index', value: String(line.index) },
                                    ],
                               };
                          }),
+                         // subItems: activeTrustLines.map((line, index) => {
+                         //      const displayCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+                         //      return {
+                         //           key: `Trust Line ${index + 1} (${displayCurrency}${line.issuer ? `, Issuer: ${line.issuer}` : ''})`,
+                         //           openByDefault: false,
+                         //           content: [
+                         //                { key: 'Currency', value: displayCurrency ?? '' },
+                         //                { key: 'Issuer', value: line.issuer ? `<code>${line.issuer}</code>` : '' },
+                         //                { key: 'Account', value: line.account ?? '' },
+                         //                { key: 'Limit', value: line.limit ?? '' },
+                         //                { key: 'Balance', value: line.balance != null ? `${line.balance} ${displayCurrency}` : '' },
+                         //                // { key: 'Freeze', value: line.freeze ?? '' }, // Removed: TrustLine does not have 'freeze'
+                         //                { key: 'Limit Peer', value: line.limit_peer ?? '' },
+                         //                { key: 'No Ripple', value: line.no_ripple != null ? String(line.no_ripple) : '' },
+                         //                { key: 'No Ripple Peer', value: line.no_ripple_peer != null ? String(line.no_ripple_peer) : '' },
+                         //                { key: 'Quality In', value: line.quality_in != null ? String(line.quality_in) : '' },
+                         //                { key: 'Quality Out', value: line.quality_out != null ? String(line.quality_out) : '' },
+                         //           ],
+                         //      };
+                         // }),
                     });
 
                     const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
@@ -337,6 +392,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               openByDefault: true,
                               subItems: Object.entries(tokenBalance.result.obligations).map(([currency, amount], index) => {
                                    const displayCurrency = currency.length > 3 ? this.utilsService.decodeCurrencyCode(currency) : currency;
+                                   tokenBal = amount;
                                    return {
                                         key: `Obligation ${index + 1} (${displayCurrency})`,
                                         openByDefault: false,
@@ -363,7 +419,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                                         }
                                    }
                                    balanceItems.push({
-                                        key: `${displayCurrency} from ${issuer.slice(0, 8)}...`,
+                                        key: `${displayCurrency} from ${issuer}`,
                                         openByDefault: false,
                                         content: [
                                              { key: 'Currency', value: displayCurrency },
@@ -581,10 +637,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
-               console.log('signed:', signedTx);
+               console.log('signed:', JSON.stringify(signedTx, null, '\t'));
 
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response', response);
+               console.log('Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
@@ -791,10 +847,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
-               console.log('signed:', signedTx);
+               console.log('signed:', JSON.stringify(signedTx, null, '\t'));
 
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response', response);
+               console.log('Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
@@ -1004,10 +1060,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign transaction.');
                     }
 
-                    console.log('signed:', signedTx);
+                    console.log('signed:', JSON.stringify(signedTx, null, '\t'));
 
                     const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Response', response);
+                    console.log('Response:', JSON.stringify(response, null, '\t'));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
