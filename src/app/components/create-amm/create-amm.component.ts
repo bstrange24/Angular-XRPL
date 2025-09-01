@@ -153,7 +153,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
-     amountField: string = '';
+     // amountField: string = '';
      currentTimeField: string = '';
      memoField: string = '';
      isMemoEnabled = false;
@@ -544,7 +544,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
-               this.amountField = '';
+               // this.amountField = '';
 
                this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
@@ -565,7 +565,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
-               amount: this.amountField,
+               // amount: this.amountField,
                weWantAmountField: this.weWantAmountField,
                weSpendAmountField: this.weSpendAmountField,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -653,19 +653,23 @@ export class CreateAmmComponent implements AfterViewChecked {
                     we_spend.currency = this.utilsService.encodeCurrencyCode(we_spend.currency);
                }
 
-               const offerType = we_spend.currency ? 'sell' : 'buy';
-               console.log(`Offer Type: ${offerType}`);
+              if (we_spend.amount === undefined) {
+   throw new Error('Amount is undefined');
+}
 
+if (!we_want.issuer) {
+   throw new Error('Issuer is undefined');
+}
                const tx: xrpl.AMMCreate = {
                     TransactionType: 'AMMCreate',
                     Account: wallet.classicAddress, // the funding account
-                    Amount: '10000000', // e.g., 10 XRP (in drops)
+                    Amount: xrpl.xrpToDrops(we_spend.amount.toString()), // e.g., 10 XRP (in drops)
                     Amount2: {
-                         currency: 'BOB',
-                         issuer: 'rQUch4yZo1UgqW2PdoMajVZp4Kw36itjeL',
-                         value: '10',
+                         currency: we_want.currency,
+                         issuer: we_want.issuer,
+                         value: we_want.value,
                     },
-                    TradingFee: 500, // 0.5%
+                    TradingFee: Number(this.tradingFeeField),// 500, // 0.5%
                     // Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
@@ -821,7 +825,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
-               this.amountField = '';
+               // this.amountField = '';
 
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -937,7 +941,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
-               this.amountField = '';
+               // this.amountField = '';
 
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1053,7 +1057,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
-               this.amountField = '';
+               // this.amountField = '';
 
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1130,7 +1134,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                this.isMemoEnabled = false;
                this.memoField = '';
-               this.amountField = '';
+               // this.amountField = '';
 
                this.account1.balance = await this.getXrpBalance(wallet.classicAddress);
           } catch (error: any) {
