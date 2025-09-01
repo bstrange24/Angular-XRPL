@@ -483,11 +483,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Removing Credentials...');
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
-
-               if (accountObjects.result.account_objects.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
-                    return;
-               }
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                // Find the specific trustline to the issuer (destinationField)
                const credentialFound = accountObjects.result.account_objects.find((line: any) => {

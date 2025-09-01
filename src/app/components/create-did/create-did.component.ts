@@ -492,11 +492,7 @@ export class CreateDidComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Removing DID...');
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'did');
-
-               if (accountObjects.result.account_objects.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
-                    return;
-               }
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                // Find the specific trustline to the issuer (destinationField)
                const didFound = accountObjects.result.account_objects.find((line: any) => {

@@ -420,10 +420,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               if (accountObjects.result.account_objects.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account objects found for ${wallet.classicAddress}`;
-                    return;
-               }
                console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                // Set flags from account info
