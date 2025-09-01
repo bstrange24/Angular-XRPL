@@ -101,6 +101,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
           this.issuer = { ...event.issuer, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
