@@ -166,7 +166,8 @@ input:read-only {
 #regularKeyAddress,
 #regularKeyAccountField,
 #regularKeyAccount,
-#depositAuthAddress {
+#depositAuthAddress,
+#destinationFields {
      color: #4CAF50;
 }
 

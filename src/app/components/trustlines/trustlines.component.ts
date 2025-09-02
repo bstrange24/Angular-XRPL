@@ -54,7 +54,9 @@ export class TrustlinesComponent implements AfterViewChecked {
      isSuccess: boolean = false;
      isEditable: boolean = true;
      currencyField: string = '';
+     destinationFields: string = '';
      currencyBalanceField: string = '';
+     gatewayBalance: string = '';
      destinationField: string = '';
      amountField: string = '';
      ticketSequence: string = '';
@@ -81,7 +83,9 @@ export class TrustlinesComponent implements AfterViewChecked {
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
      };
+     private knownDestinations: { [key: string]: string } = {};
      currencies: string[] = [];
+     destinations: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
@@ -140,6 +144,10 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (storedIssuers) {
                this.knownTrustLinesIssuers = storedIssuers;
           }
+          const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          if (storedDestinations) {
+               this.knownDestinations = storedDestinations;
+          }
           this.updateCurrencies();
           this.currencyField = 'USD'; // BOB Set default selected currency if available
      }
@@ -148,6 +156,13 @@ export class TrustlinesComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.loadSignerList(wallet.classicAddress);
+               this.knownDestinations = {
+                    Account1: this.account1.address,
+                    Account2: this.account2.address,
+                    Account3: this.issuer.address,
+               };
+               this.updateDestinations();
+               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -245,7 +260,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -262,26 +277,20 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
                     return;
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+               console.info(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
                const trustLinesFromObjects = accountObjects.result.account_objects.filter(obj => obj.LedgerEntryType === 'RippleState');
+               console.debug(`trustLinesFromObjects for ${wallet.classicAddress} ${JSON.stringify(trustLinesFromObjects, null, '\t')}`);
 
                // Optional: filter by currency if you only want one
                const activeTrustLines = trustLinesFromObjects.filter((line: any) => {
-                    const decodedCurrency = line.Balance.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.Balance.currency) : line.Balance.currency;
+                    const decodedCurrency = this.utilsService.decodeIfNeeded(line.Balance.currency);
                     return decodedCurrency === this.currencyField;
                });
-               // const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               // console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
-               // const activeTrustLine = trustLines.result.lines.filter((line: any) => {
-               //      // Decode currency for comparison
-               //      const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-               //      return line.currency ? decodedCurrency === this.currencyField : true;
-               // });
-               // console.debug(`Active Trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
+               console.info(`activeTrustLines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLines, null, '\t')}`);
 
                let tokenBal: string = '';
 
@@ -306,10 +315,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No active trust lines found for <code>${this.currencyField}</code> and <code>${wallet.classicAddress}</code>` }],
                     });
+                    this.gatewayBalance = '';
                } else {
                     // Group trust lines by currency and issuer, and calculate total balance for each
                     const balanceByToken = activeTrustLines.reduce((acc: { [key: string]: number }, line: xrpl.LedgerEntry.RippleState) => {
-                         const currency = line.Balance.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.Balance.currency) : line.Balance.currency;
+                         const currency = this.utilsService.decodeIfNeeded(line.Balance.currency);
 
                          const isLow = wallet.classicAddress < line.HighLimit.issuer;
                          const issuer = isLow ? line.HighLimit.issuer : line.LowLimit.issuer;
@@ -319,13 +329,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          acc[key] = (acc[key] || 0) + balance;
                          return acc;
                     }, {} as { [key: string]: number });
-                    // const balanceByToken = activeTrustLines.reduce((acc: { [key: string]: number }, line: TrustLine) => {
-                    //      const currency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-                    //      const issuer = line.issuer || 'no-issuer'; // Handle cases with no issuer
-                    //      const key = `${currency}:${issuer}`;
-                    //      acc[key] = (acc[key] || 0) + parseFloat(line.balance);
-                    //      return acc;
-                    // }, {});
 
                     // Format totals for display
                     const totalBalances = Object.entries(balanceByToken).map(([key, balance]) => {
@@ -342,7 +345,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          openByDefault: true,
                          content: totalBalances, // Display all token totals
                          subItems: activeTrustLines.map((line, index) => {
-                              const currency = line.Balance.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.Balance.currency) : line.Balance.currency;
+                              const currency = this.utilsService.decodeIfNeeded(line.Balance.currency);
                               const isLow = wallet.classicAddress < line.HighLimit.issuer;
                               const issuer = isLow ? line.HighLimit.issuer : line.LowLimit.issuer;
                               const limit = isLow ? line.LowLimit.value : line.HighLimit.value;
@@ -362,26 +365,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    ],
                               };
                          }),
-                         // subItems: activeTrustLines.map((line, index) => {
-                         //      const displayCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
-                         //      return {
-                         //           key: `Trust Line ${index + 1} (${displayCurrency}${line.issuer ? `, Issuer: ${line.issuer}` : ''})`,
-                         //           openByDefault: false,
-                         //           content: [
-                         //                { key: 'Currency', value: displayCurrency ?? '' },
-                         //                { key: 'Issuer', value: line.issuer ? `<code>${line.issuer}</code>` : '' },
-                         //                { key: 'Account', value: line.account ?? '' },
-                         //                { key: 'Limit', value: line.limit ?? '' },
-                         //                { key: 'Balance', value: line.balance != null ? `${line.balance} ${displayCurrency}` : '' },
-                         //                // { key: 'Freeze', value: line.freeze ?? '' }, // Removed: TrustLine does not have 'freeze'
-                         //                { key: 'Limit Peer', value: line.limit_peer ?? '' },
-                         //                { key: 'No Ripple', value: line.no_ripple != null ? String(line.no_ripple) : '' },
-                         //                { key: 'No Ripple Peer', value: line.no_ripple_peer != null ? String(line.no_ripple_peer) : '' },
-                         //                { key: 'Quality In', value: line.quality_in != null ? String(line.quality_in) : '' },
-                         //                { key: 'Quality Out', value: line.quality_out != null ? String(line.quality_out) : '' },
-                         //           ],
-                         //      };
-                         // }),
                     });
 
                     const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
@@ -391,7 +374,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               title: `Obligations (${Object.keys(tokenBalance.result.obligations).length})`,
                               openByDefault: true,
                               subItems: Object.entries(tokenBalance.result.obligations).map(([currency, amount], index) => {
-                                   const displayCurrency = currency.length > 3 ? this.utilsService.decodeCurrencyCode(currency) : currency;
+                                   const displayCurrency = this.utilsService.decodeIfNeeded(currency);
                                    tokenBal = amount;
                                    return {
                                         key: `Obligation ${index + 1} (${displayCurrency})`,
@@ -411,6 +394,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          for (const [issuer, currencies] of Object.entries(tokenBalance.result.assets)) {
                               for (const { currency, value } of currencies) {
                                    let displayCurrency = currency;
+                                   const curr = this.utilsService.decodeIfNeeded(this.currencyField);
                                    if (currency.length > 3) {
                                         const tempCurrency = currency;
                                         displayCurrency = this.utilsService.decodeCurrencyCode(currency);
@@ -447,7 +431,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.memoField = '';
                this.amountField = '';
 
-               const currency = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
+               const currency = this.utilsService.decodeIfNeeded(this.currencyField);
                const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
 
                if (rippleState && 'LedgerEntryType' in rippleState && rippleState.LedgerEntryType === 'RippleState') {
@@ -498,7 +482,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationField,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -532,8 +516,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Cannot set both tfSetFreeze and tfClearFreeze');
                }
 
-               let currencyFieldTemp: string = this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField;
-
+               let currencyFieldTemp = this.utilsService.encodeIfNeeded(this.currencyField);
                if (!/^[A-Z0-9]{3}$|^[0-9A-Fa-f]{40}$/.test(currencyFieldTemp)) {
                     throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
                }
@@ -675,7 +658,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
@@ -708,14 +691,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Removing Trustline...');
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               console.debug(`All trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
+               console.info(`All trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
 
                // Normalize currency for comparison
-               const currencyMatch = this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField;
+               const currencyMatch = this.utilsService.encodeIfNeeded(this.currencyField);
 
                // Find the specific trustline to the issuer (destinationField)
                const trustLine = trustLines.result.lines.find((line: any) => {
-                    const lineCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+                    const lineCurrency = this.utilsService.decodeIfNeeded(line.currency);
                     return line.account === this.destinationField && lineCurrency === this.currencyField;
                });
 
@@ -745,7 +728,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError(`ERROR: Cannot remove trust line: Balance is ${trustLine.balance}. Balance must be 0.`);
                }
 
-               let currencyFieldTemp: string = this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField;
+               let currencyFieldTemp = this.utilsService.encodeIfNeeded(this.currencyField);
 
                let flags = 0;
                Object.keys(this.trustlineFlags).forEach(key => {
@@ -885,18 +868,13 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationField,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
           }
-
-          // const currencyBalanceField = document.getElementById('currencyBalanceField') as HTMLInputElement | null;
-          // if (parseFloat(this.amountField) > parseFloat(currencyBalanceField?.value || '0')) {
-          //      return this.setError('ERROR: Currency Amount must be less than the currency balance.');
-          // }
 
           try {
                const environment = this.xrplService.getNet().environment;
@@ -914,12 +892,6 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Issuing Currency...');
 
-               // if (this.currencyField !== AppConstants.XRP_CURRENCY) {
-               //      if (parseFloat(this.amountField) > parseFloat(this.currencyBalanceField)) {
-               //           return this.setError('ERROR: Insufficent Currency balance to complete transaction');
-               //      }
-               // }
-
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                if (accountInfo == null) {
                     return this.setError(`Issuer account ${wallet.classicAddress} is not funded.`);
@@ -930,11 +902,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
 
                const activeTrustLine = trustLines.result.lines.filter((line: any) => {
-                    // Decode currency for comparison
-                    const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
+                    const decodedCurrency = this.utilsService.decodeIfNeeded(line.currency);
                     return line.account === this.destinationField && (line.currency ? decodedCurrency === this.currencyField : true);
                });
-               console.debug(`Active trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
+               console.info(`Active trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
 
                type Section = {
                     title: string;
@@ -1095,7 +1066,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                lastLedgerIndex = await this.xrplService.getLastLedgerIndex(client);
 
-               const curr = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
+               const curr = this.utilsService.encodeIfNeeded(this.currencyField);
                const paymentTx: Payment = {
                     TransactionType: 'Payment',
                     Account: wallet.classicAddress,
@@ -1104,7 +1075,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          currency: curr,
                          value: this.amountField,
                          issuer: this.issuer.address,
-                         // issuer: wallet.classicAddress,
                     },
                     Fee: fee,
                     LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -1199,6 +1169,8 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                // New Balance section
                const updatedTrustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
+               console.debug(`UpdatedTrustLines ${wallet.classicAddress} ${JSON.stringify(updatedTrustLines.result, null, '\t')}`);
+
                interface UpdatedTrustLine {
                     account: string;
                     currency: string;
@@ -1206,9 +1178,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     [key: string]: any;
                }
 
-               console.debug(`UpdatedTrustLines ${wallet.classicAddress} ${JSON.stringify(updatedTrustLines.result, null, '\t')}`);
-
-               const decodedCurrency = this.currencyField.length > 3 ? this.utilsService.decodeCurrencyCode(this.currencyField) : this.currencyField;
+               const decodedCurrency = this.utilsService.decodeIfNeeded(this.currencyField);
                const newTrustLine: UpdatedTrustLine | undefined = updatedTrustLines.result.lines.find((line: UpdatedTrustLine) => line.currency === decodedCurrency && (line.account === this.issuer.address || line.account === this.destinationField));
                data.sections.push({
                     title: 'New Balance',
@@ -1287,28 +1257,23 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               this.setError('Please select an account');
-               this.currencyBalanceField = '0';
-               this.setErrorProperties();
-               return;
-          }
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
-          if (!this.utilsService.validateInput(address)) {
-               this.setError('ERROR: Account address cannot be empty');
-               this.currencyBalanceField = '0';
-               this.setErrorProperties();
-               return;
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
           try {
                const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
 
                this.spinner = true;
                let balance: string;
-               const currencyCode = this.currencyField && this.currencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyField) : this.currencyField ? this.currencyField : '';
-               if (address) {
-                    const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, address);
+               const currencyCode = this.utilsService.encodeIfNeeded(this.currencyField);
+               if (wallet.classicAddress) {
+                    const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, wallet.classicAddress);
                     balance = balanceResult !== null ? balanceResult.toString() : '0';
                     this.currencyBalanceField = balance;
                } else {
@@ -1316,8 +1281,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                // Fetch token balances
-               const gatewayBalances = await this.xrplService.getTokenBalance(client, address, 'validated', '');
-               console.debug(`gatewayBalances ${address} ${JSON.stringify(gatewayBalances.result, null, '\t')}`);
+               const gatewayBalances = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
+               console.debug(`gatewayBalances ${wallet.classicAddress} ${JSON.stringify(gatewayBalances.result, null, '\t')}`);
 
                // Prepare data for rendering
                interface SectionContent {
@@ -1366,7 +1331,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          title: `Issuer Obligations (${Object.keys(gatewayBalances.result.obligations).length})`,
                          openByDefault: true,
                          subItems: Object.entries(gatewayBalances.result.obligations).map(([oblCurrency, amount], index) => {
-                              const displayCurrency = oblCurrency.length > 3 ? this.utilsService.decodeCurrencyCode(oblCurrency) : oblCurrency;
+                              const displayCurrency = this.utilsService.decodeIfNeeded(oblCurrency);
                               return {
                                    key: `Obligation ${index + 1} (${displayCurrency})`,
                                    openByDefault: false,
@@ -1378,6 +1343,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          }),
                     });
                } else {
+                    this.gatewayBalance = '';
                     data.sections.push({
                          title: 'Issuer Obligations',
                          openByDefault: true,
@@ -1386,11 +1352,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                // Balances section (tokens held by the account)
+               let balanceTotal: number = 0;
                if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
                     const balanceItems = [];
                     for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
                          for (const { currency, value } of currencies) {
                               let displayCurrency = currency;
+                              const curr = this.utilsService.decodeIfNeeded(this.currencyField);
                               if (currency.length > 3) {
                                    const tempCurrency = currency;
                                    displayCurrency = this.utilsService.decodeCurrencyCode(currency);
@@ -1407,6 +1375,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                                         { key: 'Amount', value: value },
                                    ],
                               });
+
+                              if (displayCurrency === this.currencyField) {
+                                   balanceTotal = balanceTotal + Number(value);
+                              }
                          }
                     }
                     data.sections.push({
@@ -1414,7 +1386,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                          openByDefault: true,
                          subItems: balanceItems,
                     });
+                    this.gatewayBalance = balanceTotal.toString();
                } else {
+                    if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
+                         const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
+                         this.gatewayBalance = gatewayBalances.result.obligations[displayCurrency];
+                    }
                     data.sections.push({
                          title: 'Balances',
                          openByDefault: true,
@@ -1466,7 +1443,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
                     const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
                     const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+                    console.debug(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
 
                     const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
                     const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
@@ -1619,9 +1596,14 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
      }
 
+     private updateDestinations() {
+          this.destinations = [...Object.values(this.knownDestinations)];
+          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+     }
+
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

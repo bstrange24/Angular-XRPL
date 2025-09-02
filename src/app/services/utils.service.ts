@@ -14,14 +14,9 @@ type FlagResult = Record<string, boolean> | string | null;
 })
 export class UtilsService {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     // transactionInput = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
-     // ownerCount = '';
-     // totalXrpReserves = '';
-     // transferRate = '';
-     // isMessageKey: boolean = false;
      spinner: boolean = false;
 
      constructor(private xrplService: XrplService, private storageService: StorageService) {}
@@ -213,6 +208,40 @@ export class UtilsService {
                pluralLabel: 'NFTs',
           },
      };
+
+     getSelectedSeedWithIssuer(selectedAccount: string, account1: any, account2: any, issuer: any): string {
+          return selectedAccount === 'account1' ? account1.seed : selectedAccount === 'account2' ? account2.seed : issuer.seed;
+     }
+
+     getSelectedAddressWithIssuer(selectedAccount: string, account1: any, account2: any, issuer: any): string {
+          return selectedAccount === 'account1' ? account1.address : selectedAccount === 'account2' ? account2.address : issuer.address;
+     }
+
+     getSelectedAddressWithOutIssuer(selectedAccount: string, account1: any, account2: any): string {
+          return selectedAccount === 'account1' ? account1.address : account2.address;
+     }
+
+     getSelectedSeedWithOutIssuer(selectedAccount: string, account1: any, account2: any): string {
+          return selectedAccount === 'account1' ? account1.seed : account2.seed;
+     }
+
+     encodeIfNeeded(currency: string): string {
+          return currency?.length > 3 ? this.encodeCurrencyCode(currency) : currency || '';
+     }
+
+     // decodeIfNeeded(currency: string): string {
+     //      return currency?.length > 3 ? this.decodeCurrencyCode(currency) : currency || '';
+     // }
+
+     decodeIfNeeded(value: string): string {
+          return this.isCurrencyCode(value) ? this.decodeCurrencyCode(value) : value;
+     }
+
+     isCurrencyCode(value: string): boolean {
+          // Heuristic: XRP-style currency codes are either "XRP" or 3+ chars / 160-bit hex
+          // You can adjust this depending on your needs
+          return value !== 'XRP' && value.length > 3;
+     }
 
      validateCondition(condition: string | undefined | null): string | null {
           // Check if condition is provided and non-empty
@@ -1045,7 +1074,8 @@ export class UtilsService {
                                    } else if (typeof obj[field] === 'object') {
                                         content = Object.entries(obj[field]).map(([k, v]) => ({
                                              key: k,
-                                             value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : String(v),
+                                             value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : k === 'currency' ? this.decodeIfNeeded(String(v)) : String(v),
+                                             // value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : this.decodeIfNeeded(String(v)),
                                         }));
                                    } else if (nestedFields.includes('HighLimit') && field === 'Flags') {
                                         content = [{ key: field, value: this.getFlagName(obj[field]) }];
@@ -1366,473 +1396,6 @@ export class UtilsService {
           });
      }
 
-     // renderTransactionsResults(transactions: { type: string; result: any } | { type: string; result: any }[], container: HTMLElement): void {
-     //      const txArray = Array.isArray(transactions) ? transactions : [transactions];
-     //      if (!container) {
-     //           console.error('Error: container not found');
-     //           return;
-     //      }
-     //      container.innerHTML = '';
-
-     //      // Add search bar
-     //      const searchBar = document.createElement('input');
-     //      searchBar.type = 'text';
-     //      searchBar.id = 'resultSearch';
-     //      searchBar.placeholder = 'Search transaction...';
-     //      searchBar.className = 'result-search';
-     //      searchBar.style.boxSizing = 'border-box';
-     //      container.appendChild(searchBar);
-
-     //      const result = Array.isArray(transactions) ? transactions[0].result : transactions.result;
-     //      const isSuccess = result.meta.TransactionResult === 'tesSUCCESS'; // Check tesSUCCESS
-
-     //      // Define nested fields for each transaction type (unchanged)
-     //      const nestedFieldsByType = {
-     //           Payment: ['Amount', 'DeliverMax', 'DestinationTag', 'SourceTag', 'InvoiceID', 'PreviousFields', 'Balance', 'Sequence'],
-     //           OfferCreate: ['TakerGets', 'TakerPays'],
-     //           OfferCancel: [],
-     //           TrustSet: ['LimitAmount'],
-     //           AccountSet: ['ClearFlag', 'SetFlag', 'Domain', 'EmailHash', 'MessageKey', 'TransferRate', 'TickSize'],
-     //           AccountDelete: [],
-     //           SetRegularKey: ['RegularKey'],
-     //           SignerListSet: ['SignerEntries'],
-     //           EscrowCreate: ['Amount', 'Condition', 'DestinationTag', 'SourceTag'],
-     //           EscrowFinish: ['Condition', 'Fulfillment'],
-     //           EscrowCancel: [],
-     //           PaymentChannelCreate: ['Amount', 'DestinationTag', 'SourceTag', 'PublicKey'],
-     //           PaymentChannelFund: ['Amount'],
-     //           PaymentChannelClaim: ['Balance', 'Amount', 'Signature', 'PublicKey'],
-     //           CheckCreate: ['Amount', 'DestinationTag', 'SourceTag', 'InvoiceID'],
-     //           CheckCash: ['Amount', 'DeliverMin'],
-     //           CheckCancel: [],
-     //           DepositPreauth: ['Authorize', 'Unauthorize'],
-     //           TicketCreate: [],
-     //           NFTokenMint: ['NFTokenTaxon', 'Issuer', 'TransferFee', 'URI'],
-     //           NFTokenBurn: [],
-     //           NFTokenCreateOffer: ['Amount', 'Destination'],
-     //           NFTokenCancelOffer: ['NFTokenOffers'],
-     //           NFTokenAcceptOffer: [],
-     //           AMMCreate: ['Amount', 'Amount2', 'TradingFee'],
-     //           AMMFund: ['Amount', 'Amount2'],
-     //           AMMBid: ['BidMin', 'BidMax', 'AuthAccounts'],
-     //           AMMWithdraw: ['Amount', 'Amount2', 'LPTokenIn'],
-     //           AMMVote: [],
-     //           AMMDelete: [],
-     //           EnableAmendment: [],
-     //           SetFee: [],
-     //           UNLModify: [],
-     //           Clawback: ['Amount'],
-     //           XChainBridge: ['MinAccountCreateAmount', 'SignatureReward'],
-     //           XChainCreateClaimId: [],
-     //           XChainCommit: ['Amount', 'OtherChainDestination'],
-     //           XChainClaim: [],
-     //           XChainAccountCreateCommit: ['Amount', 'SignatureReward'],
-     //           XChainAddAccountCreateAttestation: [],
-     //           XChainAddClaimAttestation: [],
-     //           XChainCreateBridge: ['MinAccountCreateAmount', 'SignatureReward'],
-     //           XChainModifyBridge: ['MinAccountCreateAmount', 'SignatureReward'],
-     //           DIDSet: ['Data', 'URI', 'Attestation'],
-     //           DIDDelete: [],
-     //      };
-
-     //      // Define sections
-     //      interface SectionContentItem {
-     //           key: string;
-     //           value: any;
-     //           subContent?: SectionContentItem[];
-     //      }
-
-     //      interface SectionSubItem {
-     //           key: string;
-     //           content: SectionContentItem[];
-     //      }
-
-     //      interface Section {
-     //           title: string;
-     //           content: SectionContentItem[];
-     //           subItems?: SectionSubItem[];
-     //      }
-
-     //      interface Sections {
-     //           [key: string]: Section;
-     //      }
-
-     //      interface TxResult {
-     //           tx_json: { [key: string]: any; TransactionType: string };
-     //           hash: string;
-     //           ctid?: string;
-     //           close_time_iso?: string;
-     //           meta: {
-     //                TransactionResult: string;
-     //                TransactionIndex?: number;
-     //                delivered_amount?: any;
-     //                AffectedNodes: any[];
-     //           };
-     //           ledger_hash?: string;
-     //           ledger_index?: number;
-     //           validated?: boolean;
-     //      }
-
-     //      const sections: Sections = {
-     //           transaction: {
-     //                title: 'Transaction Details',
-     //                content: [
-     //                     { key: 'Transaction Type', value: result.tx_json.TransactionType },
-     //                     { key: 'Hash', value: `<code>${result.hash}</code>` },
-     //                     { key: 'CTID', value: result.ctid },
-     //                     { key: 'Date', value: new Date(result.close_time_iso).toLocaleString() },
-     //                     {
-     //                          key: 'Result',
-     //                          value: isSuccess ? result.meta.TransactionResult : `<span class="error-result">${result.meta.TransactionResult}</span>`,
-     //                     },
-     //                     { key: 'Ledger Hash', value: `<code>${result.ledger_hash}</code>` },
-     //                     { key: 'Ledger Index', value: result.ledger_index },
-     //                     { key: 'Validated', value: result.validated },
-     //                ],
-     //           },
-     //           tx_data: {
-     //                title: 'Transaction Data',
-     //                content: Object.entries(result.tx_json)
-     //                     .filter(([key]) => !['TransactionType', 'date', 'ledger_index'].includes(key))
-     //                     .map(([key, value]) => {
-     //                          const nestedFields = (nestedFieldsByType[result.tx_json.TransactionType as keyof typeof nestedFieldsByType] || []) as string[];
-     //                          if (nestedFields.includes(key) && typeof value === 'object') return null;
-     //                          return {
-     //                               key,
-     //                               value: key === 'Account' || key === 'Destination' || key.includes('PubKey') || key.includes('Signature') || key.includes('TxnSignature') ? `<code>${value}</code>` : typeof value === 'string' && value.length > 50 ? `<code>${value.slice(0, 50)}...</code>` : value,
-     //                          };
-     //                     })
-     //                     .filter((item): item is SectionContentItem => item !== null && item !== undefined),
-     //                subItems: (nestedFieldsByType[result.tx_json.TransactionType as keyof typeof nestedFieldsByType] || [])
-     //                     .filter((field: string) => result.tx_json[field])
-     //                     .map((field: string): SectionSubItem => {
-     //                          let content: SectionContentItem[];
-     //                          if (field === 'SignerEntries') {
-     //                               interface SignerEntry {
-     //                                    SignerEntry: {
-     //                                         Account: string;
-     //                                         SignerWeight: number;
-     //                                    };
-     //                               }
-
-     //                               interface SignerEntryContent {
-     //                                    key: string;
-     //                                    value: string;
-     //                               }
-
-     //                               const signerEntries: SignerEntry[] = result.tx_json[field] as SignerEntry[];
-     //                               content = signerEntries.map(
-     //                                    (entry: SignerEntry, i: number): SignerEntryContent => ({
-     //                                         key: `Signer ${i + 1}`,
-     //                                         value: `<code>${entry.SignerEntry.Account}</code> (Weight: ${entry.SignerEntry.SignerWeight})`,
-     //                                    })
-     //                               );
-     //                          } else if (field === 'NFTokenOffers') {
-     //                               interface NFTokenOfferContent {
-     //                                    key: string;
-     //                                    value: string;
-     //                               }
-
-     //                               const offers: string[] = result.tx_json[field] as string[];
-     //                               content = offers.map(
-     //                                    (offer: string, i: number): NFTokenOfferContent => ({
-     //                                         key: `Offer ${i + 1}`,
-     //                                         value: `<code>${offer}</code>`,
-     //                                    })
-     //                               );
-     //                          } else if (field === 'AuthAccounts') {
-     //                               interface AuthAccount {
-     //                                    AuthAccount: {
-     //                                         Account: string;
-     //                                    };
-     //                               }
-     //                               interface AuthAccountContent {
-     //                                    key: string;
-     //                                    value: string;
-     //                               }
-     //                               const authAccounts: AuthAccount[] = result.tx_json[field] as AuthAccount[];
-     //                               content = authAccounts.map(
-     //                                    (acc: AuthAccount, i: number): AuthAccountContent => ({
-     //                                         key: `Account ${i + 1}`,
-     //                                         value: `<code>${acc.AuthAccount.Account}</code>`,
-     //                                    })
-     //                               );
-     //                          } else if (typeof result.tx_json[field] === 'object') {
-     //                               content = Object.entries(result.tx_json[field]).map(([k, v]) => ({
-     //                                    key: k,
-     //                                    value: k === 'issuer' || k === 'Account' ? `<code>${v}</code>` : v,
-     //                               }));
-     //                          } else {
-     //                               content = [{ key: field, value: result.tx_json[field] }];
-     //                          }
-     //                          return { key: field, content };
-     //                     }),
-     //           },
-     //           meta: {
-     //                title: 'Meta Data',
-     //                content: [
-     //                     { key: 'Transaction Index', value: result.meta.TransactionIndex },
-     //                     { key: 'Transaction Result', value: result.meta.TransactionResult },
-     //                     { key: 'Delivered Amount', value: result.meta.delivered_amount ? formatAmount(result.meta.delivered_amount) : 'N/A' },
-     //                ],
-     //                subItems: [
-     //                     {
-     //                          key: 'Affected Nodes',
-     //                          content: result.meta.AffectedNodes.map((node: any, idx: number): SectionContentItem => {
-     //                               const nodeType = Object.keys(node)[0];
-     //                               const entry = node[nodeType];
-     //                               console.log(`entry ${JSON.stringify(entry, null, 2)}`);
-     //                               return {
-     //                                    key: `${nodeType} ${idx + 1}`,
-     //                                    value: null,
-     //                                    subContent: [
-     //                                         { key: 'Ledger Entry Type', value: entry.LedgerEntryType },
-     //                                         { key: 'Ledger Index', value: `<code>${entry.LedgerIndex}</code>` },
-     //                                         { key: 'Previous Txn ID', value: entry.PreviousTxnID },
-     //                                         { key: 'Previous Txn Lgr Seq', value: `<code>${entry.PreviousTxnLgrSeq}</code>` },
-     //                                         ...Object.entries(entry.FinalFields || {}).map(([k, v]) => ({
-     //                                              key: k,
-     //                                              value: k === 'Account' || k.includes('index') ? `<code>${v}</code>` : formatAmount(v as string | AmountObject),
-     //                                         })),
-     //                                         ...(entry.PreviousFields
-     //                                              ? [
-     //                                                     {
-     //                                                          key: 'Previous Fields',
-     //                                                          value: '', // Add a value property to satisfy SectionContentItem
-     //                                                          subContent: Object.entries(entry.PreviousFields).map(([k, v]) => ({
-     //                                                               key: k,
-     //                                                               value: k === 'Account' || k.includes('index') || k == 'Balance' ? `<code>${v}</code>` : formatAmount(v as string | AmountObject),
-     //                                                          })),
-     //                                                     },
-     //                                                ]
-     //                                              : []),
-     //                                    ],
-     //                               };
-     //                          }),
-     //                     },
-     //                ],
-     //           },
-     //      };
-
-     //      // Helper to format amounts (unchanged)
-     //      interface AmountObject {
-     //           value: string;
-     //           currency: string;
-     //           issuer?: string;
-     //      }
-
-     //      function formatAmount(value: string | AmountObject): string | AmountObject {
-     //           if (typeof value === 'string' && /^\d+$/.test(value)) {
-     //                return (parseInt(value) / 1_000_000).toFixed(6) + ' XRP';
-     //           } else if (typeof value === 'object' && value.currency) {
-     //                return `${value.value} ${value.currency}${value.issuer ? ` (<code>${value.issuer}</code>)` : ''}`;
-     //           }
-     //           return value;
-     //      }
-
-     //      // Render sections
-     //      for (const section of Object.values(sections)) {
-     //           if (section.content.length || (section.subItems && section.subItems.length)) {
-     //                const details = document.createElement('details');
-     //                details.className = `result-section${isSuccess || section.title !== 'Transaction Details' ? '' : ' error-transaction'}`; // Add error class for failed tx
-     //                if (section.title === 'Transaction Details' || section.title === 'Transaction Data') {
-     //                     details.setAttribute('open', 'open');
-     //                }
-     //                const summary = document.createElement('summary');
-     //                summary.textContent = section.title + (section.title === 'Transaction Details' && !isSuccess ? ' (Failed)' : ''); // Indicate failure
-     //                details.appendChild(summary);
-
-     //                // Optional: Add error message for failed transactions
-     //                if (!isSuccess && section.title === 'Transaction Details') {
-     //                     const errorMessage = document.createElement('div');
-     //                     errorMessage.className = 'error-message';
-     //                     errorMessage.textContent = `Error: Transaction failed with result ${result.meta.TransactionResult}`;
-     //                     details.appendChild(errorMessage);
-     //                }
-
-     //                if (section.content.length) {
-     //                     const table = document.createElement('div');
-     //                     table.className = 'result-table';
-     //                     const header = document.createElement('div');
-     //                     header.className = 'result-row result-header';
-     //                     header.innerHTML = `
-     //                      <div class="result-cell key" data-key="Key">Key</div>
-     //                      <div class="result-cell value" data-key="Value">Value</div>
-     //                  `;
-     //                     table.appendChild(header);
-
-     //                     for (const item of section.content) {
-     //                          const row = document.createElement('div');
-     //                          row.className = 'result-row';
-     //                          row.innerHTML = `
-     //                          <div class="result-cell key" data-key="Key">${item.key}</div>
-     //                          <div class="result-cell value" data-key="Value">${item.value}</div>
-     //                      `;
-     //                          table.appendChild(row);
-     //                     }
-     //                     details.appendChild(table);
-     //                }
-
-     //                if (section.subItems) {
-     //                     for (const subItem of section.subItems) {
-     //                          const subDetails = document.createElement('details');
-     //                          subDetails.className = 'nested-object';
-     //                          const subSummary = document.createElement('summary');
-     //                          subSummary.textContent = subItem.key;
-     //                          subDetails.appendChild(subSummary);
-
-     //                          const subTable = document.createElement('div');
-     //                          subTable.className = 'result-table';
-     //                          const subHeader = document.createElement('div');
-     //                          subHeader.className = 'result-row result-header';
-     //                          subHeader.innerHTML = `
-     //                          <div class="result-cell key" data-key="Key">Key</div>
-     //                          <div class="result-cell value" data-key="Value">Value</div>
-     //                      `;
-     //                          subTable.appendChild(subHeader);
-
-     //                          for (const subContent of subItem.content) {
-     //                               const subRow = document.createElement('div');
-     //                               subRow.className = 'result-row';
-     //                               subRow.innerHTML = `
-     //                              <div class="result-cell key" data-key="Key">${subContent.key}</div>
-     //                              <div class="result-cell value" data-key="Value">${subContent.value || ''}</div>
-     //                          `;
-     //                               if (subContent.subContent) {
-     //                                    const nestedDetails = document.createElement('details');
-     //                                    nestedDetails.className = 'nested-object';
-     //                                    const nestedSummary = document.createElement('summary');
-     //                                    nestedSummary.textContent = subContent.key;
-     //                                    nestedDetails.appendChild(nestedSummary);
-
-     //                                    const nestedTable = document.createElement('div');
-     //                                    nestedTable.className = 'result-table';
-     //                                    const nestedHeader = document.createElement('div');
-     //                                    nestedHeader.className = 'result-row result-header';
-     //                                    nestedHeader.innerHTML = `
-     //                                  <div class="result-cell key" data-key="Key">Key</div>
-     //                                  <div class="result-cell value" data-key="Value">Value</div>
-     //                              `;
-     //                                    nestedTable.appendChild(nestedHeader);
-
-     //                                    for (const nestedItem of subContent.subContent) {
-     //                                         const nestedRow = document.createElement('div');
-     //                                         nestedRow.className = 'result-row';
-     //                                         const value = nestedItem.value || '';
-     //                                         nestedRow.innerHTML = `
-     //                                      <div class="result-cell key" data-key="Key">${nestedItem.key}</div>
-     //                                      <div class="result-cell value" data-key="Value">${value}</div>
-     //                                  `;
-     //                                         nestedTable.appendChild(nestedRow);
-     //                                    }
-     //                                    nestedDetails.appendChild(nestedTable);
-     //                                    subRow.appendChild(nestedDetails);
-     //                               }
-     //                               subTable.appendChild(subRow);
-     //                          }
-     //                          subDetails.appendChild(subTable);
-     //                          details.appendChild(subDetails);
-     //                     }
-     //                }
-
-     //                container.appendChild(details);
-     //           }
-     //      }
-
-     //      // Add toggle event listeners
-     //      document.querySelectorAll('.result-section, .nested-object').forEach(details => {
-     //           details.addEventListener('toggle', () => {
-     //                container.offsetHeight;
-     //                container.style.height = 'auto';
-     //           });
-     //      });
-
-     //      // Updated search functionality
-     //      searchBar.addEventListener('input', e => {
-     //           const target = e.target as HTMLInputElement | null;
-     //           const search = target ? target.value.toLowerCase().trim() : '';
-     //           const sections = document.querySelectorAll('.result-section');
-
-     //           if (!search) {
-     //                sections.forEach(section => {
-     //                     (section as HTMLElement).style.display = '';
-     //                     section.querySelectorAll('.result-row').forEach(row => ((row as HTMLElement).style.display = 'flex'));
-     //                     section.querySelectorAll('.nested-object').forEach(nested => {
-     //                          (nested as HTMLElement).style.display = '';
-     //                          nested.querySelectorAll('.result-row').forEach(row => ((row as HTMLElement).style.display = 'flex'));
-     //                     });
-     //                     const summaryElement = section.querySelector('summary');
-     //                     const title = summaryElement && summaryElement.textContent ? summaryElement.textContent.replace(' (Failed)', '') : '';
-     //                     if (title === 'Transaction Details' || title === 'Transaction Data') {
-     //                          section.setAttribute('open', 'open');
-     //                     } else {
-     //                          section.removeAttribute('open');
-     //                     }
-     //                });
-     //                return;
-     //           }
-
-     //           sections.forEach(section => {
-     //                let hasVisibleContent = false;
-     //                const directRows = section.querySelectorAll(':scope > .result-table > .result-row:not(.result-header)');
-     //                directRows.forEach(row => {
-     //                     const keyCell = row.querySelector('.key');
-     //                     const valueCell = row.querySelector('.value');
-     //                     const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
-     //                     const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
-     //                     const isMatch = keyText.includes(search) || valueText.includes(search);
-     //                     (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
-     //                     if (isMatch) hasVisibleContent = true;
-     //                });
-
-     //                const nestedDetails = section.querySelectorAll('.nested-object');
-     //                nestedDetails.forEach(nested => {
-     //                     let nestedHasVisibleContent = false;
-     //                     const allTableRows = nested.querySelectorAll('.result-table .result-row:not(.result-header)');
-     //                     allTableRows.forEach(row => {
-     //                          const keyCell = row.querySelector('.key');
-     //                          const valueCell = row.querySelector('.value');
-     //                          const keyText = keyCell ? this.stripHTML(keyCell.innerHTML).toLowerCase() : '';
-     //                          const valueText = valueCell ? this.stripHTML(valueCell.innerHTML).toLowerCase() : '';
-     //                          const isMatch = keyText.includes(search) || valueText.includes(search);
-     //                          (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
-     //                          if (isMatch) nestedHasVisibleContent = true;
-     //                     });
-     //                     const topRow = nested.parentElement ? (nested.parentElement.closest('.result-row') as HTMLElement | null) : null;
-     //                     if (topRow && nestedHasVisibleContent) {
-     //                          topRow.style.display = 'flex';
-     //                     }
-     //                     (nested as HTMLElement).style.display = nestedHasVisibleContent ? '' : 'none';
-     //                     if (nestedHasVisibleContent) {
-     //                          (nested as HTMLElement).setAttribute('open', 'open');
-     //                          hasVisibleContent = true;
-     //                     }
-     //                });
-
-     //                (section as HTMLElement).style.display = hasVisibleContent ? '' : 'none';
-     //                if (hasVisibleContent) (section as HTMLElement).setAttribute('open', 'open');
-     //           });
-     //      });
-
-     //      // Add toggle persistence
-     //      document.querySelectorAll('.result-section, .nested-object').forEach(details => {
-     //           const summary = details.querySelector('summary');
-     //           const title = summary && summary.textContent ? summary.textContent.replace(' (Failed)', '') : '';
-     //           if (summary && title) {
-     //                const savedState = localStorage.getItem(`collapse_${title}`);
-     //                if (savedState === 'closed') details.removeAttribute('open');
-     //                else if (savedState === 'open' || title === 'Transaction Details' || title === 'Transaction Data') {
-     //                     details.setAttribute('open', 'open');
-     //                }
-     //                details.addEventListener('toggle', () => {
-     //                     localStorage.setItem(`collapse_${title}`, (details as HTMLDetailsElement).open ? 'open' : 'closed');
-     //                     container.offsetHeight;
-     //                     container.style.height = 'auto';
-     //                });
-     //           }
-     //      });
-     // }
-
      renderTransactionsResults1(transactions: { type: string; result: any } | { type: string; result: any }[], container: HTMLElement, clearInnerHtml: boolean): void {
           const txArray = Array.isArray(transactions) ? transactions : [transactions];
           if (!container) {
@@ -2028,16 +1591,6 @@ export class UtilsService {
                     `;
                     txDataTable.appendChild(row);
                });
-               //      txDataContent.forEach(item => {
-               //           console.debug(`ite ${item.key} ${item.value}`);
-               //           const row = document.createElement('div');
-               //           row.className = 'result-row';
-               //           row.innerHTML = `
-               //       <div class="result-cell key">${item.key}</div>
-               //       <div class="result-cell value">${item.value}</div>
-               //     `;
-               //           txDataTable.appendChild(row);
-               //      });
 
                const txDataDetails = document.createElement('details');
                txDataDetails.className = 'nested-object';
@@ -2188,22 +1741,6 @@ export class UtilsService {
 
           container.appendChild(details);
 
-          // Toggle event listeners
-          // document.querySelectorAll('.result-section, .nested-object').forEach(details => {
-          //      const summary = details.querySelector('summary');
-          //      if (summary) {
-          //           const title = summary.textContent;
-          //           const savedState = localStorage.getItem(`collapse_${title}`);
-          //           if (savedState === 'closed') details.removeAttribute('open');
-          //           else details.setAttribute('open', 'open');
-          //           details.addEventListener('toggle', () => {
-          //                localStorage.setItem(`collapse_${title}`, (details as HTMLDetailsElement).open ? 'open' : 'closed');
-          //                container.offsetHeight;
-          //                container.style.height = 'auto';
-          //           });
-          //      }
-          // });
-          // Add toggle event listeners (unchanged)
           document.querySelectorAll('.result-section, .nested-object').forEach(details => {
                const summary = details.querySelector('summary');
                if (summary) {
@@ -2882,211 +2419,6 @@ export class UtilsService {
           });
      }
 
-     // renderPaymentChannelDetails(data: any) {
-     //      const container = document.getElementById('resultField');
-     //      if (!container) {
-     //           console.error('Error: #resultField not found');
-     //           return;
-     //      }
-     //      container.classList.remove('error', 'success');
-     //      container.innerHTML = '';
-
-     //      // Add search bar
-     //      const searchBar = document.createElement('input');
-     //      searchBar.type = 'text';
-     //      searchBar.id = 'resultSearch';
-     //      searchBar.placeholder = 'Search results...';
-     //      searchBar.className = 'result-search';
-     //      searchBar.style.boxSizing = 'border-box';
-     //      container.appendChild(searchBar);
-
-     //      // Render sections
-     //      for (const section of data.sections) {
-     //           if (!section.content && !section.subItems) continue;
-     //           const details = document.createElement('details');
-     //           details.className = 'result-section';
-     //           if (section.openByDefault) {
-     //                details.setAttribute('open', 'open');
-     //           }
-     //           const summary = document.createElement('summary');
-     //           summary.textContent = section.title;
-     //           details.appendChild(summary);
-
-     //           // Render direct content (e.g., Network in Connection Status)
-     //           if (section.content && section.content.length) {
-     //                const table = document.createElement('div');
-     //                table.className = 'result-table';
-     //                const header = document.createElement('div');
-     //                header.className = 'result-row result-header';
-     //                header.innerHTML = `
-     //                  <div class="result-cell key" data-key="Key">Key</div>
-     //                  <div class="result-cell value" data-key="Value">Value</div>
-     //              `;
-     //                table.appendChild(header);
-
-     //                for (const item of section.content) {
-     //                     const row = document.createElement('div');
-     //                     row.className = 'result-row';
-     //                     row.innerHTML = `
-     //                      <div class="result-cell key" data-key="Key">${item.key}</div>
-     //                      <div class="result-cell value" data-key="Value">${item.value}</div>
-     //                  `;
-     //                     table.appendChild(row);
-     //                }
-     //                details.appendChild(table);
-     //           }
-
-     //           // Render nested sub-items (e.g., Channels)
-     //           if (section.subItems && section.subItems.length) {
-     //                for (const subItem of section.subItems) {
-     //                     const subDetails = document.createElement('details');
-     //                     subDetails.className = 'nested-object';
-     //                     if (subItem.openByDefault) {
-     //                          subDetails.setAttribute('open', 'open');
-     //                     }
-     //                     const subSummary = document.createElement('summary');
-     //                     subSummary.textContent = subItem.key;
-     //                     subDetails.appendChild(subSummary);
-
-     //                     const subTable = document.createElement('div');
-     //                     subTable.className = 'result-table';
-     //                     const subHeader = document.createElement('div');
-     //                     subHeader.className = 'result-row result-header';
-     //                     subHeader.innerHTML = `
-     //                      <div class="result-cell key" data-key="Key">Key</div>
-     //                      <div class="result-cell value" data-key="Value">Value}</div>
-     //                  `;
-     //                     subTable.appendChild(subHeader);
-
-     //                     for (const subContent of subItem.content) {
-     //                          const subRow = document.createElement('div');
-     //                          subRow.className = 'result-row';
-     //                          subRow.innerHTML = `
-     //                          <div class="result-cell key" data-key="Key">${subContent.key}</div>
-     //                          <div class="result-cell value" data-key="Value">${subContent.value || ''}</div>
-     //                      `;
-     //                          subTable.appendChild(subRow);
-     //                     }
-     //                     subDetails.appendChild(subTable);
-     //                     details.appendChild(subDetails);
-     //                }
-     //           }
-     //           container.appendChild(details);
-     //      }
-     //      container.classList.add('success');
-
-     //      // Add toggle event listeners and persist state
-     //      document.querySelectorAll('.result-section, .object-group, .nested-object').forEach(details => {
-     //           const summary = details.querySelector('summary');
-     //           if (summary) {
-     //                const title = summary.textContent;
-     //                const savedState = localStorage.getItem(`collapse_${title}`);
-     //                if (savedState === 'closed') details.removeAttribute('open');
-     //                else if (
-     //                     savedState === 'open' ||
-     //                     title === 'Account Data' ||
-     //                     title === 'RippleState' // Open RippleState group by default
-     //                ) {
-     //                     details.setAttribute('open', 'open');
-     //                }
-     //                details.addEventListener('toggle', () => {
-     //                     localStorage.setItem(`collapse_${title}`, (details as HTMLDetailsElement).open ? 'open' : 'closed');
-     //                     container.offsetHeight;
-     //                     container.style.height = 'auto';
-     //                });
-     //           }
-     //      });
-
-     //      console.log(container.innerHTML);
-
-     //      // Search functionality
-     //      searchBar.addEventListener('input', e => {
-     //           const target = e.target as HTMLInputElement | null;
-     //           const search = target ? target.value.toLowerCase().trim() : '';
-     //           const sections = document.querySelectorAll('.result-section');
-     //           console.log('Searching for:', search, 'sections:', sections);
-     //           if (!search) {
-     //                sections.forEach(section => {
-     //                     (section as HTMLElement).style.display = '';
-     //                     section.querySelectorAll('.result-row').forEach(row => ((row as HTMLElement).style.display = 'flex'));
-     //                     section.querySelectorAll('.object-group, .nested-object').forEach(nested => {
-     //                          (nested as HTMLElement).style.display = '';
-     //                          nested.querySelectorAll('.result-row').forEach(row => ((row as HTMLElement).style.display = 'flex'));
-     //                     });
-     //                     const summaryElement = section.querySelector('summary');
-     //                     const title = summaryElement ? summaryElement.textContent : '';
-     //                     if (title === 'Account Data') {
-     //                          section.setAttribute('open', 'open');
-     //                     } else {
-     //                          section.removeAttribute('open');
-     //                     }
-     //                });
-     //                return;
-     //           }
-
-     //           sections.forEach(section => {
-     //                let hasVisibleContent = false;
-     //                const directRows = section.querySelectorAll(':scope > .result-table > .result-row:not(.result-header)');
-     //                console.log('directRows:', directRows);
-     //                directRows.forEach(row => {
-     //                     const keyCell = row.querySelector('.key');
-     //                     const valueCell = row.querySelector('.value');
-     //                     const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML).toLowerCase() : '';
-     //                     const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML).toLowerCase() : '';
-     //                     const isMatch = keyText.includes(search) || valueText.includes(search);
-     //                     console.log('Searching for:', search, 'Key:', keyText, 'Value:', valueText, 'Match:', isMatch);
-     //                     (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
-     //                     if (isMatch) hasVisibleContent = true;
-     //                });
-
-     //                const groupDetails = section.querySelectorAll('.object-group');
-     //                groupDetails.forEach(group => {
-     //                     let groupHasVisibleContent = false;
-     //                     const nestedDetails = group.querySelectorAll('.nested-object');
-     //                     nestedDetails.forEach(nested => {
-     //                          let nestedHasVisibleContent = false;
-     //                          const tableRows = nested.querySelectorAll('.result-table > .result-row:not(.result-header)');
-     //                          tableRows.forEach(row => {
-     //                               const keyCell = row.querySelector('.key');
-     //                               const valueCell = row.querySelector('.value');
-     //                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML).toLowerCase() : '';
-     //                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML).toLowerCase() : '';
-     //                               const isMatch = keyText.includes(search) || valueText.includes(search);
-     //                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
-     //                               if (isMatch) nestedHasVisibleContent = true;
-     //                          });
-
-     //                          const deeperDetails = nested.querySelectorAll('.nested-object');
-     //                          deeperDetails.forEach(deeper => {
-     //                               let deeperHasVisibleContent = false;
-     //                               const deeperRows = deeper.querySelectorAll('.result-table > .result-row:not(.result-header)');
-     //                               deeperRows.forEach(row => {
-     //                                    const keyCell = row.querySelector('.key');
-     //                                    const valueCell = row.querySelector('.value');
-     //                                    const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML).toLowerCase() : '';
-     //                                    const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML).toLowerCase() : '';
-     //                                    const isMatch = keyText.includes(search) || valueText.includes(search);
-     //                                    (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
-     //                                    if (isMatch) deeperHasVisibleContent = true;
-     //                               });
-     //                               (deeper as HTMLElement).style.display = deeperHasVisibleContent ? '' : 'none';
-     //                               if (deeperHasVisibleContent) nestedHasVisibleContent = true;
-     //                          });
-
-     //                          (nested as HTMLElement).style.display = nestedHasVisibleContent ? '' : 'none';
-     //                          if (nestedHasVisibleContent) groupHasVisibleContent = true;
-     //                     });
-
-     //                     (group as HTMLElement).style.display = groupHasVisibleContent ? '' : 'none';
-     //                     if (groupHasVisibleContent) hasVisibleContent = true;
-     //                });
-
-     //                (section as HTMLElement).style.display = hasVisibleContent ? '' : 'none';
-     //                if (hasVisibleContent) section.setAttribute('open', 'open');
-     //           });
-     //      });
-     // }
-
      attachSearchListener(container: HTMLElement): void {
           const searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
           if (!searchBar) {
@@ -3304,38 +2636,6 @@ export class UtilsService {
           }
      }
 
-     // async getCurrencyBalance(address: string, currency: string, issuer?: string): Promise<string | null> {
-     //      try {
-     //           const client = await this.xrplService.getClient();
-     //           const balanceResponse = await client.request({
-     //                command: 'gateway_balances',
-     //                account: address,
-     //                ledger_index: 'validated',
-     //           });
-
-     //           let tokenTotal = 0;
-     //           if (balanceResponse.result.assets) {
-     //                Object.entries(balanceResponse.result.assets).forEach(([assetIssuer, assets]) => {
-     //                     if (!issuer || assetIssuer === issuer) {
-     //                          assets.forEach((asset: any) => {
-     //                               let assetCurrency = asset.currency.length > 3 ? this.decodeCurrencyCode(asset.currency) : asset.currency;
-     //                               if (currency === assetCurrency) {
-     //                                    const value = parseFloat(asset.value);
-     //                                    if (!isNaN(value)) {
-     //                                         tokenTotal += value;
-     //                                    }
-     //                               }
-     //                          });
-     //                     }
-     //                });
-     //           }
-     //           return tokenTotal > 0 ? (Math.round(tokenTotal * 100) / 100).toString() : '0';
-     //      } catch (error: any) {
-     //           console.error('Error fetching token balance:', error);
-     //           throw error;
-     //      }
-     // }
-
      async getAccountObjects(address: string) {
           try {
                const client = await this.xrplService.getClient();
@@ -3353,7 +2653,6 @@ export class UtilsService {
 
      async getCurrencyBalance(currency: string, accountAddressField: string) {
           try {
-               // const address = accountAddressField && 'value' in accountAddressField ? (accountAddressField as HTMLInputElement).value : '';
                const response = await this.getAccountObjects(accountAddressField);
                let accountObjects: any[] = [];
                if (response && !Array.isArray(response) && response.result && Array.isArray(response.result.account_objects)) {
@@ -3395,38 +2694,6 @@ export class UtilsService {
                throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
           }
      }
-
-     // async getAccountInfo(seed: string, environment: string = 'devnet'): Promise<any> {
-     //      if (!seed) {
-     //           throw new Error('Account seed cannot be empty');
-     //      }
-     //      try {
-     //           const client = await this.xrplService.getClient();
-     //           let wallet;
-     //           if (seed.split(' ').length > 1) {
-     //                wallet = xrpl.Wallet.fromMnemonic(seed, {
-     //                     algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-     //                });
-     //           } else {
-     //                wallet = xrpl.Wallet.fromSeed(seed, {
-     //                     algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-     //                });
-     //           }
-     //           const accountInfo = await client.request({
-     //                command: 'account_info',
-     //                account: wallet.classicAddress,
-     //           });
-
-     //           const accountObjects = await client.request({
-     //                command: 'account_objects',
-     //                account: wallet.classicAddress,
-     //           });
-
-     //           return { accountInfo, accountObjects }; //response.result;
-     //      } catch (error: any) {
-     //           throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
-     //      }
-     // }
 
      async getTrustlines(seed: string, environment: string = 'devnet'): Promise<any> {
           if (!seed) {
