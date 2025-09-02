@@ -206,3 +206,40 @@ table textarea {
 #meta td:last-child {
      width: auto;
 }
+
+/* send-xrp.component.css */
+.custom-destination {
+     width: 100%;
+     /* max-width: 400px; */
+     /* border: 1px solid #fff; */
+     /* border-radius: 4px; */
+     /* padding: 8px; */
+}
+
+.mdc-text-field--outlined .mat-mdc-form-field-infix,
+.mdc-text-field--no-label .mat-mdc-form-field-infix {
+     padding: 0px;
+}
+
+.mdc-text-field--filled:not(.mdc-text-field--disabled) {
+     background-color: #1a1c21;
+     color: red;
+}
+
+.mdc-text-field--no-label:not(.mdc-text-field--textarea) .mat-mdc-form-field-input-control.mdc-text-field__input,
+.mat-mdc-text-field-wrapper .mat-mdc-form-field-input-control {
+     color: #4CAF50;
+}
+
+.custom-destination input {
+     width: 100%;
+     font-size: 14px;
+     color: red;
+     padding: 8px;
+     border: none;
+     outline: none;
+}
+
+.custom-destination input:focus {
+     border-bottom: 2px solid #1a1c21;
+}

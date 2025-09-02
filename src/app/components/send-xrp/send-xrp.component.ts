@@ -1,4 +1,11 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
+import { MatSortModule } from '@angular/material/sort';
+import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatTableModule } from '@angular/material/table';
+import { MatAutocompleteModule } from '@angular/material/autocomplete';
+
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
@@ -25,7 +32,7 @@ interface SignerEntry {
 @Component({
      selector: 'app-account',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe, MatAutocompleteModule, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule],
      templateUrl: './send-xrp.component.html',
      styleUrl: './send-xrp.component.css',
      encapsulation: ViewEncapsulation.None,
@@ -47,7 +54,7 @@ export class SendXrpComponent implements AfterViewChecked {
      totalXrpReserves: string = '';
      executionTime: string = '';
      amountField: string = '';
-     destinationField: string = '';
+     // destinationField: string = '';
      destinationTagField: string = '';
      invoiceIdField: string = '';
      ticketSequence: string = '';
@@ -66,11 +73,18 @@ export class SendXrpComponent implements AfterViewChecked {
      regularKeyAddress: string = '';
      isTicket: boolean = false;
      spinnerMessage: string = '';
+     destinationFields: string = '';
+     private knownDestinations: { [key: string]: string } = {};
+     destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
      ngOnInit() {
+          const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          if (storedDestinations) {
+               this.knownDestinations = storedDestinations;
+          }
           this.onAccountChange();
      }
 
@@ -78,6 +92,16 @@ export class SendXrpComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.loadSignerList(wallet.classicAddress);
+
+               if (Object.keys(this.knownDestinations).length === 0) {
+                    this.knownDestinations = {
+                         Account1: this.account1.address,
+                         Account2: this.account2.address,
+                         Account3: this.issuer.address,
+                    };
+               }
+               this.updateDestinations();
+               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -217,7 +241,7 @@ export class SendXrpComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
                amount: this.amountField,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -250,7 +274,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     TransactionType: 'Payment',
                     Account: wallet.classicAddress,
                     Amount: xrpl.xrpToDrops(this.amountField),
-                    Destination: this.destinationField,
+                    Destination: this.destinationFields,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
@@ -548,6 +572,11 @@ export class SendXrpComponent implements AfterViewChecked {
           return null;
      }
 
+     private updateDestinations() {
+          this.destinations = [...Object.values(this.knownDestinations)];
+          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+     }
+
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
@@ -614,7 +643,7 @@ export class SendXrpComponent implements AfterViewChecked {
 
           // Update destination field (set to other account's address)
           const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
+          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
 
           if (account.address && xrpl.isValidAddress(account.address)) {
                this.getAccountDetails(account.address);

@@ -46,7 +46,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
-     destinationField: string = '';
+     // destinationField: string = '';
      destinationTagField: string = '';
      signerQuorum: number = 0;
      isMemoEnabled: boolean = false;
@@ -60,17 +60,35 @@ export class DeleteAccountComponent implements AfterViewChecked {
      multiSignSeeds: string = '';
      spinner: boolean = false;
      spinnerMessage: string = '';
+     destinationFields: string = '';
+     private knownDestinations: { [key: string]: string } = {};
+     destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     ngOnInit(): void {}
+     ngOnInit(): void {
+          const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          if (storedDestinations) {
+               this.knownDestinations = storedDestinations;
+          }
+          this.onAccountChange();
+     }
 
      async ngAfterViewInit() {
           try {
                const wallet = await this.getWallet();
                this.loadSignerList(wallet.classicAddress);
-               this.onAccountChange();
+
+               if (Object.keys(this.knownDestinations).length === 0) {
+                    this.knownDestinations = {
+                         Account1: this.account1.address,
+                         Account2: this.account2.address,
+                         Account3: this.issuer.address,
+                    };
+               }
+               this.updateDestinations();
+               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -202,7 +220,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -246,7 +264,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                let payment: AccountDelete = {
                     TransactionType: 'AccountDelete',
                     Account: wallet.classicAddress,
-                    Destination: this.destinationField,
+                    Destination: this.destinationFields,
                     Sequence: accountInfo.result.account_data.Sequence,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -362,6 +380,11 @@ export class DeleteAccountComponent implements AfterViewChecked {
                });
           }
           return signerAccounts;
+     }
+
+     private updateDestinations() {
+          this.destinations = [...Object.values(this.knownDestinations)];
+          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 
      async getWallet() {
@@ -567,7 +590,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
           // Update destination field (set to other account's address)
           const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
+          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
 
           if (account.address && xrpl.isValidAddress(account.address)) {
                this.getAccountDetails(account.address);

@@ -81,7 +81,7 @@ export class MptComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
      amountField: string = '';
-     destinationField: string = '';
+     // destinationField: string = '';
      spinnerMessage: string = '';
      flags: AccountFlags = {
           isClawback: false,
@@ -92,16 +92,35 @@ export class MptComponent implements AfterViewChecked {
           isEscrow: false,
      };
      spinner: boolean = false;
+     destinationFields: string = '';
+     private knownDestinations: { [key: string]: string } = {};
+     destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     ngOnInit() {}
+     ngOnInit() {
+          const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          if (storedDestinations) {
+               this.knownDestinations = storedDestinations;
+          }
+          this.onAccountChange();
+     }
 
      async ngAfterViewInit() {
           try {
                const wallet = await this.getWallet();
                this.loadSignerList(wallet.classicAddress);
+
+               if (Object.keys(this.knownDestinations).length === 0) {
+                    this.knownDestinations = {
+                         Account1: this.account1.address,
+                         Account2: this.account2.address,
+                         Account3: this.issuer.address,
+                    };
+               }
+               this.updateDestinations();
+               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -618,7 +637,7 @@ export class MptComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
                amount: this.amountField,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
@@ -645,9 +664,9 @@ export class MptComponent implements AfterViewChecked {
                }
 
                // Check if destination can hold the MPT
-               const destObjects = await this.xrplService.getAccountObjects(client, this.destinationField, 'validated', '');
+               const destObjects = await this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', '');
                if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
-                    return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationField}`);
+                    return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationFields}`);
                }
                const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
                console.debug(`Destination MPT Tokens: ${JSON.stringify(mptTokens, null, '\t')}`);
@@ -656,7 +675,7 @@ export class MptComponent implements AfterViewChecked {
                const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
 
                if (!authorized) {
-                    return this.setError(`ERROR: Destination ${this.destinationField} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}).`);
+                    return this.setError(`ERROR: Destination ${this.destinationFields} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}).`);
                }
 
                const fee = await this.xrplService.calculateTransactionFee(client);
@@ -669,7 +688,7 @@ export class MptComponent implements AfterViewChecked {
                          mpt_issuance_id: this.mptIssuanceIdField,
                          value: this.amountField,
                     },
-                    Destination: this.destinationField,
+                    Destination: this.destinationFields,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     Fee: fee,
                };
@@ -1156,6 +1175,11 @@ export class MptComponent implements AfterViewChecked {
           }
      }
 
+     private updateDestinations() {
+          this.destinations = [...Object.values(this.knownDestinations)];
+          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+     }
+
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
@@ -1192,7 +1216,6 @@ export class MptComponent implements AfterViewChecked {
           this.mptIssuanceIdField = '';
           this.tokenCountField = '';
           this.amountField = '';
-          this.destinationField = '';
           this.isTicket = false;
           this.isMultiSign = false;
           this.multiSignAddress = '';

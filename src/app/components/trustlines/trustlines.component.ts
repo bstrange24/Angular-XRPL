@@ -57,7 +57,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      destinationFields: string = '';
      currencyBalanceField: string = '';
      gatewayBalance: string = '';
-     destinationField: string = '';
+     // destinationField: string = '';
      amountField: string = '';
      ticketSequence: string = '';
      isTicket = false;
@@ -156,11 +156,14 @@ export class TrustlinesComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.loadSignerList(wallet.classicAddress);
-               this.knownDestinations = {
-                    Account1: this.account1.address,
-                    Account2: this.account2.address,
-                    Account3: this.issuer.address,
-               };
+
+               if (Object.keys(this.knownDestinations).length === 0) {
+                    this.knownDestinations = {
+                         Account1: this.account1.address,
+                         Account2: this.account2.address,
+                         Account3: this.issuer.address,
+                    };
+               }
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
           } catch (error) {
@@ -484,7 +487,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           });
@@ -536,7 +539,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     Account: wallet.classicAddress,
                     LimitAmount: {
                          currency: currencyFieldTemp,
-                         issuer: this.destinationField,
+                         issuer: this.destinationFields,
                          value: this.amountField,
                     },
                     Flags: flags, // numeric bitmask of selected options
@@ -699,12 +702,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                // Find the specific trustline to the issuer (destinationField)
                const trustLine = trustLines.result.lines.find((line: any) => {
                     const lineCurrency = this.utilsService.decodeIfNeeded(line.currency);
-                    return line.account === this.destinationField && lineCurrency === this.currencyField;
+                    return line.account === this.destinationFields && lineCurrency === this.currencyField;
                });
 
                // If not found, exit early
                if (!trustLine) {
-                    this.resultField.nativeElement.innerHTML = `No trust line found for ${this.currencyField} to issuer ${this.destinationField}`;
+                    this.resultField.nativeElement.innerHTML = `No trust line found for ${this.currencyField} to issuer ${this.destinationFields}`;
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
                     return;
@@ -745,7 +748,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     Account: wallet.classicAddress,
                     LimitAmount: {
                          currency: currencyFieldTemp,
-                         issuer: this.destinationField,
+                         issuer: this.destinationFields,
                          value: '0',
                     },
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -870,7 +873,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
-               destination: this.destinationField,
+               destination: this.destinationFields,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -903,7 +906,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const activeTrustLine = trustLines.result.lines.filter((line: any) => {
                     const decodedCurrency = this.utilsService.decodeIfNeeded(line.currency);
-                    return line.account === this.destinationField && (line.currency ? decodedCurrency === this.currencyField : true);
+                    return line.account === this.destinationFields && (line.currency ? decodedCurrency === this.currencyField : true);
                });
                console.info(`Active trust lines for ${wallet.classicAddress} ${JSON.stringify(activeTrustLine, null, '\t')}`);
 
@@ -926,13 +929,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'Trust Lines',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No active trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationField}</code>` }],
+                         content: [{ key: 'Status', value: `No active trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationFields}</code>` }],
                     });
                } else {
                     data.sections.push({
                          title: 'Trust Lines',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `Trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationField}</code>` }],
+                         content: [{ key: 'Status', value: `Trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationFields}</code>` }],
                     });
                }
 
@@ -1070,7 +1073,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                const paymentTx: Payment = {
                     TransactionType: 'Payment',
                     Account: wallet.classicAddress,
-                    Destination: this.destinationField,
+                    Destination: this.destinationFields,
                     Amount: {
                          currency: curr,
                          value: this.amountField,
@@ -1179,14 +1182,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                const decodedCurrency = this.utilsService.decodeIfNeeded(this.currencyField);
-               const newTrustLine: UpdatedTrustLine | undefined = updatedTrustLines.result.lines.find((line: UpdatedTrustLine) => line.currency === decodedCurrency && (line.account === this.issuer.address || line.account === this.destinationField));
+               const newTrustLine: UpdatedTrustLine | undefined = updatedTrustLines.result.lines.find((line: UpdatedTrustLine) => line.currency === decodedCurrency && (line.account === this.issuer.address || line.account === this.destinationFields));
                data.sections.push({
                     title: 'New Balance',
                     openByDefault: true,
                     content: [
                          {
                               key: 'Destination',
-                              value: `<code>${this.destinationField}</code>`,
+                              value: `<code>${this.destinationFields}</code>`,
                          },
                          {
                               key: 'Currency',
@@ -1228,7 +1231,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     openByDefault: true,
                     content: [
                          { key: 'Issuer Address', value: `<code>${wallet.classicAddress}</code>` },
-                         { key: 'Destination Address', value: `<code>${this.destinationField}</code>` },
+                         { key: 'Destination Address', value: `<code>${this.destinationFields}</code>` },
                          { key: 'XRP Balance (Issuer)', value: (await client.getXrpBalance(wallet.classicAddress)).toString() },
                     ],
                });
@@ -1400,7 +1403,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
-               this.destinationField = this.knownTrustLinesIssuers[this.currencyField];
+               this.destinationFields = this.knownTrustLinesIssuers[this.currencyField];
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
                this.currencyBalanceField = '0';
@@ -1694,7 +1697,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           // Update destination field (set to other account's address)
           const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
+          this.destinationFields = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
 
           // Fetch account details and trustlines
           try {

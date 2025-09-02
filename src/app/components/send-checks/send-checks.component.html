@@ -141,7 +141,7 @@
                                         <input type="text" id="tokenBalance" size="44" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
+                              <!-- <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
                                              <label for="destinationField">Destination</label>
@@ -150,6 +150,19 @@
                                    <td>
                                         <input type="text" id="destinationField" size="44" [(ngModel)]="destinationField" name="destinationField" />
                                         <br />
+                                   </td>
+                              </tr> -->
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
+                                             <label for="destinationFields">Destination</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="destinationFields" style="width: 320px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                             <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
+                                        </select>
+                                        <p></p>
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">

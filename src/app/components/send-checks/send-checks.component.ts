@@ -52,7 +52,8 @@ export class SendChecksComponent implements AfterViewChecked {
      totalXrpReserves: string = '';
      executionTime: string = '';
      amountField: string = '';
-     destinationField: string = '';
+     // destinationField: string = '';
+     destinationFields: string = '';
      destinationTagField: string = '';
      memoField: string = '';
      isMemoEnabled: boolean = false;
@@ -75,6 +76,8 @@ export class SendChecksComponent implements AfterViewChecked {
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
      };
+     private knownDestinations: { [key: string]: string } = {};
+     destinations: string[] = [];
      currencies: string[] = [];
      currencyIssuers: string[] = [];
      newCurrency: string = '';
@@ -89,6 +92,10 @@ export class SendChecksComponent implements AfterViewChecked {
           if (storedIssuers) {
                this.knownTrustLinesIssuers = storedIssuers;
           }
+          const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          if (storedDestinations) {
+               this.knownDestinations = storedDestinations;
+          }
           this.updateCurrencies();
           this.currencyFieldDropDownValue = 'XRP'; // Set default to XRP
      }
@@ -97,6 +104,16 @@ export class SendChecksComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.loadSignerList(wallet.classicAddress);
+
+               if (Object.keys(this.knownDestinations).length === 0) {
+                    this.knownDestinations = {
+                         Account1: this.account1.address,
+                         Account2: this.account2.address,
+                         Account3: this.issuer.address,
+                    };
+               }
+               this.updateDestinations();
+               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -313,7 +330,7 @@ export class SendChecksComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                amount: this.amountField,
           });
           if (validationError) {
@@ -390,7 +407,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     TransactionType: 'CheckCreate',
                     Account: wallet.classicAddress,
                     SendMax: sendMax,
-                    Destination: this.destinationField,
+                    Destination: this.destinationFields,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
@@ -486,10 +503,6 @@ export class SendChecksComponent implements AfterViewChecked {
                console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
-               }
-
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
@@ -527,7 +540,7 @@ export class SendChecksComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                amount: this.amountField,
                checkId: this.checkIdField,
           });
@@ -592,8 +605,14 @@ export class SendChecksComponent implements AfterViewChecked {
                     tx.Sequence = getAccountInfo.result.account_data.Sequence;
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+               } else {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
@@ -643,10 +662,6 @@ export class SendChecksComponent implements AfterViewChecked {
 
                console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
-               }
 
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
@@ -740,8 +755,14 @@ export class SendChecksComponent implements AfterViewChecked {
                     tx.Sequence = getAccountInfo.result.account_data.Sequence;
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
+               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
+               } else {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficent XRP to complete transaction');
+                    }
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
@@ -791,10 +812,6 @@ export class SendChecksComponent implements AfterViewChecked {
                console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
-               }
-
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
@@ -838,6 +855,11 @@ export class SendChecksComponent implements AfterViewChecked {
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+     }
+
+     private updateDestinations() {
+          this.destinations = [...Object.values(this.knownDestinations)];
+          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 
      addToken() {
@@ -1007,7 +1029,6 @@ export class SendChecksComponent implements AfterViewChecked {
 
      clearFields() {
           this.amountField = '';
-          this.destinationField = '';
           this.expirationTimeField = '';
           this.memoField = '';
           this.checkIdField = '';
@@ -1054,7 +1075,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
           // Update destination field (set to other account's address)
           const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
+          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
 
           if (account.address && xrpl.isValidAddress(account.address)) {
                this.getChecks();

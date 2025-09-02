@@ -191,7 +191,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="assetScaleField" size="40" placeholder="Value must be between 1 and 15" [(ngModel)]="assetScaleField" name="assetScaleField" />
+                                        <input type="text" id="assetScaleField" size="41" placeholder="Value must be between 1 and 15" [(ngModel)]="assetScaleField" name="assetScaleField" />
                                    </td>
                               </tr>
                               <tr class="metaData" style="vertical-align: top">
@@ -201,7 +201,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="tokenCountField" size="40" [(ngModel)]="tokenCountField" name="tokenCountField" />
+                                        <input type="text" id="tokenCountField" size="41" [(ngModel)]="tokenCountField" name="tokenCountField" />
                                    </td>
                               </tr>
                               <tr class="metaData" style="vertical-align: top">
@@ -211,7 +211,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="transferFeeField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
+                                        <input type="text" id="transferFeeField" size="41" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
@@ -221,19 +221,32 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
+                                        <input type="text" id="amountField" size="41" [(ngModel)]="amountField" name="amountField" />
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
+                                             <label for="destinationFields">Destination</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                             <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
+                                        </select>
+                                        <p></p>
+                                   </td>
+                              </tr>
+                              <!-- <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
                                              <label for="destinationField">Destination</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
+                                        <input type="text" id="destinationField" size="41" [(ngModel)]="destinationField" name="destinationField" />
                                    </td>
-                              </tr>
+                              </tr> -->
                               <tr style="vertical-align: top">
                                    <td style="text-align: left">
                                         <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
@@ -493,7 +506,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
+                                   <input type="text" id="regularKeyAddress" size="41" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
                               </td>
                          </tr>
                          <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
@@ -503,7 +516,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
+                                   <input type="text" id="regularKeySeed" size="41" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
                               </td>
                          </tr>
                          <!-- End Regular Key Section -->
@@ -529,7 +542,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
                               </td>
                          </tr>
                          <!-- End Ticket Sequence Key Section -->
@@ -556,7 +569,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                         <input type="text" id="accountName1Field" size="41" [(ngModel)]="account1.name" name="accountName1Field" />
                          <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                          <label for="account1">Account 1</label>
                     </td>
@@ -568,7 +581,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                         <input type="text" id="accountAddress1Field" size="41" [(ngModel)]="account1.address" name="accountAddress1Field" />
                          <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                          <label for="account2">Account 2</label>
                     </td>
@@ -580,7 +593,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                         <input type="text" id="accountSeed1Field" size="41" [(ngModel)]="account1.seed" name="accountSeed1Field" />
                          <input type="radio" id="issuer" name="accounts" value="issuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                          <label for="issuer">Account 3</label>
                     </td>
@@ -592,7 +605,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
+                         <input type="text" id="xrpBalance1Field" size="41" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                     </td>
                </tr>
                <tr style="vertical-align: top">
@@ -602,7 +615,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                         <input type="text" id="ownerCountField" size="41" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
                          <br />
                     </td>
                </tr>
@@ -613,7 +626,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                         <input type="text" id="totalXrpReservesField" size="41" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
                          <br />
                     </td>
                </tr>
@@ -624,7 +637,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                         <input type="text" id="totalExecutionTime" size="41" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                     </td>
                </tr>
                <tr class="metaData" style="vertical-align: top">
@@ -806,7 +819,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                         <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
                          <br />
                     </td>
                </tr>
@@ -817,7 +830,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="assetScaleField" size="40" placeholder="Value must be between 1 and 15" [(ngModel)]="assetScaleField" name="assetScaleField" />
+                         <input type="text" id="assetScaleField" size="41" placeholder="Value must be between 1 and 15" [(ngModel)]="assetScaleField" name="assetScaleField" />
                          <br />
                     </td>
                </tr>
@@ -828,7 +841,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="tokenCountField" size="40" [(ngModel)]="tokenCountField" name="tokenCountField" />
+                         <input type="text" id="tokenCountField" size="41" [(ngModel)]="tokenCountField" name="tokenCountField" />
                          <br />
                     </td>
                </tr>
@@ -839,7 +852,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="transferFeeField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
+                         <input type="text" id="transferFeeField" size="41" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
                          <br />
                     </td>
                </tr>
@@ -862,7 +875,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
+                         <input type="text" id="amountField" size="41" [(ngModel)]="amountField" name="amountField" />
                          <br />
                     </td>
                </tr>
@@ -873,7 +886,7 @@
                          </span>
                     </td>
                     <td>
-                         <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
+                         <input type="text" id="destinationField" size="41" [(ngModel)]="destinationField" name="destinationField" />
                          <br />
                     </td>
                </tr>

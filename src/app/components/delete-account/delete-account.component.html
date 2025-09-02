@@ -94,7 +94,7 @@
 
                          <table id="flags">
                               <th></th>
-                              <tr style="vertical-align: top">
+                              <!-- <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
                                              <label for="destinationField">Destination</label>
@@ -104,6 +104,19 @@
                                         <input type="text" id="destinationField" size="40" [(ngModel)]="destinationField" name="destinationField" />
                                         <br />
                                    </td>
+                              </tr> -->
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
+                                             <label for="destinationFields">Destination</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="destinationFields" style="width: 299px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                             <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
+                                        </select>
+                                        <p></p>
+                                   </td>
                               </tr>
                               <tr style="vertical-align: top">
                                    <td style="text-align: right">
@@ -112,7 +125,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="destinationTagField" size="40" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        <input type="text" id="destinationTagField" size="41" [(ngModel)]="destinationTagField" name="destinationTagField" />
                                         <br />
                                    </td>
                               </tr>
