@@ -89,12 +89,32 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      regularKeyAddress: string = '';
      signerQuorum: number = 0;
      spinner: boolean = false;
-     spinnerMessage: string = '';
+     issuers: string[] = [];
+     spinnerMessage: string = '';tokenBalance: string = '';
+     // Add a map of known issuers for tokens
+     private knownTrustLinesIssuers: { [key: string]: string } = {
+          RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+     };
+     currencies: string[] = [];
+     currencyIssuers: string[] = [];
+     newCurrency: string = '';
+     newIssuer: string = '';
+     tokenToRemove: string = '';
+     currencyFieldDropDownValue: string = 'XRP';
+     selectedIssuer: string = '';
+
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     ngOnInit() {}
+     async ngOnInit(): Promise<void> {
+          const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
+          if (storedIssuers) {
+               this.knownTrustLinesIssuers = storedIssuers;
+          }
+          this.updateCurrencies();
+          this.currencyFieldDropDownValue = 'XRP'; // Set default to XRP
+     }
 
      async ngAfterViewInit() {
           try {
@@ -177,6 +197,39 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           } finally {
                this.cdr.detectChanges();
           }
+     }
+
+     async toggleIssuerField() {
+          this.issuers = [];
+          this.selectedIssuer = '';
+          this.tokenBalance = '';
+          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
+               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+               if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
+                    try {
+                         const client = await this.xrplService.getClient();
+                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, address, this.currencyFieldDropDownValue, '');
+                         this.issuers = tokenBalanceData.issuers;
+                         this.tokenBalance = tokenBalanceData.total.toString();
+                         const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, address);
+                         console.log(`balanceResult ${balanceResult}`);
+                         if (balanceResult) {
+                              this.tokenBalance = Math.abs(balanceResult).toString();
+                         }
+                         if (this.selectedAccount === 'account1') {
+                              this.account1.balance = tokenBalanceData.xrpBalance.toString();
+                         } else if (this.selectedAccount === 'account2') {
+                              this.account2.balance = tokenBalanceData.xrpBalance.toString();
+                         }
+                         this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
+                    } catch (error: any) {
+                         console.error('Error fetching token balance:', error);
+                         this.setError(`ERROR: Failed to fetch token balance - ${error.message || 'Unknown error'}`);
+                    }
+               }
+          }
+          this.cdr.detectChanges();
      }
 
      async getEscrowOwnerAddress() {
@@ -374,6 +427,17 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
+
+               if(this.currencyFieldDropDownValue !== 'XRP') {
+                    const curr: xrpl.IssuedCurrencyAmount = {
+                         currency: this.currencyFieldDropDownValue.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyFieldDropDownValue) : this.currencyFieldDropDownValue,
+                         issuer: this.selectedIssuer,
+                         value: this.amountField
+                    } 
+                    escrowTx.Amount = curr;
+               } else {
+                    escrowTx.Amount = xrpl.xrpToDrops(this.amountField);
+               }
 
                if (this.ticketSequence) {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
@@ -879,6 +943,52 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                });
           }
           return signerAccounts;
+     }
+
+     private updateCurrencies() {
+          this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+     }
+
+     addToken() {
+          if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
+               const currency = this.newCurrency.trim();
+               if (this.knownTrustLinesIssuers[currency]) {
+                    this.setError(`Currency ${currency} already exists`);
+                    return;
+               }
+               if (!this.utilsService.isValidCurrencyCode(currency)) {
+                    this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
+                    return;
+               }
+               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+                    this.setError('Invalid issuer address');
+                    return;
+               }
+               this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+               this.updateCurrencies();
+               this.newCurrency = '';
+               this.newIssuer = '';
+               this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+               this.cdr.detectChanges();
+          } else {
+               this.setError('Currency code and issuer address are required');
+          }
+          this.spinner = false;
+     }
+
+     removeToken() {
+          if (this.tokenToRemove) {
+               delete this.knownTrustLinesIssuers[this.tokenToRemove];
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+               this.updateCurrencies();
+               this.setSuccess(`Removed ${this.tokenToRemove}`);
+               this.tokenToRemove = '';
+               this.cdr.detectChanges();
+          } else {
+               this.setError('Select a token to remove');
+          }
+          this.spinner = false;
      }
 
      refreshUiAccountObjects(accountObjects: any, wallet: any) {

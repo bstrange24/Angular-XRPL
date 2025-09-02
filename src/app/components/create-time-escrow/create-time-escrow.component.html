@@ -94,6 +94,53 @@
                               <th></th>
                               <tr style="vertical-align: top">
                                    <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Currency code for the check.">
+                                             <label for="currencyFieldDropDownValue">Currency Code</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="currencyField" style="width: 320px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                        <p></p>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Amount of currency to send.">
+                                             <label for="amountField">Amount</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="amountField" size="44" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
+                                             <label for="issuerField">Issuer</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="issuerField" style="width: 320px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                             <option value="" disabled selected>Select an issuer</option>
+                                             <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
+                                        </select>
+                                        <p></p>
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
+                                             <label for="tokenBalance">Currency Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="tokenBalance" size="44" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
+                                   </td>
+                              </tr>
+                              <!-- <tr style="vertical-align: top">
+                                   <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Amount of XRP to send.">
                                              <label for="amountField">XRP Amount</label>
                                         </span>
@@ -101,7 +148,7 @@
                                    <td>
                                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
                                    </td>
-                              </tr>
+                              </tr> -->
                               <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
