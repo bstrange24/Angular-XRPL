@@ -158,7 +158,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -198,7 +198,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -267,7 +267,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -363,7 +363,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -480,7 +480,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -594,7 +594,7 @@ export class AccountComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);

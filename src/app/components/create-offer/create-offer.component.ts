@@ -520,7 +520,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -641,7 +641,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -649,7 +649,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               let seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
 
                if (this.isRegularKeyAddress && !this.isMultiSign) {
                     if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
@@ -864,7 +864,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -872,7 +872,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               let seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
 
                if (this.isRegularKeyAddress && !this.isMultiSign) {
                     if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
@@ -1447,7 +1447,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1460,7 +1460,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-               let seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+               let seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
 
                if (this.isRegularKeyAddress && !this.isMultiSign) {
                     if (!this.regularKeyAddress || !xrpl.isValidAddress(this.regularKeyAddress)) {
@@ -1659,7 +1659,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -2734,7 +2734,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

@@ -399,7 +399,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -424,8 +424,8 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                // const asset = toXRPLCurrency(this.weWantCurrencyField, this.weWantIssuerField);
                // const asset2 = toXRPLCurrency(this.weSpendCurrencyField, this.weSpendIssuerField);
-               const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address);
-               const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address);
+               const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
+               const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
                console.debug(`asset ${JSON.stringify(asset, null, '\t')}`);
                console.debug(`asset2 ${JSON.stringify(asset2, null, '\t')}`);
 
@@ -564,7 +564,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                // amount: this.amountField,
                weWantAmountField: this.weWantAmountField,
                weSpendAmountField: this.weSpendAmountField,
@@ -653,13 +653,13 @@ export class CreateAmmComponent implements AfterViewChecked {
                     we_spend.currency = this.utilsService.encodeCurrencyCode(we_spend.currency);
                }
 
-              if (we_spend.amount === undefined) {
-   throw new Error('Amount is undefined');
-}
+               if (we_spend.amount === undefined) {
+                    throw new Error('Amount is undefined');
+               }
 
-if (!we_want.issuer) {
-   throw new Error('Issuer is undefined');
-}
+               if (!we_want.issuer) {
+                    throw new Error('Issuer is undefined');
+               }
                const tx: xrpl.AMMCreate = {
                     TransactionType: 'AMMCreate',
                     Account: wallet.classicAddress, // the funding account
@@ -669,7 +669,7 @@ if (!we_want.issuer) {
                          issuer: we_want.issuer,
                          value: we_want.value,
                     },
-                    TradingFee: Number(this.tradingFeeField),// 500, // 0.5%
+                    TradingFee: Number(this.tradingFeeField), // 500, // 0.5%
                     // Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
@@ -705,7 +705,7 @@ if (!we_want.issuer) {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.weWantAmountField,
           });
           if (validationError) {
@@ -851,7 +851,7 @@ if (!we_want.issuer) {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -889,8 +889,8 @@ if (!we_want.issuer) {
                     we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
                }
 
-               const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address);
-               const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address);
+               const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
+               const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
                console.debug(`asset ${JSON.stringify(asset, null, '\t')}`);
                console.debug(`asset2 ${JSON.stringify(asset2, null, '\t')}`);
 
@@ -967,7 +967,7 @@ if (!we_want.issuer) {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -1005,8 +1005,8 @@ if (!we_want.issuer) {
                     we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
                }
 
-               const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address);
-               const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address);
+               const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
+               const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
                console.debug(`asset ${JSON.stringify(asset, null, '\t')}`);
                console.debug(`asset2 ${JSON.stringify(asset2, null, '\t')}`);
 
@@ -1083,7 +1083,7 @@ if (!we_want.issuer) {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -1158,7 +1158,7 @@ if (!we_want.issuer) {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1329,7 +1329,7 @@ if (!we_want.issuer) {
                this.setErrorProperties();
                return;
           }
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
+          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.weWantTokenBalanceField = '0';
@@ -1504,7 +1504,7 @@ if (!we_want.issuer) {
                this.weSpendTokenBalanceField = '0';
                return;
           }
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
+          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.weSpendTokenBalanceField = '0';
@@ -1598,7 +1598,7 @@ if (!we_want.issuer) {
                return;
           }
 
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
+          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.phnixBalance = '0';
@@ -1852,7 +1852,7 @@ if (!we_want.issuer) {
                return;
           }
 
-          const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
+          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
           if (!this.utilsService.validateInput(address)) {
                this.setError('ERROR: Account address cannot be empty');
                this.phnixBalance = '0';
@@ -2342,7 +2342,7 @@ if (!we_want.issuer) {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

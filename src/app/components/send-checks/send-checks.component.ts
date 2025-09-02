@@ -201,8 +201,8 @@ export class SendChecksComponent implements AfterViewChecked {
           this.selectedIssuer = '';
           this.tokenBalance = '';
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
-               const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
+               const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+               const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
@@ -238,7 +238,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -329,7 +329,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
                amount: this.amountField,
           });
@@ -539,7 +539,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
                amount: this.amountField,
                checkId: this.checkIdField,
@@ -701,7 +701,7 @@ export class SendChecksComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -712,7 +712,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                checkId: this.checkIdField,
           });
           if (validationError) {
@@ -1001,7 +1001,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

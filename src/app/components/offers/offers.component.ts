@@ -369,7 +369,7 @@ export class OffersComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -459,7 +459,7 @@ export class OffersComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -685,7 +685,7 @@ export class OffersComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1283,7 +1283,7 @@ export class OffersComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1485,7 +1485,7 @@ export class OffersComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }

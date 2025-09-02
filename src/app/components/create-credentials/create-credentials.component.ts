@@ -209,7 +209,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -246,7 +246,12 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                };
 
                // Account-level information
-               const accountCredentials = [{ key: 'Classic Address', value: wallet.classicAddress }, { key: 'Public Key', value: wallet.publicKey }, { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() }, { key: 'Multi-Sign', value: this.isMultiSign ? 'Enabled' : 'Disabled' }, ...(this.isMultiSign ? [{ key: 'Signer Accounts', value: this.multiSignAddress }] : [])];
+               const accountCredentials = [
+                    { key: 'Classic Address', value: wallet.classicAddress },
+                    { key: 'Public Key', value: wallet.publicKey },
+                    { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() },
+               ];
+               // const accountCredentials = [{ key: 'Classic Address', value: wallet.classicAddress }, { key: 'Public Key', value: wallet.publicKey }, { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() }, { key: 'Regular Key', value: this.isRegularKeyAddress ? 'Enabled' : 'Disabled' }, { key: 'Multi-Sign', value: this.isMultiSign ? 'Enabled' : 'Disabled' }, ...(this.isMultiSign ? [{ key: 'Signer Accounts', value: this.multiSignAddress }] : [])];
 
                // Add account credentials section
                data.sections.push({
@@ -317,7 +322,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
@@ -470,7 +475,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                credentialID: this.credentialID,
                credentialType: this.credential.credential_type,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
@@ -501,7 +506,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
                console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
-               // Find the specific trustline to the issuer (destinationField)
                const credentialFound = accountObjects.result.account_objects.find((line: any) => {
                     return line.LedgerEntryType === 'Credential' && line.index === this.credentialID;
                });
@@ -904,7 +908,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.selectedAccount === 'account2' ? this.account2.seed : this.issuer.seed;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

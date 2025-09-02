@@ -137,8 +137,7 @@ export class AccountChangesComponent {
                     return;
                }
 
-               const address = this.selectedAccount === 'account1' ? this.account1.address : this.selectedAccount === 'account2' ? this.account2.address : this.issuer.address;
-
+               const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                let wallet;

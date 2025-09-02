@@ -199,7 +199,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -277,7 +277,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -846,7 +846,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -1060,7 +1060,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

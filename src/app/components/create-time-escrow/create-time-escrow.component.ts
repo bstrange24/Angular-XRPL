@@ -205,8 +205,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.selectedIssuer = '';
           this.tokenBalance = '';
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
-               const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
-               const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+               const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
+               const address = this.utilsService.getSelectedAddressWithOutIssuer(this.selectedAccount, this.account1, this.account2);
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
@@ -269,7 +269,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                return this.setError('Please select an account');
           }
 
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           if (!this.utilsService.validateInput(seed)) {
                return this.setError('ERROR: Account seed cannot be empty');
           }
@@ -380,7 +380,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                amount: this.amountField,
                destination: this.destinationField,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
@@ -557,7 +557,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                sequence: this.escrowSequenceNumberField,
           });
           if (validationError) {
@@ -730,7 +730,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
-               seed: this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                sequence: this.escrowSequenceNumberField,
           });
           if (validationError) {
@@ -1108,7 +1108,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.selectedAccount === 'account1' ? this.account1.seed : this.account2.seed;
+          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
