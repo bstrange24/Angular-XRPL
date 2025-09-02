@@ -33,6 +33,7 @@ export class StorageService {
      readonly networkServers: { [key: string]: string } = {
           // Made public for NavbarComponent access
           devnet: 'wss://s.devnet.rippletest.net:51233',
+          // devnet: 'ws://192.168.1.226:6007',
           testnet: 'wss://s.altnet.rippletest.net:51233',
           mainnet: 'wss://s1.ripple.com',
      };

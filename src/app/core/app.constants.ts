@@ -16,6 +16,7 @@ export const AppConstants = {
           DEVNET: {
                NAME: 'devnet',
                URL: 'wss://s.devnet.rippletest.net:51233',
+               // URL: 'ws://192.168.1.226:6007/',
           },
      },
 

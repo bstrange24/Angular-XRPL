@@ -90,7 +90,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      spinner: boolean = false;
      issuers: string[] = [];
-     spinnerMessage: string = '';tokenBalance: string = '';
+     spinnerMessage: string = '';
+     tokenBalance: string = '';
      // Add a map of known issuers for tokens
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
@@ -241,12 +242,12 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const escrowsTx = await this.xrplService.getAccountObjects(client, this.account1.address, 'validated', 'escrow');
                const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
-               console.log('PreviousTxnIDs:', previousTxnIDs);
+               console.log(`PreviousTxnIDs: ${JSON.stringify(previousTxnIDs, null, '\t')}`);
                const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
                for (const [index, previousTxnID] of previousTxnIDs.entries()) {
                     if (typeof previousTxnID === 'string') {
                          const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
-                         console.debug('sequenceTx:', sequenceTx);
+                         console.log(`sequenceTx: ${JSON.stringify(sequenceTx, null, '\t')}`);
                          const offerSequence = sequenceTx.result.tx_json.Sequence;
                          if (offerSequence === Number(this.escrowSequenceNumberField)) {
                               if ('Account' in escrows[index]) {
@@ -428,12 +429,12 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               if(this.currencyFieldDropDownValue !== 'XRP') {
+               if (this.currencyFieldDropDownValue !== 'XRP') {
                     const curr: xrpl.IssuedCurrencyAmount = {
                          currency: this.currencyFieldDropDownValue.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyFieldDropDownValue) : this.currencyFieldDropDownValue,
                          issuer: this.selectedIssuer,
-                         value: this.amountField
-                    } 
+                         value: this.amountField,
+                    };
                     escrowTx.Amount = curr;
                } else {
                     escrowTx.Amount = xrpl.xrpToDrops(this.amountField);

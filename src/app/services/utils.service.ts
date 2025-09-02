@@ -3263,7 +3263,7 @@ export class UtilsService {
                     // hotwallet: hotwallet,
                });
 
-               console.log('gatewayBalances', gatewayBalances);
+               console.log(`gatewayBalances: ${JSON.stringify(gatewayBalances, null, '\t')}`);
 
                let tokenTotal = 0;
                const issuers: string[] = [];
