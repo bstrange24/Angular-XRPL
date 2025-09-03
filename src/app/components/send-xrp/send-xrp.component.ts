@@ -84,7 +84,6 @@ export class SendXrpComponent implements AfterViewChecked {
           if (storedDestinations) {
                this.knownDestinations = storedDestinations;
           }
-          this.onAccountChange();
      }
 
      async ngAfterViewInit() {
@@ -116,6 +115,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
           this.issuer = { ...event.issuer, balance: '0' };
+          this.onAccountChange();
      }
 
      handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }) {
@@ -123,6 +123,23 @@ export class SendXrpComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
+          this.cdr.detectChanges();
+     }
+
+     onAccountChange() {
+          const accountHandlers: Record<string, () => void> = {
+               account1: () => this.displayDataForAccount1(),
+               account2: () => this.displayDataForAccount2(),
+               issuer: () => this.displayDataForAccount3(),
+          };
+          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+     }
+
+     validateQuorum() {
+          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          if (this.signerQuorum > totalWeight) {
+               this.signerQuorum = totalWeight;
+          }
           this.cdr.detectChanges();
      }
 
@@ -157,23 +174,6 @@ export class SendXrpComponent implements AfterViewChecked {
 
      toggleTicketSequence() {
           this.cdr.detectChanges();
-     }
-
-     validateQuorum() {
-          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
-          if (this.signerQuorum > totalWeight) {
-               this.signerQuorum = totalWeight;
-          }
-          this.cdr.detectChanges();
-     }
-
-     onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
-          };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
      }
 
      async getAccountDetails(address: string) {
@@ -289,7 +289,7 @@ export class SendXrpComponent implements AfterViewChecked {
                }
 
                if (this.sourceTagField) {
-                    await this.utilsService.setSourceTagField(payment, this.sourceTagField);
+                    this.utilsService.setSourceTagField(payment, this.sourceTagField);
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
@@ -418,34 +418,36 @@ export class SendXrpComponent implements AfterViewChecked {
      }
 
      private refreshUiAccountObjects(accountObjects: any, wallet: any) {
-          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-          if (signerAccounts && signerAccounts.length > 0) {
-               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+          const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
-                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
-                    this.multiSignSeeds = seeds;
-                    this.multiSignAddress = addresses;
-               }
+          if (signerAccounts?.length) {
+               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
+               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
+
+               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+
+               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
-               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+               this.multiSignSeeds = '';
                this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          // Always reset memo fields
           this.isMemoEnabled = false;
           this.memoField = '';
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
-          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+
+          if (regularKey) {
+               this.regularKeyAddress = regularKey;
                this.regularKeySeed = this.storageService.get('regularKeySeed');
+               this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -454,70 +456,90 @@ export class SendXrpComponent implements AfterViewChecked {
      }
 
      private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; sourceTag?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds, sourceTag } = inputs;
+
+          // 1. Account selection
+          if (selectedAccount === null || selectedAccount === undefined) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined) {
-               if (!this.utilsService.validateInput(inputs.seed)) {
-                    return 'Account seed cannot be empty';
-               }
-               if (!xrpl.isValidSecret(inputs.seed)) {
-                    return 'Account seed is invalid';
-               }
-          } else {
+
+          // 2. Seed
+          if (!seed || !this.utilsService.validateInput(seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (!xrpl.isValidSecret(seed)) {
                return 'Account seed is invalid';
           }
-          if (inputs.amount != undefined) {
-               if (!this.utilsService.validateInput(inputs.amount)) {
+
+          // 3. Amount
+          if (amount) {
+               if (!this.utilsService.validateInput(amount)) {
                     return 'XRP Amount cannot be empty';
                }
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
+               const numAmount = parseFloat(amount);
+               if (isNaN(numAmount) || !isFinite(numAmount)) {
                     return 'XRP Amount must be a valid number';
                }
-               if (inputs.amount && parseFloat(inputs.amount) <= 0) {
+               if (numAmount <= 0) {
                     return 'XRP Amount must be a positive number';
                }
           }
-          if (inputs.sourceTag != undefined) {
-               if (isNaN(parseFloat(inputs.sourceTag ?? '')) || !isFinite(parseFloat(inputs.sourceTag ?? ''))) {
+
+          // 4. Source Tag
+          if (sourceTag) {
+               const numTag = parseFloat(sourceTag);
+               if (isNaN(numTag) || !isFinite(numTag)) {
                     return 'Source Tag must be a valid number';
                }
-               if (inputs.sourceTag && parseFloat(inputs.sourceTag) <= 0) {
+               if (numTag <= 0) {
                     return 'Source Tag must be a positive number';
                }
           }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
+
+          // 5. Destination
+          if (destination && !this.utilsService.validateInput(destination)) {
                return 'Destination cannot be empty';
           }
-          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
-               return 'Regular Key Address is invalid or empty';
+
+          // 6. Regular key
+          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
+               if (!xrpl.isValidAddress(regularKeyAddress)) {
+                    return 'Regular Key Address is invalid or empty';
+               }
           }
-          if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
+
+          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
                return 'ERROR: Regular Key Seed is invalid or empty';
           }
-          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = inputs.multiSignAddresses
+
+          // 7. Multi-sign
+          if (multiSignAddresses && multiSignSeeds) {
+               const addresses = multiSignAddresses
                     .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.multiSignSeeds
+                    .map(s => s.trim())
+                    .filter(Boolean);
+               const seeds = multiSignSeeds
                     .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
+                    .map(s => s.trim())
+                    .filter(Boolean);
+
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
-                    }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
                }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
-                    }
+
+               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+
+               if (seeds.some(s => !xrpl.isValidSecret(s))) {
+                    return 'One or more signer seeds are invalid';
                }
           }
+
           return null;
      }
 
@@ -526,7 +548,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
@@ -546,50 +568,52 @@ export class SendXrpComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     private displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+          const isIssuer = accountKey === 'issuer';
+          const prefix = isIssuer ? 'issuer' : accountKey;
 
-          let name;
-          let address;
-          let seed;
+          // Define casing differences in keys
+          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
 
           // Fetch stored values
-          if (prefix === 'issuer') {
-               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
-          } else {
-               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
-          }
+          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
+          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
+          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
 
-          // Update account data
-          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
+          // Update account object
+          const accountMap = {
+               account1: this.account1,
+               account2: this.account2,
+               issuer: this.issuer,
+          };
+          const account = accountMap[accountKey];
           account.name = name;
           account.address = address;
           account.seed = seed;
 
-          // DOM manipulation
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          // DOM manipulation (map field IDs instead of repeating)
+          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
+               name: 'accountName1Field',
+               address: 'accountAddress1Field',
+               seed: 'accountSeed1Field',
+          };
 
-          if (accountName1Field) accountName1Field.value = name;
-          if (accountAddress1Field) accountAddress1Field.value = address;
-          if (accountSeed1Field) accountSeed1Field.value = seed;
+          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
+               const el = document.getElementById(id) as HTMLInputElement | null;
+               if (el) el.value = account[key];
+          });
 
-          // Trigger change detection to sync with ngModel
-          this.cdr.detectChanges();
+          this.cdr.detectChanges(); // sync with ngModel
 
-          // Update destination field (set to other account's address)
-          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
-
-          if (account.address && xrpl.isValidAddress(account.address)) {
-               this.getAccountDetails(account.address);
-          } else if (account.address) {
-               this.setError('Invalid XRP address');
+          // Fetch account details
+          try {
+               if (address && xrpl.isValidAddress(address)) {
+                    await this.getAccountDetails(account.address);
+               } else if (address) {
+                    this.setError('Invalid XRP address');
+               }
+          } catch (error: any) {
+               this.setError(`Error fetching account details: ${error.message}`);
           }
      }
 

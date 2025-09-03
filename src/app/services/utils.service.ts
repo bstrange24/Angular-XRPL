@@ -2856,28 +2856,28 @@ export class UtilsService {
           signers = [{ account: '', seed: '', weight: 1 }];
      }
 
-     async setInvoiceIdField(payment: any, invoiceIdField: string) {
+     async setInvoiceIdField(tx: any, invoiceIdField: string) {
           const validInvoiceID = await this.getValidInvoiceID(invoiceIdField);
           if (validInvoiceID) {
-               payment.InvoiceID = validInvoiceID;
+               tx.InvoiceID = validInvoiceID;
           }
      }
 
-     async setSourceTagField(payment: any, sourceTagField: string) {
-          payment.SourceTag = Number(sourceTagField);
+     setSourceTagField(tx: any, sourceTagField: string) {
+          tx.SourceTag = Number(sourceTagField);
      }
 
-     setTicketSequence(payment: any, ticketSequence: string, useTicket: boolean) {
+     setTicketSequence(tx: any, ticketSequence: string, useTicket: boolean) {
           if (useTicket) {
-               payment.TicketSequence = Number(ticketSequence);
-               payment.Sequence = 0;
+               tx.TicketSequence = Number(ticketSequence);
+               tx.Sequence = 0;
           } else {
-               payment.Sequence = Number(ticketSequence);
+               tx.Sequence = Number(ticketSequence);
           }
      }
 
-     setMemoField(payment: any, memoField: string) {
-          payment.Memos = [
+     setMemoField(tx: any, memoField: string) {
+          tx.Memos = [
                {
                     Memo: {
                          MemoData: Buffer.from(memoField, 'utf8').toString('hex'),
@@ -2887,7 +2887,15 @@ export class UtilsService {
           ];
      }
 
-     setDestinationTag(payment: any, destinationTagField: string) {
-          payment.DestinationTag = parseInt(destinationTagField, 10);
+     setDestinationTag(tx: any, destinationTagField: string) {
+          tx.DestinationTag = parseInt(destinationTagField, 10);
+     }
+
+     setTransferRate(tx: any, transferRate: number) {
+          tx.TransferRate = this.getTransferRate(transferRate);
+     }
+
+     setTickSize(tx: any, tickSize: number) {
+          tx.TickSize = tickSize;
      }
 }

@@ -317,18 +317,18 @@ export class DeleteAccountComponent implements AfterViewChecked {
                }
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-               // const response = await client.submitAndWait(signedTx.tx_blob);
-               // console.log('Submit Response:', JSON.stringify(response, null, 2));
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
-               // if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-               //      console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
-               //      this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-               //      this.resultField.nativeElement.classList.add('error');
-               //      this.setErrorProperties();
-               //      return;
-               // }
+               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
 
-               // this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
           } catch (error: any) {
@@ -380,7 +380,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
@@ -419,35 +419,37 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     refreshUiAccountObjects(accountObjects: any, wallet: any) {
-          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-          if (signerAccounts && signerAccounts.length > 0) {
-               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+          const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
-                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
-                    this.multiSignSeeds = seeds;
-                    this.multiSignAddress = addresses;
-               }
+          if (signerAccounts?.length) {
+               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
+               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
+
+               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+
+               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
-               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
+               this.multiSignSeeds = '';
                this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          // Always reset memo fields
           this.isMemoEnabled = false;
           this.memoField = '';
      }
 
-     refreshUiAccountInfo(accountInfo: any) {
-          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
+     private refreshUiAccountInfo(accountInfo: any) {
+          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+
+          if (regularKey) {
+               this.regularKeyAddress = regularKey;
                this.regularKeySeed = this.storageService.get('regularKeySeed');
+               this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -455,66 +457,64 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
+     private validateInputs(inputs: { seed?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
+          const { seed, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds } = inputs;
+
+          // 1. Account selection
+          if (selectedAccount === null || selectedAccount === undefined) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined) {
-               if (!this.utilsService.validateInput(inputs.seed)) {
-                    return 'Account seed cannot be empty';
-               }
-               if (!xrpl.isValidSecret(inputs.seed)) {
-                    return 'Account seed is invalid';
-               }
-          } else {
+
+          // 2. Seed
+          if (!seed || !this.utilsService.validateInput(seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (!xrpl.isValidSecret(seed)) {
                return 'Account seed is invalid';
           }
-          if (inputs.amount != undefined) {
-               if (!this.utilsService.validateInput(inputs.amount)) {
-                    return 'XRP Amount cannot be empty';
-               }
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
-                    return 'XRP Amount must be a valid number';
-               }
-               if (inputs.amount && parseFloat(inputs.amount) <= 0) {
-                    return 'XRP Amount must be a positive number';
-               }
-          }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
+
+          // 3. Destination
+          if (destination && !this.utilsService.validateInput(destination)) {
                return 'Destination cannot be empty';
           }
-          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
-               return 'Regular Key Address is invalid or empty';
+
+          // 4. Regular key
+          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
+               if (!xrpl.isValidAddress(regularKeyAddress)) {
+                    return 'Regular Key Address is invalid or empty';
+               }
           }
-          if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
+
+          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
                return 'ERROR: Regular Key Seed is invalid or empty';
           }
-          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = inputs.multiSignAddresses
+
+          // 5. Multi-sign
+          if (multiSignAddresses && multiSignSeeds) {
+               const addresses = multiSignAddresses
                     .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.multiSignSeeds
+                    .map(s => s.trim())
+                    .filter(Boolean);
+               const seeds = multiSignSeeds
                     .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
+                    .map(s => s.trim())
+                    .filter(Boolean);
+
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
                if (addresses.length !== seeds.length) {
                     return 'Number of signer addresses must match number of signer seeds';
                }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
-                    }
+
+               if (addresses.some(addr => !xrpl.isValidAddress(addr))) {
+                    return `Invalid signer address: ${addresses.find(addr => !xrpl.isValidAddress(addr))}`;
                }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
-                    }
+               if (seeds.some(s => !xrpl.isValidSecret(s))) {
+                    return 'One or more signer seeds are invalid';
                }
           }
+
           return null;
      }
 
