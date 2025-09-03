@@ -54,8 +54,8 @@ export class SendXrpComponent implements AfterViewChecked {
      totalXrpReserves: string = '';
      executionTime: string = '';
      amountField: string = '';
-     // destinationField: string = '';
      destinationTagField: string = '';
+     sourceTagField: string = '';
      invoiceIdField: string = '';
      ticketSequence: string = '';
      memoField: string = '';
@@ -246,6 +246,7 @@ export class SendXrpComponent implements AfterViewChecked {
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               sourceTag: this.sourceTagField ? this.sourceTagField : undefined,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -255,13 +256,7 @@ export class SendXrpComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
-               let regularKeyWalletSignTx: any = '';
-               let useRegularKeyWalletSignTx = false;
-               if (this.isRegularKeyAddress && !this.isMultiSign) {
-                    console.log('Using Regular Key Seed for transaction signing');
-                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
-                    useRegularKeyWalletSignTx = true;
-               }
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const wallet = await this.getWallet();
 
@@ -283,48 +278,40 @@ export class SendXrpComponent implements AfterViewChecked {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
-                    payment.TicketSequence = Number(this.ticketSequence);
-                    payment.Sequence = 0;
+                    this.utilsService.setTicketSequence(payment, this.ticketSequence);
                } else {
                     const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    payment.Sequence = getAccountInfo.result.account_data.Sequence;
+                    this.utilsService.setTicketSequence(payment, getAccountInfo.result.account_data.Sequence);
                }
 
                if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    payment.DestinationTag = parseInt(this.destinationTagField, 10);
+                    this.utilsService.setDestinationTag(payment, this.destinationTagField);
                }
 
                if (this.memoField) {
-                    payment.Memos = [
-                         {
-                              Memo: {
-                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                              },
-                         },
-                    ];
+                    this.utilsService.setMemoField(payment, this.memoField);
                }
 
                if (this.invoiceIdField) {
-                    const validInvoiceID = await this.getValidInvoiceID(this.invoiceIdField);
-                    if (validInvoiceID) {
-                         payment.InvoiceID = validInvoiceID;
-                    }
+                    await this.utilsService.setInvoiceIdField(payment, this.invoiceIdField);
+               }
+
+               if (this.sourceTagField) {
+                    await this.utilsService.setSourceTagField(payment, this.sourceTagField);
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress
-                         .split(',')
-                         .map(s => s.trim())
-                         .filter(s => s.length > 0);
-
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signers provided for multi-signing');
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
                     }
 
-                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: payment, signerAddresses, signerSeeds, fee });
@@ -427,46 +414,11 @@ export class SendXrpComponent implements AfterViewChecked {
           await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
-     async getValidInvoiceID(input: string): Promise<string | null> {
-          if (!input) {
-               return null;
-          }
-          if (/^[0-9A-Fa-f]{64}$/.test(input)) {
-               return input.toUpperCase();
-          }
-          try {
-               const encoder = new TextEncoder();
-               const data = encoder.encode(input);
-               const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-               const hashArray = Array.from(new Uint8Array(hashBuffer));
-               const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-               return hashHex.toUpperCase();
-          } catch (error) {
-               throw new Error('Failed to hash InvoiceID');
-          }
-     }
-
-     clearFields() {
-          this.amountField = '';
-          this.memoField = '';
-          this.invoiceIdField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
-          this.isMultiSign = false;
-          this.multiSignAddress = '';
-          this.multiSignSeeds = '';
-          this.signerQuorum = 0;
-          this.regularKeyAddress = '';
-          this.regularKeySeed = '';
-          this.cdr.detectChanges();
-     }
-
-     private async updateXrpBalance(client: xrpl.Client, address: string) {
+     async updateXrpBalance(client: xrpl.Client, address: string) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
           const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
-          // this.account1.balance = balance.toString();
           if (this.selectedAccount === 'account1') {
                this.account1.balance = balance.toString();
           } else if (this.selectedAccount === 'account2') {
@@ -512,7 +464,7 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
+     validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; sourceTag?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -535,6 +487,14 @@ export class SendXrpComponent implements AfterViewChecked {
                }
                if (inputs.amount && parseFloat(inputs.amount) <= 0) {
                     return 'XRP Amount must be a positive number';
+               }
+          }
+          if (inputs.sourceTag != undefined) {
+               if (isNaN(parseFloat(inputs.sourceTag ?? '')) || !isFinite(parseFloat(inputs.sourceTag ?? ''))) {
+                    return 'Source Tag must be a valid number';
+               }
+               if (inputs.sourceTag && parseFloat(inputs.sourceTag) <= 0) {
+                    return 'Source Tag must be a positive number';
                }
           }
           if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
@@ -572,7 +532,7 @@ export class SendXrpComponent implements AfterViewChecked {
           return null;
      }
 
-     private updateDestinations() {
+     updateDestinations() {
           this.destinations = [...Object.values(this.knownDestinations)];
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
@@ -600,12 +560,26 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     clearSignerList() {
-          this.signers = [{ account: '', seed: '', weight: 1 }];
-          // this.signerQuorum = 0;
+     clearFields() {
+          this.amountField = '';
+          this.memoField = '';
+          this.invoiceIdField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.isMultiSign = false;
+          this.multiSignAddress = '';
+          this.multiSignSeeds = '';
+          this.signerQuorum = 0;
+          this.regularKeyAddress = '';
+          this.regularKeySeed = '';
+          this.cdr.detectChanges();
      }
 
-     private displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+     clearSignerList() {
+          this.signers = [{ account: '', seed: '', weight: 1 }];
+     }
+
+     displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
           const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
 
           let name;

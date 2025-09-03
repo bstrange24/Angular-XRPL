@@ -368,6 +368,28 @@ export class UtilsService {
           }
      };
 
+     async getRegularKeyWallet(environment: string, isMultiSign: boolean, isRegularKeyAddress: boolean, regularKeySeed: string) {
+          let regularKeyWalletSignTx: any = '';
+          let useRegularKeyWalletSignTx = false;
+          if (isRegularKeyAddress && !isMultiSign) {
+               console.log('Using Regular Key Seed for transaction signing');
+               regularKeyWalletSignTx = await this.getWallet(regularKeySeed, environment);
+               useRegularKeyWalletSignTx = true;
+          }
+          return { useRegularKeyWalletSignTx, regularKeyWalletSignTx };
+     }
+
+     getMultiSignSeeds(multiSignSeeds: any) {
+          return multiSignSeeds.split(',').map((s: string) => s.trim());
+     }
+
+     getMultiSignAddress(multiSignAddress: any) {
+          return multiSignAddress
+               .split(',')
+               .map((s: string) => s.trim())
+               .filter((s: string) => s.length > 0);
+     }
+
      labelCurrencyCode(code: String) {
           if (code.length === 40) {
                return `LP-${code.slice(0, 40).toUpperCase()}`;
@@ -2788,5 +2810,68 @@ export class UtilsService {
           this.result = `${message}`;
           this.isError = false;
           this.isSuccess = true;
+     }
+
+     async getValidInvoiceID(input: string): Promise<string | null> {
+          if (!input) {
+               return null;
+          }
+          if (/^[0-9A-Fa-f]{64}$/.test(input)) {
+               return input.toUpperCase();
+          }
+          try {
+               const encoder = new TextEncoder();
+               const data = encoder.encode(input);
+               const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+               const hashArray = Array.from(new Uint8Array(hashBuffer));
+               const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+               return hashHex.toUpperCase();
+          } catch (error) {
+               throw new Error('Failed to hash InvoiceID');
+          }
+     }
+
+     loadSignerList(account: string, signers: string) {
+          const singerEntriesAccount = account + 'signerEntries';
+          if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
+               signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
+                    account: s.Account,
+                    seed: s.seed,
+                    weight: s.SignerWeight,
+               }));
+          } else {
+               // this.clearSignerList();
+          }
+     }
+
+     async setInvoiceIdField(payment: any, invoiceIdField: string) {
+          const validInvoiceID = await this.getValidInvoiceID(invoiceIdField);
+          if (validInvoiceID) {
+               payment.InvoiceID = validInvoiceID;
+          }
+     }
+
+     async setSourceTagField(payment: any, sourceTagField: string) {
+          payment.SourceTag = Number(sourceTagField);
+     }
+
+     setTicketSequence(payment: any, ticketSequence: string) {
+          payment.TicketSequence = Number(ticketSequence);
+          payment.Sequence = 0;
+     }
+
+     setMemoField(payment: any, memoField: string) {
+          payment.Memos = [
+               {
+                    Memo: {
+                         MemoData: Buffer.from(memoField, 'utf8').toString('hex'),
+                         MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                    },
+               },
+          ];
+     }
+
+     setDestinationTag(payment: any, destinationTagField: string) {
+          payment.DestinationTag = parseInt(destinationTagField, 10);
      }
 }
