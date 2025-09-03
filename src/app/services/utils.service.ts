@@ -398,6 +398,14 @@ export class UtilsService {
           }
      }
 
+     populateKnownDestinations(knownDestinations: any, account1: string, account2: string, issuer: string) {
+          knownDestinations = {
+               Account1: account1,
+               Account2: account2,
+               Account3: issuer,
+          };
+     }
+
      isValidCurrencyCode(currency: string): boolean {
           // Basic validation: 3-20 characters or valid hex for XRPL currency codes
           return /^[A-Za-z0-9]{3,20}$/.test(currency) || /^[0-9A-Fa-f]{40}$/.test(currency);
@@ -2831,7 +2839,7 @@ export class UtilsService {
           }
      }
 
-     loadSignerList(account: string, signers: string) {
+     loadSignerList(account: string, signers: any) {
           const singerEntriesAccount = account + 'signerEntries';
           if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
                signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
@@ -2840,8 +2848,12 @@ export class UtilsService {
                     weight: s.SignerWeight,
                }));
           } else {
-               // this.clearSignerList();
+               this.clearSignerList(signers);
           }
+     }
+
+     clearSignerList(signers: any) {
+          signers = [{ account: '', seed: '', weight: 1 }];
      }
 
      async setInvoiceIdField(payment: any, invoiceIdField: string) {
@@ -2855,9 +2867,13 @@ export class UtilsService {
           payment.SourceTag = Number(sourceTagField);
      }
 
-     setTicketSequence(payment: any, ticketSequence: string) {
-          payment.TicketSequence = Number(ticketSequence);
-          payment.Sequence = 0;
+     setTicketSequence(payment: any, ticketSequence: string, useTicket: boolean) {
+          if (useTicket) {
+               payment.TicketSequence = Number(ticketSequence);
+               payment.Sequence = 0;
+          } else {
+               payment.Sequence = Number(ticketSequence);
+          }
      }
 
      setMemoField(payment: any, memoField: string) {

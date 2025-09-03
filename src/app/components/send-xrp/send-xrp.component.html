@@ -166,6 +166,17 @@
                                         <br />
                                    </td>
                               </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Add Invoice ID to transaction..">
+                                             <label for="sourceTagField">Invoice Id</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="invoiceIdField" size="41" [(ngModel)]="invoiceIdField" name="invoiceIdField" />
+                                        <br />
+                                   </td>
+                              </tr>
                          </table>
                     </div>
 
@@ -260,32 +271,7 @@
                               </td>
                          </tr>
                          <!-- End Memo Section -->
-                         <!-- Start Invoice Id Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Add Invoice ID to transaction.">
-                                        <label>Invoice Id</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="isInvoiceIdEnabled" [(ngModel)]="isInvoiceIdEnabled" name="isInvoiceIdEnabled" />
-                                        <span class="slider round"></span>
-                                   </label>
-                                   <label for="isInvoiceIdEnabled"></label>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isInvoiceIdEnabled">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="">
-                                        <label for="invoiceIdField"></label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <input type="text" id="invoiceIdField" size="41" placeholder="Enter Invoice ID" [(ngModel)]="invoiceIdField" name="invoiceIdField" />
-                              </td>
-                         </tr>
-                         <!-- End Invoice Id Section -->
+
                          <!-- Start Multi Sign Section -->
                          <tr style="vertical-align: top">
                               <td style="text-align: right">
