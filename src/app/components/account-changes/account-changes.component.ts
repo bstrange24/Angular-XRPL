@@ -118,14 +118,12 @@ export class AccountChangesComponent {
      }
 
      onAccountChange() {
-          if (!this.selectedAccount) return;
-          if (this.selectedAccount === 'account1') {
-               this.displayDataForAccount1();
-          } else if (this.selectedAccount === 'account2') {
-               this.displayDataForAccount2();
-          } else {
-               this.displayDataForAccount3();
-          }
+          const accountHandlers: Record<string, () => void> = {
+               account1: () => this.displayDataForAccount1(),
+               account2: () => this.displayDataForAccount2(),
+               issuer: () => this.displayDataForAccount3(),
+          };
+          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
           this.configurationType = null;
      }
 
@@ -138,20 +136,8 @@ export class AccountChangesComponent {
                }
 
                const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-               let wallet;
-               if (this.selectedAccount === 'account1') {
-                    wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               } else if (this.selectedAccount === 'account2') {
-                    wallet = await this.utilsService.getWallet(this.account2.seed, environment);
-               } else {
-                    wallet = await this.utilsService.getWallet(this.issuer.seed, environment);
-               }
-
-               if (!wallet) {
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
-               }
+               const wallet = await this.getWallet();
 
                if (reset) {
                     this.balanceChanges = [];
@@ -163,7 +149,6 @@ export class AccountChangesComponent {
                     const env = this.xrplService.getNet().environment.toUpperCase() as EnvKey;
                     this.url = AppConstants.XRPL_WIN_URL[env] || AppConstants.XRPL_WIN_URL.DEVNET;
 
-                    const client = await this.xrplService.getClient();
                     const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
                     this.currentBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance); // XRP
                     this.currencyBalances.set('XRP', this.currentBalance);
@@ -334,121 +319,6 @@ export class AccountChangesComponent {
           return processed;
      }
 
-     processTransactionsForBalanceChanges1(transactions: any[], address: string): any[] {
-          console.log('Entering processTransactionsForBalanceChanges');
-
-          const processed: any[] = [];
-          transactions.forEach(txWrapper => {
-               const tx = txWrapper.tx_json || txWrapper.transaction;
-               const meta = txWrapper.meta;
-
-               if (typeof meta !== 'object' || !meta.AffectedNodes) {
-                    return; // Skip invalid
-               }
-
-               const changes: { change: number; currency: string; balanceAfter: number }[] = [];
-               let counterparty = tx.Destination || tx.Account || 'N/A';
-               let type = tx.TransactionType;
-
-               if (tx.TransactionType === 'Payment') {
-                    if (tx.Destination === address) {
-                         type = 'Payment Received';
-                    } else if (tx.Account === address) {
-                         type = 'Payment Sent';
-                    }
-               }
-
-               let xrpChange = 0;
-
-               meta.AffectedNodes.forEach((node: any) => {
-                    const modified = node.ModifiedNode || node.CreatedNode || node.DeletedNode;
-                    if (!modified) return;
-
-                    if (modified.LedgerEntryType === 'AccountRoot' && modified.FinalFields?.Account === address) {
-                         const prevBalance = modified.PreviousFields?.Balance || modified.FinalFields.Balance;
-                         const finalBalance = modified.FinalFields.Balance;
-                         xrpChange = this.utilsService.roundToEightDecimals(xrpl.dropsToXrp(finalBalance) - xrpl.dropsToXrp(prevBalance));
-                         if (!modified.PreviousFields?.Balance) {
-                              xrpChange = this.utilsService.roundToEightDecimals(-xrpl.dropsToXrp(tx.Fee || '0'));
-                         }
-                         changes.push({
-                              change: xrpChange,
-                              currency: 'XRP',
-                              balanceAfter: this.utilsService.roundToEightDecimals(xrpl.dropsToXrp(finalBalance)),
-                         });
-                    } else if (modified.LedgerEntryType === 'RippleState') {
-                         let tokenChange = 0;
-                         let tokenCurrency = '';
-                         let tokenBalanceAfter = 0;
-                         counterparty = modified.FinalFields?.HighLimit?.issuer || modified.FinalFields?.LowLimit?.issuer || counterparty;
-
-                         if (modified.FinalFields?.Balance) {
-                              const balanceField = modified.FinalFields.Balance;
-                              const prevBalanceField = modified.PreviousFields?.Balance || { value: '0' };
-                              tokenChange = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value) - parseFloat(prevBalanceField.value));
-                              tokenBalanceAfter = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeCurrencyCode(balanceField.currency) : balanceField.currency ?? '';
-                              tokenCurrency = `${curr}`;
-                         } else if (modified.NewFields?.Balance) {
-                              const balanceField = modified.NewFields.Balance;
-                              tokenChange = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value));
-                              tokenBalanceAfter = tokenChange;
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeCurrencyCode(balanceField.currency) : balanceField.currency ?? '';
-                              tokenCurrency = `${curr}`;
-                         } else if (node.DeletedNode) {
-                              const balanceField = modified.FinalFields.Balance;
-                              tokenChange = this.utilsService.roundToEightDecimals(-parseFloat(balanceField.value));
-                              tokenBalanceAfter = 0;
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeCurrencyCode(balanceField.currency) : balanceField.currency ?? '';
-                              tokenCurrency = `${curr}`;
-                         }
-
-                         if (tokenCurrency) {
-                              changes.push({
-                                   change: tokenChange,
-                                   currency: tokenCurrency,
-                                   balanceAfter: tokenBalanceAfter,
-                              });
-                         }
-                    }
-               });
-
-               if (!changes.some(c => c.currency === 'XRP')) {
-                    changes.push({
-                         change: this.utilsService.roundToEightDecimals(-xrpl.dropsToXrp(tx.Fee || '0')),
-                         currency: 'XRP',
-                         balanceAfter: this.utilsService.roundToEightDecimals(this.currentBalance),
-                    });
-               }
-
-               changes.forEach(changeItem => {
-                    let balanceAfter = changeItem.balanceAfter;
-                    if (changeItem.currency === 'XRP') {
-                         this.currentBalance -= changeItem.change;
-                         balanceAfter = this.utilsService.roundToEightDecimals(this.currentBalance + changeItem.change);
-                    } else {
-                         const currBalance = this.currencyBalances.get(changeItem.currency) || 0;
-                         this.currencyBalances.set(changeItem.currency, currBalance - changeItem.change);
-                         balanceAfter = this.utilsService.roundToEightDecimals(currBalance);
-                    }
-
-                    processed.push({
-                         date: new Date((tx.date + 946684800) * 1000),
-                         hash: txWrapper.hash,
-                         type,
-                         change: changeItem.change,
-                         currency: changeItem.currency,
-                         balanceAfter,
-                         counterparty,
-                    });
-               });
-          });
-
-          console.log('Leaving processTransactionsForBalanceChanges');
-          return processed;
-     }
-
-     // Infinite scroll handler
      onScroll(index: number) {
           if (!this.viewport) {
                console.warn('onScroll: Viewport not initialized');
@@ -475,59 +345,52 @@ export class AccountChangesComponent {
 
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
+
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          if (this.selectedAccount === 'account1') {
-               this.account1.balance = balance.toString();
-          } else if (this.selectedAccount === 'account2') {
-               this.account1.balance = balance.toString();
-          } else {
-               this.account1.balance = balance.toString();
-          }
+          this.account1.balance = balance.toString();
      }
 
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+          const isIssuer = accountKey === 'issuer';
+          const prefix = isIssuer ? 'issuer' : accountKey;
 
-          let name;
-          let address;
-          let seed;
+          // Define casing differences in keys
+          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
 
           // Fetch stored values
-          if (prefix === 'issuer') {
-               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
-          } else {
-               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
-          }
+          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
+          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
+          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
 
-          // Update account data
-          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
+          // Update account object
+          const accountMap = {
+               account1: this.account1,
+               account2: this.account2,
+               issuer: this.issuer,
+          };
+          const account = accountMap[accountKey];
           account.name = name;
           account.address = address;
           account.seed = seed;
 
-          // DOM manipulation
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          // DOM manipulation (map field IDs instead of repeating)
+          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
+               name: 'accountName1Field',
+               address: 'accountAddress1Field',
+               seed: 'accountSeed1Field',
+          };
 
-          if (accountName1Field) accountName1Field.value = name;
-          if (accountAddress1Field) accountAddress1Field.value = address;
-          if (accountSeed1Field) accountSeed1Field.value = seed;
+          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
+               const el = document.getElementById(id) as HTMLInputElement | null;
+               if (el) el.value = account[key];
+          });
 
-          // Trigger change detection to sync with ngModel
-          this.cdr.detectChanges();
+          this.cdr.detectChanges(); // sync with ngModel
 
-          // Update destination field (set to other account's address)
-          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
-
-          // Fetch account details and trustlines
+          // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
                     await this.loadBalanceChanges();
@@ -537,6 +400,16 @@ export class AccountChangesComponent {
           } catch (error: any) {
                this.setError(`Error fetching account details: ${error.message}`);
           }
+     }
+
+     async getWallet() {
+          const environment = this.xrplService.getNet().environment;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
      }
 
      async displayDataForAccount1() {
