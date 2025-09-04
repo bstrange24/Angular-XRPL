@@ -222,23 +222,6 @@ export class CreateDidComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               // Account-level information
-               const accountDid = [
-                    { key: 'Classic Address', value: wallet.classicAddress },
-                    { key: 'Public Key', value: wallet.publicKey },
-                    { key: 'Flags', value: flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) },
-                    { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() },
-                    { key: 'Multi-Sign', value: this.isMultiSign ? 'Enabled' : 'Disabled' },
-                    ...(this.isMultiSign ? [{ key: 'Signer Accounts', value: this.multiSignAddress }] : []),
-               ];
-
-               // Add account Did section
-               data.sections.push({
-                    title: 'Account Information',
-                    openByDefault: true,
-                    content: accountDid,
-               });
-
                // Add Did section
                if (!accountObjects.result.account_objects || accountObjects.result.account_objects.length <= 0) {
                     data.sections.push({
@@ -311,40 +294,6 @@ export class CreateDidComponent implements AfterViewChecked {
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Setting DID...');
-
-               // const didDocumentData1 = {
-               //      '@context': 'https://www.w3.org/ns/did/v1',
-               //      id: this.didDetails.id,
-               //      verificationMethod: [
-               //           {
-               //                id: this.didDetails.verificationMethod.id, //: id: `did:xrpl:${wallet.classicAddress}#keys-1`,
-               //                type: this.didDetails.verificationMethod.type, //'Ed25519VerificationKey2018',
-               //                controller: this.didDetails.verificationMethod.controller, //`did:xrpl:${wallet.classicAddress}`,
-               //                publicKeyBase58: this.didDetails.verificationMethod.publicKeyBase58, //'GfHkE3R7C6oJtH58eTmRzR...',
-               //           },
-               //      ],
-               //      authentication: this.didDetails.authentication, // [`did:xrpl:${wallet.classicAddress}#keys-1`],
-               //      service: [
-               //           {
-               //                id: this.didDetails.service.serviceId, // `did:xrpl:${wallet.classicAddress}#vcs`,
-               //                type: this.didDetails.service.serviceType, //'VerifiableCredentialService',
-               //                serviceEndpoint: this.didDetails.service.serviceEndpoint, // 'https://example.com/vc/',
-               //           },
-               //      ],
-               // };
-               // console.debug('DID Data:', JSON.stringify(didDocumentData1, null, 2));
-               // const didDocumentData1Hex = this.utilsService.jsonToHex(didDocumentData1);
-               // console.log(didDocumentData1Hex);
-
-               // const didDocument1 = { didData: 'did:example:123#public-key-0' };
-               // console.debug('DID Document:', JSON.stringify(didDocument1, null, 2));
-               // const didDocument1Hex = this.utilsService.jsonToHex(didDocument1);
-               // console.log(didDocument1Hex);
-
-               // const didUri1 = { uri: 'ipfs://bafybeiexamplehash' };
-               // console.debug('DID URI:', JSON.stringify(didUri1, null, 2));
-               // const didURI1Hex = this.utilsService.jsonToHex(didUri1);
-               // console.log(didURI1Hex);
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);

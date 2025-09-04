@@ -236,20 +236,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               // Account-level information
-               const accountCredentials = [
-                    { key: 'Classic Address', value: wallet.classicAddress },
-                    { key: 'Public Key', value: wallet.publicKey },
-                    { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() },
-               ];
-
-               // Add account credentials section
-               data.sections.push({
-                    title: 'Account Information',
-                    openByDefault: true,
-                    content: accountCredentials,
-               });
-
                // Add credentials section
                if (!accountObjects.result.account_objects || accountObjects.result.account_objects.length <= 0) {
                     data.sections.push({
