@@ -399,6 +399,7 @@ export class CreateDidComponent implements AfterViewChecked {
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
+               console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
@@ -549,6 +550,7 @@ export class CreateDidComponent implements AfterViewChecked {
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
+               console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
