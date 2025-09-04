@@ -159,7 +159,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
      }
 
-     async getAccountDetails(address: string) {
+     async getAccountDetails() {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
 
@@ -196,7 +196,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.isMemoEnabled = false;
                this.memoField = '';
 
-               await this.updateXrpBalance(client, address);
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(error.message);
@@ -375,47 +375,13 @@ export class DeleteAccountComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private updateDestinations() {
-          this.destinations = [...Object.values(this.knownDestinations)];
-          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
-     }
-
-     private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
-          const wallet = await this.utilsService.getWallet(seed, environment);
-          if (!wallet) {
-               throw new Error('ERROR: Wallet could not be created or is undefined');
-          }
-          return wallet;
-     }
-
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
-     }
-
-     private updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
-     }
-
-     clearFields() {
-          this.memoField = '';
-          this.isMultiSign = false;
-          this.multiSignAddress = '';
-          this.cdr.detectChanges();
-     }
-
-     private async updateXrpBalance(client: xrpl.Client, address: string) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
+     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
 
-          const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
           this.account1.balance = balance.toString();
      }
 
@@ -448,8 +414,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               this.regularKeySeed = this.storageService.get('regularKeySeed');
-               this.isRegularKeyAddress = true;
+               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
+               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -518,6 +485,21 @@ export class DeleteAccountComponent implements AfterViewChecked {
           return null;
      }
 
+     private updateDestinations() {
+          this.destinations = [...Object.values(this.knownDestinations)];
+          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+     }
+
+     private async getWallet() {
+          const environment = this.xrplService.getNet().environment;
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const wallet = await this.utilsService.getWallet(seed, environment);
+          if (!wallet) {
+               throw new Error('ERROR: Wallet could not be created or is undefined');
+          }
+          return wallet;
+     }
+
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
           const isIssuer = accountKey === 'issuer';
           const prefix = isIssuer ? 'issuer' : accountKey;
@@ -558,7 +540,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
-                    await this.getAccountDetails(account.address);
+                    await this.getAccountDetails();
                } else if (address) {
                     this.setError('Invalid XRP address');
                }
@@ -577,6 +559,25 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      private displayDataForAccount3() {
           this.displayDataForAccount('issuer');
+     }
+
+     clearFields() {
+          this.memoField = '';
+          this.isMultiSign = false;
+          this.multiSignAddress = '';
+          this.cdr.detectChanges();
+     }
+
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+     }
+
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
      }
 
      private setErrorProperties() {

@@ -176,7 +176,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     async getAccountDetails(address: string) {
+     async getAccountDetails() {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           this.setSuccessProperties();
@@ -214,7 +214,7 @@ export class SendXrpComponent implements AfterViewChecked {
                this.isMemoEnabled = false;
                this.memoField = '';
 
-               await this.updateXrpBalance(client, address);
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(error.message);
@@ -363,7 +363,10 @@ export class SendXrpComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               await this.updateXrpBalance(client, wallet.classicAddress);
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
+               await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -391,30 +394,14 @@ export class SendXrpComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
-     }
+     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
 
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
-     }
-
-     private async updateXrpBalance(client: xrpl.Client, address: string) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
-          const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
-          if (this.selectedAccount === 'account1') {
-               this.account1.balance = balance.toString();
-          } else if (this.selectedAccount === 'account2') {
-               this.account1.balance = balance.toString();
-          } else {
-               this.account1.balance = balance.toString();
-          }
+
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
+          this.account1.balance = balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: any, wallet: any) {
@@ -446,8 +433,9 @@ export class SendXrpComponent implements AfterViewChecked {
 
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               this.regularKeySeed = this.storageService.get('regularKeySeed');
-               this.isRegularKeyAddress = true;
+               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
+               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -558,16 +546,6 @@ export class SendXrpComponent implements AfterViewChecked {
           return wallet;
      }
 
-     clearFields() {
-          this.amountField = '';
-          this.memoField = '';
-          this.invoiceIdField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
-          this.isMultiSign = false;
-          this.cdr.detectChanges();
-     }
-
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
           const isIssuer = accountKey === 'issuer';
           const prefix = isIssuer ? 'issuer' : accountKey;
@@ -608,7 +586,7 @@ export class SendXrpComponent implements AfterViewChecked {
           // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
-                    await this.getAccountDetails(account.address);
+                    await this.getAccountDetails();
                } else if (address) {
                     this.setError('Invalid XRP address');
                }
@@ -627,6 +605,28 @@ export class SendXrpComponent implements AfterViewChecked {
 
      private displayDataForAccount3() {
           this.displayDataForAccount('issuer');
+     }
+
+     clearFields() {
+          this.amountField = '';
+          this.memoField = '';
+          this.invoiceIdField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.isMultiSign = false;
+          this.cdr.detectChanges();
+     }
+
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message); // For debugging
+     }
+
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
      private setErrorProperties() {

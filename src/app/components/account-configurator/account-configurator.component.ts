@@ -1312,12 +1312,26 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.isMemoEnabled = false;
                this.memoField = '';
 
+               // if (enableRegularKeyFlag === 'Y') {
+               //      this.storageService.set('regularKey', this.regularKeyAccount);
+               //      this.storageService.set('regularKeySeed', this.regularKeyAccountSeed);
+               // } else {
+               //      this.storageService.removeValue('regularKey');
+               //      this.storageService.removeValue('regularKeySeed');
+               // }
+
+               const regularKeysAccount = wallet.classicAddress + 'regularKey';
+               const regularKeySeedAccount = wallet.classicAddress + 'regularKeySeed';
                if (enableRegularKeyFlag === 'Y') {
-                    this.storageService.set('regularKey', this.regularKeyAccount);
-                    this.storageService.set('regularKeySeed', this.regularKeyAccountSeed);
+                    // this.storageService.set('regularKey', this.regularKeyAccount);
+                    // this.storageService.set('regularKeySeed', this.regularKeyAccountSeed);
+                    this.storageService.set(regularKeysAccount, this.regularKeyAccount);
+                    this.storageService.set(regularKeySeedAccount, this.regularKeyAccountSeed);
                } else {
-                    this.storageService.removeValue('regularKey');
-                    this.storageService.removeValue('regularKeySeed');
+                    // this.storageService.removeValue('regularKey');
+                    // this.storageService.removeValue('regularKeySeed');
+                    this.storageService.removeValue(regularKeysAccount);
+                    this.storageService.removeValue(regularKeySeedAccount);
                }
 
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
@@ -1750,18 +1764,21 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      refreshUiAccountInfo(accountInfo: any) {
-          if (accountInfo.result.account_data && accountInfo.result.account_data.NFTokenMinter) {
+          const nftTokenMinter = accountInfo?.result?.account_data?.NFTokenMinter;
+          if (nftTokenMinter) {
                this.isAuthorizedNFTokenMinter = true;
-               this.nfTokenMinterAddress = accountInfo.result.account_data.NFTokenMinter;
+               this.nfTokenMinterAddress = nftTokenMinter;
           } else {
                this.isAuthorizedNFTokenMinter = false;
                this.nfTokenMinterAddress = '';
           }
 
-          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               // this.isSetRegularKey = true;
-               this.regularKeyAccount = accountInfo.result.account_data.RegularKey;
-               this.regularKeyAccountSeed = this.storageService.get('regularKeySeed');
+          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+          if (regularKey) {
+               this.regularKeyAccount = regularKey;
+               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
+               this.regularKeyAccountSeed = this.storageService.get(regularKeySeedAccount);
+               // this.isRegularKeyAddress = true;
           } else {
                this.isSetRegularKey = false;
                this.regularKeyAccount = 'No RegularKey configured for account';

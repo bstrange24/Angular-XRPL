@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { CredentialCreate, CredentialDelete, rippleTimeToISOTime } from 'xrpl';
+import { CredentialCreate, CredentialDelete, CredentialAccept, rippleTimeToISOTime } from 'xrpl';
 import { flagNames } from 'flagnames';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -42,7 +42,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      isEditable: boolean = true;
      currencyField: string = '';
      currencyBalanceField: string = '';
-     // destinationField: string = '';
      amountField: string = '';
      ticketSequence: string = '';
      isTicket: boolean = false;
@@ -71,7 +70,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      spinnerMessage: string = '';
      credential = {
           version: '1.0',
-          credential_type: '',
+          credential_type: 'KYCCredential',
           issuer: '',
           subject: {
                full_name: '',
@@ -88,7 +87,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                verifier: '',
           },
           hash: '',
-          uri: '',
+          uri: 'ipfs://bafybeiexamplehash',
      };
      destinationFields: string = '';
      private knownDestinations: { [key: string]: string } = {};
@@ -102,20 +101,15 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           if (storedDestinations) {
                this.knownDestinations = storedDestinations;
           }
-          this.onAccountChange();
      }
 
      async ngAfterViewInit() {
           try {
                const wallet = await this.getWallet();
-               this.loadSignerList(wallet.classicAddress);
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                if (Object.keys(this.knownDestinations).length === 0) {
-                    this.knownDestinations = {
-                         Account1: this.account1.address,
-                         Account2: this.account2.address,
-                         Account3: this.issuer.address,
-                    };
+                    this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
                }
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
@@ -150,23 +144,29 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
-          if (!this.selectedAccount) return;
-          if (this.selectedAccount === 'account1') {
-               this.displayDataForAccount1();
-          } else if (this.selectedAccount === 'account2') {
-               this.displayDataForAccount2();
-          } else {
-               this.displayDataForAccount3();
+          const accountHandlers: Record<string, () => void> = {
+               account1: () => this.displayDataForAccount1(),
+               account2: () => this.displayDataForAccount2(),
+               issuer: () => this.displayDataForAccount3(),
+          };
+          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+     }
+
+     validateQuorum() {
+          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          if (this.signerQuorum > totalWeight) {
+               this.signerQuorum = totalWeight;
           }
+          this.cdr.detectChanges();
      }
 
      async toggleMultiSign() {
           try {
                if (!this.isMultiSign) {
-                    this.clearSignerList();
+                    this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
-                    this.loadSignerList(wallet.classicAddress);
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -190,15 +190,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      }
 
      toggleTicketSequence() {
-          this.cdr.detectChanges();
-     }
-
-     validateQuorum() {
-          // Example validation: quorum <= sum of weights
-          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
-          if (this.signerQuorum > totalWeight) {
-               this.signerQuorum = totalWeight;
-          }
           this.cdr.detectChanges();
      }
 
@@ -251,7 +242,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     { key: 'Public Key', value: wallet.publicKey },
                     { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() },
                ];
-               // const accountCredentials = [{ key: 'Classic Address', value: wallet.classicAddress }, { key: 'Public Key', value: wallet.publicKey }, { key: 'Account Sequence', value: accountInfo.result.account_data.Sequence.toString() }, { key: 'Regular Key', value: this.isRegularKeyAddress ? 'Enabled' : 'Disabled' }, { key: 'Multi-Sign', value: this.isMultiSign ? 'Enabled' : 'Disabled' }, ...(this.isMultiSign ? [{ key: 'Signer Accounts', value: this.multiSignAddress }] : [])];
 
                // Add account credentials section
                data.sections.push({
@@ -276,7 +266,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               { key: 'Subject', value: credential.Subject || 'N/A' },
                               {
                                    key: 'Expiration',
-                                   value: credential.Expiration ? this.utilsService.convertUnixToEST(credential.Expiration) : 'N/A',
+                                   value: credential.Expiration ? this.utilsService.toFormattedExpiration(credential.Expiration) : 'N/A',
                               },
                               { key: 'Issuer', value: credential.Issuer || 'N/A' },
                               { key: 'LedgerEntryType', value: credential.LedgerEntryType || 'N/A' },
@@ -299,10 +289,13 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.setSuccess(this.result);
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
                this.refreshUiAccountInfo(accountInfo);
-               this.loadSignerList(wallet.classicAddress);
-               this.setSuccess(this.result);
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -323,12 +316,13 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               amount: this.amountField,
                destination: this.destinationFields,
+               credentialType: this.credential.credential_type,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               date: this.credential.subject.expirationDate,
           });
           if (validationError) {
                return this.setError(`ERROR: ${validationError}`);
@@ -337,28 +331,25 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-
-               let regularKeyWalletSignTx: any = '';
-               let useRegularKeyWalletSignTx = false;
-               if (this.isRegularKeyAddress && !this.isMultiSign) {
-                    console.log('Using Regular Key Seed for transaction signing');
-                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
-                    useRegularKeyWalletSignTx = true;
-               }
-
                const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Setting Credentials...');
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
+               console.debug('expirationDate:', this.credential.subject.expirationDate);
+               const expirationRipple = this.utilsService.toRippleTime(this.credential.subject.expirationDate || '');
+               console.debug('expirationRipple:', expirationRipple);
+
                const credentialCreateTx: CredentialCreate = {
                     TransactionType: 'CredentialCreate',
                     Account: wallet.classicAddress,
-                    CredentialType: Buffer.from(this.credential.credential_type, 'utf8').toString('hex') || Buffer.from('defaultCredentialType', 'utf8').toString('hex'), // Default type if not provided
-                    Subject: this.credential.subject.destinationAddress || 'defaultSubject',
-                    Expiration: this.credential.subject.expirationDate ? Math.floor(new Date(this.credential.subject.expirationDate).getTime() / 1000) : undefined, // Convert to seconds
+                    CredentialType: Buffer.from(this.credential.credential_type || 'defaultCredentialType', 'utf8').toString('hex'),
+                    Subject: this.credential.subject.destinationAddress,
+                    Expiration: expirationRipple,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
@@ -367,41 +358,32 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
-                    credentialCreateTx.TicketSequence = Number(this.ticketSequence);
-                    credentialCreateTx.Sequence = 0;
+                    this.utilsService.setTicketSequence(credentialCreateTx, this.ticketSequence, true);
                } else {
-                    const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    credentialCreateTx.Sequence = accountInfo.result.account_data.Sequence;
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(credentialCreateTx, getAccountInfo.result.account_data.Sequence, false);
                }
 
                if (this.memoField) {
-                    credentialCreateTx.Memos = [
-                         {
-                              Memo: {
-                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                              },
-                         },
-                    ];
+                    this.utilsService.setMemoField(credentialCreateTx, this.memoField);
                }
 
                if (this.credential.uri) {
-                    credentialCreateTx.URI = Buffer.from(this.credential.uri, 'utf8').toString('hex');
+                    this.utilsService.setURI(credentialCreateTx, this.credential.uri);
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress
-                         .split(',')
-                         .map(s => s.trim())
-                         .filter(s => s.length > 0);
-
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signers provided for multi-signing');
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
                     }
 
-                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: credentialCreateTx, signerAddresses, signerSeeds, fee });
@@ -420,6 +402,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          credentialCreateTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialCreateTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
@@ -431,14 +417,17 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
-               }
 
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialCreateTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
 
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
 
@@ -490,16 +479,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-
-               let regularKeyWalletSignTx: any = '';
-               let useRegularKeyWalletSignTx = false;
-               if (this.isRegularKeyAddress && !this.isMultiSign) {
-                    console.log('Using Regular Key Seed for transaction signing');
-                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
-                    useRegularKeyWalletSignTx = true;
-               }
-
                const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Removing Credentials...');
 
@@ -524,8 +506,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                const credentialDeleteTx: CredentialDelete = {
                     TransactionType: 'CredentialDelete',
                     Account: wallet.classicAddress,
-                    CredentialType: (credentialFound as any)?.CredentialType || Buffer.from('defaultCredentialType', 'utf8').toString('hex'),
-                    Subject: (credentialFound as any)?.Subject || '',
+                    CredentialType: (credentialFound as any)?.CredentialType,
+                    Subject: (credentialFound as any)?.Subject,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
@@ -534,37 +516,28 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
-                    credentialDeleteTx.TicketSequence = Number(this.ticketSequence);
-                    credentialDeleteTx.Sequence = 0;
+                    this.utilsService.setTicketSequence(credentialDeleteTx, this.ticketSequence, true);
                } else {
-                    const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    credentialDeleteTx.Sequence = accountInfo.result.account_data.Sequence;
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(credentialDeleteTx, getAccountInfo.result.account_data.Sequence, false);
                }
 
                if (this.memoField) {
-                    credentialDeleteTx.Memos = [
-                         {
-                              Memo: {
-                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                              },
-                         },
-                    ];
+                    this.utilsService.setMemoField(credentialDeleteTx, this.memoField);
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress
-                         .split(',')
-                         .map(s => s.trim())
-                         .filter(s => s.length > 0);
-
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signers provided for multi-signing');
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
                     }
 
-                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: credentialDeleteTx, signerAddresses, signerSeeds, fee });
@@ -583,6 +556,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          credentialDeleteTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialDeleteTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
@@ -594,14 +571,17 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
-               }
 
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialDeleteTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
 
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
 
@@ -631,257 +611,351 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           }
      }
 
-     async verifyCredential(client: xrpl.Client, issuer: string, subject: string, credentialType: string, binary = false) {
-          /**
-           * Check whether an XRPL account holds a specified credential,
-           * as of the most recently validated ledger.
-           * Parameters:
-           *  client - Client for interacting with rippled servers.
-           *  issuer - Address of the credential issuer, in base58.
-           *  subject - Address of the credential holder/subject, in base58.
-           *  credentialType - Credential type to check for as a string,
-           *                   which will be encoded as UTF-8 (1-128 characters long).
-           *  binary - Specifies that the credential type is provided in hexadecimal format.
-           * You must provide the credential_type as input.
-           * Returns True if the account holds the specified, valid credential.
-           * Returns False if the credential is missing, expired, or not accepted.
-           */
+     async acceptCredentials() {
+          console.log('Entering acceptCredentials');
+          const startTime = Date.now();
+          this.setSuccessProperties();
 
-          // Encode credentialType as uppercase hex, if needed
-          let credentialTypeHex = '';
-          if (binary) {
-               credentialTypeHex = credentialType.toUpperCase();
-          } else {
-               credentialTypeHex = xrpl.convertStringToHex(credentialType).toUpperCase();
-               console.info(`Encoded credential_type as hex: ${credentialTypeHex}`);
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               credentialType: this.credential.credential_type,
+               regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
-          if (credentialTypeHex.length % 2 !== 0 || !AppConstants.CREDENTIAL_REGEX.test(credentialTypeHex)) {
-               // Hexadecimal is always 2 chars per byte, so an odd length is invalid.
-               throw new Error('Credential type must be 128 characters as hexadecimal.');
-          }
-
-          // Perform XRPL lookup of Credential ledger entry --------------------------
-          const ledgerEntryRequest = {
-               command: 'ledger_entry',
-               credential: {
-                    subject: subject,
-                    issuer: issuer,
-                    credential_type: credentialTypeHex,
-               },
-               ledger_index: 'validated',
-          };
-          console.info('Looking up credential...');
-          console.info(JSON.stringify(ledgerEntryRequest, null, 2));
-
-          let xrplResponse;
           try {
-               xrplResponse = await client.request(ledgerEntryRequest as any);
-          } catch (error: any) {
-               if (error.data?.error === 'entryNotFound') {
-                    console.info('Credential was not found');
-                    return false;
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+               this.updateSpinnerMessage('Removing Credentials...');
+
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
+               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
+
+               const credentialFound = accountObjects.result.account_objects.find((line: any) => {
+                    return line.LedgerEntryType === 'Credential' && line.Subject === wallet.classicAddress; // && line.index === this.credentialID;
+               });
+
+               // If not found, exit early
+               if (!credentialFound) {
+                    this.resultField.nativeElement.innerHTML = `${wallet.classicAddress} has no Credentials to accept`;
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+               console.debug(`credentialFound for ${wallet.classicAddress} ${JSON.stringify(credentialFound, null, '\t')}`);
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const credentialAcceptTx: CredentialAccept = {
+                    TransactionType: 'CredentialAccept',
+                    Account: wallet.classicAddress,
+                    Issuer: (credentialFound as any)?.Issuer,
+                    CredentialType: (credentialFound as any)?.CredentialType,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
+
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(credentialAcceptTx, this.ticketSequence, true);
                } else {
-                    // Other errors, for example invalidly specified addresses.
-                    throw new Error(`Failed to check credential: ${error.message || 'Unknown error'}`);
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(credentialAcceptTx, getAccountInfo.result.account_data.Sequence, false);
                }
+
+               if (this.memoField) {
+                    this.utilsService.setMemoField(credentialAcceptTx, this.memoField);
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
+                    }
+
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: credentialAcceptTx, signerAddresses, signerSeeds, fee });
+                         signedTx = result.signedTx;
+                         credentialAcceptTx.Signers = result.signers;
+
+                         console.log('Payment with Signers:', JSON.stringify(credentialAcceptTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         console.log(`multiSignFee: ${multiSignFee}`);
+                         credentialAcceptTx.Fee = multiSignFee;
+                         const finalTx = xrpl.decode(signedTx.tx_blob);
+                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialAcceptTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    console.log('credentialAcceptTx before autofill:', JSON.stringify(credentialAcceptTx, null, 2));
+                    const preparedTx = await client.autofill(credentialAcceptTx);
+                    if (useRegularKeyWalletSignTx) {
+                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
+                    } else {
+                         signedTx = wallet.sign(preparedTx);
+                    }
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialAcceptTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving acceptCredentials in ${this.executionTime}ms`);
+          }
+     }
+
+     async verifyCredential(binary: boolean): Promise<boolean | void> {
+          console.log('Entering verifyCredential');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const validationError = this.validateInputs({
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               destination: this.destinationFields,
+               credentialID: this.credentialID,
+               credentialType: this.credential.credential_type,
+               regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+          });
+          if (validationError) {
+               return this.setError(`ERROR: ${validationError}`);
           }
 
-          const credential = (xrplResponse.result as any).node;
-          console.info('Found credential:');
-          console.info(JSON.stringify(credential, null, 2));
+          try {
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
 
-          // Check if the credential has been accepted ---------------------------
-          if (!(credential.Flags & AppConstants.LSF_ACCEPTED)) {
-               console.info('Credential is not accepted.');
-               return false;
-          }
+               type Section = {
+                    title: string;
+                    openByDefault: boolean;
+                    content?: { key: string; value: string }[];
+                    subItems?: {
+                         key: string;
+                         openByDefault: boolean;
+                         content: { key: string; value: string }[];
+                    }[];
+               };
+               const data: { sections: Section[] } = {
+                    sections: [],
+               };
 
-          // Confirm that the credential is not expired ------------------------------
-          if (credential.Expiration) {
-               const expirationTime = rippleTimeToISOTime(credential.Expiration);
-               console.info(`Credential has expiration: ${expirationTime}`);
-               console.info('Looking up validated ledger to check for expiration.');
+               // Encode credentialType as uppercase hex, if needed
+               let credentialTypeHex = '';
+               if (binary) {
+                    credentialTypeHex = this.credential.credential_type.toUpperCase();
+               } else {
+                    credentialTypeHex = xrpl.convertStringToHex(this.credential.credential_type).toUpperCase();
+                    console.info(`Encoded credential_type as hex: ${credentialTypeHex}`);
+               }
 
-               let ledgerResponse;
-               try {
-                    ledgerResponse = await client.request({
-                         command: 'ledger',
-                         ledger_index: 'validated',
+               if (credentialTypeHex.length % 2 !== 0 || !AppConstants.CREDENTIAL_REGEX.test(credentialTypeHex)) {
+                    // Hexadecimal is always 2 chars per byte, so an odd length is invalid.
+                    data.sections.push({
+                         title: 'Credentials',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: `Credential type must be 128 characters as hexadecimal.` }],
                     });
+                    this.utilsService.renderPaymentChannelDetails(data);
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
+                    return;
+               }
+
+               // Perform XRPL lookup of Credential ledger entry
+               const ledgerEntryRequest = {
+                    command: 'ledger_entry',
+                    credential: {
+                         subject: this.credential.subject.destinationAddress,
+                         issuer: wallet.classicAddress,
+                         credential_type: credentialTypeHex,
+                    },
+                    ledger_index: 'validated',
+               };
+               console.info('Looking up credential...');
+               console.info(JSON.stringify(ledgerEntryRequest, null, 2));
+
+               let xrplResponse;
+               try {
+                    xrplResponse = await client.request(ledgerEntryRequest as any);
                } catch (error: any) {
-                    throw new Error(`Failed to check credential: ${error.message || 'Unknown error'}`);
-               }
-
-               const closeTime = rippleTimeToISOTime(ledgerResponse.result.ledger.close_time);
-               console.info(`Most recent validated ledger is: ${closeTime}`);
-
-               if (new Date(closeTime) > new Date(expirationTime)) {
-                    console.info('Credential is expired.');
-                    return false;
-               }
-          }
-
-          // Credential has passed all checks ---------------------------------------
-          console.info('Credential is valid.');
-          return true;
-     }
-
-     async lookUpCredentials(client: xrpl.Client, issuer: string, subject: string, accepted = 'both') {
-          // const account = issuer || subject; // Use whichever is specified, issuer if both
-          // if (!account) {
-          //      throw new ValueError('Must specify issuer or subject');
-          // }
-          // accepted = accepted.toLowerCase();
-          // if (!['yes', 'no', 'both'].includes(accepted)) {
-          //      throw new ValueError("accepted must be 'yes', 'no', or 'both'");
-          // }
-          // const credentials = [];
-          // let request = {
-          //      command: 'account_objects',
-          //      account,
-          //      type: 'credential',
-          //      ledger_index: 'validated',
-          // };
-          // // Fetch first page
-          // let response = await client.request(request as any);
-          // while (true) {
-          //      for (const obj of response.result.account_objects) {
-          //           if (issuer && obj.Issuer !== issuer) continue;
-          //           if (subject && obj.Subject !== subject) continue;
-          //           const credAccepted = Boolean(obj.Flags & AppConstants.LSF_ACCEPTED);
-          //           if (accepted === 'yes' && !credAccepted) continue;
-          //           if (accepted === 'no' && credAccepted) continue;
-          //           credentials.push(obj);
-          //      }
-          //      if (!response.result.marker) break;
-          //      /**
-          //       * If there is a marker, request the next page using the convenience function "requestNextPage()".
-          //       * See https://js.xrpl.org/classes/Client.html#requestnextpage to learn more.
-          //       **/
-          //      response = await client.requestNextPage(request, response.result);
-          // }
-          // return credentials;
-     }
-
-     private updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-     }
-
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
-     }
-
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-          this.ownerCount = ownerCount;
-          this.totalXrpReserves = totalXrpReserves;
-          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          if (this.selectedAccount === 'account1') {
-               this.account1.balance = balance.toString();
-          } else if (this.selectedAccount === 'account2') {
-               this.account1.balance = balance.toString();
-          } else {
-               this.account1.balance = balance.toString();
-          }
-     }
-
-     refreshUiAccountObjects(accountObjects: any, wallet: any) {
-          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-          if (signerAccounts && signerAccounts.length > 0) {
-               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
-
-                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
-                    this.multiSignSeeds = seeds;
-                    this.multiSignAddress = addresses;
-               }
-          } else {
-               this.signerQuorum = 0;
-               this.multiSignAddress = 'No Multi-Sign address configured for account';
-               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-               this.isMultiSign = false;
-               this.storageService.removeValue('signerEntries');
-          }
-
-          this.isMemoEnabled = false;
-          this.memoField = '';
-     }
-
-     refreshUiAccountInfo(accountInfo: any) {
-          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
-               this.regularKeySeed = this.storageService.get('regularKeySeed');
-          } else {
-               this.isRegularKeyAddress = false;
-               this.regularKeyAddress = 'No RegularKey configured for account';
-               this.regularKeySeed = '';
-          }
-     }
-
-     private validateInputs(inputs: { seed?: string; credentialID?: string; credentialType?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
-               return 'Please select an account';
-          }
-          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (inputs.credentialID != undefined && !this.utilsService.validateInput(inputs.credentialID)) {
-               return 'Credential ID cannot be empty';
-          }
-          if (inputs.credentialType != undefined && !this.utilsService.validateInput(inputs.credentialType)) {
-               return 'Credential Type cannot be empty';
-          }
-          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
-               return 'Regular Key Address is invalid or empty';
-          }
-          if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
-          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = inputs.multiSignAddresses
-                    .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.multiSignSeeds
-                    .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
+                    if (error.data?.error === 'entryNotFound') {
+                         console.info('Credential was not found');
+                         data.sections.push({
+                              title: 'Credentials',
+                              openByDefault: true,
+                              content: [{ key: 'Status', value: `Credential not found.` }],
+                         });
+                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return;
+                    } else {
+                         data.sections.push({
+                              title: 'Credentials',
+                              openByDefault: true,
+                              content: [{ key: 'Status', value: `Failed to check credential: ${error.message || 'Unknown error'}` }],
+                         });
+                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return;
                     }
                }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
+
+               const credential = (xrplResponse.result as any).node;
+               console.info('Found credential:');
+               console.info(JSON.stringify(credential, null, 2));
+
+               // Check if the credential has been accepted
+               if (!(credential.Flags & AppConstants.LSF_ACCEPTED)) {
+                    data.sections.push({
+                         title: 'Credentials',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: 'Credential is not accepted' }],
+                    });
+                    console.info('Credential is not accepted.');
+                    this.resultField.nativeElement.classList.add('error');
+                    this.utilsService.renderPaymentChannelDetails(data);
+                    this.setErrorProperties();
+                    return;
+               }
+
+               // Confirm that the credential is not expired
+               if (credential.Expiration) {
+                    const expirationTime = rippleTimeToISOTime(credential.Expiration);
+                    console.info(`Credential has expiration: ${expirationTime}`);
+                    console.info('Looking up validated ledger to check for expiration.');
+
+                    let ledgerResponse;
+                    try {
+                         ledgerResponse = await client.request({
+                              command: 'ledger',
+                              ledger_index: 'validated',
+                         });
+                    } catch (error: any) {
+                         data.sections.push({
+                              title: 'Credentials',
+                              openByDefault: true,
+                              content: [{ key: 'Status', value: `Failed to check credential: ${error.message || 'Unknown error'}` }],
+                         });
+                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return;
+                    }
+
+                    const closeTime = rippleTimeToISOTime(ledgerResponse.result.ledger.close_time);
+                    console.info(`Most recent validated ledger is: ${closeTime}`);
+
+                    if (new Date(closeTime) > new Date(expirationTime)) {
+                         console.info('Credential is expired.');
+                         data.sections.push({
+                              title: 'Credentials',
+                              openByDefault: true,
+                              content: [{ key: 'Status', value: `Credential is expired.` }],
+                         });
+                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.resultField.nativeElement.classList.add('error');
+                         this.setErrorProperties();
+                         return;
                     }
                }
-          }
-          return null;
-     }
 
-     clearFields() {
-          this.credential.credential_type = '';
-          this.credentialID = '';
-          this.credential.subject.destinationAddress = '';
-          this.credential.uri = '';
-          this.memoField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
-          this.cdr.detectChanges();
+               data.sections.push({
+                    title: 'Credentials',
+                    openByDefault: true,
+                    content: [
+                         { key: 'Status', value: 'Credential is verified' },
+                         { key: 'Credential Type', value: ledgerEntryRequest.credential.credential_type || 'Credential' },
+                         { key: 'Issuer', value: ledgerEntryRequest.credential.issuer || 'N/A' },
+                         { key: 'Subject', value: ledgerEntryRequest.credential.subject || 'N/A' },
+                         { key: 'Expiration', value: credential.Expiration || 'Credential' },
+                         { key: 'Flags', value: credential.Flags || 'N/A' },
+                         { key: 'IssuerNode', value: credential.IssuerNode || 'N/A' },
+                         { key: 'PreviousTxnID', value: credential.PreviousTxnID || 'N/A' },
+                         { key: 'PreviousTxnLgrSeq', value: credential.PreviousTxnLgrSeq || 'N/A' },
+                         { key: 'Subject Node', value: credential.SubjectNode || 'N/A' },
+                         { key: 'URI', value: credential.URI || 'N/A' },
+                         { key: 'Index', value: credential.index || 'N/A' },
+                    ],
+               });
+
+               // Credential has passed all checks
+               console.info('Credential is valid.');
+               this.utilsService.renderPaymentChannelDetails(data);
+               return true;
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving verifyCredential in ${this.executionTime}ms`);
+          }
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
@@ -901,6 +975,149 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
+     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
+
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
+          this.account1.balance = balance.toString();
+     }
+
+     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+          const signerAccounts = this.checkForSignerAccounts(accountObjects);
+
+          if (signerAccounts?.length) {
+               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
+               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
+
+               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+
+               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          } else {
+               this.signerQuorum = 0;
+               this.multiSignAddress = 'No Multi-Sign address configured for account';
+               this.multiSignSeeds = '';
+               this.isMultiSign = false;
+               this.storageService.removeValue('signerEntries');
+          }
+
+          // Always reset memo fields
+          this.isMemoEnabled = false;
+          this.memoField = '';
+     }
+
+     private refreshUiAccountInfo(accountInfo: any) {
+          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+
+          if (regularKey) {
+               this.regularKeyAddress = regularKey;
+               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
+               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               // this.isRegularKeyAddress = true;
+          } else {
+               this.isRegularKeyAddress = false;
+               this.regularKeyAddress = 'No RegularKey configured for account';
+               this.regularKeySeed = '';
+          }
+     }
+
+     private validateInputs(inputs: { seed?: string; credentialID?: string; credentialType?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; date?: string }): string | null {
+          const { seed, credentialID, credentialType, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds, date } = inputs;
+
+          // 1. Account selection
+          if (selectedAccount === null || selectedAccount === undefined) {
+               return 'Please select an account';
+          }
+
+          // 2. Seed
+          if (!seed || !this.utilsService.validateInput(seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (!xrpl.isValidSecret(seed)) {
+               return 'Account seed is invalid';
+          }
+
+          // 3. Amount
+          if (amount) {
+               if (amount !== null && amount !== undefined && !this.utilsService.validateInput(amount)) {
+                    return 'XRP Amount cannot be empty';
+               }
+               const numAmount = parseFloat(amount);
+               if (isNaN(numAmount) || !isFinite(numAmount)) {
+                    return 'XRP Amount must be a valid number';
+               }
+               if (numAmount <= 0) {
+                    return 'XRP Amount must be a positive number';
+               }
+          }
+
+          // 4. Credential ID
+          if (credentialID !== null && credentialID !== undefined && !this.utilsService.validateInput(credentialID)) {
+               return 'Credential ID cannot be empty';
+          }
+
+          // 5. Credential Type
+          if (credentialType !== null && credentialType !== undefined && !this.utilsService.validateInput(credentialType)) {
+               return 'Credential Type cannot be empty';
+          }
+
+          // 6. Destination
+          if (destination !== null && destination !== undefined && !this.utilsService.validateInput(destination)) {
+               return 'Destination cannot be empty';
+          }
+
+          // 7. Regular key
+          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
+               if (!xrpl.isValidAddress(regularKeyAddress)) {
+                    return 'Regular Key Address is invalid or empty';
+               }
+          }
+
+          if (regularKeySeed !== null && regularKeySeed !== undefined && !xrpl.isValidSecret(regularKeySeed)) {
+               return 'ERROR: Regular Key Seed is invalid or empty';
+          }
+
+          // 8. Multi-sign
+          if (multiSignAddresses && multiSignSeeds) {
+               const addresses = multiSignAddresses
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
+               const seeds = multiSignSeeds
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
+
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+
+               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+
+               if (seeds.some(s => !xrpl.isValidSecret(s))) {
+                    return 'One or more signer seeds are invalid';
+               }
+          }
+
+          // 9. Credential Type
+          if (date) {
+               if (!this.utilsService.validateInput(date) || !this.utilsService.isValidDate(this.credential.subject.expirationDate) || date === '') {
+                    return 'Date cannot be empty';
+               }
+          }
+
+          return null;
+     }
+
      private updateDestinations() {
           this.destinations = [...Object.values(this.knownDestinations)];
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
@@ -916,65 +1133,44 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           return wallet;
      }
 
-     loadSignerList(account: string) {
-          const singerEntriesAccount = account + 'signerEntries';
-          if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
-               this.signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
-                    account: s.Account,
-                    seed: s.seed,
-                    weight: s.SignerWeight,
-               }));
-          } else {
-               this.clearSignerList();
-          }
-     }
-
-     clearSignerList() {
-          this.signers = [{ account: '', seed: '', weight: 1 }];
-          // this.signerQuorum = 0;
-     }
-
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+          const isIssuer = accountKey === 'issuer';
+          const prefix = isIssuer ? 'issuer' : accountKey;
 
-          let name;
-          let address;
-          let seed;
+          // Define casing differences in keys
+          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
 
           // Fetch stored values
-          if (prefix === 'issuer') {
-               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
-          } else {
-               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
-          }
+          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
+          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
+          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
 
-          // Update account data
-          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
+          // Update account object
+          const accountMap = {
+               account1: this.account1,
+               account2: this.account2,
+               issuer: this.issuer,
+          };
+          const account = accountMap[accountKey];
           account.name = name;
           account.address = address;
           account.seed = seed;
 
-          // DOM manipulation
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          // DOM manipulation (map field IDs instead of repeating)
+          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
+               name: 'accountName1Field',
+               address: 'accountAddress1Field',
+               seed: 'accountSeed1Field',
+          };
 
-          if (accountName1Field) accountName1Field.value = name;
-          if (accountAddress1Field) accountAddress1Field.value = address;
-          if (accountSeed1Field) accountSeed1Field.value = seed;
+          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
+               const el = document.getElementById(id) as HTMLInputElement | null;
+               if (el) el.value = account[key];
+          });
 
-          // Trigger change detection to sync with ngModel
-          this.cdr.detectChanges();
+          this.cdr.detectChanges(); // sync with ngModel
 
-          // Update destination field (set to other account's address)
-          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          // this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
-
-          // Fetch account details and trustlines
+          // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
                     await this.getCredentialsForAccount();
@@ -996,6 +1192,28 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
      private async displayDataForAccount3() {
           await this.displayDataForAccount('issuer');
+     }
+
+     clearFields() {
+          this.credential.credential_type = '';
+          this.credentialID = '';
+          this.credential.subject.destinationAddress = '';
+          this.credential.uri = '';
+          this.memoField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.cdr.detectChanges();
+     }
+
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+     }
+
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
      private setErrorProperties() {

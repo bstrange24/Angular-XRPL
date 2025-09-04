@@ -6,8 +6,16 @@ import { XrplService } from '../services/xrpl.service';
 import { AppConstants } from '../core/app.constants';
 import { StorageService } from '../services/storage.service';
 import { sha256 } from 'js-sha256';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 
 type FlagResult = Record<string, boolean> | string | null;
+
+type DidValidationResult = {
+     success: boolean;
+     hexData?: string;
+     errors?: string;
+};
 
 @Injectable({
      providedIn: 'root',
@@ -315,9 +323,52 @@ export class UtilsService {
           return xrpl.isValidAddress(address);
      }
 
-     jsonToHex(jsonObj: object): string {
-          const jsonStr = JSON.stringify(jsonObj);
-          return Buffer.from(jsonStr, 'utf8').toString('hex').toUpperCase();
+     jsonToHex(obj: string | object): string {
+          const str = typeof obj === 'string' ? obj : JSON.stringify(obj);
+          return Buffer.from(JSON.stringify(str), 'utf8').toString('hex');
+     }
+
+     hexTojson(obj: string | object): string {
+          const str = typeof obj === 'string' ? obj : JSON.stringify(obj);
+          return Buffer.from(str, 'hex').toString('utf8');
+     }
+
+     validateAndConvertDidJson(didJsonString: string, didSchema: object): DidValidationResult {
+          const ajv = new Ajv({ allErrors: true });
+          addFormats(ajv);
+          const validate = ajv.compile(didSchema);
+
+          try {
+               const parsed = JSON.parse(didJsonString);
+
+               // Handle array of documents or single document
+               if (Array.isArray(parsed)) {
+                    for (let i = 0; i < parsed.length; i++) {
+                         const doc = parsed[i];
+                         const valid = validate(doc);
+                         if (!valid) {
+                              console.error(`Document ${i} invalid:`, validate.errors);
+                              return { success: false, errors: `Document ${i} invalid: ${JSON.stringify(validate.errors)}` };
+                         }
+                         console.log(`Document ${i} valid!`);
+                    }
+               } else {
+                    const valid = validate(parsed);
+                    if (!valid) {
+                         console.error('DID JSON invalid:', validate.errors);
+                         return { success: false, errors: `DID JSON invalid: ${JSON.stringify(validate.errors)}` };
+                    }
+                    console.log('DID JSON valid');
+               }
+
+               // Convert JSON to hex
+               const didDataHex = this.jsonToHex(parsed as object);
+               console.log('didDataHex in json', this.hexTojson(didDataHex));
+               return { success: true, hexData: didDataHex };
+          } catch (e: any) {
+               console.error('Invalid JSON:', e.message);
+               return { success: false, errors: `Invalid JSON: ${e.message}` };
+          }
      }
 
      issuedAmount(currency: string, issuer: string, value: any) {
@@ -332,28 +383,69 @@ export class UtilsService {
           return formatter.format(date);
      }
 
-     convertUnixToEST(unixTimestamp: any) {
-          const date = new Date(unixTimestamp * 1000);
-          const isDST = (date: Date) => {
-               const year = date.getFullYear();
-               const dstStart = new Date(year, 2, 8);
-               dstStart.setDate(8 + (7 - dstStart.getDay()));
-               const dstEnd = new Date(year, 10, 1);
-               dstEnd.setDate(1 + (7 - dstEnd.getDay()));
-               return date >= dstStart && date < dstEnd;
-          };
-          const offset = isDST(date) ? -4 : -5;
-          date.setHours(date.getHours() + offset);
-          return date.toLocaleString('en-US', {
-               timeZone: 'America/New_York',
-               year: 'numeric',
-               month: 'long',
-               day: 'numeric',
-               hour: '2-digit',
-               minute: '2-digit',
-               second: '2-digit',
-               hour12: true,
-          });
+     convertToUnixTimestamp(dateString: any) {
+          const [month, day, year] = dateString.split('/').map(Number);
+          const date = new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+          return Math.floor(date.getTime() / 1000);
+     }
+
+     /**
+      * Convert XRPL Expiration (Ripple Epoch seconds) to "MM/DD/YYYY HH:MM:SS" UTC string
+      * @param rippleSeconds - Expiration from XRPL tx (seconds since 2000-01-01 UTC)
+      */
+     toFormattedExpiration(rippleSeconds: number): string {
+          // Convert to UNIX epoch seconds
+          const unixSeconds = rippleSeconds + 946684800;
+          const date = new Date(unixSeconds * 1000);
+
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
+          const day = String(date.getUTCDate()).padStart(2, '0');
+          const year = date.getUTCFullYear();
+
+          let hours = date.getUTCHours();
+          const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+          const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          if (hours === 0) hours = 12; // handle midnight/noon
+          const hoursStr = String(hours).padStart(2, '0');
+
+          return `${month}/${day}/${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+     }
+
+     toRippleTime(dateTimeStr: string): number {
+          // dateTimeStr example: "2025-12-25T15:30"
+          const date = new Date(dateTimeStr + ':00Z'); // Force UTC
+          return Math.floor(date.getTime() / 1000) - 946684800;
+     }
+
+     // Returns ripple-epoch seconds (number) or undefined if empty/invalid
+     getExpirationRippleSeconds(credential: String): number | undefined {
+          const v = credential;
+          if (!v) return undefined;
+
+          // If ngModel gave a Date object, convert to Y/M/D safely:
+          if (v instanceof Date) {
+               const y = v.getFullYear();
+               const m = v.getMonth() + 1;
+               const d = v.getDate();
+               const unixSeconds = Math.floor(Date.UTC(y, m - 1, d, 0, 0, 0) / 1000);
+               return unixSeconds - 946684800;
+          }
+
+          // If it's a string (YYYY-MM-DD) — the normal case for <input type="date">
+          if (typeof v === 'string') {
+               const parts = v.split('-').map(Number);
+               if (parts.length !== 3 || parts.some(isNaN)) {
+                    throw new Error('expirationDate must be YYYY-MM-DD or Date');
+               }
+               const [year, month, day] = parts;
+               const unixSeconds = Math.floor(Date.UTC(year, month - 1, day, 0, 0, 0) / 1000);
+               return unixSeconds - 946684800;
+          }
+
+          throw new Error('Unsupported expirationDate type: ' + typeof v);
      }
 
      decodeHex = (hex: any): string => {
@@ -2865,6 +2957,10 @@ export class UtilsService {
 
      setSourceTagField(tx: any, sourceTagField: string) {
           tx.SourceTag = Number(sourceTagField);
+     }
+
+     setURI(tx: any, uri: string) {
+          tx.URI = Buffer.from(uri, 'utf8').toString('hex');
      }
 
      setTicketSequence(tx: any, ticketSequence: string, useTicket: boolean) {

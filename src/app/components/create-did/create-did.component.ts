@@ -11,6 +11,9 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
+import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
+import didSchema from './did-schema.json'; // save schema as file
 
 interface SignerEntry {
      Account: string;
@@ -83,20 +86,19 @@ export class CreateDidComponent implements AfterViewChecked {
           },
           hash: '',
           uri: '',
+          document: '',
+          data: '',
      };
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
-     ngOnInit() {
-          this.onAccountChange();
-     }
+     ngOnInit() {}
 
      async ngAfterViewInit() {
           try {
                const wallet = await this.getWallet();
-               this.loadSignerList(wallet.classicAddress);
-               // this.onAccountChange();
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -128,23 +130,29 @@ export class CreateDidComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
-          if (!this.selectedAccount) return;
-          if (this.selectedAccount === 'account1') {
-               this.displayDataForAccount1();
-          } else if (this.selectedAccount === 'account2') {
-               this.displayDataForAccount2();
-          } else {
-               this.displayDataForAccount3();
+          const accountHandlers: Record<string, () => void> = {
+               account1: () => this.displayDataForAccount1(),
+               account2: () => this.displayDataForAccount2(),
+               issuer: () => this.displayDataForAccount3(),
+          };
+          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+     }
+
+     validateQuorum() {
+          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+          if (this.signerQuorum > totalWeight) {
+               this.signerQuorum = totalWeight;
           }
+          this.cdr.detectChanges();
      }
 
      async toggleMultiSign() {
           try {
                if (!this.isMultiSign) {
-                    this.clearSignerList();
+                    this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
-                    this.loadSignerList(wallet.classicAddress);
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -168,15 +176,6 @@ export class CreateDidComponent implements AfterViewChecked {
      }
 
      toggleTicketSequence() {
-          this.cdr.detectChanges();
-     }
-
-     validateQuorum() {
-          // Example validation: quorum <= sum of weights
-          const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
-          if (this.signerQuorum > totalWeight) {
-               this.signerQuorum = totalWeight;
-          }
           this.cdr.detectChanges();
      }
 
@@ -249,15 +248,17 @@ export class CreateDidComponent implements AfterViewChecked {
                     });
                } else {
                     const didItems = accountObjects.result.account_objects.map((did: any, index: number) => ({
-                         key: `DID ${index + 1} (${did.Account || 'Unknown Type'})`,
+                         key: `DID (${did.Account || 'Unknown Type'})`,
                          openByDefault: index === 0, // Open the first credential by default
                          content: [
-                              { key: 'DID Document', value: Buffer.from(did.DIDDocument, 'hex').toString('utf8') || 'N/A' },
-                              { key: 'PreviousTxnID', value: did.PreviousTxnID || 'N/A' },
-                              { key: 'PreviousTxnLgrSeq', value: did.PreviousTxnLgrSeq?.toString() || 'N/A' },
+                              { key: 'DID Document', value: did.DIDDocument ? Buffer.from(did.DIDDocument, 'hex').toString('utf8') : 'N/A' },
+                              { key: 'DID URI', value: did.URI ? Buffer.from(did.URI, 'hex').toString('utf8') : 'N/A' },
+                              { key: 'DID Data', value: did.Data ? Buffer.from(did.Data, 'hex').toString('utf8') : 'N/A' },
                               // { key: 'Flags', value: flagNames(did.LedgerEntryType, did.Flags) || '0' },
                               { key: 'Flags', value: did.Flags?.toString() || '0' },
                               { key: 'Index', value: did.index || 'N/A' },
+                              { key: 'PreviousTxnLgrSeq', value: did.PreviousTxnLgrSeq?.toString() || 'N/A' },
+                              { key: 'PreviousTxnID', value: did.PreviousTxnID || 'N/A' },
                          ],
                     }));
 
@@ -269,10 +270,10 @@ export class CreateDidComponent implements AfterViewChecked {
                }
 
                this.utilsService.renderPaymentChannelDetails(data);
+               this.setSuccess(this.result);
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
                this.refreshUiAccountInfo(accountInfo);
-               this.loadSignerList(wallet.classicAddress);
-               this.setSuccess(this.result);
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -305,20 +306,13 @@ export class CreateDidComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-
-               let regularKeyWalletSignTx: any = '';
-               let useRegularKeyWalletSignTx = false;
-               if (this.isRegularKeyAddress && !this.isMultiSign) {
-                    console.log('Using Regular Key Seed for transaction signing');
-                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
-                    useRegularKeyWalletSignTx = true;
-               }
-
                const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Setting DID...');
 
-               // const didDocument = {
+               // const didDocumentData1 = {
                //      '@context': 'https://www.w3.org/ns/did/v1',
                //      id: this.didDetails.id,
                //      verificationMethod: [
@@ -338,12 +332,19 @@ export class CreateDidComponent implements AfterViewChecked {
                //           },
                //      ],
                // };
+               // console.debug('DID Data:', JSON.stringify(didDocumentData1, null, 2));
+               // const didDocumentData1Hex = this.utilsService.jsonToHex(didDocumentData1);
+               // console.log(didDocumentData1Hex);
 
-               const didDocument = { uri: this.didDetails.uri };
+               // const didDocument1 = { didData: 'did:example:123#public-key-0' };
+               // console.debug('DID Document:', JSON.stringify(didDocument1, null, 2));
+               // const didDocument1Hex = this.utilsService.jsonToHex(didDocument1);
+               // console.log(didDocument1Hex);
 
-               console.debug('DID Document:', JSON.stringify(didDocument, null, 2));
-               const didHex = this.utilsService.jsonToHex(didDocument);
-               console.log(didHex); // <- put this in DIDDocume
+               // const didUri1 = { uri: 'ipfs://bafybeiexamplehash' };
+               // console.debug('DID URI:', JSON.stringify(didUri1, null, 2));
+               // const didURI1Hex = this.utilsService.jsonToHex(didUri1);
+               // console.log(didURI1Hex);
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -351,8 +352,6 @@ export class CreateDidComponent implements AfterViewChecked {
                let didSetTx: DIDSet = {
                     TransactionType: 'DIDSet',
                     Account: wallet.classicAddress,
-                    // DIDDocument: Buffer.from(JSON.stringify(didDocument), 'utf8').toString('hex').toUpperCase(),
-                    DIDDocument: didHex,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
@@ -361,37 +360,54 @@ export class CreateDidComponent implements AfterViewChecked {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
-                    didSetTx.TicketSequence = Number(this.ticketSequence);
-                    didSetTx.Sequence = 0;
+                    this.utilsService.setTicketSequence(didSetTx, this.ticketSequence, true);
                } else {
-                    const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    didSetTx.Sequence = accountInfo.result.account_data.Sequence;
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(didSetTx, getAccountInfo.result.account_data.Sequence, false);
                }
 
                if (this.memoField) {
-                    didSetTx.Memos = [
-                         {
-                              Memo: {
-                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                              },
-                         },
-                    ];
+                    this.utilsService.setMemoField(didSetTx, this.memoField);
+               }
+
+               if (this.didDetails.document) {
+                    const didDocument = { didData: this.didDetails.document };
+                    console.debug('DID Document:', JSON.stringify(didDocument, null, 2));
+                    const didDocumentHex = this.utilsService.jsonToHex(didDocument);
+                    console.log(didDocumentHex);
+                    didSetTx.DIDDocument = didDocumentHex;
+               }
+
+               if (this.didDetails.uri) {
+                    const didURI = { uri: this.didDetails.uri };
+                    console.debug('DID URI:', JSON.stringify(didURI, null, 2));
+                    const didURIHex = this.utilsService.jsonToHex(didURI);
+                    console.log(didURIHex);
+                    didSetTx.URI = didURIHex;
+               }
+
+               if (this.didDetails.data) {
+                    const result = this.utilsService.validateAndConvertDidJson(this.didDetails.data, didSchema);
+
+                    if (!result.success) {
+                         this.setError(result.errors ?? 'Unknown error');
+                    } else {
+                         didSetTx.Data = result.hexData!;
+                    }
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress
-                         .split(',')
-                         .map(s => s.trim())
-                         .filter(s => s.length > 0);
-
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signers provided for multi-signing');
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
                     }
 
-                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: didSetTx, signerAddresses, signerSeeds, fee });
@@ -410,6 +426,10 @@ export class CreateDidComponent implements AfterViewChecked {
                          didSetTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didSetTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
@@ -421,14 +441,17 @@ export class CreateDidComponent implements AfterViewChecked {
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
-               }
 
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didSetTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
 
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
 
@@ -478,16 +501,9 @@ export class CreateDidComponent implements AfterViewChecked {
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
-
-               let regularKeyWalletSignTx: any = '';
-               let useRegularKeyWalletSignTx = false;
-               if (this.isRegularKeyAddress && !this.isMultiSign) {
-                    console.log('Using Regular Key Seed for transaction signing');
-                    regularKeyWalletSignTx = await this.utilsService.getWallet(this.regularKeySeed, environment);
-                    useRegularKeyWalletSignTx = true;
-               }
-
                const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Removing DID...');
 
@@ -521,37 +537,28 @@ export class CreateDidComponent implements AfterViewChecked {
                     if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
-                    didDeleteTx.TicketSequence = Number(this.ticketSequence);
-                    didDeleteTx.Sequence = 0;
+                    this.utilsService.setTicketSequence(didDeleteTx, this.ticketSequence, true);
                } else {
-                    const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    didDeleteTx.Sequence = accountInfo.result.account_data.Sequence;
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(didDeleteTx, getAccountInfo.result.account_data.Sequence, false);
                }
 
                if (this.memoField) {
-                    didDeleteTx.Memos = [
-                         {
-                              Memo: {
-                                   MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-                                   MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                              },
-                         },
-                    ];
+                    this.utilsService.setMemoField(didDeleteTx, this.memoField);
                }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
-                    const signerAddresses = this.multiSignAddress
-                         .split(',')
-                         .map(s => s.trim())
-                         .filter(s => s.length > 0);
-
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signers provided for multi-signing');
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
                     }
 
-                    const signerSeeds = this.multiSignSeeds.split(',').map(s => s.trim());
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
 
                     try {
                          const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: didDeleteTx, signerAddresses, signerSeeds, fee });
@@ -570,6 +577,10 @@ export class CreateDidComponent implements AfterViewChecked {
                          didDeleteTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didDeleteTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
@@ -580,14 +591,17 @@ export class CreateDidComponent implements AfterViewChecked {
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
-               }
 
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didDeleteTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
 
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
 
+               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
                console.log('Submit Response:', JSON.stringify(response, null, 2));
 
@@ -617,133 +631,6 @@ export class CreateDidComponent implements AfterViewChecked {
           }
      }
 
-     private updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-     }
-
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
-     }
-
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
-          this.ownerCount = ownerCount;
-          this.totalXrpReserves = totalXrpReserves;
-          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          if (this.selectedAccount === 'account1') {
-               this.account1.balance = balance.toString();
-          } else if (this.selectedAccount === 'account2') {
-               this.account1.balance = balance.toString();
-          } else {
-               this.account1.balance = balance.toString();
-          }
-     }
-
-     refreshUiAccountObjects(accountObjects: any, wallet: any) {
-          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-          if (signerAccounts && signerAccounts.length > 0) {
-               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.log(`refreshUiAccountObjects: ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
-
-                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
-                    this.multiSignSeeds = seeds;
-                    this.multiSignAddress = addresses;
-               }
-          } else {
-               this.signerQuorum = 0;
-               this.multiSignAddress = 'No Multi-Sign address configured for account';
-               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-               this.isMultiSign = false;
-               this.storageService.removeValue('signerEntries');
-          }
-
-          this.isMemoEnabled = false;
-          this.memoField = '';
-     }
-
-     refreshUiAccountInfo(accountInfo: any) {
-          if (accountInfo.result.account_data && accountInfo.result.account_data.RegularKey) {
-               this.regularKeyAddress = accountInfo.result.account_data.RegularKey;
-               this.regularKeySeed = this.storageService.get('regularKeySeed');
-          } else {
-               this.isRegularKeyAddress = false;
-               this.regularKeyAddress = 'No RegularKey configured for account';
-               this.regularKeySeed = '';
-          }
-     }
-
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
-               return 'Please select an account';
-          }
-          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
-               return 'Amount cannot be empty';
-          }
-          if (inputs.amount != undefined) {
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
-                    return 'Amount must be a valid number';
-               }
-          }
-          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
-               return 'Amount must be a positive number';
-          }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
-               return 'Destination cannot be empty';
-          }
-          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
-               return 'Regular Key Address is invalid or empty';
-          }
-          if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
-          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = inputs.multiSignAddresses
-                    .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.multiSignSeeds
-                    .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
-                    }
-               }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
-                    }
-               }
-          }
-          return null;
-     }
-
-     clearFields() {
-          this.amountField = '';
-          this.currencyField = '';
-          this.currencyBalanceField = '0';
-          this.memoField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
-          this.cdr.detectChanges();
-     }
-
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
           const signerAccounts: string[] = [];
           if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
@@ -761,6 +648,132 @@ export class CreateDidComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
+     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
+
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
+          this.account1.balance = balance.toString();
+     }
+
+     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+          const signerAccounts = this.checkForSignerAccounts(accountObjects);
+
+          if (signerAccounts?.length) {
+               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
+               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
+
+               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+
+               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          } else {
+               this.signerQuorum = 0;
+               this.multiSignAddress = 'No Multi-Sign address configured for account';
+               this.multiSignSeeds = '';
+               this.isMultiSign = false;
+               this.storageService.removeValue('signerEntries');
+          }
+
+          // Always reset memo fields
+          this.isMemoEnabled = false;
+          this.memoField = '';
+     }
+
+     private refreshUiAccountInfo(accountInfo: any) {
+          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+
+          if (regularKey) {
+               this.regularKeyAddress = regularKey;
+               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
+               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               // this.isRegularKeyAddress = true;
+          } else {
+               this.isRegularKeyAddress = false;
+               this.regularKeyAddress = 'No RegularKey configured for account';
+               this.regularKeySeed = '';
+          }
+     }
+
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
+          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds } = inputs;
+
+          // 1. Account selection
+          if (selectedAccount === null || selectedAccount === undefined) {
+               return 'Please select an account';
+          }
+
+          // 2. Seed
+          if (!seed || !this.utilsService.validateInput(seed)) {
+               return 'Account seed cannot be empty';
+          }
+          if (!xrpl.isValidSecret(seed)) {
+               return 'Account seed is invalid';
+          }
+
+          // 3. Amount
+          if (amount) {
+               if (!this.utilsService.validateInput(amount)) {
+                    return 'XRP Amount cannot be empty';
+               }
+               const numAmount = parseFloat(amount);
+               if (isNaN(numAmount) || !isFinite(numAmount)) {
+                    return 'XRP Amount must be a valid number';
+               }
+               if (numAmount <= 0) {
+                    return 'XRP Amount must be a positive number';
+               }
+          }
+
+          // 4. Destination
+          if (destination && !this.utilsService.validateInput(destination)) {
+               return 'Destination cannot be empty';
+          }
+
+          // 5. Regular key
+          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
+               if (!xrpl.isValidAddress(regularKeyAddress)) {
+                    return 'Regular Key Address is invalid or empty';
+               }
+          }
+
+          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
+               return 'ERROR: Regular Key Seed is invalid or empty';
+          }
+
+          // 6. Multi-sign
+          if (multiSignAddresses && multiSignSeeds) {
+               const addresses = multiSignAddresses
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
+               const seeds = multiSignSeeds
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean);
+
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+
+               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+
+               if (seeds.some(s => !xrpl.isValidSecret(s))) {
+                    return 'One or more signer seeds are invalid';
+               }
+          }
+
+          return null;
+     }
+
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
@@ -771,65 +784,44 @@ export class CreateDidComponent implements AfterViewChecked {
           return wallet;
      }
 
-     loadSignerList(account: string) {
-          const singerEntriesAccount = account + 'signerEntries';
-          if (this.storageService.get(singerEntriesAccount) != null && this.storageService.get(singerEntriesAccount).length > 0) {
-               this.signers = this.storageService.get(singerEntriesAccount).map((s: { Account: any; seed: any; SignerWeight: any }) => ({
-                    account: s.Account,
-                    seed: s.seed,
-                    weight: s.SignerWeight,
-               }));
-          } else {
-               this.clearSignerList();
-          }
-     }
-
-     clearSignerList() {
-          this.signers = [{ account: '', seed: '', weight: 1 }];
-          // this.signerQuorum = 0;
-     }
-
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const prefix = accountKey === 'issuer' ? 'issuer' : accountKey;
+          const isIssuer = accountKey === 'issuer';
+          const prefix = isIssuer ? 'issuer' : accountKey;
 
-          let name;
-          let address;
-          let seed;
+          // Define casing differences in keys
+          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
 
           // Fetch stored values
-          if (prefix === 'issuer') {
-               name = this.storageService.getInputValue(`${prefix}Name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}Address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}Seed`) || this.storageService.getInputValue(`${prefix}Mnemonic`) || this.storageService.getInputValue(`${prefix}SecretNumbers`) || AppConstants.EMPTY_STRING;
-          } else {
-               name = this.storageService.getInputValue(`${prefix}name`) || AppConstants.EMPTY_STRING;
-               address = this.storageService.getInputValue(`${prefix}address`) || AppConstants.EMPTY_STRING;
-               seed = this.storageService.getInputValue(`${prefix}seed`) || this.storageService.getInputValue(`${prefix}mnemonic`) || this.storageService.getInputValue(`${prefix}secretNumbers`) || AppConstants.EMPTY_STRING;
-          }
+          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
+          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
+          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
 
-          // Update account data
-          const account = accountKey === 'account1' ? this.account1 : accountKey === 'account2' ? this.account2 : this.issuer;
+          // Update account object
+          const accountMap = {
+               account1: this.account1,
+               account2: this.account2,
+               issuer: this.issuer,
+          };
+          const account = accountMap[accountKey];
           account.name = name;
           account.address = address;
           account.seed = seed;
 
-          // DOM manipulation
-          const accountName1Field = document.getElementById('accountName1Field') as HTMLInputElement | null;
-          const accountAddress1Field = document.getElementById('accountAddress1Field') as HTMLInputElement | null;
-          const accountSeed1Field = document.getElementById('accountSeed1Field') as HTMLInputElement | null;
+          // DOM manipulation (map field IDs instead of repeating)
+          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
+               name: 'accountName1Field',
+               address: 'accountAddress1Field',
+               seed: 'accountSeed1Field',
+          };
 
-          if (accountName1Field) accountName1Field.value = name;
-          if (accountAddress1Field) accountAddress1Field.value = address;
-          if (accountSeed1Field) accountSeed1Field.value = seed;
+          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
+               const el = document.getElementById(id) as HTMLInputElement | null;
+               if (el) el.value = account[key];
+          });
 
-          // Trigger change detection to sync with ngModel
-          this.cdr.detectChanges();
+          this.cdr.detectChanges(); // sync with ngModel
 
-          // Update destination field (set to other account's address)
-          const otherPrefix = accountKey === 'account1' ? 'account2' : accountKey === 'account2' ? 'account1' : 'account1';
-          this.destinationField = this.storageService.getInputValue(`${otherPrefix}address`) || AppConstants.EMPTY_STRING;
-
-          // Fetch account details and trustlines
+          // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
                     await this.getDidForAccount();
@@ -851,6 +843,26 @@ export class CreateDidComponent implements AfterViewChecked {
 
      private async displayDataForAccount3() {
           await this.displayDataForAccount('issuer');
+     }
+
+     clearFields() {
+          this.currencyField = '';
+          this.currencyBalanceField = '0';
+          this.memoField = '';
+          this.ticketSequence = '';
+          this.isTicket = false;
+          this.cdr.detectChanges();
+     }
+
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+     }
+
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
      private setErrorProperties() {

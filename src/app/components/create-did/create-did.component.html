@@ -97,14 +97,36 @@
                               <!-- Verification Section -->
                               <tr style="vertical-align: top">
                                    <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="DID Document information.">
+                                             <label for="didDocument">DID Document</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="didDocument" size="87" [(ngModel)]="didDetails.document" name="didDocument" value="1.0" />
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="URI pointing to DID information.">
                                              <label for="uri">URI</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="uri" size="40" [(ngModel)]="didDetails.uri" name="uri" value="1.0" />
+                                        <input type="text" id="uri" size="87" [(ngModel)]="didDetails.uri" name="uri" value="1.0" />
                                    </td>
                               </tr>
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: left">
+                                        <span class="tooltip" tooltip-data="DID Data (Enter JSON).">
+                                             <label for="didData">DID Data</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <!-- <textarea style="width: 500px; height: 410px" class="memoField" id="metaDataField" placeholder="Token Meta Data" [(ngModel)]="metaDataField" name="metaDataField"></textarea> -->
+                                        <textarea style="width: 600px; height: 300px" class="memoField" id="didData" placeholder="DID Data" [(ngModel)]="didDetails.data" name="didData"></textarea>
+                                   </td>
+                              </tr>
+
                               <!-- <tr>
                     <td colspan="2"><strong>Verification</strong></td>
                </tr> -->
