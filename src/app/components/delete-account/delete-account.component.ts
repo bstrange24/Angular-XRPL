@@ -310,6 +310,10 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     } else {
                          signedTx = wallet.sign(preparedTx);
                     }
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, payment, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
                }
 
                if (!signedTx) {
@@ -459,27 +463,13 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
           // 5. Multi-sign
           if (multiSignAddresses && multiSignSeeds) {
-               const addresses = multiSignAddresses
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-               const seeds = multiSignSeeds
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-
+               const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+               const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
                if (addresses.length !== seeds.length) {
                     return 'Number of signer addresses must match number of signer seeds';
-               }
-
-               if (addresses.some(addr => !xrpl.isValidAddress(addr))) {
-                    return `Invalid signer address: ${addresses.find(addr => !xrpl.isValidAddress(addr))}`;
-               }
-               if (seeds.some(s => !xrpl.isValidSecret(s))) {
-                    return 'One or more signer seeds are invalid';
                }
           }
 

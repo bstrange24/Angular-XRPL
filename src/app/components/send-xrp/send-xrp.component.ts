@@ -311,7 +311,6 @@ export class SendXrpComponent implements AfterViewChecked {
                          payment.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(payment, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -332,11 +331,7 @@ export class SendXrpComponent implements AfterViewChecked {
                } else {
                     const preparedTx = await client.autofill(payment);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, payment, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -462,7 +457,7 @@ export class SendXrpComponent implements AfterViewChecked {
 
           // 3. Amount
           if (amount) {
-               if (!this.utilsService.validateInput(amount)) {
+               if (amount === '' || !this.utilsService.validateInput(amount)) {
                     return 'XRP Amount cannot be empty';
                }
                const numAmount = parseFloat(amount);
@@ -503,15 +498,8 @@ export class SendXrpComponent implements AfterViewChecked {
 
           // 7. Multi-sign
           if (multiSignAddresses && multiSignSeeds) {
-               const addresses = multiSignAddresses
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-               const seeds = multiSignSeeds
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-
+               const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+               const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
@@ -519,12 +507,12 @@ export class SendXrpComponent implements AfterViewChecked {
                     return 'Number of signer addresses must match number of signer seeds';
                }
 
-               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
 
-               if (seeds.some(s => !xrpl.isValidSecret(s))) {
+               if (seeds.some((s: string) => !xrpl.isValidSecret(s))) {
                     return 'One or more signer seeds are invalid';
                }
           }

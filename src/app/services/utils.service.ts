@@ -2994,4 +2994,8 @@ export class UtilsService {
      setTickSize(tx: any, tickSize: number) {
           tx.TickSize = tickSize;
      }
+
+     setExpiration(tx: any, expiration: number) {
+          tx.Expiration = expiration;
+     }
 }

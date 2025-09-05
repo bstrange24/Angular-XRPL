@@ -2,7 +2,7 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
@@ -44,6 +44,8 @@
                                    </td>
                                    <td>
                                         <input type="text" id="accountSeed1Field" size="44" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="accountIssuer">Account 3</label>
                                    </td>
                               </tr>
                               <tr>
@@ -139,7 +141,7 @@
                                         <input type="text" id="tokenBalance" size="44" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
+                              <!-- <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
                                              <label for="destinationField">Destination</label>
@@ -148,6 +150,19 @@
                                    <td>
                                         <input type="text" id="destinationField" size="44" [(ngModel)]="destinationField" name="destinationField" />
                                         <br />
+                                   </td>
+                              </tr> -->
+                              <tr style="vertical-align: top">
+                                   <td style="text-align: right">
+                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
+                                             <label for="destinationFields">Destination</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="destinationFields" style="width: 315px; height: 29px" [(ngModel)]="destinationFields" name="destinationFields">
+                                             <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
+                                        </select>
+                                        <p></p>
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">
