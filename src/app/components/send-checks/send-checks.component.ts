@@ -369,12 +369,6 @@ export class SendChecksComponent implements AfterViewChecked {
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (parseFloat(this.amountField) > (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0')) {
-                         return this.setError('ERROR: Insufficent XRP to send check');
-                    }
-               }
-
                // Build SendMax amount
                let sendMax;
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
@@ -421,16 +415,6 @@ export class SendChecksComponent implements AfterViewChecked {
                     this.utilsService.setDestinationTag(tx, this.destinationTagField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               }
-
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
@@ -450,7 +434,6 @@ export class SendChecksComponent implements AfterViewChecked {
                          tx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -462,16 +445,20 @@ export class SendChecksComponent implements AfterViewChecked {
                          tx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
 
@@ -577,16 +564,6 @@ export class SendChecksComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(tx, this.memoField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               }
-
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
@@ -618,18 +595,21 @@ export class SendChecksComponent implements AfterViewChecked {
                          tx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
-                    console.debug(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                }
 
                console.debug(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
@@ -711,15 +691,15 @@ export class SendChecksComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(tx, this.memoField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               }
+               // if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+               //      if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
+               //           return this.setError('ERROR: Insufficent XRP to complete transaction');
+               //      }
+               // } else {
+               //      if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+               //           return this.setError('ERROR: Insufficent XRP to complete transaction');
+               //      }
+               // }
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
@@ -752,16 +732,20 @@ export class SendChecksComponent implements AfterViewChecked {
                          tx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
                } else {
                     const preparedTx = await client.autofill(tx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
 

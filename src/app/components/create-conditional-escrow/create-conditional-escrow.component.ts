@@ -470,16 +470,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowTx, this.memoField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, escrowTx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               }
-
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
@@ -499,7 +489,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -510,16 +499,20 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          escrowTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
                } else {
                     const preparedTx = await client.autofill(escrowTx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
 
@@ -676,16 +669,20 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          escrowTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
                } else {
                     const preparedTx = await client.autofill(escrowTx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
 
@@ -808,16 +805,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowTx, this.memoField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, escrowTx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               }
-
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
@@ -848,16 +835,20 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          escrowTx.Fee = multiSignFee;
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
                     } catch (err: any) {
                          return this.setError(`ERROR: ${err.message}`);
                     }
                } else {
                     const preparedTx = await client.autofill(escrowTx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
 

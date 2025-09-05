@@ -377,7 +377,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          credentialCreateTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(credentialCreateTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -398,11 +397,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                } else {
                     console.log('CredentialCreate Tx:', JSON.stringify(credentialCreateTx, null, 2));
                     const preparedTx = await client.autofill(credentialCreateTx);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialCreateTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -553,11 +548,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                } else {
                     console.log('credentialDeleteTx before autofill:', JSON.stringify(credentialDeleteTx, null, 2));
                     const preparedTx = await client.autofill(credentialDeleteTx);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialDeleteTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -708,11 +699,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                } else {
                     console.log('credentialAcceptTx before autofill:', JSON.stringify(credentialAcceptTx, null, 2));
                     const preparedTx = await client.autofill(credentialAcceptTx);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialAcceptTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');

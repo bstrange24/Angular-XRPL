@@ -484,7 +484,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -496,11 +495,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         let isXrp = this.amountField;
-                         if (this.currencyFieldDropDownValue !== 'XRP') {
-                              isXrp = '0';
-                         }
-                         if (await this.utilsService.isInsufficientXrpBalance(client, isXrp, wallet.classicAddress, escrowTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -509,17 +504,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                } else {
                     const preparedTx = await client.autofill(escrowTx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    let isXrp = this.amountField;
-                    if (this.currencyFieldDropDownValue !== 'XRP') {
-                         isXrp = '0';
-                    }
-                    if (await this.utilsService.isInsufficientXrpBalance(client, isXrp, wallet.classicAddress, escrowTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -654,7 +641,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -666,11 +652,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         let isXrp = this.amountField;
-                         if (this.currencyFieldDropDownValue !== 'XRP') {
-                              isXrp = '0';
-                         }
-                         if (await this.utilsService.isInsufficientXrpBalance(client, isXrp, wallet.classicAddress, escrowTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -679,17 +661,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                } else {
                     const preparedTx = await client.autofill(escrowTx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    let isXrp = this.amountField;
-                    if (this.currencyFieldDropDownValue !== 'XRP') {
-                         isXrp = '0';
-                    }
-                    if (await this.utilsService.isInsufficientXrpBalance(client, isXrp, wallet.classicAddress, escrowTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -836,7 +810,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -857,11 +830,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                } else {
                     const preparedTx = await client.autofill(escrowTx);
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');

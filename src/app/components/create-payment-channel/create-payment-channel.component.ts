@@ -388,7 +388,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               tx.Signers = result.signers;
 
                               console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                               if (!signedTx) {
                                    return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -409,11 +408,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const preparedTx = await client.autofill(tx);
                          console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         if (useRegularKeyWalletSignTx) {
-                              signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                         } else {
-                              signedTx = wallet.sign(preparedTx);
-                         }
+                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                          if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -503,7 +498,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               tx.Signers = result.signers;
 
                               console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                               if (!signedTx) {
                                    return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -524,11 +518,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const preparedTx = await client.autofill(tx);
                          console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         if (useRegularKeyWalletSignTx) {
-                              signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                         } else {
-                              signedTx = wallet.sign(preparedTx);
-                         }
+                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                          if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -659,11 +649,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const preparedTx = await client.autofill(tx);
                          console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         if (useRegularKeyWalletSignTx) {
-                              signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                         } else {
-                              signedTx = wallet.sign(preparedTx);
-                         }
+                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                          if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -799,11 +785,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const preparedTx = await client.autofill(tx);
                          console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         if (useRegularKeyWalletSignTx) {
-                              signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                         } else {
-                              signedTx = wallet.sign(preparedTx);
-                         }
+                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                          if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, tx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');

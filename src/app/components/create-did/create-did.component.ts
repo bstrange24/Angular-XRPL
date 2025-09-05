@@ -536,11 +536,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     }
                } else {
                     const preparedTx = await client.autofill(didDeleteTx);
-                    if (useRegularKeyWalletSignTx) {
-                         signedTx = regularKeyWalletSignTx.sign(preparedTx);
-                    } else {
-                         signedTx = wallet.sign(preparedTx);
-                    }
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                     if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didDeleteTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
