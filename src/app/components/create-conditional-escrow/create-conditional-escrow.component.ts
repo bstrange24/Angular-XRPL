@@ -109,7 +109,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      selectedIssuer: string = '';
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
-
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
@@ -316,7 +315,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     console.log('PreviousTxnIDs:', previousTxnIDs);
 
                     // Fetch Sequence for each PreviousTxnID
-                    const escrows = escrowObjects.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
+                    const escrows = escrowObjects.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null, TicketSequence: undefined as number | string | undefined }));
                     for (const [index, previousTxnID] of previousTxnIDs.entries()) {
                          if (typeof previousTxnID === 'string') {
                               const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
@@ -401,7 +400,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                amount: this.amountField,
-               destination: this.destinationField,
+               destination: this.destinationFields,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -434,7 +433,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     TransactionType: 'EscrowCreate',
                     Account: wallet.address,
                     Amount: xrpl.xrpToDrops(this.amountField),
-                    Destination: this.destinationField,
+                    Destination: this.destinationFields,
                     CancelAfter: cancelAfterTime,
                     Condition: this.escrowConditionField,
                     Fee: fee,
@@ -521,7 +520,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
-               console.log('signed:', JSON.stringify(signedTx, null, '\t'));
+               console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
@@ -629,16 +628,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowTx, this.memoField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, this.amountField, wallet.classicAddress, escrowTx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               } else {
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
-                         return this.setError('ERROR: Insufficent XRP to complete transaction');
-                    }
-               }
-
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
                if (this.isMultiSign) {
@@ -658,7 +647,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -824,7 +812,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -857,6 +844,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign transaction.');
                }
+               console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
@@ -1046,9 +1034,9 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');

@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
+import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
 import { TransactionMetadataBase } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 
 interface EscrowObject {
      Account: string;
@@ -61,13 +61,13 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     accountAddress1Field: string = '';
      channelIDField: string = '';
      settleDelayField: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
      amountField: string = '';
+     destinationField: string = '';
      destinationTagField: string = '';
      escrowFinishTimeField: string = '';
      escrowFinishTimeUnit: string = 'seconds';
@@ -235,7 +235,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                               this.account1.balance = tokenBalanceData.xrpBalance.toString();
                          } else if (this.selectedAccount === 'account2') {
                               this.account2.balance = tokenBalanceData.xrpBalance.toString();
-                         } else if (this.selectedAccount === 'issuer') {
+                         } else {
                               this.issuer.balance = tokenBalanceData.xrpBalance.toString();
                          }
                          this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
@@ -249,21 +249,37 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      async getEscrowOwnerAddress() {
-          if (this.account1.address) {
-               if (!xrpl.isValidAddress(this.account1.address)) {
-                    console.error('Invalid adress');
-               }
+          const activeAccount = this.getActiveAccount();
+          if (!activeAccount || !activeAccount.address) {
+               console.error('No account selected or address missing');
+               return;
+          }
 
-               const client = await this.xrplService.getClient();
-               const escrowsTx = await this.xrplService.getAccountObjects(client, this.account1.address, 'validated', 'escrow');
-               const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
-               console.log(`PreviousTxnIDs: ${JSON.stringify(previousTxnIDs, null, '\t')}`);
-               const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
+          if (!xrpl.isValidAddress(activeAccount.address)) {
+               console.error('Invalid address');
+               return;
+          }
+
+          const client = await this.xrplService.getClient();
+          const escrowsTx = await this.xrplService.getAccountObjects(client, activeAccount.address, 'validated', 'escrow');
+
+          const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
+          console.log(`PreviousTxnIDs: ${JSON.stringify(previousTxnIDs, null, '\t')}`);
+
+          const escrows = escrowsTx.result.account_objects.map(escrow => ({
+               ...escrow,
+               Sequence: null as number | null,
+          }));
+
+          if (previousTxnIDs.length === 0) {
+               this.escrowOwnerField = activeAccount.address;
+          } else {
                for (const [index, previousTxnID] of previousTxnIDs.entries()) {
                     if (typeof previousTxnID === 'string') {
                          const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
                          console.log(`sequenceTx: ${JSON.stringify(sequenceTx, null, '\t')}`);
                          const offerSequence = sequenceTx.result.tx_json.Sequence;
+
                          if (offerSequence === Number(this.escrowSequenceNumberField)) {
                               if ('Account' in escrows[index]) {
                                    this.escrowOwnerField = (escrows[index] as any).Account;
@@ -274,6 +290,46 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
           }
      }
+
+     private getActiveAccount() {
+          switch (this.selectedAccount) {
+               case 'account1':
+                    return this.account1;
+               case 'account2':
+                    return this.account2;
+               case 'issuer':
+                    return this.issuer;
+               default:
+                    return null;
+          }
+     }
+
+     // async getEscrowOwnerAddress() {
+     //      if (this.account1.address) {
+     //           if (!xrpl.isValidAddress(this.account1.address)) {
+     //                console.error('Invalid adress');
+     //           }
+
+     //           const client = await this.xrplService.getClient();
+     //           const escrowsTx = await this.xrplService.getAccountObjects(client, this.account1.address, 'validated', 'escrow');
+     //           const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
+     //           console.log(`PreviousTxnIDs: ${JSON.stringify(previousTxnIDs, null, '\t')}`);
+     //           const escrows = escrowsTx.result.account_objects.map(escrow => ({ ...escrow, Sequence: null as number | null }));
+     //           for (const [index, previousTxnID] of previousTxnIDs.entries()) {
+     //                if (typeof previousTxnID === 'string') {
+     //                     const sequenceTx = await this.xrplService.getTxData(client, previousTxnID);
+     //                     console.log(`sequenceTx: ${JSON.stringify(sequenceTx, null, '\t')}`);
+     //                     const offerSequence = sequenceTx.result.tx_json.Sequence;
+     //                     if (offerSequence === Number(this.escrowSequenceNumberField)) {
+     //                          if ('Account' in escrows[index]) {
+     //                               this.escrowOwnerField = (escrows[index] as any).Account;
+     //                               break;
+     //                          }
+     //                     }
+     //                }
+     //           }
+     //      }
+     // }
 
      async getEscrows() {
           console.log('Entering getEscrows');
@@ -322,7 +378,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                               const memoData = sequenceTx.result.tx_json.Memos ? sequenceTx.result.tx_json.Memos[0].Memo.MemoData : 'N/A';
                               console.log(`Escrow OfferSequence: ${offerSequence} Hash: ${sequenceTx.result.hash} Memo: ${memoData}`);
                               escrows[index].Sequence = offerSequence !== undefined ? offerSequence : null;
-                              escrows[index].TicketSequence = TicketSequence !== undefined ? TicketSequence : 'N/A';
+                              (escrows[index] as any).TicketSequence = TicketSequence !== undefined ? TicketSequence : 'N/A';
                               (escrows[index] as any).Memo = memoData !== undefined ? memoData : null;
                          } else {
                               escrows[index].Sequence = null;
@@ -371,6 +427,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+
                this.getEscrowOwnerAddress();
 
                this.isMemoEnabled = false;
@@ -764,7 +821,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${escrowStatus.reasonCancel}`);
                }
 
-               // Prepare the EscrowCancel transaction
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
 
@@ -1092,6 +1148,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
      clearFields() {
           this.amountField = '';
+          this.destinationTagField = '';
           this.escrowFinishTimeField = '';
           this.escrowCancelTimeField = '';
           this.escrowSequenceNumberField = '';
