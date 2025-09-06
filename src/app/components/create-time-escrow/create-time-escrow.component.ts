@@ -1166,14 +1166,12 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      private setError(message: string) {
-          console.log('setError called:', message, 'isError:', this.isError, 'selectedAccount:', this.selectedAccount);
           this.setErrorProperties();
           this.handleTransactionResult({
                result: `${message}`,
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
-          this.cdr.detectChanges();
      }
 
      private setSuccessProperties() {

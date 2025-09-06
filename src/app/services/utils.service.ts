@@ -2960,7 +2960,12 @@ export class UtilsService {
      }
 
      setURI(tx: any, uri: string) {
-          tx.URI = Buffer.from(uri, 'utf8').toString('hex');
+          // tx.URI = Buffer.from(uri, 'utf8').toString('hex');
+          tx.URI = xrpl.convertStringToHex(uri);
+     }
+
+     setIssuerAddress(tx: any, issuerAddressField: string) {
+          tx.Issuer = issuerAddressField;
      }
 
      setTicketSequence(tx: any, ticketSequence: string, useTicket: boolean) {
