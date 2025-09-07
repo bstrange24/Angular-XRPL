@@ -61,7 +61,7 @@ app.get('/api/create-wallet/secret-numbers', async (req, res) => {
 });
 
 // Get wallet created from a secret numbers
-app.post('/api/derive/secret-numbers/:value', async (req, res) => {
+app.get('/api/derive/secret-numbers/:value', async (req, res) => {
      try {
           console.log(`secret_numbers ${req.params.value}`);
           const nums = req.params.value?.split(','); // comma-separated string
@@ -88,7 +88,7 @@ app.get('/api/create-wallet/family-seed', async (req, res) => {
 });
 
 // Get wallet created from a family seed
-app.post('/api/derive/family-seed/:value', async (req, res) => {
+app.get('/api/derive/family-seed/:value', async (req, res) => {
      try {
           console.log(`seed ${req.params.value}`);
           const derive_account_with_seed = accountlib.derive.familySeed(req.params.value);

@@ -5,13 +5,8 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { generateSeed, deriveKeypair } from 'ripple-keypairs';
-import { derive, sign, generate } from 'xrpl-accountlib';
-import { encode } from 'ripple-binary-codec';
 import { Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
-import * as bip39 from 'bip39';
-import * as secretNumbers from '@xrplf/secret-numbers';
 
 @Component({
      selector: 'app-wallet-multi-input',
@@ -160,17 +155,6 @@ export class WalletMultiInputComponent {
           this.emitChange();
      }
 
-     // generateNewWallet(account: '1' | '2' | '3') {
-     //      const wallet = xrpl.Wallet.generate();
-     //      this.updateAccount(account, {
-     //           address: wallet.classicAddress,
-     //           seed: wallet.seed || '',
-     //      });
-     //      this.saveInput(`account${account}address`, wallet.classicAddress);
-     //      this.saveInput(`account${account}seed`, wallet.seed || '');
-     //      this.emitChange();
-     // }
-
      async generateNewWalletFromFamilySeed(account: '1' | '2' | '3') {
           const wallet = await this.xrplService.generateWalletFromFamilySeed();
           this.updateAccount(account, {
@@ -179,13 +163,16 @@ export class WalletMultiInputComponent {
                mnemonic: '',
                secretNumbers: '',
           });
-          if(account === '3') {
+          if (account === '3') {
                this.saveInput(`issuerAddress`, wallet.address);
                this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
+               this.saveInput(`issuerMnemonic`, '');
+               this.saveInput(`issuerSecretNumbers`, '');
           } else {
                this.saveInput(`account${account}address`, wallet.address);
                this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
-
+               this.saveInput(`account${account}mnemonic`, '');
+               this.saveInput(`account${account}secretNumbers`, '');
           }
           this.emitChange();
      }
@@ -199,8 +186,17 @@ export class WalletMultiInputComponent {
                mnemonic: '',
                secretNumbers: '',
           });
-          this.saveInput(`account${account}address`, wallet.address);
-          this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+          if (account === '3') {
+               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
+               this.saveInput(`issuerMnemonic`, '');
+               this.saveInput(`issuerSecretNumbers`, '');
+          } else {
+               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+               this.saveInput(`account${account}mnemonic`, '');
+               this.saveInput(`account${account}secretNumbers`, '');
+          }
           this.emitChange();
      }
 
@@ -212,12 +208,14 @@ export class WalletMultiInputComponent {
                seed: wallet.secret.mnemonic || '',
                secretNumbers: '',
           });
-          if(account === '3') {
+          if (account === '3') {
                this.saveInput(`issuerAddress`, wallet.address);
                this.saveInput(`issuerSeed`, wallet.secret.mnemonic || '');
           } else {
                this.saveInput(`account${account}address`, wallet.address);
                this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
+               this.saveInput(`account${account}seed`, wallet.secret.mnemonic || '');
+               this.saveInput(`account${account}secretNumbers`, '');
           }
           this.emitChange();
      }
@@ -228,11 +226,19 @@ export class WalletMultiInputComponent {
           this.updateAccount(account, {
                address: wallet.address,
                mnemonic: wallet.secret.mnemonic || '',
-               seed: '',
+               seed: wallet.secret.mnemonic || '',
                secretNumbers: '',
           });
-          this.saveInput(`account${account}address`, wallet.address);
-          this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
+          if (account === '3') {
+               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerSeed`, wallet.secret.mnemonic || '');
+          } else {
+               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
+               this.saveInput(`account${account}seed`, wallet.secret.mnemonic || '');
+               this.saveInput(`account${account}secretNumbers`, '');
+          }
+
           this.emitChange();
      }
 
@@ -244,12 +250,14 @@ export class WalletMultiInputComponent {
                seed: wallet.secret.secretNumbers || '',
                mnemonic: '',
           });
-          if(account === '3') {
+          if (account === '3') {
                this.saveInput(`issuerAddress`, wallet.address);
                this.saveInput(`issuerSeed`, wallet.secret.secretNumbers || '');
           } else {
                this.saveInput(`account${account}address`, wallet.address);
                this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+               this.saveInput(`account${account}mnemonic`, '');
+               this.saveInput(`account${account}seed`, wallet.secret.secretNumbers || '');
           }
           this.emitChange();
      }
@@ -263,87 +271,17 @@ export class WalletMultiInputComponent {
                seed: '',
                mnemonic: '',
           });
-          this.saveInput(`account${account}address`, wallet.address);
-          this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+          if (account === '3') {
+               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerSeed`, wallet.secret.secretNumbers || '');
+          } else {
+               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+               this.saveInput(`account${account}mnemonic`, '');
+               this.saveInput(`account${account}seed`, wallet.secret.secretNumbers || '');
+          }
           this.emitChange();
      }
-
-     // generateSecretNumbers(): string[] {
-     //      // Generate secret groups
-     //      return secretNumbers.randomSecret();
-     // }
-
-     // secretNumbersToFamilySeed(numbers: string[]): string {
-     //      // Convert secret numbers to entropy (Uint8Array)
-     //      const entropy = secretNumbers.secretToEntropy(numbers);
-
-     //      // Convert entropy back to secret numbers array
-     //      const groups = secretNumbers.entropyToSecret(entropy);
-
-     //      // Join groups by space to form the family seed string
-     //      return groups.join(' ');
-     // }
-
-     // getAccountFromSeed(account: '1' | '2' | '3') {
-     //      const seed = this.getAccount(account).seed;
-     //      if (seed) {
-     //           try {
-     //                const wallet = xrpl.Wallet.fromSeed(seed);
-     //                this.updateAccount(account, {
-     //                     address: wallet.classicAddress,
-     //                     seed,
-     //                });
-     //                this.saveInput(`account${account}address`, wallet.classicAddress);
-     //                this.saveInput(`account${account}seed`, seed);
-     //                this.emitChange();
-     //           } catch (error) {
-     //                alert(`Invalid seed: ${(error as Error).message}`);
-     //           }
-     //      } else {
-     //           alert('Seed is empty');
-     //      }
-     // }
-
-     // getAccountFromMnemonic(account: '1' | '2' | '3') {
-     //      const mnemonic = this.getAccount(account).mnemonic;
-     //      if (mnemonic) {
-     //           try {
-     //                const wallet = xrpl.Wallet.fromMnemonic(mnemonic);
-     //                this.updateAccount(account, {
-     //                     address: wallet.classicAddress,
-     //                     mnemonic,
-     //                });
-     //                this.saveInput(`account${account}address`, wallet.classicAddress);
-     //                this.saveInput(`account${account}mnemonic`, mnemonic);
-     //                this.emitChange();
-     //           } catch (error) {
-     //                alert(`Invalid mnemonic: ${(error as Error).message}`);
-     //           }
-     //      } else {
-     //           alert('Mnemonic is empty');
-     //      }
-     // }
-
-     // getAccountFromSecretNumbers(account: '1' | '2' | '3') {
-     //      const secretNumbers = this.getAccount(account).secretNumbers;
-     //      if (secretNumbers) {
-     //           // try {
-     //           // const seed = deriveFamilySeed(secretNumbers);
-     //           //      const wallet = xrpl.Wallet.fromSeed(seed);
-     //           //      this.updateAccount(account, {
-     //           //           address: wallet.classicAddress,
-     //           //           secretNumbers,
-     //           //      });
-     //           //      this.saveInput(`account${account}address`, wallet.classicAddress);
-     //           //      this.saveInput(`account${account}mnemonic`, secretNumbers);
-     //           //      this.emitChange();
-     //           // } catch (error) {
-     //           //      alert(`Invalid secret numbers: ${error}`);
-     //           // }
-     //      } else {
-     //           alert('Secret numbers are empty');
-     //      }
-     // }
 
      private getAccountMnemonic(account: '1' | '2' | 'issuerMnemonic') {
           if (account === '1') {

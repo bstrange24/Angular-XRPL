@@ -314,11 +314,11 @@ export class NavbarComponent implements OnInit {
 
           if (accountInfo[2].split(' ').length > 1) {
                if (account1mnemonic) account1mnemonic.value = this.utilsService.stripHTML(accountInfo[2]);
-               if (account1seed) account1seed.value = AppConstants.EMPTY_STRING;
+               if (account1seed) account1seed.value = this.utilsService.stripHTML(accountInfo[2]);
                if (account1secretNumbers) account1secretNumbers.value = AppConstants.EMPTY_STRING;
           } else if (accountInfo[2].includes(',')) {
                if (account1secretNumbers) account1secretNumbers.value = this.utilsService.stripHTML(accountInfo[2]);
-               if (account1seed) account1seed.value = AppConstants.EMPTY_STRING;
+               if (account1seed) account1seed.value = this.utilsService.stripHTML(accountInfo[2]);
                if (account1mnemonic) account1mnemonic.value = AppConstants.EMPTY_STRING;
           } else {
                if (account1seed) account1seed.value = this.utilsService.stripHTML(accountInfo[2]);
@@ -332,11 +332,11 @@ export class NavbarComponent implements OnInit {
 
           if (accountInfo[5].split(' ').length > 1) {
                if (account2mnemonic) account2mnemonic.value = this.utilsService.stripHTML(accountInfo[5]);
-               if (account2seed) account2seed.value = AppConstants.EMPTY_STRING;
+               if (account2seed) account2seed.value = this.utilsService.stripHTML(accountInfo[5]);
                if (account2secretNumbers) account2secretNumbers.value = AppConstants.EMPTY_STRING;
           } else if (accountInfo[5].includes(',')) {
                if (account2secretNumbers) account2secretNumbers.value = this.utilsService.stripHTML(accountInfo[5]);
-               if (account2seed) account2seed.value = AppConstants.EMPTY_STRING;
+               if (account2seed) account2seed.value = this.utilsService.stripHTML(accountInfo[5]);
                if (account2mnemonic) account2mnemonic.value = AppConstants.EMPTY_STRING;
           } else {
                if (account2seed) account2seed.value = this.utilsService.stripHTML(accountInfo[5]);
@@ -350,11 +350,11 @@ export class NavbarComponent implements OnInit {
 
                if (accountInfo[8].split(' ').length > 1) {
                     if (issuerMnemonic) issuerMnemonic.value = this.utilsService.stripHTML(accountInfo[8]);
-                    if (issuerSeed) issuerSeed.value = AppConstants.EMPTY_STRING;
+                    if (issuerSeed) issuerSeed.value = this.utilsService.stripHTML(accountInfo[8]);
                     if (issuerSecretNumbers) issuerSecretNumbers.value = AppConstants.EMPTY_STRING;
                } else if (accountInfo[8].includes(',')) {
                     if (issuerSecretNumbers) issuerSecretNumbers.value = this.utilsService.stripHTML(accountInfo[8]);
-                    if (issuerSeed) issuerSeed.value = AppConstants.EMPTY_STRING;
+                    if (issuerSeed) issuerSeed.value = this.utilsService.stripHTML(accountInfo[8]);
                     if (issuerMnemonic) issuerMnemonic.value = AppConstants.EMPTY_STRING;
                } else {
                     if (issuerSeed) issuerSeed.value = this.utilsService.stripHTML(accountInfo[8]);

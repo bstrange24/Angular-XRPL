@@ -178,8 +178,8 @@ export class XrplService {
 
      // Derive account from Secret Numbers
      async deriveWalletFromSecretNumbers(secretNumbers: string) {
-          const url = 'http://localhost:3000/api/derive/secret-numbers';
-          const wallet = await firstValueFrom(this.http.post<any>(url, { secretNumbers }));
+          const url = `http://localhost:3000/api/derive/secret-numbers/${encodeURIComponent(secretNumbers)}`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
 
@@ -192,8 +192,8 @@ export class XrplService {
 
      // Derive account from Family Seed
      async deriveWalletFromFamilySeed(familySeed: string) {
-          const url = 'http://localhost:3000/api/derive/secret-numbers';
-          const wallet = await firstValueFrom(this.http.post<any>(url, { familySeed }));
+          const url = `http://localhost:3000/api/derive/family-seed/${encodeURIComponent(familySeed)}`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
 
