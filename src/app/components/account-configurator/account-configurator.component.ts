@@ -725,12 +725,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           // Split and validate deposit auth addresses
-          const addressesArray = this.depositAuthAddress
-               .split(',')
-               .map(address => address.trim())
-               .filter(addr => addr !== '');
-
-          // Validate: At least one address
+          const addressesArray = this.utilsService.getUserEnteredAddress(this.depositAuthAddress);
           if (!addressesArray.length) {
                return this.setError('ERROR: Deposit Auth address list is empty');
           }
@@ -751,13 +746,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                // Validate: Each is a classic XRPL address
-               const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+               const invalidAddresses = addressesArray.filter((addr: string) => !xrpl.isValidClassicAddress(addr));
                if (invalidAddresses.length > 0) {
                     return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
                }
 
                // Validate: No duplicates
-               const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+               const duplicates = addressesArray.filter((addr: any, idx: any, self: string | any[]) => self.indexOf(addr) !== idx);
                if (duplicates.length > 0) {
                     return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
                }
@@ -811,16 +806,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     if (this.memoField) {
                          this.utilsService.setMemoField(depositPreauthTx, this.memoField);
                     }
-
-                    // if (this.ticketSequence) {
-                    //      if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-                    //           return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    //      }
-                    //      this.utilsService.setTicketSequence(depositPreauthTx, this.ticketSequence, true);
-                    // } else {
-                    //      const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    //      this.utilsService.setTicketSequence(depositPreauthTx, getAccountInfo.result.account_data.Sequence, false);
-                    // }
 
                     let signedTx: { tx_blob: string; hash: string } | null = null;
 
@@ -1311,6 +1296,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
+               if (this.regularKeyAccount === '' || this.regularKeyAccount === 'No RegularKey configured for account' || this.regularKeyAccountSeed === '') {
+                    return this.setError(`ERROR: Regular Key address and seed must be present`);
+               }
+
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
                let setRegularKeyTx: xrpl.SetRegularKey;
@@ -1453,18 +1442,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           // Split and validate deposit auth addresses
-          const addressesArray = this.nfTokenMinterAddress
-               .split(',')
-               .map(address => address.trim())
-               .filter(addr => addr !== '');
-
+          const addressesArray = this.utilsService.getUserEnteredAddress(this.nfTokenMinterAddress);
           // Validate: At least one address
           if (!addressesArray.length) {
                return this.setError('ERROR: Deposit Auth address list is empty');
           }
 
           try {
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
@@ -1477,13 +1461,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
 
                // Validate: Each is a classic XRPL address
-               const invalidAddresses = addressesArray.filter(addr => !xrpl.isValidClassicAddress(addr));
+               const invalidAddresses = addressesArray.filter((addr: string) => !xrpl.isValidClassicAddress(addr));
                if (invalidAddresses.length > 0) {
                     return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.join(', ')}`);
                }
 
                // Validate: No duplicates
-               const duplicates = addressesArray.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+               const duplicates = addressesArray.filter((addr: any, idx: any, self: string | any[]) => self.indexOf(addr) !== idx);
                if (duplicates.length > 0) {
                     return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
                }
@@ -1535,20 +1519,20 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
 
                     // Submit transaction
-                    const response = await client.submitAndWait(accountSetTx, { wallet });
-                    console.debug(`response ${wallet.classicAddress} ${JSON.stringify(response, null, '\t')}`);
+                    // const response = await client.submitAndWait(accountSetTx, { wallet });
+                    // console.debug(`response ${wallet.classicAddress} ${JSON.stringify(response, null, '\t')}`);
 
-                    const result = response.result;
-                    results.push({ result });
+                    // const result = response.result;
+                    // results.push({ result });
 
-                    // Check transaction result
-                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
-                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         this.resultField.nativeElement.classList.add('error');
-                         this.setErrorProperties();
-                         return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
-                    }
+                    // // Check transaction result
+                    // if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    //      console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    //      this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    //      this.resultField.nativeElement.classList.add('error');
+                    //      this.setErrorProperties();
+                    //      return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
+                    // }
                }
 
                // All transactions successful
@@ -1752,40 +1736,31 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                return 'Destination cannot be empty';
           }
           if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = inputs.multiSignAddresses
-                    .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.multiSignSeeds
-                    .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
+               const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+               const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
-               // if (addresses.length !== seeds.length) {
-               //      return 'Number of signer addresses must match number of signer seeds';
-               // }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
-                    }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
                }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
-                    }
+
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+
+               if (seeds.some((s: string) => !xrpl.isValidSecret(s))) {
+                    return 'One or more signer seeds are invalid';
+               }
+
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
                }
           }
           if (inputs.regularKeyAccountSeeds && inputs.regularKeyAccount) {
-               const addresses = inputs.regularKeyAccount
-                    .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.regularKeyAccountSeeds
-                    .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
+               const addresses = this.utilsService.getMultiSignAddress(inputs.regularKeyAccount);
+               const seeds = this.utilsService.getMultiSignSeeds(inputs.regularKeyAccountSeeds);
                if (addresses.length === 0) {
                     return 'At least one signer address is required to set a Regular Key';
                }
@@ -1799,6 +1774,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          return 'One or more signer seeds are invalid';
                     }
                }
+          } else if (this.isSetRegularKey) {
           }
           return null;
      }

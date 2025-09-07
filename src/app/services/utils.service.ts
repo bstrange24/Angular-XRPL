@@ -2948,6 +2948,13 @@ export class UtilsService {
           signers = [{ account: '', seed: '', weight: 1 }];
      }
 
+     getUserEnteredAddress(userEnteredAddress: any) {
+          return userEnteredAddress
+               .split(',')
+               .map((address: string) => address.trim())
+               .filter((addr: string) => addr !== '');
+     }
+
      async setInvoiceIdField(tx: any, invoiceIdField: string) {
           const validInvoiceID = await this.getValidInvoiceID(invoiceIdField);
           if (validInvoiceID) {
