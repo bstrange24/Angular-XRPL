@@ -58,6 +58,23 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 
+Run proxy-server.js and Angular at the same time
+npm install --save-dev concurrently
+Modify package.json
+"scripts": {
+"start": "concurrently \"ng serve\" \"node proxy-server.js\""
+}
+Start with this
+npm start
+
+Nodemon + Concurrently (auto-restart backend on changes)
+npm install --save-dev concurrently nodemon
+"scripts": {
+"start": "concurrently \"ng serve\" \"nodemon proxy-server.js\""
+}
+Start with this
+npm start
+
 Issuer Steps
 
 1. Create issuer wallet and set account up
@@ -94,8 +111,6 @@ sEdTvKhkXNdfiMrC37fTWozcQzeEv8L
 Cold Wallet (issuing address)
 rQUch4yZo1UgqW2PdoMajVZp4Kw36itjeL
 sEd7WnRBiSdhM1pV1YYB5XZ5wuT5X3e
-
-
 
 Dev Net
 Multi-Sign

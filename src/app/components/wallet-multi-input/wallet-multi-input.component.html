@@ -26,15 +26,15 @@
                          <h4>Account 1</h4>
                          <!-- Generate Buttons (shown when createWallet is checked) -->
                          <div class="wallet-buttons generate-buttons" *ngIf="showGenerateButtons">
-                              <button type="button" id="generateNewWallet_1" (click)="generateNewWallet('1')">Get New Account 1 From Seed</button>
+                              <button type="button" id="generateNewWallet_1" (click)="generateNewWalletFromFamilySeed('1')">Get New Account 1 From Seed</button>
                               <button type="button" id="generateNewWalletMnemonic_1" (click)="generateNewWalletFromMnemonic('1')">Get New Account 1 From Mnemonic</button>
                               <button type="button" id="generateNewWalletSecret_1" (click)="generateNewWalletFromSecretNumbers('1')">Get New Account 1 From Secret Numbers</button>
                          </div>
                          <!-- Derive Buttons (shown when createWallet is unchecked) -->
                          <div class="wallet-buttons derive-buttons" *ngIf="showDeriveButtons">
-                              <button type="button" id="deriveWalletSeed_1" (click)="getAccountFromSeed('1')">Fetch Account 1 From Seed</button>
-                              <button type="button" id="deriveWalletMnemonic_1" (click)="getAccountFromMnemonic('1')">Fetch Account 1 From Mnemonic</button>
-                              <button type="button" id="deriveWalletSecret_1" (click)="getAccountFromSecretNumbers('1')">Fetch Account 1 From Secret Numbers</button>
+                              <button type="button" id="deriveWalletSeed_1" (click)="deriveNewWalletFromFamilySeed('1')">Derive Account 1 From Seed</button>
+                              <button type="button" id="deriveWalletMnemonic_1" (click)="deriveNewWalletFromMnemonic('1')">Derive Account 1 From Mnemonic</button>
+                              <button type="button" id="deriveWalletSecret_1" (click)="deriveNewWalletFromSecretNumbers('1')">Derive Account 1 From Secret Numbers</button>
                          </div>
                          <!-- Inputs (always shown) -->
                          <div class="account-inputs">
@@ -66,15 +66,15 @@
                          <h4>Account 2</h4>
                          <!-- Generate Buttons (shown when createWallet is checked) -->
                          <div class="wallet-buttons generate-buttons" *ngIf="showGenerateButtons">
-                              <button type="button" id="generateNewWallet_2" (click)="generateNewWallet('2')">Get New Account 2 From Seed</button>
+                              <button type="button" id="generateNewWallet_2" (click)="generateNewWalletFromFamilySeed('2')">Get New Account 2 From Seed</button>
                               <button type="button" id="generateNewWalletMnemonic_2" (click)="generateNewWalletFromMnemonic('2')">Get New Account 2 From Mnemonic</button>
                               <button type="button" id="generateNewWalletSecret_2" (click)="generateNewWalletFromSecretNumbers('2')">Get New Account 2 From Secret Numbers</button>
                          </div>
                          <!-- Derive Buttons (shown when createWallet is unchecked) -->
                          <div class="wallet-buttons derive-buttons" *ngIf="showDeriveButtons">
-                              <button type="button" id="deriveWalletSeed_2" (click)="getAccountFromSeed('2')">Fetch Account 2 From Seed</button>
-                              <button type="button" id="deriveWalletMnemonic_2" (click)="getAccountFromMnemonic('2')">Fetch Account 2 From Mnemonic</button>
-                              <button type="button" id="deriveWalletSecret_2" (click)="getAccountFromSecretNumbers('2')">Fetch Account 2 From Secret Numbers</button>
+                              <button type="button" id="deriveWalletSeed_2" (click)="deriveNewWalletFromFamilySeed('2')">Derive Account 2 From Seed</button>
+                              <button type="button" id="deriveWalletMnemonic_2" (click)="deriveNewWalletFromMnemonic('2')">Derive Account 2 From Mnemonic</button>
+                              <button type="button" id="deriveWalletSecret_2" (click)="deriveNewWalletFromSecretNumbers('2')">Derive Account 2 From Secret Numbers</button>
                          </div>
                          <!-- Inputs (always shown) -->
                          <div class="account-inputs">
@@ -106,15 +106,15 @@
                          <h4>Issuer</h4>
                          <!-- Generate Buttons (shown when createWallet is checked) -->
                          <div class="wallet-buttons generate-buttons" *ngIf="showGenerateButtons">
-                              <button type="button" id="generateNewWallet_3" (click)="generateNewWallet('3')">Get New Account 3 From Seed</button>
+                              <button type="button" id="generateNewWallet_3" (click)="generateNewWalletFromFamilySeed('3')">Get New Account 3 From Seed</button>
                               <button type="button" id="generateNewWalletMnemonic_3" (click)="generateNewWalletFromMnemonic('3')">Get New Account 3 From Mnemonic</button>
                               <button type="button" id="generateNewWalletSecret_3" (click)="generateNewWalletFromSecretNumbers('3')">Get New Account 3 From Secret Numbers</button>
                          </div>
                          <!-- Derive Buttons (shown when createWallet is unchecked) -->
                          <div class="wallet-buttons derive-buttons" *ngIf="showDeriveButtons">
-                              <button type="button" id="deriveWalletSeed_3" (click)="getAccountFromSeed('3')">Fetch Account 3 From Seed</button>
-                              <button type="button" id="deriveWalletMnemonic_3" (click)="getAccountFromMnemonic('3')">Fetch Account 3 From Mnemonic</button>
-                              <button type="button" id="deriveWalletSecret_3" (click)="getAccountFromSecretNumbers('3')">Fetch Account 3 From Secret Numbers</button>
+                              <button type="button" id="deriveWalletSeed_3" (click)="deriveNewWalletFromFamilySeed('3')">Derive Account 3 From Seed</button>
+                              <button type="button" id="deriveWalletMnemonic_3" (click)="deriveNewWalletFromMnemonic('3')">Derive Account 3 From Mnemonic</button>
+                              <button type="button" id="deriveWalletSecret_3" (click)="deriveNewWalletFromSecretNumbers('3')">Derive Account 3 From Secret Numbers</button>
                          </div>
                          <!-- Inputs (always shown) -->
                          <div class="account-inputs">

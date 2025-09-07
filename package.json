@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "concurrently \"ng serve\" \"node proxy-server.js\"",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -36,6 +36,7 @@
     "flagnames": "^1.0.6",
     "js-sha256": "^0.11.1",
     "process": "^0.11.10",
+    "ripple-keypairs": "^2.0.0",
     "ripple-lib-transactionparser": "^0.8.2",
     "rxjs": "~7.8.0",
     "sha.js": "^2.4.12",
@@ -56,12 +57,14 @@
     "@esbuild-plugins/node-modules-polyfill": "^0.2.2",
     "@types/jasmine": "~5.1.0",
     "@types/sha.js": "^2.4.4",
+    "concurrently": "^9.2.1",
     "jasmine-core": "~5.6.0",
     "karma": "~6.4.0",
     "karma-chrome-launcher": "~3.2.0",
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "nodemon": "^3.1.10",
     "typescript": "~5.7.2"
   }
 }

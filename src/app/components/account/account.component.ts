@@ -445,7 +445,7 @@ export class AccountComponent implements AfterViewChecked {
                     this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                     const response = await client.submitAndWait(accountSetTx, { wallet });
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         console.error(`response ${JSON.stringify(response, null, 2)}`);
+                         console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
@@ -565,7 +565,7 @@ export class AccountComponent implements AfterViewChecked {
 
                const response = await client.submitAndWait(depositPreauthTx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`response ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
@@ -770,7 +770,7 @@ export class AccountComponent implements AfterViewChecked {
 
                const response = await client.submitAndWait(signerListTx, { wallet });
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`response ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();

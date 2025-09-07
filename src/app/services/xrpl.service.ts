@@ -155,15 +155,45 @@ export class XrplService {
           return this.http.get<any>(url);
      }
 
-     getWalletFromMnemonic(mnemonic: string) {
-          const url = `http://localhost:3000/api/derive/mnemonic/${mnemonic}`;
-          const wallet = this.http.get<any>(url);
+     // Generate account from Mnemonic
+     async generateWalletFromMnemonic() {
+          const url = `http://localhost:3000/api/create-wallet/mnemonic/`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
 
-     generateWalletFromMnemonic() {
-          const url = `http://localhost:3000/api/create-wallet/mnemonic/`;
-          const wallet = this.http.get<any>(url);
+     // Derive account from Mnemonic
+     async deriveWalletFromMnemonic(mnemonic: string) {
+          const url = `http://localhost:3000/api/derive/mnemonic/${encodeURIComponent(mnemonic)}`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
+          return wallet;
+     }
+
+     // Generate account from Secret Numbers
+     async generateWalletFromSecretNumbers() {
+          const url = `http://localhost:3000/api/create-wallet/secret-numbers/`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
+          return wallet;
+     }
+
+     // Derive account from Secret Numbers
+     async deriveWalletFromSecretNumbers(secretNumbers: string) {
+          const url = 'http://localhost:3000/api/derive/secret-numbers';
+          const wallet = await firstValueFrom(this.http.post<any>(url, { secretNumbers }));
+          return wallet;
+     }
+
+     // Generate account from Family Seed
+     async generateWalletFromFamilySeed() {
+          const url = `http://localhost:3000/api/create-wallet/family-seed`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
+          return wallet;
+     }
+
+     // Derive account from Family Seed
+     async deriveWalletFromFamilySeed(familySeed: string) {
+          const url = 'http://localhost:3000/api/derive/secret-numbers';
+          const wallet = await firstValueFrom(this.http.post<any>(url, { familySeed }));
           return wallet;
      }
 

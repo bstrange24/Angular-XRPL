@@ -160,123 +160,174 @@ export class WalletMultiInputComponent {
           this.emitChange();
      }
 
-     generateNewWallet(account: '1' | '2' | '3') {
-          const wallet = xrpl.Wallet.generate();
+     // generateNewWallet(account: '1' | '2' | '3') {
+     //      const wallet = xrpl.Wallet.generate();
+     //      this.updateAccount(account, {
+     //           address: wallet.classicAddress,
+     //           seed: wallet.seed || '',
+     //      });
+     //      this.saveInput(`account${account}address`, wallet.classicAddress);
+     //      this.saveInput(`account${account}seed`, wallet.seed || '');
+     //      this.emitChange();
+     // }
+
+     async generateNewWalletFromFamilySeed(account: '1' | '2' | '3') {
+          const wallet = await this.xrplService.generateWalletFromFamilySeed();
           this.updateAccount(account, {
-               address: wallet.classicAddress,
-               seed: wallet.seed || '',
+               address: wallet.address,
+               seed: wallet.secret.familySeed || '',
+               mnemonic: '',
+               secretNumbers: '',
           });
-          this.saveInput(`account${account}address`, wallet.classicAddress);
-          this.saveInput(`account${account}seed`, wallet.seed || '');
+          this.saveInput(`account${account}address`, wallet.address);
+          this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+          this.emitChange();
+     }
+
+     async deriveNewWalletFromFamilySeed(account: '1' | '2' | '3') {
+          const seed = this.getAccount(account).seed;
+          const wallet = await this.xrplService.deriveWalletFromFamilySeed(seed);
+          this.updateAccount(account, {
+               address: wallet.address,
+               seed: wallet.secret.familySeed || '',
+               mnemonic: '',
+               secretNumbers: '',
+          });
+          this.saveInput(`account${account}address`, wallet.address);
+          this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
           this.emitChange();
      }
 
      async generateNewWalletFromMnemonic(account: '1' | '2' | '3') {
-          const wallet = xrpl.Wallet.generate();
-          // const mnemonic = bip39.generateMnemonic();
-          // const seed = await bip39.mnemonicToSeed(mnemonic);
-          // const familySeed = `s${seed.toString('hex').slice(0, 32)}`;
-          // const wallet = xrpl.Wallet.fromSeed(familySeed);
+          const wallet = await this.xrplService.generateWalletFromMnemonic();
           this.updateAccount(account, {
-               address: wallet.classicAddress,
-               seed: wallet.seed || '',
+               address: wallet.address,
+               mnemonic: wallet.secret.mnemonic || '',
+               seed: '',
+               secretNumbers: '',
           });
-          this.saveInput(`account${account}address`, wallet.classicAddress);
-          this.saveInput(`account${account}seed`, wallet.seed || '');
+          this.saveInput(`account${account}address`, wallet.address);
+          this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
           this.emitChange();
      }
 
-     generateNewWalletFromSecretNumbers(account: '1' | '2' | '3') {
-          const wallet = xrpl.Wallet.generate();
-          // const numbers = this.generateSecretNumbers(); // mimic generate()
-          // const seed = this.secretNumbersToFamilySeed(numbers); // mimic convertToFamilySeed()
-          // const wallet = xrpl.Wallet.fromSecret(seed);
-
-          this.updateAccount(account, {
-               address: wallet.classicAddress,
-               seed: wallet.seed || '',
-          });
-          this.saveInput(`account${account}address`, wallet.classicAddress);
-          this.saveInput(`account${account}seed`, wallet.seed || '');
-          this.emitChange();
-     }
-
-     generateSecretNumbers(): string[] {
-          // Generate secret groups
-          return secretNumbers.randomSecret();
-     }
-
-     secretNumbersToFamilySeed(numbers: string[]): string {
-          // Convert secret numbers to entropy (Uint8Array)
-          const entropy = secretNumbers.secretToEntropy(numbers);
-
-          // Convert entropy back to secret numbers array
-          const groups = secretNumbers.entropyToSecret(entropy);
-
-          // Join groups by space to form the family seed string
-          return groups.join(' ');
-     }
-
-     getAccountFromSeed(account: '1' | '2' | '3') {
-          const seed = this.getAccount(account).seed;
-          if (seed) {
-               try {
-                    const wallet = xrpl.Wallet.fromSeed(seed);
-                    this.updateAccount(account, {
-                         address: wallet.classicAddress,
-                         seed,
-                    });
-                    this.saveInput(`account${account}address`, wallet.classicAddress);
-                    this.saveInput(`account${account}seed`, seed);
-                    this.emitChange();
-               } catch (error) {
-                    alert(`Invalid seed: ${(error as Error).message}`);
-               }
-          } else {
-               alert('Seed is empty');
-          }
-     }
-
-     getAccountFromMnemonic(account: '1' | '2' | '3') {
+     async deriveNewWalletFromMnemonic(account: '1' | '2' | '3') {
           const mnemonic = this.getAccount(account).mnemonic;
-          if (mnemonic) {
-               try {
-                    const wallet = xrpl.Wallet.fromMnemonic(mnemonic);
-                    this.updateAccount(account, {
-                         address: wallet.classicAddress,
-                         mnemonic,
-                    });
-                    this.saveInput(`account${account}address`, wallet.classicAddress);
-                    this.saveInput(`account${account}mnemonic`, mnemonic);
-                    this.emitChange();
-               } catch (error) {
-                    alert(`Invalid mnemonic: ${(error as Error).message}`);
-               }
-          } else {
-               alert('Mnemonic is empty');
-          }
+          const wallet = await this.xrplService.deriveWalletFromMnemonic(mnemonic);
+          this.updateAccount(account, {
+               address: wallet.address,
+               mnemonic: wallet.secret.mnemonic || '',
+               seed: '',
+               secretNumbers: '',
+          });
+          this.saveInput(`account${account}address`, wallet.address);
+          this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
+          this.emitChange();
      }
 
-     getAccountFromSecretNumbers(account: '1' | '2' | '3') {
-          const secretNumbers = this.getAccount(account).secretNumbers;
-          if (secretNumbers) {
-               // try {
-               // const seed = deriveFamilySeed(secretNumbers);
-               //      const wallet = xrpl.Wallet.fromSeed(seed);
-               //      this.updateAccount(account, {
-               //           address: wallet.classicAddress,
-               //           secretNumbers,
-               //      });
-               //      this.saveInput(`account${account}address`, wallet.classicAddress);
-               //      this.saveInput(`account${account}mnemonic`, secretNumbers);
-               //      this.emitChange();
-               // } catch (error) {
-               //      alert(`Invalid secret numbers: ${error}`);
-               // }
-          } else {
-               alert('Secret numbers are empty');
-          }
+     async generateNewWalletFromSecretNumbers(account: '1' | '2' | '3') {
+          const wallet = await this.xrplService.generateWalletFromSecretNumbers();
+          this.updateAccount(account, {
+               address: wallet.address,
+               secretNumbers: wallet.secret.secretNumbers || '',
+               seed: '',
+               mnemonic: '',
+          });
+          this.saveInput(`account${account}address`, wallet.address);
+          this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+          this.emitChange();
      }
+
+     async deriveNewWalletFromSecretNumbers(account: '1' | '2' | '3') {
+          const secretNumbers = this.getAccount(account).secretNumbers;
+          const wallet = await this.xrplService.deriveWalletFromSecretNumbers(secretNumbers);
+          this.updateAccount(account, {
+               address: wallet.address,
+               secretNumbers: wallet.secret.secretNumbers || '',
+               seed: '',
+               mnemonic: '',
+          });
+          this.saveInput(`account${account}address`, wallet.address);
+          this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+          this.emitChange();
+     }
+
+     // generateSecretNumbers(): string[] {
+     //      // Generate secret groups
+     //      return secretNumbers.randomSecret();
+     // }
+
+     // secretNumbersToFamilySeed(numbers: string[]): string {
+     //      // Convert secret numbers to entropy (Uint8Array)
+     //      const entropy = secretNumbers.secretToEntropy(numbers);
+
+     //      // Convert entropy back to secret numbers array
+     //      const groups = secretNumbers.entropyToSecret(entropy);
+
+     //      // Join groups by space to form the family seed string
+     //      return groups.join(' ');
+     // }
+
+     // getAccountFromSeed(account: '1' | '2' | '3') {
+     //      const seed = this.getAccount(account).seed;
+     //      if (seed) {
+     //           try {
+     //                const wallet = xrpl.Wallet.fromSeed(seed);
+     //                this.updateAccount(account, {
+     //                     address: wallet.classicAddress,
+     //                     seed,
+     //                });
+     //                this.saveInput(`account${account}address`, wallet.classicAddress);
+     //                this.saveInput(`account${account}seed`, seed);
+     //                this.emitChange();
+     //           } catch (error) {
+     //                alert(`Invalid seed: ${(error as Error).message}`);
+     //           }
+     //      } else {
+     //           alert('Seed is empty');
+     //      }
+     // }
+
+     // getAccountFromMnemonic(account: '1' | '2' | '3') {
+     //      const mnemonic = this.getAccount(account).mnemonic;
+     //      if (mnemonic) {
+     //           try {
+     //                const wallet = xrpl.Wallet.fromMnemonic(mnemonic);
+     //                this.updateAccount(account, {
+     //                     address: wallet.classicAddress,
+     //                     mnemonic,
+     //                });
+     //                this.saveInput(`account${account}address`, wallet.classicAddress);
+     //                this.saveInput(`account${account}mnemonic`, mnemonic);
+     //                this.emitChange();
+     //           } catch (error) {
+     //                alert(`Invalid mnemonic: ${(error as Error).message}`);
+     //           }
+     //      } else {
+     //           alert('Mnemonic is empty');
+     //      }
+     // }
+
+     // getAccountFromSecretNumbers(account: '1' | '2' | '3') {
+     //      const secretNumbers = this.getAccount(account).secretNumbers;
+     //      if (secretNumbers) {
+     //           // try {
+     //           // const seed = deriveFamilySeed(secretNumbers);
+     //           //      const wallet = xrpl.Wallet.fromSeed(seed);
+     //           //      this.updateAccount(account, {
+     //           //           address: wallet.classicAddress,
+     //           //           secretNumbers,
+     //           //      });
+     //           //      this.saveInput(`account${account}address`, wallet.classicAddress);
+     //           //      this.saveInput(`account${account}mnemonic`, secretNumbers);
+     //           //      this.emitChange();
+     //           // } catch (error) {
+     //           //      alert(`Invalid secret numbers: ${error}`);
+     //           // }
+     //      } else {
+     //           alert('Secret numbers are empty');
+     //      }
+     // }
 
      private getAccountMnemonic(account: '1' | '2' | 'issuerMnemonic') {
           if (account === '1') {

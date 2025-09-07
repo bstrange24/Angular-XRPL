@@ -2992,6 +2992,18 @@ export class UtilsService {
           tx.DestinationTag = parseInt(destinationTagField, 10);
      }
 
+     setMessageKey(tx: any, messageKey: string) {
+          tx.MessageKey = messageKey;
+     }
+
+     setDomain(tx: any, domain: string) {
+          if (domain === '') {
+               tx.Domain = '';
+          } else {
+               tx.Domain = Buffer.from(domain, 'utf8').toString('hex');
+          }
+     }
+
      setTransferRate(tx: any, transferRate: number) {
           tx.TransferRate = this.getTransferRate(transferRate);
      }
