@@ -1,6 +1,7 @@
 import { ElementRef, ViewChild } from '@angular/core';
 import { Injectable } from '@angular/core';
 import * as xrpl from 'xrpl';
+import { walletFromSecretNumbers, Wallet } from 'xrpl'
 import { flagNames } from 'flagnames';
 import { XrplService } from '../services/xrpl.service';
 import { AppConstants } from '../core/app.constants';
@@ -16,6 +17,8 @@ type DidValidationResult = {
      hexData?: string;
      errors?: string;
 };
+
+type InputType = 'seed' | 'mnemonic' | 'secret_numbers' | 'unknown';
 
 @Injectable({
      providedIn: 'root',
@@ -658,12 +661,61 @@ export class UtilsService {
      async getWallet(seed: string, environment: string): Promise<xrpl.Wallet> {
           const savedEncryptionType = this.storageService.getInputValue('encryptionType');
           // console.log(`savedEncryptionType: ${savedEncryptionType}`);
+
+          const result = this.detectXrpInputType(seed);
           if (savedEncryptionType === 'true') {
-               return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+               if(result.type === 'seed') {
+                    return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+               } else if(result.type === 'mnemonic') {
+                    return Wallet.fromMnemonic(result.value, {algorithm: AppConstants.ENCRYPTION.ED25519});
+               } else if(result.type === 'secret_numbers') {
+                    return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+               } else {
+                    throw new Error('Invalid seed or mnemonic format');
+               }
           } else {
-               return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+               if(result.type === 'seed') {
+                    return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+               } else if(result.type === 'mnemonic') {
+                    return Wallet.fromMnemonic(result.value, {algorithm: AppConstants.ENCRYPTION.SECP256K1});
+               } else if(result.type === 'secret_numbers') {
+                    return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+               } else {
+                    throw new Error('Invalid seed or mnemonic format');
+               }
           }
+          // if (savedEncryptionType === 'true') {
+          //      return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+          // } else {
+          //      return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+          // }
      }
+
+     detectXrpInputType(input: string): { type: InputType; value: string } {
+          const trimmed = input.trim();
+
+          // Check for seed (starts with 's' and is base58)
+          const seedRegex = /^s[0-9a-zA-Z]{20,}$/;
+          if (seedRegex.test(trimmed)) {
+               return { type: 'seed', value: trimmed };
+          }
+
+          // Check for mnemonic (space-separated lowercase words, usually 12-24)
+          const mnemonicWords = trimmed.split(/\s+/);
+          const isAllWords = mnemonicWords.every(word => /^[a-z]+$/.test(word));
+          if (isAllWords && [12, 15, 18, 21, 24].includes(mnemonicWords.length)) {
+               return { type: 'mnemonic', value: trimmed };
+          }
+
+          // Check for secret numbers (comma-separated 6-digit numbers)
+          const numberParts = trimmed.split(',');
+          const isAllNumbers = numberParts.every(num => /^\d{6}$/.test(num.trim()));
+          if (isAllNumbers && numberParts.length > 1) {
+               return { type: 'secret_numbers', value: trimmed };
+          }
+
+          return { type: 'unknown', value: trimmed };
+}
 
      checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {
           const now = currentRippleTime;

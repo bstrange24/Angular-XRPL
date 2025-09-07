@@ -179,8 +179,14 @@ export class WalletMultiInputComponent {
                mnemonic: '',
                secretNumbers: '',
           });
-          this.saveInput(`account${account}address`, wallet.address);
-          this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+          if(account === '3') {
+               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
+          } else {
+               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+
+          }
           this.emitChange();
      }
 
@@ -203,11 +209,16 @@ export class WalletMultiInputComponent {
           this.updateAccount(account, {
                address: wallet.address,
                mnemonic: wallet.secret.mnemonic || '',
-               seed: '',
+               seed: wallet.secret.mnemonic || '',
                secretNumbers: '',
           });
-          this.saveInput(`account${account}address`, wallet.address);
-          this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
+          if(account === '3') {
+               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerSeed`, wallet.secret.mnemonic || '');
+          } else {
+               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
+          }
           this.emitChange();
      }
 
@@ -230,11 +241,16 @@ export class WalletMultiInputComponent {
           this.updateAccount(account, {
                address: wallet.address,
                secretNumbers: wallet.secret.secretNumbers || '',
-               seed: '',
+               seed: wallet.secret.secretNumbers || '',
                mnemonic: '',
           });
-          this.saveInput(`account${account}address`, wallet.address);
-          this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+          if(account === '3') {
+               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerSeed`, wallet.secret.secretNumbers || '');
+          } else {
+               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
+          }
           this.emitChange();
      }
 
