@@ -155,6 +155,18 @@ export class XrplService {
           return this.http.get<any>(url);
      }
 
+     getWalletFromMnemonic(mnemonic: string) {
+          const url = `http://localhost:3000/api/derive/mnemonic/${mnemonic}`;
+          const wallet = this.http.get<any>(url);
+          return wallet;
+     }
+
+     generateWalletFromMnemonic() {
+          const url = `http://localhost:3000/api/create-wallet/mnemonic/`;
+          const wallet = this.http.get<any>(url);
+          return wallet;
+     }
+
      async getTokenCreationDateFromXPMarket(currency: string, issuer: string): Promise<Date> {
           const key = `${currency}:${issuer}`;
           const now = Date.now();
