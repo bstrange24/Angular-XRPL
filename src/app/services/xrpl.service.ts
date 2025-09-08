@@ -59,15 +59,6 @@ export class XrplService {
           return this.client;
      }
 
-     // async getClient(): Promise<xrpl.Client> {
-     //      if (!this.client || !this.client.isConnected()) {
-     //           const { net } = this.getNet();
-     //           this.client = new xrpl.Client(net);
-     //           await this.client.connect();
-     //      }
-     //      return this.client;
-     // }
-
      async disconnect() {
           if (this.client) {
                await this.client.disconnect();
@@ -155,9 +146,23 @@ export class XrplService {
           return this.http.get<any>(url);
      }
 
+     // Generate account from Family Seed
+     async generateWalletFromFamilySeed(environment: string) {
+          const url = `http://localhost:3000/api/create-wallet/family-seed/${encodeURIComponent(environment)}`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
+          return wallet;
+     }
+
+     // Derive account from Family Seed
+     async deriveWalletFromFamilySeed(familySeed: string) {
+          const url = `http://localhost:3000/api/derive/family-seed/${encodeURIComponent(familySeed)}`;
+          const wallet = await firstValueFrom(this.http.get<any>(url));
+          return wallet;
+     }
+
      // Generate account from Mnemonic
-     async generateWalletFromMnemonic() {
-          const url = `http://localhost:3000/api/create-wallet/mnemonic/`;
+     async generateWalletFromMnemonic(environment: string) {
+          const url = `http://localhost:3000/api/create-wallet/mnemonic/${encodeURIComponent(environment)}`;
           const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
@@ -170,8 +175,8 @@ export class XrplService {
      }
 
      // Generate account from Secret Numbers
-     async generateWalletFromSecretNumbers() {
-          const url = `http://localhost:3000/api/create-wallet/secret-numbers/`;
+     async generateWalletFromSecretNumbers(environment: string) {
+          const url = `http://localhost:3000/api/create-wallet/secret-numbers/${encodeURIComponent(environment)}`;
           const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
@@ -183,18 +188,32 @@ export class XrplService {
           return wallet;
      }
 
-     // Generate account from Family Seed
-     async generateWalletFromFamilySeed() {
-          const url = `http://localhost:3000/api/create-wallet/family-seed`;
-          const wallet = await firstValueFrom(this.http.get<any>(url));
-          return wallet;
-     }
+     async fundWalletFromFaucet(wallet: xrpl.Wallet | { secret?: { familySeed?: string } }) {
+          const environment = this.getNet().environment;
+          if (environment !== 'mainnet') {
+               try {
+                    const client = await this.getClient();
 
-     // Derive account from Family Seed
-     async deriveWalletFromFamilySeed(familySeed: string) {
-          const url = `http://localhost:3000/api/derive/family-seed/${encodeURIComponent(familySeed)}`;
-          const wallet = await firstValueFrom(this.http.get<any>(url));
-          return wallet;
+                    // If wallet is not already an xrpl.Wallet, convert it
+                    let xrplWallet: xrpl.Wallet;
+                    if (wallet instanceof xrpl.Wallet) {
+                         xrplWallet = wallet;
+                    } else if (wallet && typeof wallet === 'object' && wallet.secret?.familySeed) {
+                         xrplWallet = xrpl.Wallet.fromSeed(wallet.secret.familySeed);
+                    } else {
+                         throw new Error('Unsupported wallet type for funding');
+                    }
+
+                    // Call faucet
+                    const faucetResult = await client.fundWallet(xrplWallet);
+                    console.log('Faucet result:', faucetResult);
+                    return faucetResult;
+               } catch (error) {
+                    console.error('Funding failed:', error);
+                    throw error;
+               }
+          }
+          return null;
      }
 
      async getTokenCreationDateFromXPMarket(currency: string, issuer: string): Promise<Date> {

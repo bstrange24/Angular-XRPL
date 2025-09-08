@@ -113,9 +113,9 @@ export class MptComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               if (Object.keys(this.knownDestinations).length === 0) {
-                    this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-               }
+               // if (Object.keys(this.knownDestinations).length === 0) {
+               this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
+               // }
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
           } catch (error) {

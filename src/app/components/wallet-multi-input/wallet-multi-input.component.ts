@@ -156,7 +156,9 @@ export class WalletMultiInputComponent {
      }
 
      async generateNewWalletFromFamilySeed(account: '1' | '2' | '3') {
-          const wallet = await this.xrplService.generateWalletFromFamilySeed();
+          const environment = this.xrplService.getNet().environment;
+          const wallet = await this.xrplService.generateWalletFromFamilySeed(environment);
+          await this.sleep(4000);
           this.updateAccount(account, {
                address: wallet.address,
                seed: wallet.secret.familySeed || '',
@@ -197,11 +199,23 @@ export class WalletMultiInputComponent {
                this.saveInput(`account${account}mnemonic`, '');
                this.saveInput(`account${account}secretNumbers`, '');
           }
+
+          const destionations = this.storageService.getKnownIssuers('destinations');
+          let updatedDestionations;
+          if (destionations) {
+               updatedDestionations = this.updateAccountDestination(destionations, Number(account), wallet.address);
+               this.storageService.removeValue('destinations');
+          }
+          if (updatedDestionations) {
+               this.storageService.setKnownIssuers('destinations', updatedDestionations);
+          }
           this.emitChange();
      }
 
      async generateNewWalletFromMnemonic(account: '1' | '2' | '3') {
-          const wallet = await this.xrplService.generateWalletFromMnemonic();
+          const environment = this.xrplService.getNet().environment;
+          const wallet = await this.xrplService.generateWalletFromMnemonic(environment);
+          await this.sleep(4000);
           this.updateAccount(account, {
                address: wallet.address,
                mnemonic: wallet.secret.mnemonic || '',
@@ -239,11 +253,22 @@ export class WalletMultiInputComponent {
                this.saveInput(`account${account}secretNumbers`, '');
           }
 
+          const destionations = this.storageService.getKnownIssuers('destinations');
+          let updatedDestionations;
+          if (destionations) {
+               updatedDestionations = this.updateAccountDestination(destionations, Number(account), wallet.address);
+               this.storageService.removeValue('destinations');
+          }
+          if (updatedDestionations) {
+               this.storageService.setKnownIssuers('destinations', updatedDestionations);
+          }
           this.emitChange();
      }
 
      async generateNewWalletFromSecretNumbers(account: '1' | '2' | '3') {
-          const wallet = await this.xrplService.generateWalletFromSecretNumbers();
+          const environment = this.xrplService.getNet().environment;
+          const wallet = await this.xrplService.generateWalletFromSecretNumbers(environment);
+          await this.sleep(4000);
           this.updateAccount(account, {
                address: wallet.address,
                secretNumbers: wallet.secret.secretNumbers || '',
@@ -280,7 +305,25 @@ export class WalletMultiInputComponent {
                this.saveInput(`account${account}mnemonic`, '');
                this.saveInput(`account${account}seed`, wallet.secret.secretNumbers || '');
           }
+
+          const destionations = this.storageService.getKnownIssuers('destinations');
+          let updatedDestionations;
+          if (destionations) {
+               updatedDestionations = this.updateAccountDestination(destionations, Number(account), wallet.address);
+               this.storageService.removeValue('destinations');
+          }
+          if (updatedDestionations) {
+               this.storageService.setKnownIssuers('destinations', updatedDestionations);
+          }
           this.emitChange();
+     }
+
+     private updateAccountDestination(accounts: Record<string, string>, num: number, newAddress: string) {
+          const key = `Account${num}`; // e.g. "Account1"
+          if (accounts.hasOwnProperty(key)) {
+               accounts[key] = newAddress;
+          }
+          return accounts;
      }
 
      private getAccountMnemonic(account: '1' | '2' | 'issuerMnemonic') {
@@ -339,7 +382,6 @@ export class WalletMultiInputComponent {
           }
 
           try {
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
 
                const tempDiv = document.createElement('div');
@@ -421,5 +463,9 @@ export class WalletMultiInputComponent {
 
           // Optional: save it immediately
           this.saveInput(`${accountKey}`, pastedText);
+     }
+
+     sleep(ms: number) {
+          return new Promise(resolve => setTimeout(resolve, ms));
      }
 }

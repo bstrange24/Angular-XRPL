@@ -90,12 +90,7 @@ export class SendXrpComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-               if (Object.keys(this.knownDestinations).length === 0) {
-                    this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-               }
                this.updateDestinations();
-               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -521,8 +516,10 @@ export class SendXrpComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          this.destinations = [...Object.values(this.knownDestinations)];
-          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+          const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
+          this.destinations = [...Object.values(knownDestinationsTemp)];
+          this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
+          this.destinationFields = this.issuer.address;
      }
 
      private async getWallet() {

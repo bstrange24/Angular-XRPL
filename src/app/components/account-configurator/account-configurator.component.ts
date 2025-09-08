@@ -1712,15 +1712,21 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                return 'Please select an account';
           }
           if (inputs.seed != undefined) {
-               if (!this.utilsService.validateInput(inputs.seed)) {
-                    return 'Account seed cannot be empty';
-               }
-               if (!xrpl.isValidSecret(inputs.seed)) {
+               const { value } = this.utilsService.detectXrpInputType(inputs.seed);
+               if (value === 'unknown') {
                     return 'Account seed is invalid';
                }
-          } else {
-               return 'Account seed is invalid';
           }
+          // if (inputs.seed != undefined) {
+          //      if (!this.utilsService.validateInput(inputs.seed)) {
+          //           return 'Account seed cannot be empty';
+          //      }
+          //      if (!xrpl.isValidSecret(inputs.seed)) {
+          //           return 'Account seed is invalid';
+          //      }
+          // } else {
+          //      return 'Account seed is invalid';
+          // }
           if (inputs.amount != undefined) {
                if (!this.utilsService.validateInput(inputs.amount)) {
                     return 'XRP Amount cannot be empty';

@@ -155,12 +155,13 @@ export class TrustlinesComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-               if (Object.keys(this.knownDestinations).length === 0) {
-                    this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
+               let storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
+               if (storedIssuers) {
+                    this.storageService.removeValue('knownIssuers');
+                    this.knownTrustLinesIssuers = this.utilsService.normalizeAccounts(storedIssuers, this.issuer.address);
+                    this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                }
                this.updateDestinations();
-               this.destinationFields = this.issuer.address;
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -424,7 +425,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.memoField = '';
                this.amountField = '';
 
-               const currency = this.utilsService.decodeIfNeeded(this.currencyField);
+               const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
                const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
 
                if (rippleState && 'LedgerEntryType' in rippleState && rippleState.LedgerEntryType === 'RippleState') {
@@ -1446,11 +1447,11 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
 
           // 2. Seed
-          if (!seed || !this.utilsService.validateInput(seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (!xrpl.isValidSecret(seed)) {
-               return 'Account seed is invalid';
+          if (seed) {
+               const { type, value } = this.utilsService.detectXrpInputType(seed);
+               if (value === 'unknown') {
+                    return 'Account seed is invalid';
+               }
           }
 
           // 3. Amount
@@ -1515,8 +1516,10 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          this.destinations = [...Object.values(this.knownDestinations)];
-          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+          const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
+          this.destinations = [...Object.values(knownDestinationsTemp)];
+          this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
+          this.destinationFields = this.issuer.address;
      }
 
      async getWallet() {

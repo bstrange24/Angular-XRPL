@@ -1,7 +1,7 @@
 import { ElementRef, ViewChild } from '@angular/core';
 import { Injectable } from '@angular/core';
 import * as xrpl from 'xrpl';
-import { walletFromSecretNumbers, Wallet } from 'xrpl'
+import { walletFromSecretNumbers, Wallet } from 'xrpl';
 import { flagNames } from 'flagnames';
 import { XrplService } from '../services/xrpl.service';
 import { AppConstants } from '../core/app.constants';
@@ -494,11 +494,32 @@ export class UtilsService {
      }
 
      populateKnownDestinations(knownDestinations: any, account1: string, account2: string, issuer: string) {
-          knownDestinations = {
+          return (knownDestinations = {
                Account1: account1,
                Account2: account2,
                Account3: issuer,
-          };
+          });
+     }
+
+     normalizeAccounts(accounts: Record<string, string>, newAddress: string): Record<string, string> {
+          // Check if all non-XRP keys are already set to newAddress
+          const alreadyNormalized = Object.entries(accounts)
+               .filter(([key]) => key !== 'XRP')
+               .every(([, value]) => value === newAddress);
+
+          if (alreadyNormalized) {
+               return accounts; // Nothing to change
+          }
+
+          // Update all non-XRP keys to newAddress
+          const updated = { ...accounts };
+          for (const key in updated) {
+               if (key !== 'XRP') {
+                    updated[key] = newAddress;
+               }
+          }
+
+          return updated;
      }
 
      isValidCurrencyCode(currency: string): boolean {
@@ -664,21 +685,21 @@ export class UtilsService {
 
           const result = this.detectXrpInputType(seed);
           if (savedEncryptionType === 'true') {
-               if(result.type === 'seed') {
+               if (result.type === 'seed') {
                     return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
-               } else if(result.type === 'mnemonic') {
-                    return Wallet.fromMnemonic(result.value, {algorithm: AppConstants.ENCRYPTION.ED25519});
-               } else if(result.type === 'secret_numbers') {
+               } else if (result.type === 'mnemonic') {
+                    return Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+               } else if (result.type === 'secret_numbers') {
                     return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
                } else {
                     throw new Error('Invalid seed or mnemonic format');
                }
           } else {
-               if(result.type === 'seed') {
+               if (result.type === 'seed') {
                     return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
-               } else if(result.type === 'mnemonic') {
-                    return Wallet.fromMnemonic(result.value, {algorithm: AppConstants.ENCRYPTION.SECP256K1});
-               } else if(result.type === 'secret_numbers') {
+               } else if (result.type === 'mnemonic') {
+                    return Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+               } else if (result.type === 'secret_numbers') {
                     return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
                } else {
                     throw new Error('Invalid seed or mnemonic format');
@@ -715,7 +736,7 @@ export class UtilsService {
           }
 
           return { type: 'unknown', value: trimmed };
-}
+     }
 
      checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {
           const now = currentRippleTime;
@@ -1106,7 +1127,8 @@ export class UtilsService {
                }
 
                // Get account info to calculate reserves
-               const accountInfo = await this.getAccountInfo(address);
+               const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
+               // const accountInfo = await this.getAccountInfo(address);
                const balanceDrops = BigInt(accountInfo.result.account_data.Balance);
 
                // Get server info for reserve requirements
@@ -2855,101 +2877,101 @@ export class UtilsService {
           }
      }
 
-     async getAccountInfo(address: string): Promise<any> {
-          try {
-               const client = await this.xrplService.getClient();
-               const accountInfo = await client.request({
-                    command: 'account_info',
-                    account: address,
-               });
+     // async getAccountInfo(address: string): Promise<any> {
+     //      try {
+     //           const client = await this.xrplService.getClient();
+     //           const accountInfo = await client.request({
+     //                command: 'account_info',
+     //                account: address,
+     //           });
 
-               return accountInfo;
-          } catch (error: any) {
-               throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
-          }
-     }
+     //           return accountInfo;
+     //      } catch (error: any) {
+     //           throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
+     //      }
+     // }
 
-     async getTrustlines(seed: string, environment: string = 'devnet'): Promise<any> {
-          if (!seed) {
-               throw new Error('Account seed cannot be empty');
-          }
-          try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet(seed, environment);
+     // async getTrustlines(seed: string, environment: string = 'devnet'): Promise<any> {
+     //      if (!seed) {
+     //           throw new Error('Account seed cannot be empty');
+     //      }
+     //      try {
+     //           const client = await this.xrplService.getClient();
+     //           const wallet = await this.getWallet(seed, environment);
 
-               if (!wallet) {
-                    throw new Error('ERROR: Wallet could not be created or is undefined');
-               }
+     //           if (!wallet) {
+     //                throw new Error('ERROR: Wallet could not be created or is undefined');
+     //           }
 
-               // let wallet;
-               // if (seed.split(' ').length > 1) {
-               //      wallet = xrpl.Wallet.fromMnemonic(seed, {
-               //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-               //      });
-               // } else {
-               //      wallet = xrpl.Wallet.fromSeed(seed, {
-               //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-               //      });
-               // }
+     //           // let wallet;
+     //           // if (seed.split(' ').length > 1) {
+     //           //      wallet = xrpl.Wallet.fromMnemonic(seed, {
+     //           //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+     //           //      });
+     //           // } else {
+     //           //      wallet = xrpl.Wallet.fromSeed(seed, {
+     //           //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+     //           //      });
+     //           // }
 
-               const trustLines = await client.request({
-                    command: 'account_lines',
-                    account: wallet.classicAddress,
-               });
+     //           const trustLines = await client.request({
+     //                command: 'account_lines',
+     //                account: wallet.classicAddress,
+     //           });
 
-               // Filter out trust lines with Limit: 0
-               const activeTrustLines = trustLines.result.lines.filter((line: any) => parseFloat(line.limit) > 0);
-               console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLines);
+     //           // Filter out trust lines with Limit: 0
+     //           const activeTrustLines = trustLines.result.lines.filter((line: any) => parseFloat(line.limit) > 0);
+     //           console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLines);
 
-               if (activeTrustLines.length === 0) {
-                    console.log(`No active trust lines found for ${wallet.classicAddress}`);
-                    return [];
-               }
+     //           if (activeTrustLines.length === 0) {
+     //                console.log(`No active trust lines found for ${wallet.classicAddress}`);
+     //                return [];
+     //           }
 
-               console.debug(`Trust lines for ${wallet.classicAddress}:`, activeTrustLines);
-               return activeTrustLines;
-          } catch (error: any) {
-               throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
-          }
-     }
+     //           console.debug(`Trust lines for ${wallet.classicAddress}:`, activeTrustLines);
+     //           return activeTrustLines;
+     //      } catch (error: any) {
+     //           throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
+     //      }
+     // }
 
-     refreshUiIAccountMetaData(accountInfo: any) {
-          const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement;
-          if (tickSizeField) {
-               if (accountInfo.account_data.TickSize && accountInfo.account_data.TickSize != '') {
-                    tickSizeField.value = accountInfo.account_data.TickSize;
-               } else {
-                    tickSizeField.value = '';
-               }
-          }
+     // refreshUiIAccountMetaData(accountInfo: any) {
+     //      const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement;
+     //      if (tickSizeField) {
+     //           if (accountInfo.account_data.TickSize && accountInfo.account_data.TickSize != '') {
+     //                tickSizeField.value = accountInfo.account_data.TickSize;
+     //           } else {
+     //                tickSizeField.value = '';
+     //           }
+     //      }
 
-          const transferRateField = document.getElementById('transferRateField') as HTMLInputElement;
-          if (transferRateField) {
-               if (accountInfo.account_data.TransferRate && accountInfo.account_data.TransferRate != '') {
-                    transferRateField.value = ((accountInfo.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(3);
-               } else {
-                    transferRateField.value = '';
-               }
-          }
+     //      const transferRateField = document.getElementById('transferRateField') as HTMLInputElement;
+     //      if (transferRateField) {
+     //           if (accountInfo.account_data.TransferRate && accountInfo.account_data.TransferRate != '') {
+     //                transferRateField.value = ((accountInfo.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(3);
+     //           } else {
+     //                transferRateField.value = '';
+     //           }
+     //      }
 
-          const domainField = document.getElementById('domainField') as HTMLInputElement;
-          if (domainField) {
-               if (accountInfo.account_data.Domain && accountInfo.account_data.Domain != '') {
-                    domainField.value = this.decodeHex(accountInfo.account_data.Domain);
-               } else {
-                    domainField.value = '';
-               }
-          }
+     //      const domainField = document.getElementById('domainField') as HTMLInputElement;
+     //      if (domainField) {
+     //           if (accountInfo.account_data.Domain && accountInfo.account_data.Domain != '') {
+     //                domainField.value = this.decodeHex(accountInfo.account_data.Domain);
+     //           } else {
+     //                domainField.value = '';
+     //           }
+     //      }
 
-          const isMessageKeyField = document.getElementById('isMessageKey') as HTMLInputElement;
-          if (isMessageKeyField) {
-               if (accountInfo.account_data.MessageKey && accountInfo.account_data.MessageKey != '') {
-                    isMessageKeyField.checked = true;
-               } else {
-                    isMessageKeyField.checked = false;
-               }
-          }
-     }
+     //      const isMessageKeyField = document.getElementById('isMessageKey') as HTMLInputElement;
+     //      if (isMessageKeyField) {
+     //           if (accountInfo.account_data.MessageKey && accountInfo.account_data.MessageKey != '') {
+     //                isMessageKeyField.checked = true;
+     //           } else {
+     //                isMessageKeyField.checked = false;
+     //           }
+     //      }
+     // }
 
      setError(message: string, spinner: { style: { display: string } } | undefined) {
           this.isError = true;
