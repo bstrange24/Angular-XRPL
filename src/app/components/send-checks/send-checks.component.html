@@ -11,9 +11,8 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
                                              <label for="accountName1Field">Name</label>
                                         </span>
@@ -24,8 +23,8 @@
                                         <label for="account1">Account 1</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
                                              <label for="accountAddress1Field">Address</label>
                                         </span>
@@ -36,8 +35,8 @@
                                         <label for="account2">Account 2</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
                                              <label for="accountSeed1Field">Seed</label>
                                         </span>
@@ -49,7 +48,7 @@
                                    </td>
                               </tr>
                               <tr>
-                                   <td style="text-align: right">
+                                   <td>
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                                              <label for="xrpBalance1Field">Spendable XRP Balance</label>
                                         </span>
@@ -58,30 +57,28 @@
                                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
                                              <label for="ownerCountField">Owner Count</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
                                              <label for="totalXrpReservesField">Total XRP Reserves</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
                                              <label for="totalExecutionTime">Total Execution Time in ms</label>
                                         </span>
@@ -93,22 +90,20 @@
                          </table>
 
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Currency code for the check.">
                                              <label for="currencyFieldDropDownValue">Currency Code</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="currencyField" style="width: 320px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                        <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
                                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
                                         </select>
-                                        <p></p>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Amount of currency to send.">
                                              <label for="amountField">Amount</label>
                                         </span>
@@ -118,21 +113,20 @@
                                    </td>
                               </tr>
                               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
-                                   <td style="text-align: right">
+                                   <td>
                                         <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
                                              <label for="issuerField">Issuer</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="issuerField" style="width: 320px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                        <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
                                              <option value="" disabled selected>Select an issuer</option>
                                              <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
                                         </select>
-                                        <p></p>
                                    </td>
                               </tr>
                               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
-                                   <td style="text-align: right">
+                                   <td>
                                         <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
                                              <label for="tokenBalance">Currency Balance</label>
                                         </span>
@@ -141,50 +135,37 @@
                                         <input type="text" id="tokenBalance" size="44" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                    </td>
                               </tr>
-                              <!-- <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="Destination account address where XRP is sent.">
-                                             <label for="destinationField">Destination</label>
-                                        </span>
-                                   </td>
+                              <tr>
                                    <td>
-                                        <input type="text" id="destinationField" size="44" [(ngModel)]="destinationField" name="destinationField" />
-                                        <br />
-                                   </td>
-                              </tr> -->
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
                                              <label for="destinationFields">Destination</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="destinationFields" style="width: 320px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
                                              <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
                                         </select>
-                                        <p></p>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
                                              <label for="destinationTagField">Destination Tag</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="destinationTagField" size="44" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Check will expire after this time.">
                                              <label for="expirationTimeField">Expiration Time</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="expirationTimeField" placeholder="Enter time" size="44" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
-                                        <select class="timeUnit" id="checkExpirationTime" [(ngModel)]="checkExpirationTime" name="checkExpirationTime">
+                                        <input type="text" id="expirationTimeField" placeholder="Enter time" [(ngModel)]="expirationTimeField" name="expirationTimeField" />
+                                        <select class="timeUnit" id="checkExpirationTime" style="width: 100px" [(ngModel)]="checkExpirationTime" name="checkExpirationTime">
                                              <option value="seconds">Seconds</option>
                                              <option value="minutes">Minutes</option>
                                              <option value="hours">Hours</option>
@@ -192,15 +173,14 @@
                                         </select>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Check ID to cash check.">
                                              <label for="checkIdField">Check ID</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="checkIdField" size="44" [(ngModel)]="checkIdField" name="checkIdField" />
-                                        <br />
                                    </td>
                               </tr>
                          </table>
@@ -325,10 +305,8 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <th></th>
-                         <!-- Start Memo Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
                                         <label>Memo</label>
                                    </span>
@@ -341,21 +319,18 @@
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMemoEnabled">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
+                              <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label for="memoField"></label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
-                                   <br />
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
-                         <!-- End Memo Section -->
-                         <!-- Start Multi Sign Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Use Multi-Sign Address</label>
                                    </span>
@@ -372,8 +347,8 @@
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
                                                        <label for="multiSignAddress">Signer Addresses</label>
                                                   </span>
@@ -382,8 +357,8 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
                                                        <label for="multiSignSeeds">Signer Seeds</label>
                                                   </span>
@@ -392,24 +367,21 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
                                              </td>
                                         </tr>
-                                        <tr style="vertical-align: top" class="multisignAddressClass" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Credential ID to remove credentials from the account.">
-                                                       <label for="credentialID">Signer Quorum:</label>
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
+                                                       <label for="quorum">Signer Quorum:</label>
                                                   </span>
                                              </td>
                                              <td>
-                                                  <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                                                  <br />
+                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
                                              </td>
                                         </tr>
                                    </fieldset>
                               </td>
                          </tr>
-                         <!-- End Multi Sign Section -->
-                         <!-- Start Regular Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
                                         <label>Use Regular Key</label>
                                    </span>
@@ -422,8 +394,8 @@
                                    <label for="isRegularKeyAddressData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
                                         <label for="regularKeyAddress"></label>
                                    </span>
@@ -432,8 +404,8 @@
                                    <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
                                         <label for="regularKeySeed"></label>
                                    </span>
@@ -442,10 +414,8 @@
                                    <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
                               </td>
                          </tr>
-                         <!-- End Regular Key Section -->
-                         <!-- Start Ticket Sequence Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                                         <label>Use Ticket Sequence</label>
                                    </span>
@@ -458,18 +428,16 @@
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isTicket">
+                              <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
                                         <label for="ticketSequence"></label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                                   <br />
                               </td>
                          </tr>
-                         <!-- End Ticket Sequence Key Section -->
                     </table>
                </div>
           </div>

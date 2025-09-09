@@ -11,9 +11,8 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
                                              <label for="accountName1Field">Name</label>
                                         </span>
@@ -24,8 +23,8 @@
                                         <label for="account1">Account 1</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
                                              <label for="accountAddress1Field">Address</label>
                                         </span>
@@ -36,8 +35,8 @@
                                         <label for="account2">Account 2</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
                                              <label for="accountSeed1Field">Seed</label>
                                         </span>
@@ -49,7 +48,7 @@
                                    </td>
                               </tr>
                               <tr>
-                                   <td style="text-align: right">
+                                   <td>
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                                              <label for="xrpBalanceField">Spendable XRP Balance</label>
                                         </span>
@@ -58,30 +57,28 @@
                                         <input type="text" id="xrpBalanceField" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
                                              <label for="ownerCountField">Owner Count</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
                                              <label for="totalXrpReservesField">Total XRP Reserves</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
                                              <label for="totalExecutionTime">Total Execution Time in ms</label>
                                         </span>
@@ -90,131 +87,51 @@
                                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                                    </td>
                               </tr>
-                              <!-- <tr>
-                                   <td style="text-align: right">
-                                        <div style="display: flex; gap: 30px; align-items: center">
-                                             <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it" style="display: flex; align-items: center">
-                                                  <label for="burnableNft" style="margin-bottom: 0">Burnable</label>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" style="margin-left: 5px" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </span>
-                                             <span class="tooltip" tooltip-data="NFT can only be bought/sold using XRP (no issued tokens)" style="display: flex; align-items: center">
-                                                  <label for="onlyXrpNft" style="margin-bottom: 0">Only XRP</label>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" style="margin-left: 5px" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </span>
-                                        </div>
-                                   </td>
-                                   <td></td>
-                              </tr>
-                              <tr>
-                                   <td style="text-align: right; vertical-align: top">
-                                        <div style="display: flex; gap: 30px; align-items: center">
-                                             <span class="tooltip" tooltip-data="Allows the NFT to be transferred to others" style="display: flex; align-items: center">
-                                                  <label for="transferableNft" style="margin-bottom: 0">Transferable</label>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" style="margin-left: 5px" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </span>
-                                             <span class="tooltip" tooltip-data="The URI field of the minted NFToken can be updated using the NFTokenModify transaction" style="display: flex; align-items: center">
-                                                  <label for="mutableNft" style="margin-bottom: 0">Mutable</label>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" style="margin-left: 5px" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </span>
-                                        </div>
-                                   </td>
-                                   <td></td>
-                              </tr> -->
                          </table>
 
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Amount of XRP to send.">
                                              <label for="amountField">Amount</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="amountField" size="40" [(ngModel)]="amountField" name="amountField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <!-- <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="Address to allow minting of NFTs on your behalf.">
-                                             <label for="minterAddressField">Minter Address</label>
-                                        </span>
-                                   </td>
+                              <tr>
                                    <td>
-                                        <input type="text" id="minterAddressField" size="40" [(ngModel)]="minterAddressField" name="minterAddressField" />
-                                        <br />
-                                   </td>
-                              </tr> -->
-                              <!-- <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="Issuer field for authorized minting.">
-                                             <label for="issuerAddressField">Issuer Address</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="issuerAddressField" size="40" [(ngModel)]="issuerAddressField" name="issuerAddressField" />
-                                        <br />
-                                   </td>
-                              </tr> -->
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="The NFT sell will expire after the expiration date. This is in hours.">
                                              <label for="expirationField">Expiration Date (Hours)</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="expirationField" size="40" [(ngModel)]="expirationField" name="expirationField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <!-- <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="URI field for the minted NFT.">
-                                             <label for="uriField">URI Field</label>
-                                        </span>
-                                   </td>
+                              <tr>
                                    <td>
-                                        <input type="text" id="uriField" size="72" [(ngModel)]="uriField" name="uriField" />
-                                        <br />
-                                   </td>
-                              </tr> -->
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="NFT Id to use for transactions.">
                                              <label for="nftIdField">Nft Token Id</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="nftIdField" size="72" [(ngModel)]="nftIdField" name="nftIdField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="NFT index used to cancel sell offers.">
                                              <label for="nftIndexField">Nft Index</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="nftIndexField" size="72" [(ngModel)]="nftIndexField" name="nftIndexField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Number of NFT's to mint at 1 time.">
                                              <label for="nftCountField">Batch Nft Count</label>
                                         </span>
@@ -223,56 +140,53 @@
                                         <input type="text" id="nftCountField" size="40" [(ngModel)]="nftCountField" name="nftCountField" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it">
-                                             <label for="burnableNft" style="margin-bottom: 0">Burnable</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" style="margin-left: 5px" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="NFT can only be bought/sold using XRP (no issued tokens)">
-                                             <label for="onlyXrpNft" style="margin-bottom: 0">Only XRP</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" style="margin-left: 5px" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="Allows the NFT to be transferred to others">
-                                             <label for="transferableNft" style="margin-bottom: 0">Transferable</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" style="margin-left: 5px" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
-                                        <span class="tooltip" tooltip-data="The URI field of the minted NFToken can be updated using the NFTokenModify transaction">
-                                             <label for="mutableNft" style="margin-bottom: 0">Mutable</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" style="margin-left: 5px" />
-                                             <span class="slider round"></span>
-                                        </label>
+                              <tr>
+                                   <td colspan="2">
+                                        <div class="nft-options-grid">
+                                             <!-- Left column row 1 -->
+                                             <div class="nft-option">
+                                                  <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it">
+                                                       <label for="burnableNft">Burnable</label>
+                                                  </span>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </div>
+
+                                             <!-- Right column row 1 -->
+                                             <div class="nft-option">
+                                                  <span class="tooltip" tooltip-data="NFT can only be bought/sold using XRP (no issued tokens)">
+                                                       <label for="onlyXrpNft">Only XRP</label>
+                                                  </span>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </div>
+
+                                             <!-- Left column row 2 -->
+                                             <div class="nft-option">
+                                                  <span class="tooltip" tooltip-data="Allows the NFT to be transferred to others">
+                                                       <label for="transferableNft">Transferable</label>
+                                                  </span>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </div>
+
+                                             <!-- Right column row 2 -->
+                                             <div class="nft-option">
+                                                  <span class="tooltip" tooltip-data="The URI field of the minted NFToken can be updated using the NFTokenModify transaction">
+                                                       <label for="mutableNft">Mutable</label>
+                                                  </span>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </div>
+                                        </div>
                                    </td>
                               </tr>
                          </table>
@@ -301,12 +215,6 @@
                                         <button type="button" (click)="cancelBuyOffer()">Cancel Buy Offer NFT</button>
                                         <button type="button" (click)="sellNFT()">Create Sell Offer NFT</button>
                                         <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td colspan="2">
-                                        <!-- <button type="button" (click)="setAuthorizedMinter()">Set Authorized Minter</button> -->
-                                        <button type="button" (click)="updateNFTMetadata()">Update NFT Metadata</button>
                                         <button type="button" (click)="clearFields()">Clear Fields</button>
                                    </td>
                               </tr>
@@ -362,10 +270,8 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <th></th>
-                         <!-- Start Update NFT Meta Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Update NFT Meta Data.">
                                         <label>Update NFT Meta Data</label>
                                    </span>
@@ -378,21 +284,19 @@
                                    <label for="isUpdateNFTMetaData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isUpdateNFTMetaData">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isUpdateNFTMetaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label for="memoField">URI Field</label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="uriField" size="72" [(ngModel)]="uriField" name="uriField" />
+                                   <button type="button" (click)="updateNFTMetadata()">Update NFT Metadata</button>
                               </td>
                          </tr>
-                         <!-- End Update NFT Meta Section -->
-
-                         <!-- Start Memo Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
                                         <label>Memo</label>
                                    </span>
@@ -405,21 +309,18 @@
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMemoEnabled">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
+                              <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label for="memoField"></label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
-                                   <br />
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
-                         <!-- End Memo Section -->
-                         <!-- Start Multi Sign Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Use Multi-Sign Address</label>
                                    </span>
@@ -436,8 +337,8 @@
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
                                                        <label for="multiSignAddress">Signer Addresses</label>
                                                   </span>
@@ -446,8 +347,8 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
                                                        <label for="multiSignSeeds">Signer Seeds</label>
                                                   </span>
@@ -456,24 +357,21 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
                                              </td>
                                         </tr>
-                                        <tr style="vertical-align: top" class="multisignAddressClass" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Credential ID to remove credentials from the account.">
-                                                       <label for="credentialID">Signer Quorum:</label>
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
+                                                       <label for="quorum">Signer Quorum:</label>
                                                   </span>
                                              </td>
                                              <td>
-                                                  <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                                                  <br />
+                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
                                              </td>
                                         </tr>
                                    </fieldset>
                               </td>
                          </tr>
-                         <!-- End Multi Sign Section -->
-                         <!-- Start Regular Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
                                         <label>Use Regular Key</label>
                                    </span>
@@ -486,8 +384,8 @@
                                    <label for="isRegularKeyAddressData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
                                         <label for="regularKeyAddress"></label>
                                    </span>
@@ -496,8 +394,8 @@
                                    <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
                                         <label for="regularKeySeed"></label>
                                    </span>
@@ -506,10 +404,8 @@
                                    <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
                               </td>
                          </tr>
-                         <!-- End Regular Key Section -->
-                         <!-- Start Ticket Sequence Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                                         <label>Use Ticket Sequence</label>
                                    </span>
@@ -522,18 +418,16 @@
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isTicket">
+                              <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
                                         <label for="ticketSequence"></label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                                   <br />
                               </td>
                          </tr>
-                         <!-- End Ticket Sequence Key Section -->
                     </table>
                </div>
           </div>

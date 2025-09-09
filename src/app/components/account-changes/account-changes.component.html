@@ -9,8 +9,54 @@
           <div class="transaction-layout">
                <div class="left-column">
                     <div class="flags-layout">
-                         <table>
-                              <th></th>
+                         <table id="flags">
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                                             <label for="accountName1Field">Name</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account1">Account 1</label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                                             <label for="accountAddress1Field">Address</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account2">Account 2</label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                                             <label for="accountSeed1Field">Seed</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="radio" id="issuer" name="accounts" value="issuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="issuer">Account 3</label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                   </td>
+                              </tr>
+                              <!-- <th></th>
                               <tr style="vertical-align: top">
                                    <td style="text-align: right">
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -56,13 +102,12 @@
                                    <td>
                                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                                    </td>
-                              </tr>
+                              </tr> -->
                          </table>
 
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                                              <label for="xrpBalance1Field">Spendable XRP Balance</label>
                                         </span>
@@ -71,26 +116,24 @@
                                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
                                              <label for="ownerCountField">Owner Count</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
                                              <label for="totalXrpReservesField">Total XRP Reserves</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                        <br />
                                    </td>
                               </tr>
                          </table>
@@ -102,8 +145,6 @@
                <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
                <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
           </div>
-
-          <br />
 
           <table style="text-align: left; width: 100%">
                <th></th>

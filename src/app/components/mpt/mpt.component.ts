@@ -1006,12 +1006,14 @@ export class MptComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
+
           if (inputs.seed != undefined) {
+               const { type, value } = this.utilsService.detectXrpInputType(inputs.seed);
+               if (value === 'unknown') {
+                    return 'Account seed is invalid';
+               }
                if (!this.utilsService.validateInput(inputs.seed)) {
                     return 'Account seed cannot be empty';
-               }
-               if (!xrpl.isValidSecret(inputs.seed)) {
-                    return 'Account seed is invalid';
                }
           } else {
                return 'Account seed is invalid';

@@ -190,7 +190,7 @@ table textarea {
      width: 150px;
      padding-right: 10px;
      text-align: right;
-     vertical-align: middle;
+     /* vertical-align: middle; */
 }
 
 #flags,

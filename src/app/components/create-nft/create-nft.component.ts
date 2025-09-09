@@ -2015,11 +2015,16 @@ export class CreateNftComponent implements AfterViewChecked {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
-          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
-               return 'Amount cannot be empty';
+          if (inputs.seed != undefined) {
+               const { type, value } = this.utilsService.detectXrpInputType(inputs.seed);
+               if (value === 'unknown') {
+                    return 'Account seed is invalid';
+               }
+               if (!this.utilsService.validateInput(inputs.seed)) {
+                    return 'Account seed cannot be empty';
+               }
+          } else {
+               return 'Account seed is invalid';
           }
           if (inputs.amount != undefined) {
                if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {

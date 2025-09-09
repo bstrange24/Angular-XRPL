@@ -10,12 +10,11 @@
           <div class="transaction-layout">
                <div class="left-column">
                     <div class="flags-layout">
-                         <table>
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                         <table id="flags">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                             <label>Account Configuration Templates:</label>
+                                             <label>Configuration Templates:</label>
                                         </span>
                                    </td>
                                    <td>
@@ -27,8 +26,8 @@
                                         <label for="isIssuerConfiguration">Issuer</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
                                              <label for="accountName1Field">Name</label>
                                         </span>
@@ -39,8 +38,8 @@
                                         <label for="account1">Account 1</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
                                              <label for="accountAddress1Field">Address</label>
                                         </span>
@@ -51,8 +50,8 @@
                                         <label for="account2">Account 2</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
                                              <label for="accountSeed1Field">Seed</label>
                                         </span>
@@ -63,8 +62,8 @@
                                         <label for="issuer">Account 3</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                                              <label for="xrpBalance1Field">Spendable XRP Balance</label>
                                         </span>
@@ -73,32 +72,30 @@
                                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
                                              <label for="ownerCountField">Owner Count</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
                                              <label for="totalXrpReservesField">Total XRP Reserves</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
-                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
+                                             <label for="totalExecutionTime">Total Execution Time ms</label>
                                         </span>
                                    </td>
                                    <td>
@@ -108,9 +105,8 @@
                          </table>
 
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfRequireDest) Requires a destination tag for incoming payments">
                                              <label for="asfRequireDest">Require Destination Tag</label>
                                         </span>
@@ -122,8 +118,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfRequireAuth) Requires authorization">
                                              <label for="asfRequireAuth">Require Auth</label>
                                         </span>
@@ -135,8 +131,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisallowXRP) Discourages incoming XRP payments (not enforced)">
                                              <label for="asfDisallowXRP">Disallow XRP Payments</label>
                                         </span>
@@ -148,8 +144,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisableMaster) Disables the master key pair">
                                              <label for="asfDisableMaster">Disable Master Key</label>
                                         </span>
@@ -161,10 +157,10 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfNoFreeze) Prevents freezing trust lines">
-                                             <label for="asfNoFreeze">Prevent Freezing Trust Lines</label>
+                                             <label for="asfNoFreeze">Don't Freeze Trust Lines</label>
                                         </span>
                                    </td>
                                    <td>
@@ -174,8 +170,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfGlobalFreeze) Freezes all trust lines">
                                              <label for="asfGlobalFreeze">Freeze All Trust Lines</label>
                                         </span>
@@ -187,8 +183,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDefaultRipple) Enables rippling by default on trust lines">
                                              <label for="asfDefaultRipple">Enable Rippling</label>
                                         </span>
@@ -203,9 +199,8 @@
                          </table>
 
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDepositAuth) Requires preauthorization for incoming deposits">
                                              <label for="asfDepositAuth">Require Deposit Auth</label>
                                         </span>
@@ -218,10 +213,10 @@
                                         <label for="asfDepositAuth"></label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfAllowTrustLineClawback) Allows another account to mint NFTs">
-                                             <label for="asfAllowTrustLineClawback">Allow Trust Line Clawback</label>
+                                             <label for="asfAllowTrustLineClawback">Allow Trustline Clawback</label>
                                         </span>
                                    </td>
                                    <td>
@@ -231,8 +226,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisallowIncomingNFTokenOffer) Blocks incoming NFT offers">
                                              <label for="asfDisallowIncomingNFTokenOffer">Block NFT Offers</label>
                                         </span>
@@ -244,8 +239,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisallowIncomingCheck) Blocks incoming checks">
                                              <label for="asfDisallowIncomingCheck">Block Checks</label>
                                         </span>
@@ -257,8 +252,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisallowIncomingPayChan) Blocks incoming payment channels">
                                              <label for="asfDisallowIncomingPayChan">Block Payment Channels</label>
                                         </span>
@@ -270,8 +265,8 @@
                                         </label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisallowIncomingTrustline) Blocks incoming trust lines">
                                              <label for="asfDisallowIncomingTrustline">Block Trust Lines</label>
                                         </span>
@@ -427,10 +422,8 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <th></th>
-                         <!-- Start Memo Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
                                         <label>Memo</label>
                                    </span>
@@ -443,21 +436,18 @@
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMemoEnabled">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
+                              <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label for="memoField"></label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
-                                   <br />
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
-                         <!-- End Memo Section -->
-                         <!-- Start Deposit Auth Address Data Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to enter a deposit auth address">
                                         <label>Deposit Auth Address</label>
                                    </span>
@@ -470,28 +460,25 @@
                                    <label for="isdepositAuthAddress"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isdepositAuthAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isdepositAuthAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
                                         <label for="depositAuthAddress"></label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px" id="depositAuthAddress" placeholder="Comma seperated list of address for deposit auth" [(ngModel)]="depositAuthAddress" name="depositAuthAddress"></textarea>
-                                   <br />
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="depositAuthAddress" placeholder="Comma seperated list of address for deposit authorization." [(ngModel)]="depositAuthAddress" name="depositAuthAddress"></textarea>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isdepositAuthAddress">
+                         <tr class="multisignAddressClass" *ngIf="isdepositAuthAddress">
                               <td></td>
                               <td>
                                    <button type="button" (click)="setDepositAuthAccounts('Y')">Set Deposit Auth</button>
                                    <button type="button" (click)="setDepositAuthAccounts('N')">Unauthorize Deposit Auth</button>
                               </td>
                          </tr>
-                         <!-- End Deposit Auth Address Data Section -->
-                         <!-- Start NFT Minter Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.">
                                         <label for="isAuthorizedNFTokenMinter">Auth NFT Minter</label>
                                    </span>
@@ -504,27 +491,24 @@
                                    <label for="isAuthorizedNFTokenMinter"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isAuthorizedNFTokenMinter">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isAuthorizedNFTokenMinter">
+                              <td>
                                    <span class="tooltip" tooltip-data="Enter NFT Minter addresses">
                                         <label for="nfTokenMinterAddress"></label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px" id="nfTokenMinterAddress" placeholder="Comma seperated list of address for deposit auth" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress"></textarea>
-                                   <br />
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="nfTokenMinterAddress" placeholder="Comma seperated list of address for authorized NFT minters." [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress"></textarea>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isAuthorizedNFTokenMinter">
+                         <tr class="multisignAddressClass" *ngIf="isAuthorizedNFTokenMinter">
                               <td></td>
                               <td>
                                    <button type="button" (click)="setNftMinterAddress('Y')">Set NFT Minter</button>
                               </td>
                          </tr>
-                         <!-- End NFT Minter Section -->
-                         <!-- Start Meta Data Section -->
-                         <tr class="metaData" style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr class="metaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to update the account meta data">
                                         <label>Update Meta Data</label>
                                    </span>
@@ -537,30 +521,28 @@
                                    <label for="isUpdateMetaData"></label>
                               </td>
                          </tr>
-                         <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                              <td style="text-align: right">
+                         <tr class="metaData" *ngIf="isUpdateMetaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
                                         <label for="tickSizeField">Tick Size</label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="tickSizeField" size="40" placeholder="Value must be between 3 and 15" [(ngModel)]="tickSize" name="tickSizeField" />
-                                   <br />
                               </td>
                          </tr>
-                         <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                              <td style="text-align: right">
+                         <tr class="metaData" *ngIf="isUpdateMetaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="Defines how much extra to charge when people hold your issued tokens (only applies to issuers). It's a ratio multiplied by 1,000,000,000">
                                         <label for="transferRateField">Transfer Rate</label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="transferRateField" size="40" placeholder="This will be a percentage" [(ngModel)]="transferRate" name="transferRateField" />
-                                   <br />
                               </td>
                          </tr>
-                         <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                              <td style="text-align: right">
+                         <tr class="metaData" *ngIf="isUpdateMetaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to save the message key in the account Information">
                                         <label>Save Message Key</label>
                                    </span>
@@ -573,38 +555,34 @@
                                    <label for="isMessageKey"></label>
                               </td>
                          </tr>
-                         <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                              <td style="text-align: right">
+                         <tr class="metaData" *ngIf="isUpdateMetaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="Web identity.">
                                         <label for="domainField">Domain</label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="domainField" size="40" [(ngModel)]="domain" name="domainField" />
-                                   <br />
                               </td>
                          </tr>
-                         <tr class="metaData" style="vertical-align: top" *ngIf="isUpdateMetaData">
-                              <td style="text-align: right">
+                         <tr class="metaData" *ngIf="isUpdateMetaData">
+                              <td>
                                    <span class="tooltip" tooltip-data="URL of the image to be used as the account's avatar.">
                                         <label for="urlField">Avatar URL</label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="urlField" size="40" [(ngModel)]="avatarUrl" name="urlField" />
-                                   <br />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isUpdateMetaData">
+                         <tr class="multisignAddressClass" *ngIf="isUpdateMetaData">
                               <td></td>
                               <td>
                                    <button type="button" (click)="updateMetaData()">Update Meta Data</button>
                               </td>
                          </tr>
-                         <!-- End Meta Data Section -->
-                         <!-- Enable Multi-Sign Toggle -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Setup Multi-Sign</label>
                                    </span>
@@ -624,40 +602,31 @@
                                              <ng-container *ngFor="let signer of signers; let i = index">
                                                   <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px">
                                                        <legend style="font-weight: bold; color: white">Signer {{ i + 1 }}</legend>
-
-                                                       <!-- Account -->
                                                        <div style="margin-bottom: 8px">
                                                             <label for="signerAccountField{{ i }}" class="signer-label">Account:</label>
-                                                            <input type="text" id="signerAccountField{{ i }}" size="40" [(ngModel)]="signer.account" name="signerAccountField{{ i }}" />
+                                                            <input type="text" id="signerAccountField{{ i }}" style="width: 270px" [(ngModel)]="signer.account" name="signerAccountField{{ i }}" />
                                                        </div>
-
-                                                       <!-- Seed -->
                                                        <div style="margin-bottom: 8px">
-                                                            <label for="signerSeedField{{ i }}" class="signer-label">Seed:</label>
-                                                            <input type="text" id="signerSeedField{{ i }}" size="40" [(ngModel)]="signer.seed" name="signerSeedField{{ i }}" />
+                                                            <label for="signerSeedField{{ i }}" style="padding-left: 26px" class="signer-label">Seed:</label>
+                                                            <input type="text" id="signerSeedField{{ i }}" style="width: 270px" [(ngModel)]="signer.seed" name="signerSeedField{{ i }}" />
                                                        </div>
-
-                                                       <!-- Weight -->
-                                                       <div style="margin-bottom: 8px">
-                                                            <label for="signerWeightField{{ i }}" class="signer-label">Weight:</label>
-                                                            <input class="multisignMultiAddressAccount" type="number" id="signerWeightField{{ i }}" size="5" [(ngModel)]="signer.weight" name="signerWeightField{{ i }}" />
+                                                       <div>
+                                                            <label for="signerWeightField{{ i }}" style="padding-left: 17px" class="signer-label">Weight:</label>
+                                                            <input class="multisignMultiAddressAccount" style="width: 50px; height: 28px" type="number" id="signerWeightField{{ i }}" [(ngModel)]="signer.weight" name="signerWeightField{{ i }}" />
                                                             <button type="button" (click)="removeSigner(i)" *ngIf="signers.length > 1">Remove</button>
                                                        </div>
                                                   </fieldset>
                                              </ng-container>
 
-                                             <!-- Add Signer -->
                                              <div style="margin: 10px 0">
                                                   <button type="button" (click)="addSigner()">+ Add Signer</button>
                                              </div>
 
-                                             <!-- Quorum -->
                                              <div style="margin: 10px 0">
-                                                  <label style="display: inline-block; margin-right: 10px"> Signer Quorum </label>
-                                                  <input class="multisignMultiAddressAccount" type="number" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                                                  <label style="display: inline-block; margin-right: 10px">Signer Quorum</label>
+                                                  <input class="multisignMultiAddressAccount" type="number" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
                                              </div>
 
-                                             <!-- Set/Remove Buttons -->
                                              <div>
                                                   <button type="button" (click)="setMultiSign('Y')">Set Multi-Sign</button>
                                                   <button type="button" (click)="setMultiSign('N')">Remove Multi-Sign</button>
@@ -666,48 +635,8 @@
                                    </td>
                               </tr>
                          </ng-container>
-                         <!-- End Multi-Sign Section -->
-                         <!-- Start Enabled Multi-Sign Section -->
-                         <!-- <tr *ngIf="isMultiSign">
-                              <td></td>
+                         <tr>
                               <td>
-                                   <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
-                                                       <label for="multiSignAddress">Signer Addresses</label>
-                                                  </span>
-                                             </td>
-                                             <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
-                                             </td>
-                                        </tr>
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
-                                                       <label for="multiSignSeeds">Signer Seeds</label>
-                                                  </span>
-                                             </td>
-                                             <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
-                                             </td>
-                                        </tr>
-                                        <tr style="vertical-align: top" class="multisignAddressClass" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Credential ID to remove credentials from the account.">
-                                                       <label for="credentialID">Signer Quorum:</label>
-                                                  </span>
-                                             </td>
-                                             <td>
-                                                  <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                                                  <br />
-                                             </td>
-                                        </tr>
-                                   </fieldset>
-                              </td>
-                         </tr> -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Use Multi-Sign Address</label>
                                    </span>
@@ -724,89 +653,41 @@
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="useMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
-                                                       <label for="multiSignAddress">Signer Addresses</label>
+                                                       <label style="text-align: center; vertical-align: middle; width: 150px" for="multiSignAddress">Signer Addresses</label>
                                                   </span>
                                              </td>
                                              <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                                                  <textarea class="memoField" style="width: 300px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="useMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
                                                        <label for="multiSignSeeds">Signer Seeds</label>
                                                   </span>
                                              </td>
                                              <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                                                  <textarea class="memoField" style="width: 300px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
                                              </td>
                                         </tr>
-                                        <tr style="vertical-align: top" class="multisignAddressClass" *ngIf="useMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Credential ID to remove credentials from the account.">
-                                                       <label for="credentialID">Signer Quorum:</label>
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
+                                                       <label for="quorum">Quorum</label>
                                                   </span>
                                              </td>
                                              <td>
-                                                  <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                                                  <br />
+                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
                                              </td>
                                         </tr>
                                    </fieldset>
                               </td>
                          </tr>
-                         <!-- <tr style="vertical-align: top">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                        <label>Use Multi-Sign</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="usMultiSignAddressData" [(ngModel)]="useMultiSign" (ngModelChange)="toggleUseMultiSign()" name="usMultiSignAddressData" />
-                                        <span class="slider round"></span>
-                                   </label>
-                                   <label for="usMultiSignAddressData"></label>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="useMultiSign">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
-                                        <label for="multiSignAddress">Signer Addresses</label>
-                                   </span>
-                              </td>
+                         <tr>
                               <td>
-                                   <textarea class="memoField" style="width: 280px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
-                                   <br />
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="useMultiSign">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
-                                        <label for="multiSignSeeds">Signer Seeds</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <textarea class="memoField" style="width: 280px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="useMultiSign">
-                              <td style="text-align: right">
-                                   <span class="tooltip" tooltip-data="Minimum sum of signer weights required to approve a transaction.">
-                                        <label for="">Signer Quorum:</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                              </td>
-                         </tr> -->
-                         <!-- End Enabled Multi-Sign Section -->
-                         <!-- Start Regular Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
                                    <span class="tooltip" tooltip-data="Check this to enable Set Regular Key">
                                         <label>Setup/Use Regular Key</label>
                                    </span>
@@ -819,8 +700,8 @@
                                    <label for="isSetRegularKeyData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isSetRegularKey">
+                              <td>
                                    <span class="tooltip" tooltip-data="Add address to set regular key.">
                                         <label for="regularKeyAccount">Account</label>
                                    </span>
@@ -829,8 +710,8 @@
                                    <input type="text" id="regularKeyAccount" placeholder="Enter Regular Key Address" size="40" [(ngModel)]="regularKeyAccount" name="regularKeyAccount" />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isSetRegularKey">
+                              <td>
                                    <span class="tooltip" tooltip-data="Add seed to set regular key. This is a comma separated list">
                                         <label for="regularKeySeed">Seed</label>
                                    </span>
@@ -839,17 +720,15 @@
                                    <input type="text" id="regularKeySeed" size="40" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeyAccountSeed" name="regularKeySeed" />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isSetRegularKey">
+                         <tr class="multisignAddressClass" *ngIf="isSetRegularKey">
                               <td></td>
                               <td>
                                    <button type="button" (click)="setRegularKey('Y')">Set Regular Key</button>
                                    <button type="button" (click)="setRegularKey('N')">Remove Regular Key</button>
                               </td>
                          </tr>
-                         <!-- End Regular Key Section -->
-                         <!-- Start Ticket Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                                         <label>Use Ticket Sequence</label>
                                    </span>
@@ -862,18 +741,16 @@
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isTicket">
+                              <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
                                         <label for="ticketSequence"></label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                                   <br />
                               </td>
                          </tr>
-                         <!-- End Ticket Section -->
                     </table>
                </div>
           </div>

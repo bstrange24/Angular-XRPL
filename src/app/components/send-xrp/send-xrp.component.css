@@ -243,3 +243,89 @@ table textarea {
 .custom-destination input:focus {
      border-bottom: 2px solid #1a1c21;
 }
+
+#flags {
+     border-collapse: collapse;
+}
+
+#flags td:first-child {
+     width: 180px;
+     /* consistent width for label cells */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     vertical-align: top;
+     /* keeps labels aligned to top if multiple controls in same row */
+}
+
+#flags .form-row-td {
+     width: 150px;
+     /* consistent label cell width */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     /* space between label and input */
+}
+
+#flags input[type="text"],
+#flags select {
+     width: 300px;
+     /* consistent input/dropdown width */
+     height: 28px;
+}
+
+/* .form-row {
+     display: flex;
+     align-items: center;
+     margin-bottom: 10px;
+}
+
+.form-row td {
+     text-align: right
+}
+
+.form-row label {
+     width: 150px;
+     text-align: right;
+     margin-right: 10px;
+}
+
+.form-row input,
+.form-row select {
+     flex: 1;
+} */
+
+#meta {
+     border-collapse: collapse;
+}
+
+/* #meta .tooltip {
+     display: inline-block;
+     text-align: right;
+} */
+
+#meta td:first-child {
+     width: 180px;
+     /* consistent width for label cells */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     vertical-align: top;
+     /* keeps labels aligned to top if multiple controls in same row */
+}
+
+#meta .form-row-td {
+     width: 150px;
+     /* consistent label cell width */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     /* space between label and input */
+}
+
+#meta input[type="text"],
+#meta select {
+     width: 300px;
+     /* consistent input/dropdown width */
+     height: 28px;
+}

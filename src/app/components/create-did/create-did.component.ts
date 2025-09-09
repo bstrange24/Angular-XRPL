@@ -653,11 +653,11 @@ export class CreateDidComponent implements AfterViewChecked {
           }
 
           // 2. Seed
-          if (!seed || !this.utilsService.validateInput(seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (!xrpl.isValidSecret(seed)) {
-               return 'Account seed is invalid';
+          if (seed) {
+               const { type, value } = this.utilsService.detectXrpInputType(seed);
+               if (value === 'unknown') {
+                    return 'Account seed is invalid';
+               }
           }
 
           // 3. Amount

@@ -11,9 +11,8 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
-                              <th></th>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
                                              <label for="accountName1Field">Name</label>
                                         </span>
@@ -24,8 +23,8 @@
                                         <label for="account1">Account 1</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
                                              <label for="accountAddress1Field">Address</label>
                                         </span>
@@ -36,8 +35,8 @@
                                         <label for="account2">Account 2</label>
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
                                              <label for="accountSeed1Field">Seed</label>
                                         </span>
@@ -49,7 +48,7 @@
                                    </td>
                               </tr>
                               <tr>
-                                   <td style="text-align: right">
+                                   <td>
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
                                              <label for="xrpBalance1Field">Spendable XRP Balance</label>
                                         </span>
@@ -58,30 +57,28 @@
                                         <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
                                              <label for="ownerCountField">Owner Count</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
                                              <label for="totalXrpReservesField">Total XRP Reserves</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                        <br />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
                                              <label for="totalExecutionTime">Total Execution Time in ms</label>
                                         </span>
@@ -93,10 +90,8 @@
                          </table>
 
                          <table id="flags">
-                              <th></th>
-                              <!-- Verification Section -->
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="DID Document information.">
                                              <label for="didDocument">DID Document</label>
                                         </span>
@@ -105,8 +100,8 @@
                                         <input type="text" id="didDocument" size="87" [(ngModel)]="didDetails.document" name="didDocument" value="1.0" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="URI pointing to DID information.">
                                              <label for="uri">URI</label>
                                         </span>
@@ -115,8 +110,8 @@
                                         <input type="text" id="uri" size="87" [(ngModel)]="didDetails.uri" name="uri" value="1.0" />
                                    </td>
                               </tr>
-                              <tr style="vertical-align: top">
-                                   <td style="text-align: right">
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="DID Data (Enter JSON).">
                                              <label for="didData">DID Data</label>
                                         </span>
@@ -125,46 +120,6 @@
                                         <textarea style="width: 600px; height: 200px" class="memoField" id="didData" placeholder="DID Data" [(ngModel)]="didDetails.data" name="didData"></textarea>
                                    </td>
                               </tr>
-
-                              <!-- <tr>
-                    <td colspan="2"><strong>Verification</strong></td>
-               </tr> -->
-                              <!-- <tr>
-                    <td style="text-align: right"><label for="id">Verification ID</label></td>
-                    <td><input type="text" id="id" size="40" [(ngModel)]="didDetails.verificationMethod.id" name="id" /></td>
-               </tr>
-               <tr>
-                    <td style="text-align: right"><label for="type">Verified Type</label></td>
-                    <td><input type="text" id="type" [(ngModel)]="didDetails.verificationMethod.type" name="type" /></td>
-               </tr>
-               <tr>
-                    <td style="text-align: right"><label for="controller">Verified Controller</label></td>
-                    <td><input type="text" id="controller" size="40" [(ngModel)]="didDetails.verificationMethod.controller" name="controller" /></td>
-               </tr>
-
-               <tr>
-                    <td style="text-align: right"><label for="publicKeyBase58">Verified Public Key</label></td>
-                    <td><input type="text" id="publicKeyBase58" size="40" [(ngModel)]="didDetails.verificationMethod.publicKeyBase58" name="publicKeyBase58" /></td>
-               </tr> -->
-                              <!-- <tr>
-                    <td colspan="2"><strong>Service</strong></td>
-               </tr> -->
-                              <!-- <tr>
-                    <td style="text-align: right"><label for="serviceId">Service ID</label></td>
-                    <td><input type="text" id="serviceId" size="40" [(ngModel)]="didDetails.service.serviceId" name="serviceId" /></td>
-               </tr>
-               <tr>
-                    <td style="text-align: right"><label for="serviceType">Service Type</label></td>
-                    <td><input type="text" id="serviceType" [(ngModel)]="didDetails.service.serviceType" name="serviceType" /></td>
-               </tr>
-               <tr>
-                    <td style="text-align: right"><label for="serviceEndpoint">Service End Point</label></td>
-                    <td><input type="text" id="serviceEndpoint" size="40" [(ngModel)]="didDetails.service.serviceEndpoint" name="serviceEndpoint" /></td>
-               </tr>
-               <tr>
-                    <td style="text-align: right"><label for="auth">Authentication</label></td>
-                    <td><input type="text" id="auth" size="40" [(ngModel)]="didDetails.authentication.auth" name="auth" /></td>
-               </tr> -->
                          </table>
                     </div>
 
@@ -175,7 +130,6 @@
 
                     <div class="button-container">
                          <table style="text-align: left; width: 100%">
-                              <th></th>
                               <tr>
                                    <td colspan="2">
                                         <button type="button" (click)="getDidForAccount()">Get DID</button>
@@ -349,10 +303,8 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <th></th>
-                         <!-- Start Memo Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
                                         <label>Memo</label>
                                    </span>
@@ -365,21 +317,18 @@
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMemoEnabled">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
+                              <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label for="memoField"></label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 280px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
-                                   <br />
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
-                         <!-- End Memo Section -->
-                         <!-- Start Multi Sign Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Use Multi-Sign Address</label>
                                    </span>
@@ -396,8 +345,8 @@
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
                                                        <label for="multiSignAddress">Signer Addresses</label>
                                                   </span>
@@ -406,8 +355,8 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
                                                        <label for="multiSignSeeds">Signer Seeds</label>
                                                   </span>
@@ -416,24 +365,21 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
                                              </td>
                                         </tr>
-                                        <tr style="vertical-align: top" class="multisignAddressClass" *ngIf="isMultiSign">
-                                             <td style="text-align: right">
-                                                  <span class="tooltip" tooltip-data="Credential ID to remove credentials from the account.">
-                                                       <label for="credentialID">Signer Quorum:</label>
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
+                                                       <label for="quorum">Signer Quorum:</label>
                                                   </span>
                                              </td>
                                              <td>
-                                                  <input type="text" id="signerQuorumField" size="5" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
-                                                  <br />
+                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
                                              </td>
                                         </tr>
                                    </fieldset>
                               </td>
                          </tr>
-                         <!-- End Multi Sign Section -->
-                         <!-- Start Regular Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
                                         <label>Use Regular Key</label>
                                    </span>
@@ -446,8 +392,8 @@
                                    <label for="isRegularKeyAddressData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
                                         <label for="regularKeyAddress"></label>
                                    </span>
@@ -456,8 +402,8 @@
                                    <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isRegularKeyAddress">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
                                    <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
                                         <label for="regularKeySeed"></label>
                                    </span>
@@ -466,10 +412,8 @@
                                    <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
                               </td>
                          </tr>
-                         <!-- End Regular Key Section -->
-                         <!-- Start Ticket Sequence Key Section -->
-                         <tr style="vertical-align: top">
-                              <td style="text-align: right">
+                         <tr>
+                              <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                                         <label>Use Ticket Sequence</label>
                                    </span>
@@ -482,18 +426,16 @@
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" style="vertical-align: top" *ngIf="isTicket">
-                              <td style="text-align: right">
+                         <tr class="multisignAddressClass" *ngIf="isTicket">
+                              <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
                                         <label for="ticketSequence"></label>
                                    </span>
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                                   <br />
                               </td>
                          </tr>
-                         <!-- End Ticket Sequence Key Section -->
                     </table>
                </div>
           </div>
