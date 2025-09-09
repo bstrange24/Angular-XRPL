@@ -29,6 +29,7 @@ export class XrplService {
      tokens$ = this.tokensSubject.asObservable();
      private tokenCreationDates: Map<string, Date> = new Map(); // Track earliest TrustSet date by currency+issuer
      private tokenCache = new Map<string, { createdAt: Date; checkedAt: number }>();
+     private proxyServer = 'http://localhost:3000';
 
      constructor(private storageService: StorageService, private http: HttpClient, private tokenCacheService: TokenCacheService) {}
 
@@ -116,7 +117,7 @@ export class XrplService {
      }
 
      private knownCreationDates: { [key: string]: Date } = {
-          'PHNIX:rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN': new Date('2024-12-03T00:00:00Z'), // From[](https://www.globenewswire.com/news-release/2024/12/12/2996121/0/en/Phoenix-on-XRPL-Launches-PHNIX-Token-to-Dominate-the-Meme-Coin-Space-on-XRPL.html)
+          'PHNIX:rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN': new Date('2024-12-03T00:00:00Z'),
      };
 
      private formatTokenAge(fromDate: Date): string {
@@ -142,48 +143,53 @@ export class XrplService {
 
      getTokenInfo(currencyHex: string, issuer: string) {
           const key = `${currencyHex}.${issuer}`;
-          const url = `http://localhost:3000/api/xpmarket/token/${key}`;
+          const url = `${this.proxyServer}/api/xpmarket/token/${key}`;
           return this.http.get<any>(url);
      }
 
      // Generate account from Family Seed
-     async generateWalletFromFamilySeed(environment: string) {
-          const url = `http://localhost:3000/api/create-wallet/family-seed/${encodeURIComponent(environment)}`;
-          const wallet = await firstValueFrom(this.http.get<any>(url));
+     async generateWalletFromFamilySeed(environment: string, algorithm: string) {
+          const url = `${this.proxyServer}/api/create-wallet/family-seed/`;
+          const wallet = await firstValueFrom(this.http.post<any>(url, { environment, algorithm }));
           return wallet;
      }
 
      // Derive account from Family Seed
      async deriveWalletFromFamilySeed(familySeed: string) {
-          const url = `http://localhost:3000/api/derive/family-seed/${encodeURIComponent(familySeed)}`;
+          const url = `${this.proxyServer}/api/derive/family-seed/${encodeURIComponent(familySeed)}`;
+          console.log(`deriveWalletFromFamilySeed ${url}`);
           const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
 
      // Generate account from Mnemonic
-     async generateWalletFromMnemonic(environment: string) {
-          const url = `http://localhost:3000/api/create-wallet/mnemonic/${encodeURIComponent(environment)}`;
-          const wallet = await firstValueFrom(this.http.get<any>(url));
+     async generateWalletFromMnemonic(environment: string, algorithm: string) {
+          const url = `${this.proxyServer}/api/create-wallet/mnemonic/`;
+          const body = { environment, algorithm };
+          const wallet = await firstValueFrom(this.http.post<any>(url, body));
           return wallet;
      }
 
      // Derive account from Mnemonic
      async deriveWalletFromMnemonic(mnemonic: string) {
-          const url = `http://localhost:3000/api/derive/mnemonic/${encodeURIComponent(mnemonic)}`;
+          const url = `${this.proxyServer}/api/derive/mnemonic/${encodeURIComponent(mnemonic)}`;
+          console.log(`deriveWalletFromMnemonic ${url}`);
           const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }
 
      // Generate account from Secret Numbers
-     async generateWalletFromSecretNumbers(environment: string) {
-          const url = `http://localhost:3000/api/create-wallet/secret-numbers/${encodeURIComponent(environment)}`;
-          const wallet = await firstValueFrom(this.http.get<any>(url));
+     async generateWalletFromSecretNumbers(environment: string, algorithm: string) {
+          const url = `${this.proxyServer}/api/create-wallet/secret-numbers/`;
+          const body = { environment, algorithm };
+          const wallet = await firstValueFrom(this.http.post<any>(url, body));
           return wallet;
      }
 
      // Derive account from Secret Numbers
      async deriveWalletFromSecretNumbers(secretNumbers: string) {
-          const url = `http://localhost:3000/api/derive/secret-numbers/${encodeURIComponent(secretNumbers)}`;
+          const url = `${this.proxyServer}/api/derive/secret-numbers/${encodeURIComponent(secretNumbers)}`;
+          console.log(`deriveWalletFromSecretNumbers ${url}`);
           const wallet = await firstValueFrom(this.http.get<any>(url));
           return wallet;
      }

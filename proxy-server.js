@@ -2,10 +2,11 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const accountlib = require('xrpl-accountlib');
-// import { generate, derive } from 'xrpl-accountlib';
+const xrpl = require('xrpl');
 
 const app = express();
 app.use(cors());
+app.use(express.json()); // allow JSON bodies
 
 app.get('/api/xpmarket/token/:currencyIssuer', async (req, res) => {
      try {
@@ -22,23 +23,23 @@ app.get('/api/xpmarket/token/:currencyIssuer', async (req, res) => {
 });
 
 // Create wallet from family-seed and fund it
-app.get('/api/create-wallet/family-seed/:environment', async (req, res) => {
+app.post('/api/create-wallet/family-seed', async (req, res) => {
      try {
+          const { environment, algorithm = 'ed25519' } = req.body;
+
           console.log(`Generating account from family seed`);
+          console.log(`environment ${environment}, algorithm ${algorithm}`);
 
-          console.log(`environment ${req.params.environment}`);
-          let generatedWallet;
-          let facet = 'https://faucet.devnet.rippletest.net/accounts';
-          if (req.params.environment !== 'mainnet') {
-               if (req.params.environment === 'testnet') {
-                    facet = 'https://faucet.altnet.rippletest.net/accounts';
+          const generatedWallet = accountlib.generate.familySeed({ algorithm: algorithm });
+          console.log(`account ${JSON.stringify(generatedWallet, null, 2)}`);
+          let faucet = 'https://faucet.devnet.rippletest.net/accounts';
+
+          if (environment !== 'mainnet') {
+               if (environment === 'testnet') {
+                    faucet = 'https://faucet.altnet.rippletest.net/accounts';
                }
-               // Generate accountlib wallet
-               generatedWallet = accountlib.generate.familySeed({ algorithm: 'secp256k1' });
-               console.log(`account ${JSON.stringify(generatedWallet, null, 2)}`);
 
-               // Call Devnet faucet to fund it
-               const faucetResponse = await fetch(facet, {
+               const faucetResponse = await fetch(faucet, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ destination: generatedWallet.address }),
@@ -49,12 +50,11 @@ app.get('/api/create-wallet/family-seed/:environment', async (req, res) => {
                }
 
                const faucetResult = await faucetResponse.json();
-               console.log(`faucetResult ${JSON.stringify(faucetResult, null, '\t')}`);
+               console.log(`faucetResult ${JSON.stringify(faucetResult, null, 2)}`);
           }
 
+          // For mainnet just return generated wallet without funding
           res.json(generatedWallet);
-          // Combine both: wallet details + funding result
-          // res.json({ wallet: generatedWallet, faucet: faucetResult, });
      } catch (err) {
           console.error(err);
           res.status(500).json({ error: 'Failed to generate or fund account' });
@@ -75,26 +75,27 @@ app.get('/api/derive/family-seed/:value', async (req, res) => {
 });
 
 // Create wallet from mnemonic
-app.get('/api/create-wallet/mnemonic/:environment', async (req, res) => {
+app.post('/api/create-wallet/mnemonic', async (req, res) => {
      try {
+          const { environment, algorithm = 'ed25519' } = req.body;
           console.log(`Generating account from mnemonic`);
+          console.log(`environment: ${environment}`);
+          console.log(`algorithm: ${algorithm}`);
 
-          console.log(`environment ${req.params.environment}`);
-          let generate_account_from_mnemonic;
+          const generatedWallet = accountlib.generate.mnemonic({ algorithm: algorithm });
+          console.log(`account ${JSON.stringify(generatedWallet, null, 2)}`);
+
           let facet = 'https://faucet.devnet.rippletest.net/accounts';
-          if (req.params.environment !== 'mainnet') {
-               if (req.params.environment === 'testnet') {
+
+          if (environment !== 'mainnet') {
+               if (environment === 'testnet') {
                     facet = 'https://faucet.altnet.rippletest.net/accounts';
                }
-               // Generate accountlib wallet
-               generate_account_from_mnemonic = accountlib.generate.mnemonic({ algorithm: 'secp256k1' });
-               console.log(`account ${JSON.stringify(generate_account_from_mnemonic, null, 2)}`);
 
-               // Call Devnet faucet to fund it
                const faucetResponse = await fetch(facet, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ destination: generate_account_from_mnemonic.address }),
+                    body: JSON.stringify({ destination: generatedWallet.address }),
                });
 
                if (!faucetResponse.ok) {
@@ -103,9 +104,13 @@ app.get('/api/create-wallet/mnemonic/:environment', async (req, res) => {
 
                const faucetResult = await faucetResponse.json();
                console.log(`faucetResult ${JSON.stringify(faucetResult, null, '\t')}`);
+
+               // return res.json({ wallet: generatedWallet, faucet: faucetResult });
+               return res.json(generatedWallet);
           }
 
-          res.json(generate_account_from_mnemonic);
+          // For mainnet just return generated wallet without funding
+          return res.json(generatedWallet);
      } catch (err) {
           console.error(err);
           res.status(500).json({ error: 'Failed to generate account from mnemonic' });
@@ -126,26 +131,28 @@ app.get('/api/derive/mnemonic/:mnemonic', async (req, res) => {
 });
 
 // Create wallet from secret-numbers
-app.get('/api/create-wallet/secret-numbers/:environment', async (req, res) => {
+app.post('/api/create-wallet/secret-numbers', async (req, res) => {
      try {
+          const { environment, algorithm = 'ed25519' } = req.body;
           console.log(`Generating account from secret numbers`);
+          console.log(`environment: ${environment}`);
+          console.log(`algorithm: ${algorithm}`);
 
-          console.log(`environment ${req.params.environment}`);
-          let generate_account_from_secret_numbers;
+          // Generate secret-numbers wallet
+          const generatedWallet = accountlib.generate.secretNumbers({ algorithm: algorithm });
+          console.log(`account ${JSON.stringify(generatedWallet, null, 2)}`);
           let facet = 'https://faucet.devnet.rippletest.net/accounts';
-          if (req.params.environment !== 'mainnet') {
-               if (req.params.environment === 'testnet') {
+
+          if (environment !== 'mainnet') {
+               if (environment === 'testnet') {
                     facet = 'https://faucet.altnet.rippletest.net/accounts';
                }
-               // Generate accountlib wallet
-               generate_account_from_secret_numbers = accountlib.generate.secretNumbers({ algorithm: 'secp256k1' });
-               console.log(`account ${JSON.stringify(generate_account_from_secret_numbers, null, 2)}`);
 
-               // Call Devnet faucet to fund it
+               // Fund via faucet
                const faucetResponse = await fetch(facet, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ destination: generate_account_from_secret_numbers.address }),
+                    body: JSON.stringify({ destination: generatedWallet.address }),
                });
 
                if (!faucetResponse.ok) {
@@ -154,11 +161,13 @@ app.get('/api/create-wallet/secret-numbers/:environment', async (req, res) => {
 
                const faucetResult = await faucetResponse.json();
                console.log(`faucetResult ${JSON.stringify(faucetResult, null, '\t')}`);
+
+               // return res.json({ wallet: generatedWallet, faucet: faucetResult });
+               return res.json(generatedWallet);
           }
 
-          res.json(generate_account_from_secret_numbers);
-          // Combine both: wallet details + funding result
-          // res.json({ wallet: generatedWallet, faucet: faucetResult, });
+          // For mainnet just return wallet, no faucet funding
+          return res.json(generatedWallet);
      } catch (err) {
           console.error(err);
           res.status(500).json({ error: 'Failed to generate account from secret numbers' });
@@ -171,7 +180,7 @@ app.get('/api/derive/secret-numbers/:value', async (req, res) => {
           console.log(`secret_numbers ${req.params.value}`);
           const nums = req.params.value?.split(','); // comma-separated string
           const derive_account_with_secret_numbers = accountlib.derive.secretNumbers(nums);
-          console.log(`account ${derive_account_with_secret_numbers}`);
+          console.log(`account ${JSON.stringify(derive_account_with_secret_numbers, null, '\t')}`);
           res.json(derive_account_with_secret_numbers);
      } catch (err) {
           console.error(err);

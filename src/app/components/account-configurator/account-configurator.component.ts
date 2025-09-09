@@ -1797,7 +1797,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
                     this.multiSignSeeds = seeds;
                     this.multiSignAddress = addresses;
-                    // this.isMultiSign = true;
                }
           } else {
                this.signerQuorum = 0;

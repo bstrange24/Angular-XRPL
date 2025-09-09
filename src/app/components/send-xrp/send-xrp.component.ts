@@ -230,6 +230,8 @@ export class SendXrpComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
+               destinationTag: this.destinationTagField,
+               invoiceId: this.invoiceIdField,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
@@ -434,8 +436,8 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; sourceTag?: string }): string | null {
-          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds, sourceTag } = inputs;
+     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; sourceTag?: string; destinationTag?: string; invoiceId?: string }): string | null {
+          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds, sourceTag, destinationTag, invoiceId } = inputs;
 
           // 1. Account selection
           if (selectedAccount === null || selectedAccount === undefined) {
@@ -443,15 +445,17 @@ export class SendXrpComponent implements AfterViewChecked {
           }
 
           // 2. Seed
+          let accountSeedType = '';
           if (seed) {
                const { type, value } = this.utilsService.detectXrpInputType(seed);
+               accountSeedType = type;
                if (value === 'unknown') {
                     return 'Account seed is invalid';
                }
           }
 
           // 3. Amount
-          if (amount) {
+          if (amount !== null && amount !== undefined) {
                if (amount === '' || !this.utilsService.validateInput(amount)) {
                     return 'XRP Amount cannot be empty';
                }
@@ -465,7 +469,7 @@ export class SendXrpComponent implements AfterViewChecked {
           }
 
           // 4. Source Tag
-          if (sourceTag) {
+          if (sourceTag !== null && sourceTag !== undefined && sourceTag !== '') {
                const numTag = parseFloat(sourceTag);
                if (isNaN(numTag) || !isFinite(numTag)) {
                     return 'Source Tag must be a valid number';
@@ -476,11 +480,27 @@ export class SendXrpComponent implements AfterViewChecked {
           }
 
           // 5. Destination
-          if (destination && !this.utilsService.validateInput(destination)) {
+          if (destination !== null && destination !== undefined && destination !== '' && !this.utilsService.validateInput(destination)) {
                return 'Destination cannot be empty';
           }
 
-          // 6. Regular key
+          // 6. Destination Tag
+          if (destinationTag !== null && destinationTag !== undefined && destinationTag !== '') {
+               const numTag = parseFloat(destinationTag);
+               if (isNaN(numTag) || !isFinite(numTag)) {
+                    return 'Destination Tag must be a valid number';
+               }
+               if (numTag <= 0) {
+                    return 'Destination Tag must be a positive number';
+               }
+          }
+
+          // 7. Destination
+          if (invoiceId !== null && invoiceId !== undefined && invoiceId !== '' && !this.utilsService.validateInput(invoiceId)) {
+               return 'InvoiceId is invalid';
+          }
+
+          // 8. Regular key
           if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
                if (!xrpl.isValidAddress(regularKeyAddress)) {
                     return 'Regular Key Address is invalid or empty';
@@ -491,7 +511,7 @@ export class SendXrpComponent implements AfterViewChecked {
                return 'ERROR: Regular Key Seed is invalid or empty';
           }
 
-          // 7. Multi-sign
+          // 9. Multi-sign
           if (multiSignAddresses && multiSignSeeds) {
                const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
@@ -507,8 +527,10 @@ export class SendXrpComponent implements AfterViewChecked {
                     return `Invalid signer address: ${invalidAddr}`;
                }
 
-               if (seeds.some((s: string) => !xrpl.isValidSecret(s))) {
-                    return 'One or more signer seeds are invalid';
+               if (accountSeedType === 'seed') {
+                    if (seeds.some((s: string) => !xrpl.isValidSecret(s))) {
+                         return 'One or more signer seeds are invalid';
+                    }
                }
           }
 

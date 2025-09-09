@@ -1,0 +1,33 @@
+#wallet-flags {
+     border-collapse: collapse;
+}
+
+#wallet-flags td:first-child {
+     width: 180px;
+     /* consistent width for label cells */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     vertical-align: top;
+     /* keeps labels aligned to top if multiple controls in same row */
+}
+
+#wallet-flags .form-row-td {
+     width: 150px;
+     /* consistent label cell width */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     /* space between label and input */
+}
+
+#wallet-flags input[type="text"],
+#wallet-flags select {
+     width: 300px;
+     /* consistent input/dropdown width */
+     height: 28px;
+}
+
+.button-container {
+     width: 100%;
+}

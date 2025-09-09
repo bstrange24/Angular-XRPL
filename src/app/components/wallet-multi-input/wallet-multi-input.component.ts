@@ -7,6 +7,7 @@ import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
 import { Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
+import { AppConstants } from '../../core/app.constants';
 
 @Component({
      selector: 'app-wallet-multi-input',
@@ -38,6 +39,7 @@ export class WalletMultiInputComponent {
           seed: '',
           mnemonic: '',
           secretNumbers: '',
+          encryptionAlgorithm: '',
      };
 
      account2 = {
@@ -46,6 +48,7 @@ export class WalletMultiInputComponent {
           seed: '',
           mnemonic: '',
           secretNumbers: '',
+          encryptionAlgorithm: '',
      };
 
      issuer = {
@@ -54,6 +57,7 @@ export class WalletMultiInputComponent {
           seed: '',
           mnemonic: '',
           secretNumbers: '',
+          encryptionAlgorithm: '',
      };
 
      constructor(private storageService: StorageService, private xrplService: XrplService, private utilsService: UtilsService) {}
@@ -65,18 +69,21 @@ export class WalletMultiInputComponent {
           this.account1.seed = this.storageService.getInputValue('account1seed');
           this.account1.mnemonic = this.storageService.getInputValue('account1mnemonic');
           this.account1.secretNumbers = this.storageService.getInputValue('account1secretNumbers');
+          this.account1.encryptionAlgorithm = this.storageService.getInputValue('account1encryptionAlgorithm');
 
           this.account2.name = this.storageService.getInputValue('account2name');
           this.account2.address = this.storageService.getInputValue('account2address');
           this.account2.seed = this.storageService.getInputValue('account2seed');
           this.account2.mnemonic = this.storageService.getInputValue('account2mnemonic');
           this.account2.secretNumbers = this.storageService.getInputValue('account2secretNumbers');
+          this.account2.encryptionAlgorithm = this.storageService.getInputValue('account2encryptionAlgorithm');
 
           this.issuer.name = this.storageService.getInputValue('issuerName');
           this.issuer.address = this.storageService.getInputValue('issuerAddress');
           this.issuer.seed = this.storageService.getInputValue('issuerSeed');
           this.issuer.mnemonic = this.storageService.getInputValue('issuerMnemonic');
           this.issuer.secretNumbers = this.storageService.getInputValue('issuerSecretNumbers');
+          this.issuer.encryptionAlgorithm = this.storageService.getInputValue('issuerEncryptionAlgorithm');
 
           // Load createWallet state
           const savedCreateWallet = this.storageService.getInputValue('createWallet');
@@ -89,9 +96,9 @@ export class WalletMultiInputComponent {
 
           // Subscribe to clear inputs event
           this.storageService.inputsCleared.subscribe(() => {
-               this.account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '' };
-               this.account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '' };
-               this.issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '' };
+               this.account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', encryptionAlgorithm: '' };
+               this.account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', encryptionAlgorithm: '' };
+               this.issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', encryptionAlgorithm: '' };
                this.createWallet = true;
                this.encryptionType = true;
                this.showGenerateButtons = true;
@@ -157,24 +164,31 @@ export class WalletMultiInputComponent {
 
      async generateNewWalletFromFamilySeed(account: '1' | '2' | '3') {
           const environment = this.xrplService.getNet().environment;
-          const wallet = await this.xrplService.generateWalletFromFamilySeed(environment);
+          let encryptionAlgorithm = AppConstants.ENCRYPTION.SECP256K1;
+          if (this.encryptionType) {
+               encryptionAlgorithm = AppConstants.ENCRYPTION.ED25519;
+          }
+          const wallet = await this.xrplService.generateWalletFromFamilySeed(environment, encryptionAlgorithm);
           await this.sleep(4000);
           this.updateAccount(account, {
                address: wallet.address,
                seed: wallet.secret.familySeed || '',
                mnemonic: '',
                secretNumbers: '',
+               encryptionAlgorithm: wallet.keypair.algorithm || '',
           });
           if (account === '3') {
-               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerAddress`, wallet.address || '');
                this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
                this.saveInput(`issuerMnemonic`, '');
                this.saveInput(`issuerSecretNumbers`, '');
+               this.saveInput(`issuerEncryptionAlgorithm`, wallet.keypair.algorithm || '');
           } else {
-               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}address`, wallet.address || '');
                this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
                this.saveInput(`account${account}mnemonic`, '');
                this.saveInput(`account${account}secretNumbers`, '');
+               this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
           this.emitChange();
      }
@@ -187,17 +201,20 @@ export class WalletMultiInputComponent {
                seed: wallet.secret.familySeed || '',
                mnemonic: '',
                secretNumbers: '',
+               encryptionAlgorithm: wallet.keypair.algorithm || '',
           });
           if (account === '3') {
-               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerAddress`, wallet.address || '');
                this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
                this.saveInput(`issuerMnemonic`, '');
                this.saveInput(`issuerSecretNumbers`, '');
+               this.saveInput(`issuerEncryptionAlgorithm`, wallet.keypair.algorithm || '');
           } else {
-               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}address`, wallet.address || '');
                this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
                this.saveInput(`account${account}mnemonic`, '');
                this.saveInput(`account${account}secretNumbers`, '');
+               this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
 
           const destionations = this.storageService.getKnownIssuers('destinations');
@@ -214,22 +231,31 @@ export class WalletMultiInputComponent {
 
      async generateNewWalletFromMnemonic(account: '1' | '2' | '3') {
           const environment = this.xrplService.getNet().environment;
-          const wallet = await this.xrplService.generateWalletFromMnemonic(environment);
+          let encryptionAlgorithm = AppConstants.ENCRYPTION.SECP256K1;
+          if (this.encryptionType) {
+               encryptionAlgorithm = AppConstants.ENCRYPTION.ED25519;
+          }
+          const wallet = await this.xrplService.generateWalletFromMnemonic(environment, encryptionAlgorithm);
           await this.sleep(4000);
           this.updateAccount(account, {
                address: wallet.address,
                mnemonic: wallet.secret.mnemonic || '',
                seed: wallet.secret.mnemonic || '',
                secretNumbers: '',
+               encryptionAlgorithm: wallet.keypair.algorithm || '',
           });
           if (account === '3') {
-               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerAddress`, wallet.address || '');
                this.saveInput(`issuerSeed`, wallet.secret.mnemonic || '');
+               this.saveInput(`issuerMnemonic`, wallet.secret.mnemonic || '');
+               this.saveInput(`issuerSecretNumbers`, '');
+               this.saveInput(`issuerEncryptionAlgorithm`, wallet.keypair.algorithm);
           } else {
-               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}address`, wallet.address || '');
                this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
                this.saveInput(`account${account}seed`, wallet.secret.mnemonic || '');
                this.saveInput(`account${account}secretNumbers`, '');
+               this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
           this.emitChange();
      }
@@ -242,15 +268,20 @@ export class WalletMultiInputComponent {
                mnemonic: wallet.secret.mnemonic || '',
                seed: wallet.secret.mnemonic || '',
                secretNumbers: '',
+               encryptionAlgorithm: wallet.keypair.algorithm || '',
           });
           if (account === '3') {
-               this.saveInput(`issuerAddress`, wallet.address);
+               this.saveInput(`issuerAddress`, wallet.address || '');
                this.saveInput(`issuerSeed`, wallet.secret.mnemonic || '');
+               this.saveInput(`issuerMnemonic`, wallet.secret.mnemonic || '');
+               this.saveInput(`issuerSecretNumbers`, '');
+               this.saveInput(`issuerEncryptionAlgorithm`, wallet.keypair.algorithm || '');
           } else {
-               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}address`, wallet.address || '');
                this.saveInput(`account${account}mnemonic`, wallet.secret.mnemonic || '');
                this.saveInput(`account${account}seed`, wallet.secret.mnemonic || '');
                this.saveInput(`account${account}secretNumbers`, '');
+               this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
 
           const destionations = this.storageService.getKnownIssuers('destinations');
@@ -267,22 +298,31 @@ export class WalletMultiInputComponent {
 
      async generateNewWalletFromSecretNumbers(account: '1' | '2' | '3') {
           const environment = this.xrplService.getNet().environment;
-          const wallet = await this.xrplService.generateWalletFromSecretNumbers(environment);
+          let encryptionAlgorithm = AppConstants.ENCRYPTION.SECP256K1;
+          if (this.encryptionType) {
+               encryptionAlgorithm = AppConstants.ENCRYPTION.ED25519;
+          }
+          const wallet = await this.xrplService.generateWalletFromSecretNumbers(environment, encryptionAlgorithm);
           await this.sleep(4000);
           this.updateAccount(account, {
                address: wallet.address,
                secretNumbers: wallet.secret.secretNumbers || '',
-               seed: wallet.secret.secretNumbers || '',
+               seed: wallet.secret.familySeed || '',
                mnemonic: '',
+               encryptionAlgorithm: wallet.keypair.algorithm || '',
           });
           if (account === '3') {
-               this.saveInput(`issuerAddress`, wallet.address);
-               this.saveInput(`issuerSeed`, wallet.secret.secretNumbers || '');
+               this.saveInput(`issuerAddress`, wallet.address || '');
+               this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
+               this.saveInput(`issuerMnemonic`, '');
+               this.saveInput(`issuerSecretNumbers`, wallet.secret.secretNumbers || '');
+               this.saveInput(`issuerEncryptionAlgorithm`, wallet.keypair.algorithm || '');
           } else {
-               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}address`, wallet.address || '');
                this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
                this.saveInput(`account${account}mnemonic`, '');
-               this.saveInput(`account${account}seed`, wallet.secret.secretNumbers || '');
+               this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+               this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
           this.emitChange();
      }
@@ -293,17 +333,22 @@ export class WalletMultiInputComponent {
           this.updateAccount(account, {
                address: wallet.address,
                secretNumbers: wallet.secret.secretNumbers || '',
-               seed: '',
+               seed: wallet.secret.familySeed,
                mnemonic: '',
+               encryptionAlgorithm: wallet.keypair.algorithm || '',
           });
           if (account === '3') {
-               this.saveInput(`issuerAddress`, wallet.address);
-               this.saveInput(`issuerSeed`, wallet.secret.secretNumbers || '');
+               this.saveInput(`issuerAddress`, wallet.address || '');
+               this.saveInput(`issuerSeed`, wallet.secret.familySeed || '');
+               this.saveInput(`issuerSecretNumbers`, wallet.secret.secretNumbers || '');
+               this.saveInput(`issuerMnemonic`, '');
+               this.saveInput(`issuerEncryptionAlgorithm`, wallet.keypair.algorithm || '');
           } else {
-               this.saveInput(`account${account}address`, wallet.address);
+               this.saveInput(`account${account}address`, wallet.address || '');
                this.saveInput(`account${account}secretNumbers`, wallet.secret.secretNumbers || '');
                this.saveInput(`account${account}mnemonic`, '');
-               this.saveInput(`account${account}seed`, wallet.secret.secretNumbers || '');
+               this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
+               this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
 
           const destionations = this.storageService.getKnownIssuers('destinations');

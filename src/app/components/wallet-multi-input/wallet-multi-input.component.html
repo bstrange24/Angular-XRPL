@@ -1,11 +1,9 @@
-<!-- Transaction Search -->
 <input type="text" id="transactionField" class="transactionDivClass" placeholder="Search Address / Tx / CTID / ..." [(ngModel)]="transactionInput" (keydown.enter)="triggerSearch()" aria-label="Search for a transaction by address, hash, or CTID; press Enter to submit" />
 
 <details class="wallet-info">
      <summary>Wallet Information</summary>
      <fieldset class="wallet-fieldset">
           <div class="wallet-container">
-               <!-- Create Wallet Checkbox -->
                <div class="wallet-controls">
                     <label class="tooltip" tooltip-data="Uncheck to retrieve a wallet based on secret">Create New Wallet:</label>
                     <label class="switch">
@@ -18,127 +16,208 @@
                          <span class="slider round"></span>
                     </label>
                </div>
+          </div>
 
-               <!-- Account Section (always shown) -->
-               <div class="account-section">
-                    <!-- Account 1 -->
-                    <div class="account-group">
-                         <h4>Account 1</h4>
-                         <!-- Generate Buttons (shown when createWallet is checked) -->
-                         <div class="wallet-buttons generate-buttons" *ngIf="showGenerateButtons">
-                              <button type="button" id="generateNewWallet_1" (click)="generateNewWalletFromFamilySeed('1')">Get New Account From Seed</button>
-                              <button type="button" id="generateNewWalletMnemonic_1" (click)="generateNewWalletFromMnemonic('1')">Get New Account From Mnemonic</button>
-                              <button type="button" id="generateNewWalletSecret_1" (click)="generateNewWalletFromSecretNumbers('1')">Get New Account From Secret Numbers</button>
-                         </div>
-                         <!-- Derive Buttons (shown when createWallet is unchecked) -->
-                         <div class="wallet-buttons derive-buttons" *ngIf="showDeriveButtons">
-                              <button type="button" id="deriveWalletSeed_1" (click)="deriveNewWalletFromFamilySeed('1')">Derive From Seed</button>
-                              <button type="button" id="deriveWalletMnemonic_1" (click)="deriveNewWalletFromMnemonic('1')">Derive From Mnemonic</button>
-                              <button type="button" id="deriveWalletSecret_1" (click)="deriveNewWalletFromSecretNumbers('1')">Derive From Secret Numbers</button>
-                         </div>
-                         <!-- Inputs (always shown) -->
-                         <div class="account-inputs">
-                              <div class="field-group">
-                                   <label for="account1name" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Account 1 Name</label>
-                                   <input type="text" id="account1name" [(ngModel)]="account1.name" (ngModelChange)="saveInput('account1name', $event)" placeholder="Account 1 Name" />
+          <div class="transaction-layout">
+               <div class="left-column">
+                    <div class="flags-layout">
+                         <table id="wallet-flags">
+                              <div class="account-group">
+                                   <h4>Account 1</h4>
+                                   <div class="button-container" *ngIf="showGenerateButtons">
+                                        <button type="button" id="generateNewWallet_1" (click)="generateNewWalletFromFamilySeed('1')">New From Seed</button>
+                                        <button type="button" id="generateNewWalletMnemonic_1" (click)="generateNewWalletFromMnemonic('1')">New From Mnemonic</button>
+                                        <button type="button" id="generateNewWalletSecret_1" (click)="generateNewWalletFromSecretNumbers('1')">New From Secret Numbers</button>
+                                   </div>
+                                   <div class="button-container" *ngIf="showDeriveButtons">
+                                        <button type="button" id="deriveWalletSeed_1" (click)="deriveNewWalletFromFamilySeed('1')">Derive From Seed</button>
+                                        <button type="button" id="deriveWalletMnemonic_1" (click)="deriveNewWalletFromMnemonic('1')">Derive From Mnemonic</button>
+                                        <button type="button" id="deriveWalletSecret_1" (click)="deriveNewWalletFromSecretNumbers('1')">Derive From Secret Numbers</button>
+                                   </div>
+                                   <table id="wallet-flags">
+                                        <tr>
+                                             <td>
+                                                  <label for="account1name" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account1name" [(ngModel)]="account1.name" (ngModelChange)="saveInput('account1name', $event)" placeholder="Account 1 Name" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account1address" class="tooltip label_account" tooltip-data="Identifying address">Address</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account1address" [(ngModel)]="account1.address" (ngModelChange)="saveInput('account1address', $event)" placeholder="Account 1 Address" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account1seed" class="tooltip label_account" tooltip-data="Seed for keys">Seed</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account1seed" [(ngModel)]="account1.seed" (ngModelChange)="saveInput('account1seed', $event)" placeholder="Account 1 Seed" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account1mnemonic" class="tooltip label_account" tooltip-data="Mnemonic for keys">Mnemonic</label>
+                                             </td>
+                                             <td>
+                                                  <textarea id="account1mnemonic" style="width: 300px; height: 90px" [(ngModel)]="account1.mnemonic" (ngModelChange)="saveInput('account1mnemonic', $event)" (paste)="onPasteTrim($event, 'account1mnemonic')" placeholder="Account 1 Mnemonic" rows="3" wrap="soft"></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account1secretNumbers" class="tooltip label_account" tooltip-data="Secret numbers for keys">Secret Numbers</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account1secretNumbers" [(ngModel)]="account1.secretNumbers" (ngModelChange)="saveInput('account1secretNumbers', $event)" placeholder="Account 1 Secret Numbers" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account1EncryptionAlgorithm" class="tooltip label_account" tooltip-data="Encryption Algorithm for wallet">Algorithm</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account1EncryptionAlgorithm" [(ngModel)]="account1.encryptionAlgorithm" (ngModelChange)="saveInput('account1encryptionAlgorithm', $event)" placeholder="Account 1 Encryption algorithm" />
+                                             </td>
+                                        </tr>
+                                   </table>
                               </div>
-                              <div class="field-group">
-                                   <label for="account1address" class="tooltip label_account" tooltip-data="Identifying address">Account 1 Address</label>
-                                   <input type="text" id="account1address" [(ngModel)]="account1.address" (ngModelChange)="saveInput('account1address', $event)" placeholder="Account 1 Address" />
-                              </div>
-                              <div class="field-group">
-                                   <label for="account1seed" class="tooltip label_account" tooltip-data="Seed for keys">Account 1 Seed</label>
-                                   <input type="text" id="account1seed" [(ngModel)]="account1.seed" (ngModelChange)="saveInput('account1seed', $event)" placeholder="Account 1 Seed" />
-                              </div>
-                              <div class="field-group">
-                                   <label for="account1mnemonic" class="tooltip label_account" tooltip-data="Mnemonic for keys">Account 1 Mnemonic</label>
-                                   <textarea id="account1mnemonic" [(ngModel)]="account1.mnemonic" (ngModelChange)="saveInput('account1mnemonic', $event)" (paste)="onPasteTrim($event, 'account1mnemonic')" placeholder="Account 1 Mnemonic" rows="3" wrap="soft"></textarea>
-                              </div>
-                              <div class="field-group">
-                                   <label for="account1secretNumbers" class="tooltip label_account" tooltip-data="Secret numbers for keys">Account 1 Secret Numbers</label>
-                                   <input type="text" id="account1secretNumbers" [(ngModel)]="account1.secretNumbers" (ngModelChange)="saveInput('account1secretNumbers', $event)" placeholder="Account 1 Secret Numbers" />
-                              </div>
-                         </div>
-                    </div>
+                         </table>
 
-                    <!-- Account 2 -->
-                    <div class="account-group">
-                         <h4>Account 2</h4>
-                         <!-- Generate Buttons (shown when createWallet is checked) -->
-                         <div class="wallet-buttons generate-buttons" *ngIf="showGenerateButtons">
-                              <button type="button" id="generateNewWallet_2" (click)="generateNewWalletFromFamilySeed('2')">Get New Account From Seed</button>
-                              <button type="button" id="generateNewWalletMnemonic_2" (click)="generateNewWalletFromMnemonic('2')">Get New Account From Mnemonic</button>
-                              <button type="button" id="generateNewWalletSecret_2" (click)="generateNewWalletFromSecretNumbers('2')">Get New Account From Secret Numbers</button>
-                         </div>
-                         <!-- Derive Buttons (shown when createWallet is unchecked) -->
-                         <div class="wallet-buttons derive-buttons" *ngIf="showDeriveButtons">
-                              <button type="button" id="deriveWalletSeed_2" (click)="deriveNewWalletFromFamilySeed('2')">Derive From Seed</button>
-                              <button type="button" id="deriveWalletMnemonic_2" (click)="deriveNewWalletFromMnemonic('2')">Derive From Mnemonic</button>
-                              <button type="button" id="deriveWalletSecret_2" (click)="deriveNewWalletFromSecretNumbers('2')">Derive From Secret Numbers</button>
-                         </div>
-                         <!-- Inputs (always shown) -->
-                         <div class="account-inputs">
-                              <div class="field-group">
-                                   <label for="account2name" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Account 2 Name</label>
-                                   <input type="text" id="account2name" [(ngModel)]="account2.name" (ngModelChange)="saveInput('account2name', $event)" placeholder="Account 2 Name" />
+                         <table id="wallet-flags">
+                              <div class="account-group">
+                                   <h4>Account 2</h4>
+                                   <div class="button-container" *ngIf="showGenerateButtons">
+                                        <button type="button" id="generateNewWallet_2" (click)="generateNewWalletFromFamilySeed('2')">New From Seed</button>
+                                        <button type="button" id="generateNewWalletMnemonic_2" (click)="generateNewWalletFromMnemonic('2')">New From Mnemonic</button>
+                                        <button type="button" id="generateNewWalletSecret_2" (click)="generateNewWalletFromSecretNumbers('2')">New From Secret Numbers</button>
+                                   </div>
+                                   <div class="button-container" *ngIf="showDeriveButtons">
+                                        <button type="button" id="deriveWalletSeed_2" (click)="deriveNewWalletFromFamilySeed('2')">Derive From Seed</button>
+                                        <button type="button" id="deriveWalletMnemonic_2" (click)="deriveNewWalletFromMnemonic('2')">Derive From Mnemonic</button>
+                                        <button type="button" id="deriveWalletSecret_2" (click)="deriveNewWalletFromSecretNumbers('2')">Derive From Secret Numbers</button>
+                                   </div>
+                                   <table id="wallet-flags">
+                                        <tr>
+                                             <td>
+                                                  <label for="account2name" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account2name" [(ngModel)]="account2.name" (ngModelChange)="saveInput('account2name', $event)" placeholder="Account 2 Name" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account2address" class="tooltip label_account" tooltip-data="Identifying address">Address</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account2address" [(ngModel)]="account2.address" (ngModelChange)="saveInput('account2address', $event)" placeholder="Account 2 Address" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account2seed" class="tooltip label_account" tooltip-data="Seed for keys">Seed</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account2seed" [(ngModel)]="account2.seed" (ngModelChange)="saveInput('account2seed', $event)" placeholder="Account 2 Seed" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account2mnemonic" class="tooltip label_account" tooltip-data="Mnemonic for keys">Mnemonic</label>
+                                             </td>
+                                             <td>
+                                                  <textarea id="account2mnemonic" style="width: 300px; height: 90px" [(ngModel)]="account2.mnemonic" (ngModelChange)="saveInput('account2mnemonic', $event)" (paste)="onPasteTrim($event, 'account2mnemonic')" placeholder="Account 2 Mnemonic" rows="3" wrap="soft"></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account2secretNumbers" class="tooltip label_account" tooltip-data="Secret numbers for keys">Secret Numbers</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account2secretNumbers" [(ngModel)]="account2.secretNumbers" (ngModelChange)="saveInput('account2secretNumbers', $event)" placeholder="Account 2 Secret Numbers" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="account2EncryptionAlgorithm" class="tooltip label_account" tooltip-data="Encryption Algorithm for wallet">Algorithm</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="account2EncryptionAlgorithm" [(ngModel)]="account2.encryptionAlgorithm" (ngModelChange)="saveInput('account2encryptionAlgorithm', $event)" placeholder="Account 2 Encryption algorithm" />
+                                             </td>
+                                        </tr>
+                                   </table>
                               </div>
-                              <div class="field-group">
-                                   <label for="account2address" class="tooltip label_account" tooltip-data="Identifying address">Account 2 Address</label>
-                                   <input type="text" id="account2address" [(ngModel)]="account2.address" (ngModelChange)="saveInput('account2address', $event)" placeholder="Account 2 Address" />
-                              </div>
-                              <div class="field-group">
-                                   <label for="account2seed" class="tooltip label_account" tooltip-data="Seed for keys">Account 2 Seed</label>
-                                   <input type="text" id="account2seed" [(ngModel)]="account2.seed" (ngModelChange)="saveInput('account2seed', $event)" placeholder="Account 2 Seed" />
-                              </div>
-                              <div class="field-group">
-                                   <label for="account2mnemonic" class="tooltip label_account" tooltip-data="Mnemonic for keys">Account 2 Mnemonic</label>
-                                   <textarea id="account2mnemonic" [(ngModel)]="account2.mnemonic" (ngModelChange)="saveInput('account2mnemonic', $event)" (paste)="onPasteTrim($event, 'account2mnemonic')" placeholder="Account 2 Mnemonic" rows="3" wrap="soft"></textarea>
-                              </div>
-                              <div class="field-group">
-                                   <label for="account2secretNumbers" class="tooltip label_account" tooltip-data="Secret numbers for keys">Account 2 Secret Numbers</label>
-                                   <input type="text" id="account2secretNumbers" [(ngModel)]="account2.secretNumbers" (ngModelChange)="saveInput('account2secretNumbers', $event)" placeholder="Account 2 Secret Numbers" />
-                              </div>
-                         </div>
-                    </div>
+                         </table>
 
-                    <!-- Issuer -->
-                    <div class="account-group">
-                         <h4>Issuer</h4>
-                         <!-- Generate Buttons (shown when createWallet is checked) -->
-                         <div class="wallet-buttons generate-buttons" *ngIf="showGenerateButtons">
-                              <button type="button" id="generateNewWallet_3" (click)="generateNewWalletFromFamilySeed('3')">Get New Account From Seed</button>
-                              <button type="button" id="generateNewWalletMnemonic_3" (click)="generateNewWalletFromMnemonic('3')">Get New Account From Mnemonic</button>
-                              <button type="button" id="generateNewWalletSecret_3" (click)="generateNewWalletFromSecretNumbers('3')">Get New Account From Secret Numbers</button>
-                         </div>
-                         <!-- Derive Buttons (shown when createWallet is unchecked) -->
-                         <div class="wallet-buttons derive-buttons" *ngIf="showDeriveButtons">
-                              <button type="button" id="deriveWalletSeed_3" (click)="deriveNewWalletFromFamilySeed('3')">Derive From Seed</button>
-                              <button type="button" id="deriveWalletMnemonic_3" (click)="deriveNewWalletFromMnemonic('3')">Derive From Mnemonic</button>
-                              <button type="button" id="deriveWalletSecret_3" (click)="deriveNewWalletFromSecretNumbers('3')">Derive From Secret Numbers</button>
-                         </div>
-                         <!-- Inputs (always shown) -->
-                         <div class="account-inputs">
-                              <div class="field-group">
-                                   <label for="issuerName" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Issuer Name</label>
-                                   <input type="text" id="issuerName" [(ngModel)]="issuer.name" (ngModelChange)="saveInput('issuerName', $event)" placeholder="Issuer Name" />
+                         <table id="wallet-flags">
+                              <div class="account-group">
+                                   <h4>Issuer</h4>
+                                   <div class="button-container" *ngIf="showGenerateButtons">
+                                        <button type="button" id="generateNewWallet_3" (click)="generateNewWalletFromFamilySeed('3')">New From Seed</button>
+                                        <button type="button" id="generateNewWalletMnemonic_3" (click)="generateNewWalletFromMnemonic('3')">New From Mnemonic</button>
+                                        <button type="button" id="generateNewWalletSecret_3" (click)="generateNewWalletFromSecretNumbers('3')">New From Secret Numbers</button>
+                                   </div>
+                                   <div class="button-container" *ngIf="showDeriveButtons">
+                                        <button type="button" id="deriveWalletSeed_3" (click)="deriveNewWalletFromFamilySeed('3')">Derive From Seed</button>
+                                        <button type="button" id="deriveWalletMnemonic_3" (click)="deriveNewWalletFromMnemonic('3')">Derive From Mnemonic</button>
+                                        <button type="button" id="deriveWalletSecret_3" (click)="deriveNewWalletFromSecretNumbers('3')">Derive From Secret Numbers</button>
+                                   </div>
+                                   <table id="wallet-flags">
+                                        <tr>
+                                             <td>
+                                                  <label for="issuerName" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="issuerName" [(ngModel)]="issuer.name" (ngModelChange)="saveInput('issuerName', $event)" placeholder="Issuer Name" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="issuerAddress" class="tooltip label_account" tooltip-data="Identifying address">Address</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="issuerAddress" [(ngModel)]="issuer.address" (ngModelChange)="saveInput('issuerAddress', $event)" placeholder="Issuer Address" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="issuerSeed" class="tooltip label_account" tooltip-data="Seed for keys">Seed</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="issuerSeed" [(ngModel)]="issuer.seed" (ngModelChange)="saveInput('issuerSeed', $event)" placeholder="Issuer Seed" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="issuerMnemonic" class="tooltip label_account" tooltip-data="Mnemonic for keys">Mnemonic</label>
+                                             </td>
+                                             <td>
+                                                  <textarea id="issuerMnemonic" style="width: 300px; height: 90px" [(ngModel)]="issuer.mnemonic" (ngModelChange)="saveInput('issuerMnemonic', $event)" (paste)="onPasteTrim($event, 'issuerMnemonic')" placeholder="Issuer Mnemonic" rows="3" wrap="soft"></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="issuerSecretNumbers" class="tooltip label_account" tooltip-data="Secret numbers for keys">Secret Numbers</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="issuerSecretNumbers" [(ngModel)]="issuer.secretNumbers" (ngModelChange)="saveInput('issuerSecretNumbers', $event)" placeholder="Issuer Secret Numbers" />
+                                             </td>
+                                        </tr>
+                                        <tr>
+                                             <td>
+                                                  <label for="issuerEncryptionAlgorithm" class="tooltip label_account" tooltip-data="Encryption Algorithm for wallet">Algorithm</label>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="issuerEncryptionAlgorithm" [(ngModel)]="issuer.encryptionAlgorithm" (ngModelChange)="saveInput('issuerEncryptionAlgorithm', $event)" placeholder="Issuer Encryption algorithm" />
+                                             </td>
+                                        </tr>
+                                   </table>
                               </div>
-                              <div class="field-group">
-                                   <label for="issuerAddress" class="tooltip label_account" tooltip-data="Identifying address">Issuer Address</label>
-                                   <input type="text" id="issuerAddress" [(ngModel)]="issuer.address" (ngModelChange)="saveInput('issuerAddress', $event)" placeholder="Issuer Address" />
-                              </div>
-                              <div class="field-group">
-                                   <label for="issuerSeed" class="tooltip label_account" tooltip-data="Seed for keys">Issuer Seed</label>
-                                   <input type="text" id="issuerSeed" [(ngModel)]="issuer.seed" (ngModelChange)="saveInput('issuerSeed', $event)" placeholder="Issuer Seed" />
-                              </div>
-                              <div class="field-group">
-                                   <label for="issuerMnemonic" class="tooltip label_account" tooltip-data="Mnemonic for keys">Issuer Mnemonic</label>
-                                   <textarea id="issuerMnemonic" [(ngModel)]="issuer.mnemonic" (ngModelChange)="saveInput('issuerMnemonic', $event)" (paste)="onPasteTrim($event, 'issuerMnemonic')" placeholder="Issuer Mnemonic" rows="3" wrap="soft"></textarea>
-                              </div>
-                              <div class="field-group">
-                                   <label for="issuerSecretNumbers" class="tooltip label_account" tooltip-data="Secret numbers for keys">Issuer Secret Numbers</label>
-                                   <input type="text" id="issuerSecretNumbers" [(ngModel)]="issuer.secretNumbers" (ngModelChange)="saveInput('issuerSecretNumbers', $event)" placeholder="Issuer Secret Numbers" />
-                              </div>
-                         </div>
+                         </table>
                     </div>
                </div>
           </div>
