@@ -272,6 +272,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
                console.info(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
@@ -613,8 +615,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -814,8 +816,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -1006,8 +1008,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         this.resultField.nativeElement.classList.add('error');
-                         this.setErrorProperties();
+                         // this.resultField.nativeElement.classList.add('error');
+                         // this.setErrorProperties();
                          return;
                     }
 
@@ -1129,8 +1131,8 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 

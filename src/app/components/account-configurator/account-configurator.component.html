@@ -660,7 +660,7 @@
                                                   </span>
                                              </td>
                                              <td>
-                                                  <textarea class="memoField" style="width: 300px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                                                  <textarea class="memoField" style="width: 300px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
                                              </td>
                                         </tr>
                                         <tr class="multisignAddressClass" *ngIf="useMultiSign">
@@ -670,7 +670,7 @@
                                                   </span>
                                              </td>
                                              <td>
-                                                  <textarea class="memoField" style="width: 300px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                                                  <textarea class="memoField" style="width: 300px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
                                              </td>
                                         </tr>
                                         <tr class="multisignAddressClass" *ngIf="useMultiSign">

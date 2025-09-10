@@ -984,8 +984,8 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                     if (trustSetResult.result.meta && typeof trustSetResult.result.meta !== 'string' && (trustSetResult.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(trustSetResult, this.resultField.nativeElement);
-                         this.resultField.nativeElement.classList.add('error');
-                         this.setErrorProperties();
+                         // this.resultField.nativeElement.classList.add('error');
+                         // this.setErrorProperties();
                          return;
                     }
 
@@ -1352,8 +1352,8 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 

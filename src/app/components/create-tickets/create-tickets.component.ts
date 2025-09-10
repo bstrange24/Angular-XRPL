@@ -214,7 +214,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                               return {
                                    key: `Ticket ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
                                    openByDefault: false,
-                                   content: [{ key: 'Ticket ID', value: `<code>${index}</code>` }, { key: 'Ledger Entry Type', value: LedgerEntryType }, { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` }, ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []), ...(flags !== undefined ? [{ key: 'Flags', value: String(flags) }] : [])],
+                                   content: [{ key: 'Ledger Entry Type', value: LedgerEntryType }, ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []), { key: 'Ticket ID', value: `<code>${index}</code>` }, { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` }],
                               };
                          }),
                     });
@@ -341,12 +341,12 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response', response);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -476,12 +476,12 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response', response);
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 

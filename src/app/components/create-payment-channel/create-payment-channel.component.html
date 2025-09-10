@@ -400,7 +400,7 @@
                                                   <label for="multiSignAddress">Signer Addresses</label>
                                              </td>
                                              <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress"></textarea>
+                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
                                              </td>
                                         </tr>
                                         <tr class="multisignAddressClass" *ngIf="isMultiSign">
@@ -408,7 +408,7 @@
                                                   <label for="multiSignSeeds">Signer Seeds</label>
                                              </td>
                                              <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds"></textarea>
+                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
                                              </td>
                                         </tr>
                                         <tr class="multisignAddressClass" *ngIf="isMultiSign">
@@ -416,7 +416,7 @@
                                                   <label for="quorum">Signer Quorum:</label>
                                              </td>
                                              <td>
-                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" />
+                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" readonly />
                                              </td>
                                         </tr>
                                    </fieldset>
@@ -439,7 +439,7 @@
                                    <label for="regularKeyAddress"></label>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" />
+                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
                               </td>
                          </tr>
                          <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
@@ -447,7 +447,7 @@
                                    <label for="regularKeySeed"></label>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" />
+                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
                          </tr>
                          <tr>

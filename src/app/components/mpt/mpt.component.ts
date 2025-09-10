@@ -433,8 +433,8 @@ export class MptComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -566,8 +566,8 @@ export class MptComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -724,8 +724,8 @@ export class MptComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -876,8 +876,8 @@ export class MptComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 

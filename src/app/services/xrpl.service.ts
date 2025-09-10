@@ -289,45 +289,45 @@ export class XrplService {
           return fallback;
      }
 
-     async getTokenCreationDate(currency: string, issuer: string, client: xrpl.Client, cache: Map<string, Date>): Promise<Date> {
-          const key = `${currency}:${issuer}`;
-          if (cache.has(key)) return cache.get(key)!;
+     // async getTokenCreationDate(currency: string, issuer: string, client: xrpl.Client, cache: Map<string, Date>): Promise<Date> {
+     //      const key = `${currency}:${issuer}`;
+     //      if (cache.has(key)) return cache.get(key)!;
 
-          let marker: any = null;
+     //      let marker: any = null;
 
-          while (true) {
-               const response = (await client.request({
-                    command: 'account_tx',
-                    account: issuer,
-                    limit: 20,
-                    forward: true,
-                    ...(marker && { marker }),
-               })) as { result: { transactions: any[]; marker?: any } };
+     //      while (true) {
+     //           const response = (await client.request({
+     //                command: 'account_tx',
+     //                account: issuer,
+     //                limit: 20,
+     //                forward: true,
+     //                ...(marker && { marker }),
+     //           })) as { result: { transactions: any[]; marker?: any } };
 
-               for (const item of response.result.transactions) {
-                    const tx = item.tx_json ?? item.tx;
-                    if (!tx) continue;
+     //           for (const item of response.result.transactions) {
+     //                const tx = item.tx_json ?? item.tx;
+     //                if (!tx) continue;
 
-                    const isRelevant = (tx.TransactionType === 'TrustSet' && tx.LimitAmount?.currency === currency) || (tx.TransactionType === 'Payment' && typeof tx.Amount === 'object' && tx.Amount?.currency === currency) || (tx.TransactionType === 'OfferCreate' && ((typeof tx.TakerGets === 'object' && tx.TakerGets.currency === currency) || (typeof tx.TakerPays === 'object' && tx.TakerPays.currency === currency)));
+     //                const isRelevant = (tx.TransactionType === 'TrustSet' && tx.LimitAmount?.currency === currency) || (tx.TransactionType === 'Payment' && typeof tx.Amount === 'object' && tx.Amount?.currency === currency) || (tx.TransactionType === 'OfferCreate' && ((typeof tx.TakerGets === 'object' && tx.TakerGets.currency === currency) || (typeof tx.TakerPays === 'object' && tx.TakerPays.currency === currency)));
 
-                    if (isRelevant && tx.date) {
-                         const date = new Date((tx.date + 946684800) * 1000);
-                         cache.set(key, date);
-                         return date;
-                    }
-               }
+     //                if (isRelevant && tx.date) {
+     //                     const date = new Date((tx.date + 946684800) * 1000);
+     //                     cache.set(key, date);
+     //                     return date;
+     //                }
+     //           }
 
-               if (!response.result.marker) break;
-               marker = response.result.marker;
+     //           if (!response.result.marker) break;
+     //           marker = response.result.marker;
 
-               await this.delay(150);
-          }
+     //           await this.delay(150);
+     //      }
 
-          // Fallback if nothing found
-          const fallback = new Date(0);
-          cache.set(key, fallback);
-          return fallback;
-     }
+     //      // Fallback if nothing found
+     //      const fallback = new Date(0);
+     //      cache.set(key, fallback);
+     //      return fallback;
+     // }
 
      // async getTokenCreationDate(currency: string, issuer: string, client: xrpl.Client, tokenCreationDates: Map<string, Date>): Promise<Date> {
      //      const key = `${currency}:${issuer}`;

@@ -226,6 +226,8 @@ export class AccountComponent implements AfterViewChecked {
 
                if (accountInfo.result.account_data.length <= 0) {
                     this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
@@ -301,6 +303,8 @@ export class AccountComponent implements AfterViewChecked {
 
                if (setFlags.length === 0 && clearFlags.length === 0) {
                     this.resultField.nativeElement.innerHTML = 'Set Flags and Clear Flags length is 0. No flags selected for update';
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
@@ -447,8 +451,8 @@ export class AccountComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         this.resultField.nativeElement.classList.add('error');
-                         this.setErrorProperties();
+                         // this.resultField.nativeElement.classList.add('error');
+                         // this.setErrorProperties();
                          return;
                     }
 
@@ -456,6 +460,8 @@ export class AccountComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                } else {
                     this.resultField.nativeElement.innerHTML = `No fields have data to update.\n`;
+                    this.resultField.nativeElement.classList.add('error');
+                    this.setErrorProperties();
                     return;
                }
 
@@ -567,8 +573,8 @@ export class AccountComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -772,8 +778,8 @@ export class AccountComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 

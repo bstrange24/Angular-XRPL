@@ -422,8 +422,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -559,8 +559,8 @@ export class CreateNftComponent implements AfterViewChecked {
                          if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                               console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                              this.resultField.nativeElement.classList.add('error');
-                              this.setErrorProperties();
+                              // this.resultField.nativeElement.classList.add('error');
+                              // this.setErrorProperties();
                               return;
                          }
 
@@ -685,8 +685,8 @@ export class CreateNftComponent implements AfterViewChecked {
                                    const singleTx = await client.submitAndWait(signedTx.tx_blob);
                                    if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                                         this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                        this.resultField.nativeElement.classList.add('error');
-                                        this.setErrorProperties();
+                                        // this.resultField.nativeElement.classList.add('error');
+                                        // this.setErrorProperties();
                                         return;
                                    }
                                    transactionResults.push(singleTx);
@@ -704,8 +704,8 @@ export class CreateNftComponent implements AfterViewChecked {
                                         const singleTx = await client.submitAndWait(signedTx.tx_blob);
                                         if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                                              this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                             this.resultField.nativeElement.classList.add('error');
-                                             this.setErrorProperties();
+                                             // this.resultField.nativeElement.classList.add('error');
+                                             // this.setErrorProperties();
                                              return;
                                         }
                                         transactionResults.push(singleTx);
@@ -731,8 +731,8 @@ export class CreateNftComponent implements AfterViewChecked {
                               const singleTx = await client.submitAndWait(signedTx.tx_blob);
                               if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                                    this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                   this.resultField.nativeElement.classList.add('error');
-                                   this.setErrorProperties();
+                                   // this.resultField.nativeElement.classList.add('error');
+                                   // this.setErrorProperties();
                                    return;
                               }
                               transactionResults.push(singleTx);
@@ -750,8 +750,8 @@ export class CreateNftComponent implements AfterViewChecked {
                                    const singleTx = await client.submitAndWait(signedTx.tx_blob);
                                    if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                                         this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                        this.resultField.nativeElement.classList.add('error');
-                                        this.setErrorProperties();
+                                        // this.resultField.nativeElement.classList.add('error');
+                                        // this.setErrorProperties();
                                         return;
                                    }
                                    transactionResults.push(singleTx);
@@ -768,8 +768,8 @@ export class CreateNftComponent implements AfterViewChecked {
 
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -897,8 +897,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -1369,8 +1369,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -1510,8 +1510,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -1641,8 +1641,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -1773,8 +1773,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
@@ -1890,8 +1890,8 @@ export class CreateNftComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
+                    // this.resultField.nativeElement.classList.add('error');
+                    // this.setErrorProperties();
                     return;
                }
 
