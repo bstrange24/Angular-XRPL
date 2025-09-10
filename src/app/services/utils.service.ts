@@ -240,10 +240,6 @@ export class UtilsService {
           return currency?.length > 3 ? this.encodeCurrencyCode(currency) : currency || '';
      }
 
-     // decodeIfNeeded(currency: string): string {
-     //      return currency?.length > 3 ? this.decodeCurrencyCode(currency) : currency || '';
-     // }
-
      decodeIfNeeded(value: string): string {
           return this.isCurrencyCode(value) ? this.decodeCurrencyCode(value) : value;
      }

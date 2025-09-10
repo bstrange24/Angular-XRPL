@@ -15,6 +15,8 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
+import { StateService } from '../../services/state-service.service';
+import { AppState } from '../../services/state-service.service';
 
 interface SignerEntry {
      Account: string;
@@ -39,6 +41,7 @@ interface SignerEntry {
 export class SendXrpComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
+     state!: AppState;
      selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
      private lastResult: string = '';
      transactionInput: string = '';
@@ -76,10 +79,15 @@ export class SendXrpComponent implements AfterViewChecked {
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
+     memoFields = ['memoField', 'isMemoEnabled'] as const;
+     tagFields = ['destinationTagField', 'sourceTagField'] as const;
+     multiSignFields = ['isMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
+     allFields = ['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'isMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private stateService: StateService) {}
 
      ngOnInit() {
+          this.stateService.state$.subscribe(s => (this.state = s));
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
           if (storedDestinations) {
                this.knownDestinations = storedDestinations;
@@ -146,6 +154,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
+               // this.updateMultiSign();
           } catch (error) {
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
@@ -208,6 +217,7 @@ export class SendXrpComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
+               // this.stateService.resetPartialState(['isMemoEnabled', 'memoField']);
                this.isMemoEnabled = false;
                this.memoField = '';
 
@@ -226,6 +236,7 @@ export class SendXrpComponent implements AfterViewChecked {
           console.log('Entering sendXrp');
           const startTime = Date.now();
           this.setSuccessProperties();
+          // this.updateAllFields();
 
           const validationError = this.validateInputs({
                selectedAccount: this.selectedAccount,
@@ -358,6 +369,10 @@ export class SendXrpComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               // console.log('Component BEFORE call, snapshot:', this.stateService.getState());
+               // this.stateService.resetPartialState(['isMemoEnabled', 'memoField']);
+               // this.updateMemo();
+               // console.log('Component AFTER call, snapshot:', this.stateService.getState());
                this.isMemoEnabled = false;
                this.memoField = '';
 
@@ -432,6 +447,7 @@ export class SendXrpComponent implements AfterViewChecked {
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
                // this.isRegularKeyAddress = true;
           } else {
+               // this.stateService.resetPartialState(['isRegularKeyAddress', 'regularKeyAddress', 'regularKeySeed']);
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
@@ -617,7 +633,57 @@ export class SendXrpComponent implements AfterViewChecked {
           this.displayDataForAccount('issuer');
      }
 
+     updateFields<K extends keyof AppState>(fields: readonly K[]) {
+          const partial: Partial<AppState> = {};
+
+          fields.forEach(key => {
+               partial[key] = this.state[key];
+          });
+
+          this.stateService.updateState(partial);
+     }
+
+     // updateState() {
+     //      this.stateService.updateState({
+     //           amountField: this.state.amountField,
+     //           memoField: this.state.memoField,
+     //           isMemoEnabled: this.state.isMemoEnabled,
+     //           invoiceIdField: this.state.invoiceIdField,
+     //           ticketSequence: this.state.ticketSequence,
+     //           destinationTagField: this.state.destinationTagField,
+     //           sourceTagField: this.state.sourceTagField,
+     //           isTicket: this.state.isTicket,
+     //           isRegularKeyAddress: this.isRegularKeyAddress,
+     //           regularKeyAddress: this.regularKeyAddress,
+     //           regularKeySeed: this.regularKeySeed,
+     //           isMultiSign: this.isMultiSign,
+     //           signerQuorum: this.signerQuorum,
+     //           multiSignAddress: this.multiSignAddress,
+     //           multiSignSeeds: this.multiSignSeeds,
+     //      });
+     // }
+
+     updateMemo() {
+          this.updateFields(this.memoFields);
+     }
+
+     // update just tags
+     updateTags() {
+          this.updateFields(this.tagFields);
+     }
+
+     // update multi-sign info
+     updateMultiSign() {
+          this.updateFields(this.multiSignFields);
+     }
+
+     // update everything
+     updateAllFields() {
+          this.updateFields(this.allFields);
+     }
+
      clearFields() {
+          // this.stateService.resetPartialState(['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'isMultiSign']);
           this.amountField = '';
           this.memoField = '';
           this.invoiceIdField = '';

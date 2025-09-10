@@ -95,6 +95,7 @@
                                         <label for="amountField">XRP Amount</label>
                                    </td>
                                    <td>
+                                        <!-- <input type="text" id="amountField" [(ngModel)]="state.amountField" name="amountField" /> -->
                                         <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" />
                                    </td>
                               </tr>
@@ -113,6 +114,7 @@
                                         <label for="destinationTagField">Destination Tag</label>
                                    </td>
                                    <td>
+                                        <!-- <input type="text" id="destinationTagField" [(ngModel)]="state.destinationTagField" name="destinationTagField" /> -->
                                         <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
                                    </td>
                               </tr>
@@ -122,6 +124,7 @@
                                    </td>
                                    <td>
                                         <input type="text" id="sourceTagField" [(ngModel)]="sourceTagField" name="sourceTagField" />
+                                        <!-- <input type="text" id="sourceTagField" [(ngModel)]="state.sourceTagField" name="sourceTagField" /> -->
                                    </td>
                               </tr>
                               <tr>
@@ -130,6 +133,7 @@
                                    </td>
                                    <td>
                                         <input type="text" id="invoiceIdField" [(ngModel)]="invoiceIdField" name="invoiceIdField" />
+                                        <!-- <input type="text" id="invoiceIdField" [(ngModel)]="state.invoiceIdField" name="invoiceIdField" /> -->
                                    </td>
                               </tr>
                          </table>
@@ -207,17 +211,20 @@
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
                                         <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
+                                        <!-- <input type="checkbox" id="isMemoEnabled" [(ngModel)]="state.isMemoEnabled" name="isMemoEnabled" /> -->
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
+                         <!-- <tr class="multisignAddressClass" *ngIf="state.isMemoEnabled"> -->
                          <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
                               <td>
                                    <label for="memoField"></label>
                               </td>
                               <td>
                                    <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <!-- <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="state.memoField" name="memoField"></textarea> -->
                               </td>
                          </tr>
                          <tr>
@@ -298,17 +305,20 @@
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
                                         <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                                        <!-- <input type="checkbox" id="isTicketEnabled" [(ngModel)]="state.isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" /> -->
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
+                         <!-- <tr class="multisignAddressClass" *ngIf="state.isTicket"> -->
                          <tr class="multisignAddressClass" *ngIf="isTicket">
                               <td>
                                    <label for="ticketSequence"></label>
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <!-- <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="state.ticketSequence" name="ticketSequence" /> -->
                               </td>
                          </tr>
                     </table>
