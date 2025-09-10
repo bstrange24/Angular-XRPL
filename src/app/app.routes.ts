@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { AccountComponent } from './components/account/account.component';
 import { SendXrpComponent } from './components/send-xrp/send-xrp.component';
 import { CreatePaymentChannelComponent } from './components/create-payment-channel/create-payment-channel.component';
 import { CreateTimeEscrowComponent } from './components/create-time-escrow/create-time-escrow.component';
@@ -7,13 +6,11 @@ import { CreateConditionalEscrowComponent } from './components/create-conditiona
 import { SendChecksComponent } from './components/send-checks/send-checks.component';
 import { CreateTicketsComponent } from './components/create-tickets/create-tickets.component';
 import { CreateOfferComponent } from './components/create-offer/create-offer.component';
-import { SendCurrencyComponent } from './components/send-currency/send-currency.component';
 import { CreateNftComponent } from './components/create-nft/create-nft.component';
 import { CreateAmmComponent } from './components/create-amm/create-amm.component';
 import { TrustlinesComponent } from './components/trustlines/trustlines.component';
 import { DeleteAccountComponent } from './components/delete-account/delete-account.component';
 import { AccountConfiguratorComponent } from './components/account-configurator/account-configurator.component';
-import { OffersComponent } from './components/offers/offers.component';
 import { CreateCredentialsComponent } from './components/create-credentials/create-credentials.component';
 import { CreateDidComponent } from './components/create-did/create-did.component';
 import { AccountChangesComponent } from './components/account-changes/account-changes.component';
@@ -22,7 +19,6 @@ import { MptComponent } from './components/mpt/mpt.component';
 
 export const routes: Routes = [
      { path: '', redirectTo: '/account-configurator', pathMatch: 'full' },
-     { path: 'account', component: AccountComponent, data: { title: 'XRPL App' } },
      { path: 'account-changes', component: AccountChangesComponent, data: { title: 'Account Changes' } },
      { path: 'delete-account', component: DeleteAccountComponent, data: { title: 'Account Delete' } },
      { path: 'account-configurator', component: AccountConfiguratorComponent, data: { title: 'Account Configurator' } },
@@ -35,8 +31,6 @@ export const routes: Routes = [
      { path: 'send-checks', component: SendChecksComponent, data: { title: 'Checks' } },
      { path: 'create-tickets', component: CreateTicketsComponent, data: { title: 'Tickets' } },
      { path: 'create-offer', component: CreateOfferComponent, data: { title: 'Create Offers' } },
-     { path: 'offers', component: OffersComponent, data: { title: 'Offers' } },
-     { path: 'send-currency', component: SendCurrencyComponent, data: { title: 'Send Currency' } },
      { path: 'create-nft', component: CreateNftComponent, data: { title: 'NFT' } },
      { path: 'create-amm', component: CreateAmmComponent, data: { title: 'AMM' } },
      { path: 'trustlines', component: TrustlinesComponent, data: { title: 'Trustlines' } },
