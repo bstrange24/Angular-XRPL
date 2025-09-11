@@ -2,7 +2,8 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input>
+     <!-- <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input> -->
+     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
