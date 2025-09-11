@@ -21,9 +21,11 @@
           <div class="transaction-layout">
                <div class="left-column">
                     <div class="flags-layout">
-                         <table id="wallet-flags">
+                         <table id="flags">
                               <div class="account-group">
                                    <h4>Account 1</h4>
+                              </div>
+                              <fieldset>
                                    <div class="button-container" *ngIf="showGenerateButtons">
                                         <button type="button" id="generateNewWallet_1" (click)="generateNewWalletFromFamilySeed('1')">New From Seed</button>
                                         <button type="button" id="generateNewWalletMnemonic_1" (click)="generateNewWalletFromMnemonic('1')">New From Mnemonic</button>
@@ -34,7 +36,7 @@
                                         <button type="button" id="deriveWalletMnemonic_1" (click)="deriveNewWalletFromMnemonic('1')">Derive From Mnemonic</button>
                                         <button type="button" id="deriveWalletSecret_1" (click)="deriveNewWalletFromSecretNumbers('1')">Derive From Secret Numbers</button>
                                    </div>
-                                   <table id="wallet-flags">
+                                   <table id="flags">
                                         <tr>
                                              <td>
                                                   <label for="account1name" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
@@ -84,12 +86,14 @@
                                              </td>
                                         </tr>
                                    </table>
-                              </div>
+                              </fieldset>
                          </table>
 
-                         <table id="wallet-flags">
+                         <table id="flags">
                               <div class="account-group">
                                    <h4>Account 2</h4>
+                              </div>
+                              <fieldset>
                                    <div class="button-container" *ngIf="showGenerateButtons">
                                         <button type="button" id="generateNewWallet_2" (click)="generateNewWalletFromFamilySeed('2')">New From Seed</button>
                                         <button type="button" id="generateNewWalletMnemonic_2" (click)="generateNewWalletFromMnemonic('2')">New From Mnemonic</button>
@@ -100,7 +104,7 @@
                                         <button type="button" id="deriveWalletMnemonic_2" (click)="deriveNewWalletFromMnemonic('2')">Derive From Mnemonic</button>
                                         <button type="button" id="deriveWalletSecret_2" (click)="deriveNewWalletFromSecretNumbers('2')">Derive From Secret Numbers</button>
                                    </div>
-                                   <table id="wallet-flags">
+                                   <table id="flags">
                                         <tr>
                                              <td>
                                                   <label for="account2name" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
@@ -150,12 +154,14 @@
                                              </td>
                                         </tr>
                                    </table>
-                              </div>
+                              </fieldset>
                          </table>
 
-                         <table id="wallet-flags">
+                         <table id="flags">
                               <div class="account-group">
                                    <h4>Issuer</h4>
+                              </div>
+                              <fieldset>
                                    <div class="button-container" *ngIf="showGenerateButtons">
                                         <button type="button" id="generateNewWallet_3" (click)="generateNewWalletFromFamilySeed('3')">New From Seed</button>
                                         <button type="button" id="generateNewWalletMnemonic_3" (click)="generateNewWalletFromMnemonic('3')">New From Mnemonic</button>
@@ -166,7 +172,7 @@
                                         <button type="button" id="deriveWalletMnemonic_3" (click)="deriveNewWalletFromMnemonic('3')">Derive From Mnemonic</button>
                                         <button type="button" id="deriveWalletSecret_3" (click)="deriveNewWalletFromSecretNumbers('3')">Derive From Secret Numbers</button>
                                    </div>
-                                   <table id="wallet-flags">
+                                   <table id="flags">
                                         <tr>
                                              <td>
                                                   <label for="issuerName" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
@@ -216,7 +222,7 @@
                                              </td>
                                         </tr>
                                    </table>
-                              </div>
+                              </fieldset>
                          </table>
                     </div>
                </div>
