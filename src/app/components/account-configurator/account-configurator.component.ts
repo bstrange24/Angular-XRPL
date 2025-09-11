@@ -11,6 +11,25 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | null;
+     seed?: string;
+     destination?: string;
+     amount?: string;
+     sequence?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     regularKeyAccount?: string;
+     regularKeyAccountSeeds?: string;
+     depositAuthAddress?: string;
+     nfTokenMinterAddress?: string;
+     tickSize?: string;
+     transferRate?: string;
+     domain?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
+}
+
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -342,12 +361,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           console.log('Entering toggleMetaData');
           const startTime = Date.now();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+          };
+          const errors = await this.validateInputs(inputs, 'toggleMetaData');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -373,12 +393,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+          };
+          const errors = await this.validateInputs(inputs, 'getAccountDetails');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -435,13 +456,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+          };
+          const errors = await this.validateInputs(inputs, 'updateFlags');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
+
           if (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze) {
                return this.setError('ERROR: Cannot enable both NoFreeze and GlobalFreeze');
           }
@@ -536,12 +559,17 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               tickSize: this.tickSize,
+               transferRate: this.transferRate,
+               domain: this.domain,
+               sequence: this.isTicket ? this.ticketSequence : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'updateMetaData');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -611,6 +639,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     updatedData = true;
                     this.utilsService.setMessageKey(accountSetTx, wallet.publicKey);
                } else {
+                    updatedData = true;
                     this.utilsService.setMessageKey(accountSetTx, '');
                }
 
@@ -618,6 +647,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     updatedData = true;
                     this.utilsService.setDomain(accountSetTx, this.domain);
                } else {
+                    updatedData = true;
                     this.utilsService.setDomain(accountSetTx, '');
                }
 
@@ -682,8 +712,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return;
                     }
 
@@ -721,13 +749,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          // Validate selected account and seed
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               depositAuthAddress: this.depositAuthAddress,
+               sequence: this.isTicket ? this.ticketSequence : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'setDepositAuthAccounts');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           // Split and validate deposit auth addresses
@@ -873,8 +903,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
                     }
 
@@ -909,12 +937,16 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               sequence: this.isTicket ? this.ticketSequence : undefined,
+               signers: enableMultiSignFlag === 'Y' ? this.signers : undefined,
+               signerQuorum: enableMultiSignFlag === 'Y' ? this.signerQuorum : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'setMultiSign');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1041,8 +1073,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -1077,12 +1107,16 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               sequence: this.isTicket ? this.ticketSequence : undefined,
+               signers: enableMultiSignFlag === 'Y' ? this.signers : undefined,
+               signerQuorum: enableMultiSignFlag === 'Y' ? this.signerQuorum : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'setMultiSign');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1249,8 +1283,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -1285,16 +1317,18 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-               regularKeyAccount: this.regularKeyAccount ? this.regularKeyAccount : undefined,
-               regularKeyAccountSeeds: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               regularKeyAccount: this.isSetRegularKey ? this.regularKeyAccount : undefined,
+               regularKeyAccountSeeds: this.isSetRegularKey ? this.regularKeyAccountSeed : undefined,
+               sequence: this.isTicket ? this.ticketSequence : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'setRegularKey');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1386,8 +1420,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -1439,12 +1471,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               nfTokenMinterAddress: this.nfTokenMinterAddress,
+               sequence: this.isTicket ? this.ticketSequence : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'setNftMinterAddress');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           // Split and validate deposit auth addresses
@@ -1713,7 +1748,215 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAccount?: string; regularKeyAccountSeeds?: string }): string | null {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
+          const errors: string[] = [];
+
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null || !this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
+               }
+               return null;
+          };
+
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, maxValue?: number): string | null => {
+               if (value === undefined) return null; // Not required
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
+               }
+               if (minValue !== undefined && num < minValue) {
+                    return `${fieldName} must be at least ${minValue}`;
+               }
+               if (maxValue !== undefined && num > maxValue) {
+                    return `${fieldName} cannot be greater than ${maxValue}`;
+               }
+               return null;
+          };
+
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
+               return null;
+          };
+
+          const validateAddresses = async (addressesStr: string | undefined, fieldName: string): Promise<string[]> => {
+               const errors: string[] = [];
+               if (!addressesStr) return errors;
+               const addresses = this.utilsService.getUserEnteredAddress(addressesStr);
+               if (!addresses.length) {
+                    errors.push(`${fieldName} list is empty`);
+                    return errors;
+               }
+               const selfAddress = (await this.getWallet()).classicAddress;
+               if (addresses.includes(selfAddress)) {
+                    errors.push(`Your own account cannot be in the ${fieldName.toLowerCase()} list`);
+               }
+               const invalidAddresses = addresses.filter((addr: string) => !xrpl.isValidClassicAddress(addr));
+               if (invalidAddresses.length > 0) {
+                    errors.push(`Invalid ${fieldName} addresses: ${invalidAddresses.join(', ')}`);
+               }
+               const duplicates = addresses.filter((addr: any, idx: any, self: string | any[]) => self.indexOf(addr) !== idx);
+               if (duplicates.length > 0) {
+                    errors.push(`Duplicate ${fieldName} addresses: ${[...new Set(duplicates)].join(', ')}`);
+               }
+               return errors;
+          };
+
+          const validateSigners = async (signers: { account: string; weight: number }[] | undefined): Promise<string[]> => {
+               const errors: string[] = [];
+               if (!signers || !signers.length) {
+                    errors.push('No valid signer accounts provided');
+                    return errors;
+               }
+               const selfAddress = (await this.getWallet()).classicAddress;
+               if (signers.some(s => s.account === selfAddress)) {
+                    errors.push('Your own account cannot be in the signer list');
+               }
+               const invalidAddresses = signers.filter(s => s.account && !xrpl.isValidClassicAddress(s.account));
+               if (invalidAddresses.length > 0) {
+                    errors.push(`Invalid signer addresses: ${invalidAddresses.map(s => s.account).join(', ')}`);
+               }
+               const addresses = signers.map(s => s.account);
+               const duplicates = addresses.filter((addr, idx, self) => self.indexOf(addr) !== idx);
+               if (duplicates.length > 0) {
+                    errors.push(`Duplicate signer addresses: ${[...new Set(duplicates)].join(', ')}`);
+               }
+               if (signers.length > 8) {
+                    errors.push(`XRPL allows max 8 signer entries. You provided ${signers.length}`);
+               }
+               const totalWeight = signers.reduce((sum, s) => sum + (s.weight || 0), 0);
+               if (inputs.signerQuorum && inputs.signerQuorum > totalWeight) {
+                    errors.push(`Quorum (${inputs.signerQuorum}) exceeds total signer weight (${totalWeight})`);
+               }
+               if (inputs.signerQuorum && inputs.signerQuorum <= 0) {
+                    errors.push('Quorum must be greater than 0');
+               }
+               return errors;
+          };
+
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => Promise<string | null>)[] }> = {
+               getAccountDetails: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [async () => isValidSeed(inputs.seed)],
+               },
+               toggleMetaData: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [async () => isValidSeed(inputs.seed)],
+               },
+               updateFlags: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [async () => isValidSeed(inputs.seed), async () => (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze ? 'Cannot enable both NoFreeze and GlobalFreeze' : null)],
+               },
+               updateMetaData: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [
+                         async () => isValidSeed(inputs.seed),
+                         async () => (this.isTicket ? isRequired(inputs.sequence, 'Ticket Sequence') : null),
+                         async () => (this.isTicket ? isValidNumber(inputs.sequence, 'Ticket Sequence', 0) : null),
+                         async () => (inputs.tickSize ? isValidNumber(inputs.tickSize, 'Tick Size', 0, 15) : null),
+                         async () => (inputs.transferRate ? isValidNumber(inputs.transferRate, 'Transfer Rate', 0, 100) : null),
+                         async () => (inputs.domain && !this.utilsService.validateInput(inputs.domain) ? 'Domain cannot be empty' : null),
+                    ],
+               },
+               setDepositAuthAccounts: {
+                    required: ['selectedAccount', 'seed', 'depositAuthAddress'],
+                    customValidators: [async () => isValidSeed(inputs.seed), async () => (await validateAddresses(inputs.depositAuthAddress, 'Deposit Auth')).join('; '), async () => (this.isTicket ? isRequired(inputs.sequence, 'Ticket Sequence') : null), async () => (this.isTicket ? isValidNumber(inputs.sequence, 'Ticket Sequence', 0) : null)],
+               },
+               setMultiSign: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [async () => isValidSeed(inputs.seed), async () => (this.isTicket ? isRequired(inputs.sequence, 'Ticket Sequence') : null), async () => (this.isTicket ? isValidNumber(inputs.sequence, 'Ticket Sequence', 0) : null), async () => (this.isMultiSign ? (await validateSigners(inputs.signers)).join('; ') : null)],
+               },
+               setRegularKey: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [
+                         async () => isValidSeed(inputs.seed),
+                         async () => (this.isTicket ? isRequired(inputs.sequence, 'Ticket Sequence') : null),
+                         async () => (this.isTicket ? isValidNumber(inputs.sequence, 'Ticket Sequence', 0) : null),
+                         async () => (this.isSetRegularKey ? isRequired(inputs.regularKeyAccount, 'Regular Key Address') : null),
+                         async () => (this.isSetRegularKey ? isRequired(inputs.regularKeyAccountSeeds, 'Regular Key Seed') : null),
+                         async () => (this.isSetRegularKey ? isValidXrpAddress(inputs.regularKeyAccount, 'Regular Key Address') : null),
+                         async () => (this.isSetRegularKey ? isValidSecret(inputs.regularKeyAccountSeeds, 'Regular Key Seed') : null),
+                         async () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                    ],
+               },
+               setNftMinterAddress: {
+                    required: ['selectedAccount', 'seed', 'nfTokenMinterAddress'],
+                    customValidators: [async () => isValidSeed(inputs.seed), async () => (await validateAddresses(inputs.nfTokenMinterAddress, 'NFT Minter')).join('; '), async () => (this.isTicket ? isRequired(inputs.sequence, 'Ticket Sequence') : null), async () => (this.isTicket ? isValidNumber(inputs.sequence, 'Ticket Sequence', 0) : null)],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          for (const field of config.required) {
+               if (field === 'signerQuorum' || field === 'signers') continue; // Skip non-string fields
+               const err = isRequired(inputs[field] as string, field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          }
+
+          // Run custom validators
+          if (config.customValidators) {
+               for (const validator of config.customValidators) {
+                    const err = await validator();
+                    if (err) errors.push(err);
+               }
+          }
+
+          // Always validate optional fields if provided
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
+          }
+
+          return errors;
+     }
+
+     private validateInputs1(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAccount?: string; regularKeyAccountSeeds?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }
@@ -1723,16 +1966,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     return 'Account seed is invalid';
                }
           }
-          // if (inputs.seed != undefined) {
-          //      if (!this.utilsService.validateInput(inputs.seed)) {
-          //           return 'Account seed cannot be empty';
-          //      }
-          //      if (!xrpl.isValidSecret(inputs.seed)) {
-          //           return 'Account seed is invalid';
-          //      }
-          // } else {
-          //      return 'Account seed is invalid';
-          // }
           if (inputs.amount != undefined) {
                if (!this.utilsService.validateInput(inputs.amount)) {
                     return 'XRP Amount cannot be empty';

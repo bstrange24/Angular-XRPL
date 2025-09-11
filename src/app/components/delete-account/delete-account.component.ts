@@ -11,6 +11,17 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     seed?: string;
+     destination?: string;
+     destinationTag?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+}
+
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -163,12 +174,13 @@ export class DeleteAccountComponent implements AfterViewChecked {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+          };
+          const errors = this.validateInputs(inputs, 'getAccountDetails');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -214,17 +226,19 @@ export class DeleteAccountComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
-               regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
-               regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
+               destinationTag: this.destinationTagField,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'deleteAccount');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -330,8 +344,6 @@ export class DeleteAccountComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -431,51 +443,126 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
-          const { seed, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds } = inputs;
+     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
 
-          // 1. Account selection
-          if (selectedAccount === null || selectedAccount === undefined) {
-               return 'Please select an account';
-          }
-
-          // 2. Seed
-          if (seed) {
-               const { type, value } = this.utilsService.detectXrpInputType(seed);
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null || !this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
                }
-          }
+               return null;
+          };
 
-          // 3. Destination
-          if (destination && !this.utilsService.validateInput(destination)) {
-               return 'Destination cannot be empty';
-          }
-
-          // 4. Regular key
-          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
-               if (!xrpl.isValidAddress(regularKeyAddress)) {
-                    return 'Regular Key Address is invalid or empty';
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
                }
-          }
+               return null;
+          };
 
-          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
 
-          // 5. Multi-sign
-          if (multiSignAddresses && multiSignSeeds) {
-               const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-               const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
+               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
+               }
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
+               }
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
+
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
                if (addresses.length !== seeds.length) {
                     return 'Number of signer addresses must match number of signer seeds';
                }
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
+               return null;
+          };
+
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               getAccountDetails: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               deleteAccount: {
+                    required: ['selectedAccount', 'seed', 'destination'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidXrpAddress(inputs.destination, 'Destination address'),
+                         () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
+                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                    ],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
           }
 
-          return null;
+          return errors;
      }
 
      private updateDestinations() {

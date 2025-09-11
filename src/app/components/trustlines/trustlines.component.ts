@@ -11,6 +11,19 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     seed?: string;
+     amount?: string;
+     destination?: string;
+     destinationTag?: string;
+     ticket?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+}
+
 interface TrustLine {
      currency: string;
      issuer?: string; // Optional, as some currencies (e.g., XRP) may not have an issuer
@@ -67,6 +80,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
+     destinationTagField: string = '';
      isMultiSign = false;
      multiSignAddress: string = '';
      isUpdateMetaData = false;
@@ -148,7 +162,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.knownDestinations = storedDestinations;
           }
           this.updateCurrencies();
-          this.currencyField = 'USD'; // BOB Set default selected currency if available
+          this.currencyField = 'CTZ'; // BOB Set default selected currency if available
      }
 
      async ngAfterViewInit() {
@@ -255,12 +269,13 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'get');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -476,16 +491,18 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
+               ticket: this.ticketSequence,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'set');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -615,8 +632,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -643,14 +658,17 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               destination: this.destinationFields,
+               ticket: this.ticketSequence,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'remove');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -816,8 +834,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -844,14 +860,19 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               destinationTag: this.destinationTagField,
                amount: this.amountField,
                destination: this.destinationFields,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               ticket: this.ticketSequence,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+          };
+          const errors = this.validateInputs(inputs, 'issue');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -892,20 +913,21 @@ export class TrustlinesComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               const activeTrustLines: TrustLine[] = (activeTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.limit) > 0);
-               if (activeTrustLines.length === 0) {
-                    data.sections.push({
-                         title: 'Trust Lines',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: `No active trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationFields}</code>` }],
-                    });
-               } else {
-                    data.sections.push({
-                         title: 'Trust Lines',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: `Trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationFields}</code>` }],
-                    });
-               }
+               // const activeTrustLines: TrustLine[] = (activeTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.limit) > 0);
+               // const activeTrustLines: TrustLine[] = (activeTrustLine as TrustLine[]).filter((line: TrustLine) => parseFloat(line.balance) > 0);
+               // if (activeTrustLines.length === 0) {
+               //      data.sections.push({
+               //           title: 'Trust Lines',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: `No active trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationFields}</code>` }],
+               //      });
+               // } else {
+               //      data.sections.push({
+               //           title: 'Trust Lines',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: `Trust lines found from <code>${wallet.classicAddress}</code> to <code>${this.destinationFields}</code>` }],
+               //      });
+               // }
 
                let tx = null;
                const accountFlags = accountInfo.result.account_data.Flags;
@@ -1008,8 +1030,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return;
                     }
 
@@ -1061,6 +1081,10 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                if (this.memoField) {
                     this.utilsService.setMemoField(paymentTx, this.memoField);
+               }
+
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
                }
 
                if (this.currencyField === AppConstants.XRP_CURRENCY) {
@@ -1131,8 +1155,6 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -1203,7 +1225,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                });
 
                this.utilsService.renderPaymentChannelDetails(data);
-               // this.utilsService.renderTransactionsResults1(response, this.resultField.nativeElement, false);
                (response.result as any).clearInnerHtml = false;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
@@ -1230,12 +1251,13 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'change');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1432,7 +1454,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -1440,81 +1461,131 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
-          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds } = inputs;
+     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
 
-          // 1. Account selection
-          if (selectedAccount === null || selectedAccount === undefined) {
-               return 'Please select an account';
-          }
-
-          // 2. Seed
-          if (seed) {
-               const { type, value } = this.utilsService.detectXrpInputType(seed);
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null || !this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
                }
-          }
+               return null;
+          };
 
-          // 3. Amount
-          if (amount) {
-               if (!this.utilsService.validateInput(amount)) {
-                    return 'XRP Amount cannot be empty';
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
                }
-               const numAmount = parseFloat(amount);
-               if (isNaN(numAmount) || !isFinite(numAmount)) {
-                    return 'XRP Amount must be a valid number';
+               return null;
+          };
+
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
                }
-               if (numAmount <= 0) {
-                    return 'XRP Amount must be a positive number';
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
+               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
                }
-          }
-
-          // 5. Destination
-          if (destination && !this.utilsService.validateInput(destination)) {
-               return 'Destination cannot be empty';
-          }
-
-          // 6. Regular key
-          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
-               if (!xrpl.isValidAddress(regularKeyAddress)) {
-                    return 'Regular Key Address is invalid or empty';
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
                }
-          }
+               return null;
+          };
 
-          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
 
-          // 7. Multi-sign
-          if (multiSignAddresses && multiSignSeeds) {
-               const addresses = multiSignAddresses
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-               const seeds = multiSignSeeds
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
                if (addresses.length !== seeds.length) {
                     return 'Number of signer addresses must match number of signer seeds';
                }
-
-               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
+               return null;
+          };
 
-               if (seeds.some(s => !xrpl.isValidSecret(s))) {
-                    return 'One or more signer seeds are invalid';
-               }
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               get: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               set: {
+                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.ticket, 'Ticket', 0, true)],
+               },
+               remove: {
+                    required: ['selectedAccount', 'seed', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.ticket, 'Ticket', 0, true)],
+               },
+               issue: {
+                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.amount, 'Amount', 0),
+                         () => isValidXrpAddress(inputs.destination, 'Destination'),
+                         () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
+                         () => isValidNumber(inputs.ticket, 'Ticket', 0, true),
+                    ],
+               },
+               change: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
           }
 
-          return null;
+          return errors;
      }
 
      private updateDestinations() {

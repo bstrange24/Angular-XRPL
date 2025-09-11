@@ -4,7 +4,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
-import { OfferCreate, TransactionMetadataBase, OfferCreateFlags, BookOffer, IssuedCurrencyAmount, AMMInfoRequest, TrustSetFlags } from 'xrpl';
+import { BookOffer, IssuedCurrencyAmount, AMMInfoRequest, TrustSetFlags } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -18,6 +18,23 @@ import { MatSortModule } from '@angular/material/sort';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatButtonModule } from '@angular/material/button';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
+
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     seed?: string;
+     weWantAmountField?: string;
+     weSpendAmountField?: string;
+     weWantCurrencyField?: string;
+     weSpendCurrencyField?: string;
+     weWantIssuerField?: string;
+     weSpendIssuerField?: string;
+     withdrawlLpTokenFromPoolField?: string;
+     tradingFeeField?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+}
 
 interface SignerEntry {
      Account: string;
@@ -397,12 +414,17 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               weWantCurrencyField: this.weWantCurrencyField,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+          };
+          const errors = this.validateInputs(inputs, 'getPoolInfo');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -562,17 +584,22 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               // amount: this.amountField,
                weWantAmountField: this.weWantAmountField,
                weSpendAmountField: this.weSpendAmountField,
+               weWantCurrencyField: this.weWantCurrencyField,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+               tradingFeeField: this.tradingFeeField,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'create');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -703,13 +730,19 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               amount: this.weWantAmountField,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               weWantAmountField: this.weWantAmountField,
+               weSpendAmountField: this.depositOptions.bothPools ? this.weSpendAmountField : undefined,
+               weWantCurrencyField: this.weWantCurrencyField,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+          };
+          const errors = this.validateInputs(inputs, 'deposit');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -812,8 +845,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -849,12 +880,18 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               withdrawlLpTokenFromPoolField: this.withdrawlLpTokenFromPoolField,
+               weWantCurrencyField: this.weWantCurrencyField,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+          };
+          const errors = this.validateInputs(inputs, 'withdraw');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -928,8 +965,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -965,12 +1000,18 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               withdrawlLpTokenFromPoolField: this.withdrawlLpTokenFromPoolField,
+               weWantCurrencyField: this.weWantCurrencyField,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+          };
+          const errors = this.validateInputs(inputs, 'withdraw');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1044,8 +1085,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -1081,12 +1120,19 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+               weWantAmountField: this.weWantAmountField,
+               weSpendAmountField: this.weSpendAmountField,
+               weWantCurrencyField: this.weWantCurrencyField,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+          };
+          const errors = this.validateInputs(inputs, 'swap');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1121,8 +1167,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -1154,13 +1198,13 @@ export class CreateAmmComponent implements AfterViewChecked {
 
           await this.updateTokenBalanceAndExchange();
 
-          if (!this.selectedAccount) {
-               return this.setError('Please select an account');
-          }
-
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
-          if (!this.utilsService.validateInput(seed)) {
-               return this.setError('ERROR: Account seed cannot be empty');
+          const inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+          };
+          const errors = this.validateInputs(inputs, 'tokenBalance');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -1323,19 +1367,28 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          if (!this.selectedAccount) {
-               this.setError('Please select an account');
+          const inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+          };
+          const errors = this.validateInputs(inputs, 'weWantCurrencyChange');
+          if (errors.length > 0) {
                this.weWantTokenBalanceField = '0';
-               this.setErrorProperties();
-               return;
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
-          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
-          if (!this.utilsService.validateInput(address)) {
-               this.setError('ERROR: Account address cannot be empty');
-               this.weWantTokenBalanceField = '0';
-               this.setErrorProperties();
-               return;
-          }
+
+          // if (!this.selectedAccount) {
+          //      this.setError('Please select an account');
+          //      this.weWantTokenBalanceField = '0';
+          //      this.setErrorProperties();
+          //      return;
+          // }
+          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          // if (!this.utilsService.validateInput(address)) {
+          //      this.setError('ERROR: Account address cannot be empty');
+          //      this.weWantTokenBalanceField = '0';
+          //      this.setErrorProperties();
+          //      return;
+          // }
 
           try {
                // const client = await this.xrplService.getClient();
@@ -1499,17 +1552,26 @@ export class CreateAmmComponent implements AfterViewChecked {
           console.log('Entering onWeSpendCurrencyChange');
           const startTime = Date.now();
 
-          if (!this.selectedAccount) {
-               this.setError('Please select an account');
+          const inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+          };
+          const errors = this.validateInputs(inputs, 'weSpendCurrencyChange');
+          if (errors.length > 0) {
                this.weSpendTokenBalanceField = '0';
-               return;
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
-          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
-          if (!this.utilsService.validateInput(address)) {
-               this.setError('ERROR: Account address cannot be empty');
-               this.weSpendTokenBalanceField = '0';
-               return;
-          }
+
+          // if (!this.selectedAccount) {
+          //      this.setError('Please select an account');
+          //      this.weSpendTokenBalanceField = '0';
+          //      return;
+          // }
+          const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          // if (!this.utilsService.validateInput(address)) {
+          //      this.setError('ERROR: Account address cannot be empty');
+          //      this.weSpendTokenBalanceField = '0';
+          //      return;
+          // }
 
           try {
                this.spinner = true;
@@ -2267,7 +2329,206 @@ export class CreateAmmComponent implements AfterViewChecked {
           return { currency, issuer: issuerAddress };
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; weWantAmountField?: string; weSpendAmountField?: string }): string | null {
+     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
+
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null) {
+                    return `${fieldName} cannot be empty`;
+               }
+               if (!this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
+               }
+               return null;
+          };
+
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, maxValue?: number): string | null => {
+               if (value === undefined) return null; // Not required, so skip
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
+               }
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
+               }
+               if (maxValue !== undefined && num > maxValue) {
+                    return `${fieldName} must be less than or equal to ${maxValue}`;
+               }
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { type, value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
+
+          const isValidCurrency = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !this.utilsService.isValidCurrencyCode(value)) {
+                    return `${fieldName} must be a valid currency code (3-20 characters or valid hex)`;
+               }
+               return null;
+          };
+
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
+               return null;
+          };
+
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               getPoolInfo: {
+                    required: ['selectedAccount', 'seed', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                    ],
+               },
+               create: {
+                    required: ['selectedAccount', 'seed', 'weWantAmountField', 'weSpendAmountField', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.weWantAmountField, 'First pool amount', 0),
+                         () => isValidNumber(inputs.weSpendAmountField, 'Second pool amount', 0),
+                         () => isValidNumber(inputs.tradingFeeField, 'Trading fee', 0, 1000),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                    ],
+               },
+               deposit: {
+                    required: ['selectedAccount', 'seed', 'weWantAmountField', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.weWantAmountField, 'Amount', 0),
+                         () => (inputs.weSpendAmountField ? isValidNumber(inputs.weSpendAmountField, 'Second pool amount', 0) : null),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                    ],
+               },
+               withdraw: {
+                    required: ['selectedAccount', 'seed', 'withdrawlLpTokenFromPoolField', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.withdrawlLpTokenFromPoolField, 'LP token amount', 0),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                    ],
+               },
+               swap: {
+                    required: ['selectedAccount', 'seed', 'weWantAmountField', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.weWantAmountField, 'Amount', 0),
+                         () => (inputs.weSpendAmountField ? isValidNumber(inputs.weSpendAmountField, 'Send max amount', 0) : null),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                    ],
+               },
+               tokenBalance: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               weWantCurrencyChange: {
+                    required: ['selectedAccount'],
+                    customValidators: [() => isValidXrpAddress(this.utilsService.getSelectedAddressWithIssuer(inputs.selectedAccount || '', this.account1, this.account2, this.issuer), 'Account address')],
+               },
+               weSpendCurrencyChange: {
+                    required: ['selectedAccount'],
+                    customValidators: [() => isValidXrpAddress(this.utilsService.getSelectedAddressWithIssuer(inputs.selectedAccount || '', this.account1, this.account2, this.issuer), 'Account address')],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
+          }
+
+          return errors;
+     }
+
+     private validateInputs1(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; weWantAmountField?: string; weSpendAmountField?: string }): string | null {
           if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
                return 'Please select an account';
           }

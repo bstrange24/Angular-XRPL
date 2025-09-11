@@ -11,6 +11,17 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     seed?: string;
+     ticketCount?: string;
+     ticketSequence?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+}
+
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -167,12 +178,13 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'get');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -245,13 +257,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                ticketCount: this.ticketCountField,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'create');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -345,8 +358,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -370,13 +381,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                ticketSequence: this.ticketSequence,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'cancel');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -480,8 +492,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -558,7 +568,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -566,44 +575,120 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; ticketCount?: string; ticketSequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
-               return 'Please select an account';
-          }
-          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
-               return 'Amount cannot be empty';
-          }
-          if (inputs.amount != undefined) {
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
-                    return 'Amount must be a valid number';
+     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
+
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null) {
+                    return `${fieldName} cannot be empty`;
                }
-          }
-          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
-               return 'Amount must be a positive number';
-          }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
-               return 'Destination cannot be empty';
-          }
-          if (inputs.ticketCount != undefined) {
-               if (isNaN(parseFloat(inputs.ticketCount ?? '')) || !isFinite(parseFloat(inputs.ticketCount ?? ''))) {
-                    return 'Ticket count must be a valid number';
+               if (!this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
                }
-               if (parseFloat(inputs.ticketCount) <= 0) {
-                    return 'Ticket count must be a positive number';
+               return null;
+          };
+
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
                }
+               return null;
+          };
+
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number): string | null => {
+               if (value === undefined) return null; // Not required, so skip
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
+               }
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
+               }
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { type, value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
+
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+               return null;
+          };
+
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               get: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               create: {
+                    required: ['selectedAccount', 'seed', 'ticketCount'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.ticketCount, 'Ticket count', 0)],
+               },
+               cancel: {
+                    required: ['selectedAccount', 'seed', 'ticketSequence'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.ticketSequence, 'Ticket sequence', 0)],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
           }
-          if (inputs.ticketSequence != undefined) {
-               if (isNaN(parseFloat(inputs.ticketSequence ?? '')) || !isFinite(parseFloat(inputs.ticketSequence ?? ''))) {
-                    return 'Ticket sequence must be a valid number';
-               }
-               if (parseFloat(inputs.ticketSequence) <= 0) {
-                    return 'Ticket sequence must be a positive number';
-               }
-          }
-          return null;
+
+          return errors;
      }
 
      async getWallet() {

@@ -11,7 +11,6 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
-                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -19,7 +18,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="accountName1Field" size="40" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="text" id="accountName1Field" [(ngModel)]="account1.name" name="accountName1Field" />
                                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                                         <label for="account1">Account 1</label>
                                    </td>
@@ -31,7 +30,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="accountAddress1Field" size="40" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="text" id="accountAddress1Field" [(ngModel)]="account1.address" name="accountAddress1Field" />
                                         <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                                         <label for="account2">Account 2</label>
                                    </td>
@@ -43,7 +42,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="accountSeed1Field" size="40" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="text" id="accountSeed1Field" [(ngModel)]="account1.seed" name="accountSeed1Field" />
                                         <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                                         <label for="accountIssuer">Account 3</label>
                                    </td>
@@ -55,7 +54,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="xrpBalance1Field" size="40" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
+                                        <input type="text" id="xrpBalance1Field" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
                                    </td>
                               </tr>
                               <tr>
@@ -65,7 +64,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="ownerCountField" size="40" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                                        <input type="text" id="ownerCountField" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
                                    </td>
                               </tr>
                               <tr>
@@ -75,7 +74,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="totalXrpReservesField" size="40" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                                        <input type="text" id="totalXrpReservesField" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
                                    </td>
                               </tr>
                               <tr>
@@ -85,7 +84,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                        <input type="text" id="totalExecutionTime" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                                    </td>
                               </tr>
 
@@ -341,7 +340,7 @@
                                    </div>
                               </fieldset>
                               <th></th>
-                              <tr>
+                              <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <button type="button" (click)="getAMMPoolInfo()">Get AMM Pool Info</button>
                                         <button type="button" (click)="createAMM()">Create AMM</button>
@@ -351,142 +350,141 @@
                                         <button type="button" (click)="swapViaAMM()">Swap via AMM</button>
                                    </td>
                               </tr>
-                              <tr>
+                              <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
                                    </td>
                               </tr>
+
+                              <details class="offer-info">
+                                   <summary>Offer Info</summary>
+                                   <fieldset class="offer-fieldset">
+                                        <details class="offer-subdetails">
+                                             <summary>Offer Constraints</summary>
+                                             <div class="offer-table">
+                                                  <div class="offer-row offer-header">
+                                                       <div class="offer-cell">Offer Constraints</div>
+                                                       <div class="offer-cell">Description</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Authorized Account Only</div>
+                                                       <div class="offer-cell">Only the Destination account (set in CheckCreate) can cash the offer.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Check Must Exist</div>
+                                                       <div class="offer-cell">The offer must still be in the ledger and not already cashed, expired, or canceled.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Sender Must Have Funds</div>
+                                                       <div class="offer-cell">The sender (offer creator) must have sufficient XRP or IOU balance to cover the amount at the time of CheckCash.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Specify Amount OR DeliverMin</div>
+                                                       <div class="offer-cell">You must provide either Amount (exact cash amount) or DeliverMin (minimum acceptable), not both.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">No Partial XRP Checks</div>
+                                                       <div class="offer-cell">XRP checks must specify exact Amount. DeliverMin is only allowed for IOU currencies.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Trust Line Required for IOUs</div>
+                                                       <div class="offer-cell">The recipient must have a trust line to the issuer (if the offer is for an issued currency like USD, RLUSD, etc.).</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Respect SendMax Limit</div>
+                                                       <div class="offer-cell">The cashed Amount or DeliverMin must be less than or equal to the SendMax value from the original CheckCreate.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Check Can Expire</div>
+                                                       <div class="offer-cell">If Expiration was set in CheckCreate, the offer cannot be cashed after that time (based on XRPL close time).</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+
+                                        <details class="offer-subdetails">
+                                             <summary>Offer Create Flags</summary>
+                                             <div class="offer-table">
+                                                  <div class="offer-row offer-header">
+                                                       <div class="offer-cell">Offer Flags</div>
+                                                       <div class="offer-cell">Hex Value</div>
+                                                       <div class="offer-cell">Purpose</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Passive consumption <code>tfPassive</code></div>
+                                                       <div class="offer-cell"><code>0x00010000</code></div>
+                                                       <div class="offer-cell">Don't consume matching offers immediately.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Immediate or Cancel <code>tfImmediateOrCancel</code></div>
+                                                       <div class="offer-cell"><code>0x00020000</code></div>
+                                                       <div class="offer-cell">Execute immediately or cancel (no partially filled orders).</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Fill or Kill <code>tfFillOrKill</code></div>
+                                                       <div class="offer-cell"><code>0x00040000</code></div>
+                                                       <div class="offer-cell">Execute in full or not at all.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Sell <code>tfSell</code></div>
+                                                       <div class="offer-cell"><code>0x00080000</code></div>
+                                                       <div class="offer-cell">Treat offer as **sell**, prioritizing `TakerGets` quantity.</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+
+                                        <details class="offer-subdetails">
+                                             <summary>Offer Create Transaction Settings</summary>
+                                             <div class="offer-table">
+                                                  <div class="offer-row offer-header">
+                                                       <div class="offer-cell">Field</div>
+                                                       <div class="offer-cell">Optional</div>
+                                                       <div class="offer-cell">Purpose</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>TakerGets</code></div>
+                                                       <div class="offer-cell">Required</div>
+                                                       <div class="offer-cell">What you are **offering** (the asset you will give).</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>TakerPays</code></div>
+                                                       <div class="offer-cell">Required</div>
+                                                       <div class="offer-cell">What you **want** in return.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>Flags</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">Bitmask flags to control behavior like passive mode, fill-or-kill, or immediate-or-cancel.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>Expiration</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">Ledger time when the offer expires automatically.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>OfferSequence</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">To replace an existing offer with the same sequence number.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>TicketSequence</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">Use a ticket instead of the standard sequence number.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>Sequence</code></div>
+                                                       <div class="offer-cell">Required if not using Ticket</div>
+                                                       <div class="offer-cell">Required unless using `TicketSequence`.</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+                                   </fieldset>
+                              </details>
                          </table>
-
-                         <details class="offer-info">
-                              <summary>Offer Info</summary>
-                              <fieldset class="offer-fieldset">
-                                   <details class="offer-subdetails">
-                                        <summary>Offer Constraints</summary>
-                                        <div class="offer-table">
-                                             <div class="offer-row offer-header">
-                                                  <div class="offer-cell">Offer Constraints</div>
-                                                  <div class="offer-cell">Description</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Authorized Account Only</div>
-                                                  <div class="offer-cell">Only the Destination account (set in CheckCreate) can cash the offer.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Check Must Exist</div>
-                                                  <div class="offer-cell">The offer must still be in the ledger and not already cashed, expired, or canceled.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Sender Must Have Funds</div>
-                                                  <div class="offer-cell">The sender (offer creator) must have sufficient XRP or IOU balance to cover the amount at the time of CheckCash.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Specify Amount OR DeliverMin</div>
-                                                  <div class="offer-cell">You must provide either Amount (exact cash amount) or DeliverMin (minimum acceptable), not both.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">No Partial XRP Checks</div>
-                                                  <div class="offer-cell">XRP checks must specify exact Amount. DeliverMin is only allowed for IOU currencies.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Trust Line Required for IOUs</div>
-                                                  <div class="offer-cell">The recipient must have a trust line to the issuer (if the offer is for an issued currency like USD, RLUSD, etc.).</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Respect SendMax Limit</div>
-                                                  <div class="offer-cell">The cashed Amount or DeliverMin must be less than or equal to the SendMax value from the original CheckCreate.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Check Can Expire</div>
-                                                  <div class="offer-cell">If Expiration was set in CheckCreate, the offer cannot be cashed after that time (based on XRPL close time).</div>
-                                             </div>
-                                        </div>
-                                   </details>
-
-                                   <details class="offer-subdetails">
-                                        <summary>Offer Create Flags</summary>
-                                        <div class="offer-table">
-                                             <div class="offer-row offer-header">
-                                                  <div class="offer-cell">Offer Flags</div>
-                                                  <div class="offer-cell">Hex Value</div>
-                                                  <div class="offer-cell">Purpose</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Passive consumption <code>tfPassive</code></div>
-                                                  <div class="offer-cell"><code>0x00010000</code></div>
-                                                  <div class="offer-cell">Don't consume matching offers immediately.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Immediate or Cancel <code>tfImmediateOrCancel</code></div>
-                                                  <div class="offer-cell"><code>0x00020000</code></div>
-                                                  <div class="offer-cell">Execute immediately or cancel (no partially filled orders).</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Fill or Kill <code>tfFillOrKill</code></div>
-                                                  <div class="offer-cell"><code>0x00040000</code></div>
-                                                  <div class="offer-cell">Execute in full or not at all.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell">Sell <code>tfSell</code></div>
-                                                  <div class="offer-cell"><code>0x00080000</code></div>
-                                                  <div class="offer-cell">Treat offer as **sell**, prioritizing `TakerGets` quantity.</div>
-                                             </div>
-                                        </div>
-                                   </details>
-
-                                   <details class="offer-subdetails">
-                                        <summary>Offer Create Transaction Settings</summary>
-                                        <div class="offer-table">
-                                             <div class="offer-row offer-header">
-                                                  <div class="offer-cell">Field</div>
-                                                  <div class="offer-cell">Optional</div>
-                                                  <div class="offer-cell">Purpose</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>TakerGets</code></div>
-                                                  <div class="offer-cell">Required</div>
-                                                  <div class="offer-cell">What you are **offering** (the asset you will give).</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>TakerPays</code></div>
-                                                  <div class="offer-cell">Required</div>
-                                                  <div class="offer-cell">What you **want** in return.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>Flags</code></div>
-                                                  <div class="offer-cell">No</div>
-                                                  <div class="offer-cell">Bitmask flags to control behavior like passive mode, fill-or-kill, or immediate-or-cancel.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>Expiration</code></div>
-                                                  <div class="offer-cell">No</div>
-                                                  <div class="offer-cell">Ledger time when the offer expires automatically.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>OfferSequence</code></div>
-                                                  <div class="offer-cell">No</div>
-                                                  <div class="offer-cell">To replace an existing offer with the same sequence number.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>TicketSequence</code></div>
-                                                  <div class="offer-cell">No</div>
-                                                  <div class="offer-cell">Use a ticket instead of the standard sequence number.</div>
-                                             </div>
-                                             <div class="offer-row">
-                                                  <div class="offer-cell"><code>Sequence</code></div>
-                                                  <div class="offer-cell">Required if not using Ticket</div>
-                                                  <div class="offer-cell">Required unless using `TicketSequence`.</div>
-                                             </div>
-                                        </div>
-                                   </details>
-                              </fieldset>
-                         </details>
                     </div>
                </div>
 
                <div class="right-column">
                     <table id="meta">
-                         <th></th>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">

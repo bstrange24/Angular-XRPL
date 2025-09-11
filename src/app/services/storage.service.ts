@@ -92,6 +92,7 @@ export class StorageService {
 
      // Store knownIssuers object
      setKnownIssuers(key: string, knownIssuers: { [key: string]: string }): void {
+          knownIssuers['XRP'] = '';
           localStorage.setItem(key, JSON.stringify(knownIssuers));
      }
 

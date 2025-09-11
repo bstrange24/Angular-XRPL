@@ -6,475 +6,563 @@
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                              <label for="accountName1Field">Name</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountName1Field" size="42" [(ngModel)]="account1.name" name="accountName1Field" />
-                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                         <label for="account1">Account 1</label>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                              <label for="accountAddress1Field">Address</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountAddress1Field" size="42" [(ngModel)]="account1.address" name="accountAddress1Field" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                              <label for="accountSeed1Field">Seed</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="accountSeed1Field" size="42" [(ngModel)]="account1.seed" name="accountSeed1Field" />
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                              <label for="xrpBalanceField">Spendable XRP Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="xrpBalanceField" size="42" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
-                    </td>
-               </tr>
 
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
-                              <label for="ownerCountField">Owner Count</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="ownerCountField" size="42" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
-                              <label for="totalXrpReservesField">Total XRP Reserves</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="totalXrpReservesField" size="42" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                         <br />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
-                              <label for="totalExecutionTime">Total Execution Time in ms</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="totalExecutionTime" size="42" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Sequence number of the offer.">
-                              <label for="offerSequenceField">Offer Sequence</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="offerSequenceField" size="42" placeholder="Comma seperated list of sequence numbers" [(ngModel)]="offerSequenceField" name="offerSequenceField" />
-                    </td>
-                    <td></td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Treat the offer as an Immediate or Cancel order. If enabled, the offer never becomes a ledger object: it only tries to match existing offers in the ledger. If the offer cannot match any offers immediately, it executes successfully without trading any currency. In this case, the transaction has the result code tesSUCCESS, but creates no Offer objects in the ledger.">
-                              <label for="isMarketOrder">Immediate Or Cancel</label>
-                         </span>
-                    </td>
-                    <td>
-                         <label class="switch">
-                              <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" />
-                              <span class="slider round"></span>
-                         </label>
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Treat the offer as a Fill or Kill order. Only try to match existing offers in the ledger, and only do so if the entire TakerPays quantity can be obtained. If the fix1578 amendment is enabled and the offer cannot be executed when placed, the transaction has the result code tecKILLED; otherwise, the transaction uses the result code tesSUCCESS even when it was killed without trading any currency.">
-                              <label for="isFillOrKill">Fill Or Kill</label>
-                         </span>
-                    </td>
-                    <td>
-                         <label class="switch">
-                              <input type="checkbox" id="isFillOrKill" [(ngModel)]="isFillOrKill" name="isFillOrKill" />
-                              <span class="slider round"></span>
-                         </label>
-                    </td>
-               </tr>
-               <tr>
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="If enabled, the offer does not consume offers that exactly match it, and instead becomes an Offer object in the ledger. It still consumes offers that cross it.">
-                              <label for="isPassive">Passive</label>
-                         </span>
-                    </td>
-                    <td>
-                         <label class="switch">
-                              <input type="checkbox" id="isPassive" [(ngModel)]="isPassive" name="isPassive" />
-                              <span class="slider round"></span>
-                         </label>
-                    </td>
-               </tr>
-          </table>
+          <div class="transaction-layout">
+               <div class="left-column">
+                    <div class="flags-layout">
+                         <table id="flags">
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                                             <label for="accountName1Field">Name</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountName1Field" size="42" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account1">Account 1</label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                                             <label for="accountAddress1Field">Address</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountAddress1Field" size="42" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                                             <label for="accountSeed1Field">Seed</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="accountSeed1Field" size="42" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                                             <label for="xrpBalanceField">Spendable XRP Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="xrpBalanceField" size="42" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
+                                   </td>
+                              </tr>
 
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right; padding-bottom: 10px">
-                         <span class="tooltip" tooltip-data="Taker Gets.">
-                              <label for="weWantCurrencyField">Taker Gets</label>
-                         </span>
-                    </td>
-                    <td style="text-align: left">
-                         <span class="tooltip" tooltip-data="This is what I want to buy.">
-                              <label for="weWantCurrencyField">This is what I'm buying (weWant)</label>
-                         </span>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
-                              <label for="weWantCurrencyField">Currency Code</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="weWantCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()">
-                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                         </select>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
-                              <label for="weWantIssuerField">Issuer</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" (ngModelChange)="onWeWantCurrencyChange()" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
-                              <label for="weWantAmountField">Amount</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of currencies I hold">
-                              <label for="weWantTokenBalance">Currency Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
-                    </td>
-               </tr>
-          </table>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                                             <label for="ownerCountField">Owner Count</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="ownerCountField" size="42" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                                             <label for="totalXrpReservesField">Total XRP Reserves</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalXrpReservesField" size="42" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                                        <br />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="totalExecutionTime" size="42" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Sequence number of the offer.">
+                                             <label for="offerSequenceField">Offer Sequence</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="offerSequenceField" size="42" placeholder="Comma seperated list of sequence numbers" [(ngModel)]="offerSequenceField" name="offerSequenceField" />
+                                   </td>
+                                   <td></td>
+                              </tr>
+                              <!-- <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Treat the offer as an Immediate or Cancel order. If enabled, the offer never becomes a ledger object: it only tries to match existing offers in the ledger. If the offer cannot match any offers immediately, it executes successfully without trading any currency. In this case, the transaction has the result code tesSUCCESS, but creates no Offer objects in the ledger.">
+                                             <label for="isMarketOrder">Immediate Or Cancel</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="isMarketOrder" [(ngModel)]="isMarketOrder" name="isMarketOrder" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Treat the offer as a Fill or Kill order. Only try to match existing offers in the ledger, and only do so if the entire TakerPays quantity can be obtained. If the fix1578 amendment is enabled and the offer cannot be executed when placed, the transaction has the result code tecKILLED; otherwise, the transaction uses the result code tesSUCCESS even when it was killed without trading any currency.">
+                                             <label for="isFillOrKill">Fill Or Kill</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="isFillOrKill" [(ngModel)]="isFillOrKill" name="isFillOrKill" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="If enabled, the offer does not consume offers that exactly match it, and instead becomes an Offer object in the ledger. It still consumes offers that cross it.">
+                                             <label for="isPassive">Passive</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="isPassive" [(ngModel)]="isPassive" name="isPassive" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr> -->
+                         </table>
 
-          <table style="float: left">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right; padding-bottom: 10px">
-                         <span class="tooltip" tooltip-data="Taker Pays.">
-                              <label for="weSpendCurrencyField">Taker Pays</label>
-                         </span>
-                    </td>
-                    <td style="text-align: left; padding-bottom: 10px">
-                         <span class="tooltip" tooltip-data="This is what I am selling.">
-                              <label for="weSpendCurrencyField">This is what I'm selling (weSpend)</label>
-                         </span>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
-                              <label for="weSpendCurrencyField">Currency Code</label>
-                         </span>
-                    </td>
-                    <td>
-                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
-                              <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                         </select>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
-                              <label for="weSpendIssuerField">Issuer</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" (ngModelChange)="onWeSpendCurrencyChange()" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of offered currencies.">
-                              <label for="weSpendAmountField">Amount</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" (ngModelChange)="onWeSpendAmountChange()" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
-                              <label for="weSpendTokenBalance">Currency Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
-                    </td>
-               </tr>
-          </table>
+                         <table id="flags">
+                              <tr>
+                                   <td style="text-align: right; padding-bottom: 10px">
+                                        <span class="tooltip" tooltip-data="Taker Gets.">
+                                             <label for="weWantCurrencyField">Taker Gets</label>
+                                        </span>
+                                   </td>
+                                   <td style="text-align: left">
+                                        <span class="tooltip" tooltip-data="This is what I want to buy.">
+                                             <label for="weWantCurrencyField">This is what I'm buying (weWant)</label>
+                                        </span>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                                             <label for="weWantCurrencyField">Currency Code</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="weWantCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weWantCurrencyField" name="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()">
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                                             <label for="weWantIssuerField">Issuer</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" (ngModelChange)="onWeWantCurrencyChange()" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                                             <label for="weWantAmountField">Amount</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amounts of currencies I hold">
+                                             <label for="weWantTokenBalance">Currency Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" />
+                                   </td>
+                              </tr>
+                         </table>
 
-          <!-- <table style="float: left; margin-top: 20px">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Current Token balance for the selected account.">
-                              <label for="tokenBalanceField">Token Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tokenBalanceField" size="42" [(ngModel)]="phnixBalance" name="tokenBalanceField" (ngModelChange)="updateTokenBalanceAndExchange()" />
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Estimated XRP you would receive by exchanging the current token at current market rates.">
-                              <label for="toekenExchangeXrpField">XRP from Exchanging For Token</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="toekenExchangeXrpField" size="42" [(ngModel)]="phnixExchangeXrp" name="toekenExchangeXrpField" />
-                    </td>
-               </tr>
-               <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div>
-          </table> -->
+                         <table id="flags">
+                              <tr>
+                                   <td style="text-align: right; padding-bottom: 10px">
+                                        <span class="tooltip" tooltip-data="Taker Pays.">
+                                             <label for="weSpendCurrencyField">Taker Pays</label>
+                                        </span>
+                                   </td>
+                                   <td style="text-align: left; padding-bottom: 10px">
+                                        <span class="tooltip" tooltip-data="This is what I am selling.">
+                                             <label for="weSpendCurrencyField">This is what I'm selling (weSpend)</label>
+                                        </span>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                                             <label for="weSpendCurrencyField">Currency Code</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="weSpendCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                                             <label for="weSpendIssuerField">Issuer</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" (ngModelChange)="onWeSpendCurrencyChange()" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                                             <label for="weSpendAmountField">Amount</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" (ngModelChange)="onWeSpendAmountChange()" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
+                                             <label for="weSpendTokenBalance">Currency Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" />
+                                   </td>
+                              </tr>
+                         </table>
+                    </div>
 
-          <!-- <table style="float: left; margin-top: 20px">
-               <th></th>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Current Token balance for the selected account.">
-                              <label for="tokenBalanceField">Token Balance</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="tokenBalanceField" size="42" [(ngModel)]="phnixBalance" name="tokenBalanceField" (ngModelChange)="updateTokenBalanceAndExchange()" />
-                    </td>
-               </tr>
-               <tr>
-                    <td colspan="2" style="text-align: center; padding: 5px 0">
-                         <span class="swap-arrow" (click)="swapBalances()" title="Swap values"> ⇅ </span>
-                    </td>
-               </tr>
-               <tr style="vertical-align: top">
-                    <td style="text-align: right">
-                         <span class="tooltip" tooltip-data="Estimated XRP you would receive by exchanging the current token at current market rates.">
-                              <label for="toekenExchangeXrpField">XRP from Exchanging For Token</label>
-                         </span>
-                    </td>
-                    <td>
-                         <input type="text" id="toekenExchangeXrpField" size="42" [(ngModel)]="phnixExchangeXrp" name="toekenExchangeXrpField" />
-                    </td>
-               </tr>
-               <div *ngIf="insufficientLiquidityWarning" class="warning">Not enough buyers: You can only sell {{ maxSellablePhnix }} {{ phnixCurrencyCode }} at current rates.</div>
-          </table> -->
+                    <div class="spinner-container">
+                         <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
+                         <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+                    </div>
 
-          <div class="spinner-container">
-               <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
-               <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+                    <div class="button-container">
+                         <table style="text-align: left; width: 100%">
+                              <fieldset>
+                                   <legend style="color: white">Manage Tokens</legend>
+                                   <div style="margin-bottom: 10px">
+                                        <label>Add Token: </label>
+                                        <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
+                                        <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
+                                        <button type="button" (click)="addToken()">Add</button>
+                                   </div>
+                                   <div>
+                                        <label>Remove Token: </label>
+                                        <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                                             <option value="">Select a token</option>
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                        <button type="button" (click)="removeToken()">Remove</button>
+                                   </div>
+                              </fieldset>
+                              <th></th>
+                              <tr style="vertical-align: top">
+                                   <td colspan="2">
+                                        <button type="button" (click)="getOffers()">Get Offers</button>
+                                        <button type="button" (click)="getOrderBook()">Get Order Book</button>
+                                        <button type="button" (click)="getTokenBalance()">Get Token Balance</button>
+                                        <button type="button" (click)="invertOrder()">Invert Order</button>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td colspan="2">
+                                        <button type="button" (click)="createOffer()">Create Offer</button>
+                                        <button type="button" (click)="cancelOffer()">Cancel Offer</button>
+                                        <button type="button" (click)="clearFields()">Clear Fields</button>
+                                   </td>
+                              </tr>
+                              <tr style="vertical-align: top">
+                                   <td colspan="2">
+                                        <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                                   </td>
+                              </tr>
+
+                              <details class="offer-info">
+                                   <summary>Offer Info</summary>
+                                   <fieldset class="offer-fieldset">
+                                        <details class="offer-subdetails">
+                                             <summary>Offer Constraints</summary>
+                                             <div class="offer-table">
+                                                  <div class="offer-row offer-header">
+                                                       <div class="offer-cell">Offer Constraints</div>
+                                                       <div class="offer-cell">Description</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Authorized Account Only</div>
+                                                       <div class="offer-cell">Only the Destination account (set in CheckCreate) can cash the offer.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Check Must Exist</div>
+                                                       <div class="offer-cell">The offer must still be in the ledger and not already cashed, expired, or canceled.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Sender Must Have Funds</div>
+                                                       <div class="offer-cell">The sender (offer creator) must have sufficient XRP or IOU balance to cover the amount at the time of CheckCash.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Specify Amount OR DeliverMin</div>
+                                                       <div class="offer-cell">You must provide either Amount (exact cash amount) or DeliverMin (minimum acceptable), not both.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">No Partial XRP Checks</div>
+                                                       <div class="offer-cell">XRP checks must specify exact Amount. DeliverMin is only allowed for IOU currencies.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Trust Line Required for IOUs</div>
+                                                       <div class="offer-cell">The recipient must have a trust line to the issuer (if the offer is for an issued currency like USD, RLUSD, etc.).</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Respect SendMax Limit</div>
+                                                       <div class="offer-cell">The cashed Amount or DeliverMin must be less than or equal to the SendMax value from the original CheckCreate.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Check Can Expire</div>
+                                                       <div class="offer-cell">If Expiration was set in CheckCreate, the offer cannot be cashed after that time (based on XRPL close time).</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+
+                                        <details class="offer-subdetails">
+                                             <summary>Offer Create Flags</summary>
+                                             <div class="offer-table">
+                                                  <div class="offer-row offer-header">
+                                                       <div class="offer-cell">Offer Flags</div>
+                                                       <div class="offer-cell">Hex Value</div>
+                                                       <div class="offer-cell">Purpose</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Passive consumption <code>tfPassive</code></div>
+                                                       <div class="offer-cell"><code>0x00010000</code></div>
+                                                       <div class="offer-cell">Don't consume matching offers immediately.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Immediate or Cancel <code>tfImmediateOrCancel</code></div>
+                                                       <div class="offer-cell"><code>0x00020000</code></div>
+                                                       <div class="offer-cell">Execute immediately or cancel (no partially filled orders).</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Fill or Kill <code>tfFillOrKill</code></div>
+                                                       <div class="offer-cell"><code>0x00040000</code></div>
+                                                       <div class="offer-cell">Execute in full or not at all.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell">Sell <code>tfSell</code></div>
+                                                       <div class="offer-cell"><code>0x00080000</code></div>
+                                                       <div class="offer-cell">Treat offer as **sell**, prioritizing `TakerGets` quantity.</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+
+                                        <details class="offer-subdetails">
+                                             <summary>Offer Create Transaction Settings</summary>
+                                             <div class="offer-table">
+                                                  <div class="offer-row offer-header">
+                                                       <div class="offer-cell">Field</div>
+                                                       <div class="offer-cell">Optional</div>
+                                                       <div class="offer-cell">Purpose</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>TakerGets</code></div>
+                                                       <div class="offer-cell">Required</div>
+                                                       <div class="offer-cell">What you are **offering** (the asset you will give).</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>TakerPays</code></div>
+                                                       <div class="offer-cell">Required</div>
+                                                       <div class="offer-cell">What you **want** in return.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>Flags</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">Bitmask flags to control behavior like passive mode, fill-or-kill, or immediate-or-cancel.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>Expiration</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">Ledger time when the offer expires automatically.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>OfferSequence</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">To replace an existing offer with the same sequence number.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>TicketSequence</code></div>
+                                                       <div class="offer-cell">No</div>
+                                                       <div class="offer-cell">Use a ticket instead of the standard sequence number.</div>
+                                                  </div>
+                                                  <div class="offer-row">
+                                                       <div class="offer-cell"><code>Sequence</code></div>
+                                                       <div class="offer-cell">Required if not using Ticket</div>
+                                                       <div class="offer-cell">Required unless using `TicketSequence`.</div>
+                                                  </div>
+                                             </div>
+                                        </details>
+                                   </fieldset>
+                              </details>
+                         </table>
+                    </div>
+               </div>
+
+               <div class="right-column">
+                    <table id="meta">
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Add memo to transaction.">
+                                        <label>Memo</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMemoEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="memoField"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
+                                        <label>Use Multi-Sign Address</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMultiSignAddressData"></label>
+                              </td>
+                         </tr>
+                         <tr *ngIf="isMultiSign">
+                              <td></td>
+                              <td>
+                                   <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
+                                                       <label for="multiSignAddress">Signer Addresses</label>
+                                                  </span>
+                                             </td>
+                                             <td>
+                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
+                                                       <label for="multiSignSeeds">Signer Seeds</label>
+                                                  </span>
+                                             </td>
+                                             <td>
+                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
+                                             </td>
+                                        </tr>
+                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                             <td>
+                                                  <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
+                                                       <label for="quorum">Signer Quorum:</label>
+                                                  </span>
+                                             </td>
+                                             <td>
+                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" readonly />
+                                             </td>
+                                        </tr>
+                                   </fieldset>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
+                                        <label>Use Regular Key</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isRegularKeyAddressData" [(ngModel)]="isRegularKeyAddress" (ngModelChange)="toggleMultiSign()" name="isRegularKeyAddressData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isRegularKeyAddressData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
+                                        <label for="regularKeyAddress"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
+                                        <label for="regularKeySeed"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                                        <label>Use Ticket Sequence</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isTicketEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isTicket">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                                        <label for="ticketSequence"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                              </td>
+                         </tr>
+                    </table>
+               </div>
           </div>
-
-          <fieldset style="width: 880px; margin-right: 10px">
-               <legend style="color: white">Manage Tokens</legend>
-               <div style="margin-bottom: 10px">
-                    <label>Add Token: </label>
-                    <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
-                    <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
-                    <button type="button" (click)="addToken()">Add</button>
-               </div>
-               <div>
-                    <label>Remove Token: </label>
-                    <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
-                         <option value="">Select a token</option>
-                         <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                    </select>
-                    <button type="button" (click)="removeToken()">Remove</button>
-               </div>
-          </fieldset>
-
-          <table style="text-align: left; width: 100%">
-               <th></th>
-               <tr>
-                    <td colspan="2">
-                         <button type="button" (click)="getOffers()">Get Offers</button>
-                         <button type="button" (click)="getOrderBook()">Get Order Book</button>
-                         <button type="button" (click)="getTokenBalance()">Get Token Balance</button>
-                         <button type="button" (click)="invertOrder()">Invert Order</button>
-                    </td>
-               </tr>
-               <tr>
-                    <td colspan="2">
-                         <button type="button" (click)="createOffer()">Create Offer</button>
-                         <button type="button" (click)="cancelOffer()">Cancel Offer</button>
-                         <button type="button" (click)="clearFields()">Clear Fields</button>
-                    </td>
-               </tr>
-               <tr>
-                    <td colspan="2">
-                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
-                    </td>
-               </tr>
-          </table>
      </fieldset>
-
-     <details class="offer-info">
-          <summary>Offer Info</summary>
-          <fieldset class="offer-fieldset">
-               <details class="offer-subdetails">
-                    <summary>Offer Constraints</summary>
-                    <div class="offer-table">
-                         <div class="offer-row offer-header">
-                              <div class="offer-cell">Offer Constraints</div>
-                              <div class="offer-cell">Description</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Authorized Account Only</div>
-                              <div class="offer-cell">Only the Destination account (set in CheckCreate) can cash the offer.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Check Must Exist</div>
-                              <div class="offer-cell">The offer must still be in the ledger and not already cashed, expired, or canceled.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Sender Must Have Funds</div>
-                              <div class="offer-cell">The sender (offer creator) must have sufficient XRP or IOU balance to cover the amount at the time of CheckCash.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Specify Amount OR DeliverMin</div>
-                              <div class="offer-cell">You must provide either Amount (exact cash amount) or DeliverMin (minimum acceptable), not both.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">No Partial XRP Checks</div>
-                              <div class="offer-cell">XRP checks must specify exact Amount. DeliverMin is only allowed for IOU currencies.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Trust Line Required for IOUs</div>
-                              <div class="offer-cell">The recipient must have a trust line to the issuer (if the offer is for an issued currency like USD, RLUSD, etc.).</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Respect SendMax Limit</div>
-                              <div class="offer-cell">The cashed Amount or DeliverMin must be less than or equal to the SendMax value from the original CheckCreate.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Check Can Expire</div>
-                              <div class="offer-cell">If Expiration was set in CheckCreate, the offer cannot be cashed after that time (based on XRPL close time).</div>
-                         </div>
-                    </div>
-               </details>
-
-               <details class="offer-subdetails">
-                    <summary>Offer Create Flags</summary>
-                    <div class="offer-table">
-                         <div class="offer-row offer-header">
-                              <div class="offer-cell">Offer Flags</div>
-                              <div class="offer-cell">Hex Value</div>
-                              <div class="offer-cell">Purpose</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Passive consumption <code>tfPassive</code></div>
-                              <div class="offer-cell"><code>0x00010000</code></div>
-                              <div class="offer-cell">Don't consume matching offers immediately.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Immediate or Cancel <code>tfImmediateOrCancel</code></div>
-                              <div class="offer-cell"><code>0x00020000</code></div>
-                              <div class="offer-cell">Execute immediately or cancel (no partially filled orders).</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Fill or Kill <code>tfFillOrKill</code></div>
-                              <div class="offer-cell"><code>0x00040000</code></div>
-                              <div class="offer-cell">Execute in full or not at all.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell">Sell <code>tfSell</code></div>
-                              <div class="offer-cell"><code>0x00080000</code></div>
-                              <div class="offer-cell">Treat offer as **sell**, prioritizing `TakerGets` quantity.</div>
-                         </div>
-                    </div>
-               </details>
-
-               <details class="offer-subdetails">
-                    <summary>Offer Create Transaction Settings</summary>
-                    <div class="offer-table">
-                         <div class="offer-row offer-header">
-                              <div class="offer-cell">Field</div>
-                              <div class="offer-cell">Optional</div>
-                              <div class="offer-cell">Purpose</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>TakerGets</code></div>
-                              <div class="offer-cell">Required</div>
-                              <div class="offer-cell">What you are **offering** (the asset you will give).</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>TakerPays</code></div>
-                              <div class="offer-cell">Required</div>
-                              <div class="offer-cell">What you **want** in return.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>Flags</code></div>
-                              <div class="offer-cell">No</div>
-                              <div class="offer-cell">Bitmask flags to control behavior like passive mode, fill-or-kill, or immediate-or-cancel.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>Expiration</code></div>
-                              <div class="offer-cell">No</div>
-                              <div class="offer-cell">Ledger time when the offer expires automatically.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>OfferSequence</code></div>
-                              <div class="offer-cell">No</div>
-                              <div class="offer-cell">To replace an existing offer with the same sequence number.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>TicketSequence</code></div>
-                              <div class="offer-cell">No</div>
-                              <div class="offer-cell">Use a ticket instead of the standard sequence number.</div>
-                         </div>
-                         <div class="offer-row">
-                              <div class="offer-cell"><code>Sequence</code></div>
-                              <div class="offer-cell">Required if not using Ticket</div>
-                              <div class="offer-cell">Required unless using `TicketSequence`.</div>
-                         </div>
-                    </div>
-               </details>
-          </fieldset>
-     </details>
 </form>

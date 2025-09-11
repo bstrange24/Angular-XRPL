@@ -12,6 +12,22 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { sign, verify } from 'ripple-keypairs';
 
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | null;
+     seed?: string;
+     amount?: string;
+     destination?: string;
+     settleDelay?: string;
+     channelID?: string;
+     channelClaimSignatureField?: string;
+     publicKeyField?: string;
+     destinationTag?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+}
+
 interface PaymentChannelObject {
      Account: string;
      index: string;
@@ -87,6 +103,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      actions = [
           { value: 'create', label: 'Create' },
           { value: 'fund', label: 'Fund' },
+          { value: 'renew', label: 'Renew' },
           { value: 'claim', label: 'Claim' },
           { value: 'close', label: 'Close' },
      ];
@@ -200,12 +217,13 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'get');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -245,9 +263,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                                         { key: 'Claimed Balance', value: `${xrpl.dropsToXrp(Balance)} XRP` },
                                         { key: 'Remaining', value: `${available} XRP` },
                                         { key: 'Settle Delay', value: `${SettleDelay}s` },
-                                        { key: 'Cancel After', value: CancelAfter ? `${this.utilsService.convertXRPLTime(CancelAfter)}` : 'N/A' },
-                                        { key: 'Expired', value: CancelAfter ? `${Date.now() / 1000 > CancelAfter}` : 'False' },
-                                        { key: 'Public Key', value: `<code>${PublicKey}</code>` },
+                                        { key: 'Expiration', value: Expiration ? `${this.utilsService.convertXRPLTime(Expiration)}` : 'N/A' },
+                                        { key: 'Expired', value: Expiration ? `${Date.now() / 1000 > Expiration}` : 'False' },
+                                        // { key: 'Cancel After', value: CancelAfter ? `${this.utilsService.convertXRPLTime(CancelAfter)}` : 'N/A' },
+                                        // { key: 'Expired', value: CancelAfter ? `${Date.now() / 1000 > CancelAfter}` : 'False' },
                                    ],
                               };
                          }),
@@ -270,7 +289,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
+               console.log(`Leaving getPaymentChannels in ${this.executionTime}ms`);
           }
      }
 
@@ -279,27 +298,25 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                destination: this.destinationField,
-               regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
-               regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
+               amount: this.amountField,
+               settleDelay: this.settleDelayField,
+               channelID: this.channelIDField,
+               channelClaimSignatureField: this.channelClaimSignatureField,
+               destinationTag: this.destinationTagField,
+               publicKeyField: this.publicKeyField,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.regularKeySeed,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
-          }
+          };
 
-          const action = this.channelAction;
-          if (action !== 'close') {
-               const validationError = this.validateInputs({
-                    amount: this.amountField,
-               });
-               if (validationError) {
-                    return this.setError(`ERROR: ${validationError}`);
-               }
+          const errors = this.validateInputs(inputs, this.channelAction);
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -312,18 +329,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Payment Channels Transaction...');
 
                const fee = await this.xrplService.calculateTransactionFee(client);
+               const action = this.channelAction;
 
                if (action === 'create') {
                     this.updateSpinnerMessage('Creating Payment Channel...');
-
-                    const validationError = this.validateInputs({
-                         amount: this.amountField,
-                         destination: this.destinationField,
-                         settleDelay: this.settleDelayField,
-                    });
-                    if (validationError) {
-                         return this.setError(`ERROR: ${validationError}`);
-                    }
 
                     let tx: PaymentChannelCreate = {
                          TransactionType: 'PaymentChannelCreate',
@@ -428,23 +437,13 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return;
                     }
 
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
-               } else if (action === 'fund') {
-                    this.updateSpinnerMessage('Funding Payment Channel...');
-
-                    const validationError = this.validateInputs({
-                         channelID: this.channelIDField,
-                         destination: this.destinationField,
-                    });
-                    if (validationError) {
-                         return this.setError(`ERROR: ${validationError}`);
-                    }
+               } else if (action === 'fund' || action === 'renew') {
+                    this.updateSpinnerMessage(`Payment Channel ${action}...`);
 
                     let tx: PaymentChannelFund = {
                          TransactionType: 'PaymentChannelFund',
@@ -467,7 +466,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          this.utilsService.setMemoField(tx, this.memoField);
                     }
 
-                    if (this.renewChannel && this.paymentChannelCancelAfterTimeField) {
+                    if (this.paymentChannelCancelAfterTimeField) {
                          const newExpiration = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
                          const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client);
                          if (newExpiration <= currentLedgerTime) {
@@ -538,8 +537,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return;
                     }
 
@@ -547,13 +544,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'claim') {
                     this.updateSpinnerMessage('Claiming Payment Channel...');
-
-                    const validationError = this.validateInputs({
-                         channelID: this.channelIDField,
-                    });
-                    if (validationError) {
-                         return this.setError(`ERROR: ${validationError}`);
-                    }
 
                     // Get payment channel details to verify creator and receiver
                     const payChannelResponse = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
@@ -566,21 +556,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     // Determine if the selected account is the creator or receiver
                     const isReceiver = channel.Destination === wallet.classicAddress;
                     let signature = this.channelClaimSignatureField;
-
-                    if (isReceiver) {
-                         // Receiver is claiming; signature must be provided by the creator
-                         const validationError = this.validateInputs({
-                              channelClaimSignatureField: this.channelClaimSignatureField,
-                              publicKeyField: this.publicKeyField,
-                         });
-                         if (validationError) {
-                              return this.setError(`ERROR: ${validationError}`);
-                         }
-                    } else {
-                         // Creator is claiming; generate signature if not provided
-                         if (!signature) {
-                              signature = this.generateChannelSignature(this.channelIDField, this.amountField, wallet);
-                         }
+                    if (!signature) {
+                         signature = this.generateChannelSignature(this.channelIDField, this.amountField, wallet);
                     }
 
                     let tx: PaymentChannelClaim = {
@@ -669,8 +646,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return;
                     }
 
@@ -678,13 +653,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                } else if (action === 'close') {
                     this.updateSpinnerMessage('Closing Payment Channel...');
-
-                    const validationError = this.validateInputs({
-                         channelID: this.channelIDField,
-                    });
-                    if (validationError) {
-                         return this.setError(`ERROR: ${validationError}`);
-                    }
 
                     const paymentChannel = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
                     const channels = paymentChannel.result.account_objects as PaymentChannelObject[];
@@ -805,8 +773,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         // this.resultField.nativeElement.classList.add('error');
-                         // this.setErrorProperties();
                          return;
                     }
 
@@ -836,7 +802,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                destination: this.destinationField,
@@ -846,9 +812,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'generate');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           const wallet = await this.getWallet();
@@ -989,71 +956,299 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; settleDelay?: string; channelID?: string; channelClaimSignatureField?: string; publicKeyField?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
-               return 'Please select an account';
-          }
-          if (inputs.seed != undefined && !this.utilsService.validateInput(inputs.seed)) {
-               return 'Account seed cannot be empty';
-          }
-          if (inputs.amount != undefined && !this.utilsService.validateInput(inputs.amount)) {
-               return 'Amount cannot be empty';
-          }
-          if (inputs.amount != undefined) {
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
-                    return 'Amount must be a valid number';
+     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
+
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null || !this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
                }
-          }
-          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
-               return 'Amount must be a positive number';
-          }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
-               return 'Destination cannot be empty';
-          }
-          if (inputs.regularKeyAddress != undefined && inputs.regularKeyAddress != 'No RegularKey configured for account' && !xrpl.isValidAddress(this.regularKeyAddress)) {
-               return 'Regular Key Address is invalid or empty';
-          }
-          if (inputs.regularKeySeed != undefined && !xrpl.isValidSecret(this.regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
-          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = inputs.multiSignAddresses
-                    .split(',')
-                    .map(addr => addr.trim())
-                    .filter(addr => addr);
-               const seeds = inputs.multiSignSeeds
-                    .split(',')
-                    .map(seed => seed.trim())
-                    .filter(seed => seed);
+               return null;
+          };
+
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
+               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
+               }
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
+               }
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
+
+          const isValidChannelId = (value: string | undefined): string | null => {
+               if (value && !/^[0-9A-Fa-f]{64}$/.test(value)) {
+                    return 'Channel ID must be a 64-character hexadecimal string';
+               }
+               return null;
+          };
+
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
                if (addresses.length !== seeds.length) {
                     return 'Number of signer addresses must match number of signer seeds';
                }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
-                    }
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
                }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
-                    }
-               }
+               return null;
+          };
+
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               create: {
+                    required: ['selectedAccount', 'seed', 'amount', 'destination', 'settleDelay'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.amount, 'Amount', 0),
+                         () => isValidNumber(inputs.settleDelay, 'Settle Delay', 0),
+                         () => isValidXrpAddress(inputs.destination, 'Destination'),
+                         () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
+                    ],
+               },
+               fund: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
+               },
+               renew: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
+               },
+               claim: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'channelClaimSignatureField', 'publicKeyField'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isRequired(inputs.channelClaimSignatureField, 'Channel Claim Signature'), () => isRequired(inputs.publicKeyField, 'Public Key')],
+               },
+               close: {
+                    required: ['selectedAccount', 'seed', 'channelID'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidChannelId(inputs.channelID)],
+               },
+               get: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               generate: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
           }
 
-          if (inputs.channelID != undefined && !this.utilsService.validateInput(inputs.channelID)) {
-               return 'Channel ID cannot be empty';
-          }
-          if (inputs.channelClaimSignatureField != undefined && !this.utilsService.validateInput(inputs.channelClaimSignatureField)) {
-               return 'Channel Claim Signature cannot be empty';
-          }
-          if (inputs.publicKeyField != undefined && !this.utilsService.validateInput(inputs.publicKeyField)) {
-               return 'PublicKey cannot be empty';
+          return errors;
+     }
+
+     private validateInputs1(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
+
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null) {
+                    return `${fieldName} cannot be empty`;
+               }
+               if (!this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
+               }
+               return null;
+          };
+
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number): string | null => {
+               if (value === undefined) return null; // Not required, so skip
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
+               }
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
+               }
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { type, value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
+               }
+               return null;
+          };
+
+          const isValidChannelId = (value: string | undefined): string | null => {
+               if (value && !/^[0-9A-Fa-f]{64}$/.test(value)) {
+                    return 'Channel ID must be a 64-character hexadecimal string';
+               }
+               return null;
+          };
+
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
+               if (addresses.length === 0) {
+                    return 'At least one signer address is required for multi-signing';
+               }
+               if (addresses.length !== seeds.length) {
+                    return 'Number of signer addresses must match number of signer seeds';
+               }
+               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+               if (invalidAddr) {
+                    return `Invalid signer address: ${invalidAddr}`;
+               }
+               return null;
+          };
+
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               create: {
+                    required: ['selectedAccount', 'seed', 'amount', 'destination', 'settleDelay'],
+                    customValidators: [
+                         () => isValidNumber(inputs.amount, 'Amount', 0),
+                         () => isValidNumber(inputs.settleDelay, 'Settle Delay', 0), // XRPL settleDelay >=1, but adjust as needed
+                         () => isValidXrpAddress(inputs.destination, 'Destination'),
+                         () => isValidSeed(inputs.seed),
+                    ],
+               },
+               fund: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
+                    customValidators: [() => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidSeed(inputs.seed)],
+               },
+               renew: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'], // Similar to fund
+                    customValidators: [() => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidSeed(inputs.seed)],
+               },
+               claim: {
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'channelClaimSignatureField', 'publicKeyField'],
+                    customValidators: [
+                         () => isValidNumber(inputs.amount, 'Amount', 0),
+                         () => isValidChannelId(inputs.channelID),
+                         () => isValidSeed(inputs.seed),
+                         // Receiver-specific
+                         () => (inputs.channelClaimSignatureField ? isRequired(inputs.channelClaimSignatureField, 'Channel Claim Signature') : null),
+                         () => (inputs.publicKeyField ? isRequired(inputs.publicKeyField, 'Public Key') : null),
+                    ],
+               },
+               close: {
+                    required: ['selectedAccount', 'seed', 'channelID'],
+                    customValidators: [() => isValidChannelId(inputs.channelID), () => isValidSeed(inputs.seed)],
+               },
+               get: {
+                    // Added for getPaymentChannels
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               generate: {
+                    // Added for generateCreatorClaimSignature
+                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
           }
 
-          return null;
+          return errors;
      }
 
      async getWallet() {

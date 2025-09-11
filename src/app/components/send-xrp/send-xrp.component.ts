@@ -18,6 +18,21 @@ import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-in
 import { StateService } from '../../services/state-service.service';
 import { AppState } from '../../services/state-service.service';
 
+interface ValidationInputs {
+     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     seed?: string;
+     amount?: string;
+     destination?: string;
+     destinationTag?: string;
+     sourceTag?: string;
+     invoiceId?: string;
+     ticket?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+}
+
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -185,12 +200,13 @@ export class SendXrpComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'get');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -238,21 +254,23 @@ export class SendXrpComponent implements AfterViewChecked {
           this.setSuccessProperties();
           // this.updateAllFields();
 
-          const validationError = this.validateInputs({
+          const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
+               sourceTag: this.sourceTagField,
                invoiceId: this.invoiceIdField,
+               ticket: this.ticketSequence,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-               sourceTag: this.sourceTagField ? this.sourceTagField : undefined,
-          });
-          if (validationError) {
-               return this.setError(`ERROR: ${validationError}`);
+          };
+          const errors = this.validateInputs(inputs, 'send');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
           try {
@@ -360,8 +378,6 @@ export class SendXrpComponent implements AfterViewChecked {
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
                     console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    // this.resultField.nativeElement.classList.add('error');
-                    // this.setErrorProperties();
                     return;
                }
 
@@ -454,105 +470,120 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; sourceTag?: string; destinationTag?: string; invoiceId?: string }): string | null {
-          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds, sourceTag, destinationTag, invoiceId } = inputs;
+     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+          const errors: string[] = [];
 
-          // 1. Account selection
-          if (selectedAccount === null || selectedAccount === undefined) {
-               return 'Please select an account';
-          }
-
-          // 2. Seed
-          let accountSeedType = '';
-          if (seed) {
-               const { type, value } = this.utilsService.detectXrpInputType(seed);
-               accountSeedType = type;
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
+          // Common validators as functions
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+               if (value == null || !this.utilsService.validateInput(value)) {
+                    return `${fieldName} cannot be empty`;
                }
-          }
+               return null;
+          };
 
-          // 3. Amount
-          if (amount !== null && amount !== undefined) {
-               if (amount === '' || !this.utilsService.validateInput(amount)) {
-                    return 'XRP Amount cannot be empty';
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidAddress(value)) {
+                    return `${fieldName} is invalid`;
                }
-               const numAmount = parseFloat(amount);
-               if (isNaN(numAmount) || !isFinite(numAmount)) {
-                    return 'XRP Amount must be a valid number';
-               }
-               if (numAmount <= 0) {
-                    return 'XRP Amount must be a positive number';
-               }
-          }
+               return null;
+          };
 
-          // 4. Source Tag
-          if (sourceTag !== null && sourceTag !== undefined && sourceTag !== '') {
-               const numTag = parseFloat(sourceTag);
-               if (isNaN(numTag) || !isFinite(numTag)) {
-                    return 'Source Tag must be a valid number';
+          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+               if (value && !xrpl.isValidSecret(value)) {
+                    return `${fieldName} is invalid`;
                }
-               if (numTag <= 0) {
-                    return 'Source Tag must be a positive number';
+               return null;
+          };
+
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
+               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
+               const num = parseFloat(value);
+               if (isNaN(num) || !isFinite(num)) {
+                    return `${fieldName} must be a valid number`;
                }
-          }
-
-          // 5. Destination
-          if (destination !== null && destination !== undefined && destination !== '' && !this.utilsService.validateInput(destination)) {
-               return 'Destination cannot be empty';
-          }
-
-          // 6. Destination Tag
-          if (destinationTag !== null && destinationTag !== undefined && destinationTag !== '') {
-               const numTag = parseFloat(destinationTag);
-               if (isNaN(numTag) || !isFinite(numTag)) {
-                    return 'Destination Tag must be a valid number';
+               if (minValue !== undefined && num <= minValue) {
+                    return `${fieldName} must be greater than ${minValue}`;
                }
-               if (numTag <= 0) {
-                    return 'Destination Tag must be a positive number';
+               return null;
+          };
+
+          const isValidSeed = (value: string | undefined): string | null => {
+               if (value) {
+                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    if (detectedValue === 'unknown') {
+                         return 'Account seed is invalid';
+                    }
                }
-          }
+               return null;
+          };
 
-          // 7. Destination
-          if (invoiceId !== null && invoiceId !== undefined && invoiceId !== '' && !this.utilsService.validateInput(invoiceId)) {
-               return 'InvoiceId is invalid';
-          }
-
-          // 8. Regular key
-          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
-               if (!xrpl.isValidAddress(regularKeyAddress)) {
-                    return 'Regular Key Address is invalid or empty';
+          const isValidInvoiceId = (value: string | undefined): string | null => {
+               if (value && !this.utilsService.validateInput(value)) {
+                    return 'Invoice ID is invalid';
                }
-          }
+               return null;
+          };
 
-          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
-
-          // 9. Multi-sign
-          if (multiSignAddresses && multiSignSeeds) {
-               const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-               const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+               if (!addressesStr || !seedsStr) return null; // Not required
+               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
                     return 'At least one signer address is required for multi-signing';
                }
                if (addresses.length !== seeds.length) {
                     return 'Number of signer addresses must match number of signer seeds';
                }
-
                const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
+               return null;
+          };
 
-               if (accountSeedType === 'seed') {
-                    if (seeds.some((s: string) => !xrpl.isValidSecret(s))) {
-                         return 'One or more signer seeds are invalid';
-                    }
-               }
+          // Action-specific config: required fields and custom rules
+          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+               get: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [() => isValidSeed(inputs.seed)],
+               },
+               send: {
+                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'XRP Amount', 0), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.sourceTag, 'Source Tag', 0, true), () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), () => isValidNumber(inputs.ticket, 'Ticket', 0, true), () => isValidInvoiceId(inputs.invoiceId)],
+               },
+               default: { required: [], customValidators: [] },
+          };
+
+          const config = actionConfig[action] || actionConfig['default'];
+
+          // Check required fields
+          config.required.forEach((field: keyof ValidationInputs) => {
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+               if (err) errors.push(err);
+          });
+
+          // Run custom validators
+          config.customValidators?.forEach((validator: () => string | null) => {
+               const err = validator();
+               if (err) errors.push(err);
+          });
+
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+          if (multiErr) errors.push(multiErr);
+
+          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+          if (regSeedErr) errors.push(regSeedErr);
+
+          // Selected account check (common to most)
+          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+               errors.push('Please select an account');
           }
 
-          return null;
+          return errors;
      }
 
      private updateDestinations() {
@@ -688,21 +719,24 @@ export class SendXrpComponent implements AfterViewChecked {
           this.memoField = '';
           this.invoiceIdField = '';
           this.ticketSequence = '';
+          this.destinationTagField = '';
+          this.sourceTagField = '';
           this.isTicket = false;
           this.isMultiSign = false;
+          this.isMemoEnabled = false;
           this.cdr.detectChanges();
      }
 
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
+          console.log('Spinner message updated:', message);
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      private setErrorProperties() {
