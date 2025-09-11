@@ -121,10 +121,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-               // if (Object.keys(this.knownDestinations).length === 0) {
                this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-               // }
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
           } catch (error) {
@@ -297,8 +294,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -442,8 +438,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -593,8 +588,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -744,8 +738,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -997,10 +990,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
-
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -1010,7 +999,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -1039,6 +1027,13 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidSecret(value)) {
                     return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
                }
                return null;
           };
@@ -1179,100 +1174,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           return errors;
      }
 
-     private validateInputs1(inputs: { seed?: string; credentialID?: string; credentialType?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string; date?: string }): string | null {
-          const { seed, credentialID, credentialType, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds, date } = inputs;
-
-          // 1. Account selection
-          if (selectedAccount === null || selectedAccount === undefined) {
-               return 'Please select an account';
-          }
-
-          // 2. Seed
-          if (seed) {
-               const { type, value } = this.utilsService.detectXrpInputType(seed);
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
-               }
-          }
-
-          // 3. Amount
-          if (amount) {
-               if (amount !== null && amount !== undefined && !this.utilsService.validateInput(amount)) {
-                    return 'XRP Amount cannot be empty';
-               }
-               const numAmount = parseFloat(amount);
-               if (isNaN(numAmount) || !isFinite(numAmount)) {
-                    return 'XRP Amount must be a valid number';
-               }
-               if (numAmount <= 0) {
-                    return 'XRP Amount must be a positive number';
-               }
-          }
-
-          // 4. Credential ID
-          if (credentialID !== null && credentialID !== undefined && !this.utilsService.validateInput(credentialID)) {
-               return 'Credential ID cannot be empty';
-          }
-
-          // 5. Credential Type
-          if (credentialType !== null && credentialType !== undefined && !this.utilsService.validateInput(credentialType)) {
-               return 'Credential Type cannot be empty';
-          }
-
-          // 6. Destination
-          if (destination !== null && destination !== undefined && !this.utilsService.validateInput(destination)) {
-               return 'Destination cannot be empty';
-          }
-
-          // 7. Regular key
-          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
-               if (!xrpl.isValidAddress(regularKeyAddress)) {
-                    return 'Regular Key Address is invalid or empty';
-               }
-          }
-
-          if (regularKeySeed !== null && regularKeySeed !== undefined && !xrpl.isValidSecret(regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
-
-          // 8. Multi-sign
-          if (multiSignAddresses && multiSignSeeds) {
-               const addresses = multiSignAddresses
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-               const seeds = multiSignSeeds
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-
-               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
-               if (invalidAddr) {
-                    return `Invalid signer address: ${invalidAddr}`;
-               }
-
-               if (seeds.some(s => !xrpl.isValidSecret(s))) {
-                    return 'One or more signer seeds are invalid';
-               }
-          }
-
-          // 9. Credential Type
-          if (date) {
-               if (!this.utilsService.validateInput(date) || !this.utilsService.isValidDate(this.credential.subject.expirationDate) || date === '') {
-                    return 'Date cannot be empty';
-               }
-          }
-
-          return null;
-     }
-
      private updateDestinations() {
           this.destinations = [...Object.values(this.knownDestinations)];
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
@@ -1349,14 +1250,19 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           await this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
-          this.credential.credential_type = '';
-          this.credentialID = '';
-          this.credential.subject.destinationAddress = '';
-          this.credential.uri = '';
+     clearFields(clearAllFields: boolean) {
+          if (clearAllFields) {
+               this.credential.credential_type = '';
+               this.credentialID = '';
+               this.credential.subject.destinationAddress = '';
+               this.credential.uri = '';
+               this.ticketSequence = '';
+               this.isTicket = false;
+               this.isMultiSign = false;
+               this.isRegularKeyAddress = false;
+          }
           this.memoField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
+          this.isMemoEnabled = false;
           this.cdr.detectChanges();
      }
 

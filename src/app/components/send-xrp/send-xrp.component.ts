@@ -20,6 +20,7 @@ import { AppState } from '../../services/state-service.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     senderAddress?: string;
      seed?: string;
      amount?: string;
      destination?: string;
@@ -204,7 +205,7 @@ export class SendXrpComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'get');
+          const errors = await this.validateInputs(inputs, 'get');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -234,8 +235,7 @@ export class SendXrpComponent implements AfterViewChecked {
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                // this.stateService.resetPartialState(['isMemoEnabled', 'memoField']);
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -258,6 +258,7 @@ export class SendXrpComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
+               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
                sourceTag: this.sourceTagField,
@@ -268,7 +269,7 @@ export class SendXrpComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'send');
+          const errors = await this.validateInputs(inputs, 'send');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -389,8 +390,7 @@ export class SendXrpComponent implements AfterViewChecked {
                // this.stateService.resetPartialState(['isMemoEnabled', 'memoField']);
                // this.updateMemo();
                // console.log('Component AFTER call, snapshot:', this.stateService.getState());
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -448,10 +448,6 @@ export class SendXrpComponent implements AfterViewChecked {
                this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
-
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -461,7 +457,6 @@ export class SendXrpComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                // this.stateService.resetPartialState(['isRegularKeyAddress', 'regularKeyAddress', 'regularKeySeed']);
                this.isRegularKeyAddress = false;
@@ -470,10 +465,10 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
-          // Common validators as functions
+          // --- Common validators ---
           const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
                if (value == null || !this.utilsService.validateInput(value)) {
                     return `${fieldName} cannot be empty`;
@@ -496,7 +491,7 @@ export class SendXrpComponent implements AfterViewChecked {
           };
 
           const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
-               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
+               if (value === undefined || (allowEmpty && value === '')) return null;
                const num = parseFloat(value);
                if (isNaN(num) || !isFinite(num)) {
                     return `${fieldName} must be a valid number`;
@@ -517,6 +512,13 @@ export class SendXrpComponent implements AfterViewChecked {
                return null;
           };
 
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
+               }
+               return null;
+          };
+
           const isValidInvoiceId = (value: string | undefined): string | null => {
                if (value && !this.utilsService.validateInput(value)) {
                     return 'Invoice ID is invalid';
@@ -525,7 +527,7 @@ export class SendXrpComponent implements AfterViewChecked {
           };
 
           const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
-               if (!addressesStr || !seedsStr) return null; // Not required
+               if (!addressesStr || !seedsStr) return null;
                const addresses = this.utilsService.getMultiSignAddress(addressesStr);
                const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
@@ -541,50 +543,201 @@ export class SendXrpComponent implements AfterViewChecked {
                return null;
           };
 
-          // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+          // --- Async validator: check if destination account requires a destination tag ---
+          const checkDestinationTagRequirement = async (): Promise<string | null> => {
+               if (!inputs.destination) return null; // Skip if no destination provided
+               try {
+                    const client = await this.xrplService.getClient();
+                    const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
+
+                    if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
+                         return `ERROR: Receiver requires a Destination Tag for payment`;
+                    }
+               } catch (err) {
+                    console.error('Failed to check destination tag requirement:', err);
+                    return `Could not validate destination account`;
+               }
+               return null;
+          };
+
+          // --- Action-specific config ---
+          const actionConfig: Record<
+               string,
+               {
+                    required: (keyof ValidationInputs)[];
+                    customValidators?: (() => string | null)[];
+                    asyncValidators?: (() => Promise<string | null>)[];
+               }
+          > = {
                get: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
+                    asyncValidators: [],
                },
                send: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'XRP Amount', 0), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.sourceTag, 'Source Tag', 0, true), () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), () => isValidNumber(inputs.ticket, 'Ticket', 0, true), () => isValidInvoiceId(inputs.invoiceId)],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'XRP Amount', 0), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.sourceTag, 'Source Tag', 0, true), () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), () => isValidNumber(inputs.ticket, 'Ticket', 0, true), () => isValidInvoiceId(inputs.invoiceId), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
-               default: { required: [], customValidators: [] },
+               default: { required: [], customValidators: [], asyncValidators: [] },
           };
 
           const config = actionConfig[action] || actionConfig['default'];
 
-          // Check required fields
+          // --- Run required checks ---
           config.required.forEach((field: keyof ValidationInputs) => {
                const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
                if (err) errors.push(err);
           });
 
-          // Run custom validators
-          config.customValidators?.forEach((validator: () => string | null) => {
+          // --- Run sync custom validators ---
+          config.customValidators?.forEach(validator => {
                const err = validator();
                if (err) errors.push(err);
           });
 
-          // Always validate optional fields if provided (e.g., multi-sign, regular key)
+          // --- Run async validators ---
+          if (config.asyncValidators) {
+               for (const validator of config.asyncValidators) {
+                    const err = await validator();
+                    if (err) errors.push(err);
+               }
+          }
+
+          // --- Always validate optional fields ---
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
 
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
-          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') {
+               errors.push(regAddrErr);
+          }
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
 
-          // Selected account check (common to most)
           if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
                errors.push('Please select an account');
           }
 
           return errors;
      }
+
+     // private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     //      const errors: string[] = [];
+
+     //      // Common validators as functions
+     //      const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
+     //           if (value == null || !this.utilsService.validateInput(value)) {
+     //                return `${fieldName} cannot be empty`;
+     //           }
+     //           return null;
+     //      };
+
+     //      const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
+     //           if (value && !xrpl.isValidAddress(value)) {
+     //                return `${fieldName} is invalid`;
+     //           }
+     //           return null;
+     //      };
+
+     //      const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
+     //           if (value && !xrpl.isValidSecret(value)) {
+     //                return `${fieldName} is invalid`;
+     //           }
+     //           return null;
+     //      };
+
+     //      const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
+     //           if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
+     //           const num = parseFloat(value);
+     //           if (isNaN(num) || !isFinite(num)) {
+     //                return `${fieldName} must be a valid number`;
+     //           }
+     //           if (minValue !== undefined && num <= minValue) {
+     //                return `${fieldName} must be greater than ${minValue}`;
+     //           }
+     //           return null;
+     //      };
+
+     //      const isValidSeed = (value: string | undefined): string | null => {
+     //           if (value) {
+     //                const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+     //                if (detectedValue === 'unknown') {
+     //                     return 'Account seed is invalid';
+     //                }
+     //           }
+     //           return null;
+     //      };
+
+     //      const isValidInvoiceId = (value: string | undefined): string | null => {
+     //           if (value && !this.utilsService.validateInput(value)) {
+     //                return 'Invoice ID is invalid';
+     //           }
+     //           return null;
+     //      };
+
+     //      const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
+     //           if (!addressesStr || !seedsStr) return null; // Not required
+     //           const addresses = this.utilsService.getMultiSignAddress(addressesStr);
+     //           const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
+     //           if (addresses.length === 0) {
+     //                return 'At least one signer address is required for multi-signing';
+     //           }
+     //           if (addresses.length !== seeds.length) {
+     //                return 'Number of signer addresses must match number of signer seeds';
+     //           }
+     //           const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
+     //           if (invalidAddr) {
+     //                return `Invalid signer address: ${invalidAddr}`;
+     //           }
+     //           return null;
+     //      };
+
+     //      // Action-specific config: required fields and custom rules
+     //      const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+     //           get: {
+     //                required: ['selectedAccount', 'seed'],
+     //                customValidators: [() => isValidSeed(inputs.seed)],
+     //           },
+     //           send: {
+     //                required: ['selectedAccount', 'seed', 'amount', 'destination'],
+     //                customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'XRP Amount', 0), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.sourceTag, 'Source Tag', 0, true), () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), () => isValidNumber(inputs.ticket, 'Ticket', 0, true), () => isValidInvoiceId(inputs.invoiceId)],
+     //           },
+     //           default: { required: [], customValidators: [] },
+     //      };
+
+     //      const config = actionConfig[action] || actionConfig['default'];
+
+     //      // Check required fields
+     //      config.required.forEach((field: keyof ValidationInputs) => {
+     //           const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
+     //           if (err) errors.push(err);
+     //      });
+
+     //      // Run custom validators
+     //      config.customValidators?.forEach((validator: () => string | null) => {
+     //           const err = validator();
+     //           if (err) errors.push(err);
+     //      });
+
+     //      // Always validate optional fields if provided (e.g., multi-sign, regular key)
+     //      const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
+     //      if (multiErr) errors.push(multiErr);
+
+     //      const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
+     //      if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
+
+     //      const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
+     //      if (regSeedErr) errors.push(regSeedErr);
+
+     //      // Selected account check (common to most)
+     //      if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
+     //           errors.push('Please select an account');
+     //      }
+
+     //      return errors;
+     // }
 
      private updateDestinations() {
           const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
@@ -713,16 +866,20 @@ export class SendXrpComponent implements AfterViewChecked {
           this.updateFields(this.allFields);
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           // this.stateService.resetPartialState(['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'isMultiSign']);
-          this.amountField = '';
-          this.memoField = '';
-          this.invoiceIdField = '';
+          if (clearAllFields) {
+               this.amountField = '';
+               this.invoiceIdField = '';
+               this.destinationTagField = '';
+               this.sourceTagField = '';
+          }
+
           this.ticketSequence = '';
-          this.destinationTagField = '';
-          this.sourceTagField = '';
           this.isTicket = false;
           this.isMultiSign = false;
+          this.isRegularKeyAddress = false;
+          this.memoField = '';
           this.isMemoEnabled = false;
           this.cdr.detectChanges();
      }

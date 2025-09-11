@@ -6,18 +6,16 @@ import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
 import { DIDSet, DIDDelete } from 'xrpl';
-import { flagNames } from 'flagnames';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
 import didSchema from './did-schema.json'; // save schema as file
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      seed?: string;
+     destination?: string;
      regularKeyAddress?: string;
      regularKeySeed?: string;
      multiSignAddresses?: string;
@@ -56,8 +54,6 @@ export class CreateDidComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     currencyField: string = '';
-     currencyBalanceField: string = '';
      destinationField: string = '';
      amountField: string = '';
      ticketSequence: string = '';
@@ -274,6 +270,8 @@ export class CreateDidComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
+               this.clearFields(false);
+
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -436,8 +434,7 @@ export class CreateDidComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -583,8 +580,7 @@ export class CreateDidComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -642,10 +638,6 @@ export class CreateDidComponent implements AfterViewChecked {
                this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
-
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -684,6 +676,13 @@ export class CreateDidComponent implements AfterViewChecked {
           const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidSecret(value)) {
                     return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
                }
                return null;
           };
@@ -810,83 +809,6 @@ export class CreateDidComponent implements AfterViewChecked {
           return errors;
      }
 
-     private validateInputs1(inputs: { seed?: string; amount?: string; destination?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAddress?: string; regularKeySeed?: string }): string | null {
-          const { seed, amount, destination, selectedAccount, regularKeyAddress, regularKeySeed, multiSignAddresses, multiSignSeeds } = inputs;
-
-          // 1. Account selection
-          if (selectedAccount === null || selectedAccount === undefined) {
-               return 'Please select an account';
-          }
-
-          // 2. Seed
-          if (seed) {
-               const { type, value } = this.utilsService.detectXrpInputType(seed);
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
-               }
-          }
-
-          // 3. Amount
-          if (amount) {
-               if (!this.utilsService.validateInput(amount)) {
-                    return 'XRP Amount cannot be empty';
-               }
-               const numAmount = parseFloat(amount);
-               if (isNaN(numAmount) || !isFinite(numAmount)) {
-                    return 'XRP Amount must be a valid number';
-               }
-               if (numAmount <= 0) {
-                    return 'XRP Amount must be a positive number';
-               }
-          }
-
-          // 4. Destination
-          if (destination && !this.utilsService.validateInput(destination)) {
-               return 'Destination cannot be empty';
-          }
-
-          // 5. Regular key
-          if (regularKeyAddress && regularKeyAddress !== 'No RegularKey configured for account') {
-               if (!xrpl.isValidAddress(regularKeyAddress)) {
-                    return 'Regular Key Address is invalid or empty';
-               }
-          }
-
-          if (regularKeySeed && !xrpl.isValidSecret(regularKeySeed)) {
-               return 'ERROR: Regular Key Seed is invalid or empty';
-          }
-
-          // 6. Multi-sign
-          if (multiSignAddresses && multiSignSeeds) {
-               const addresses = multiSignAddresses
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-               const seeds = multiSignSeeds
-                    .split(',')
-                    .map(s => s.trim())
-                    .filter(Boolean);
-
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-
-               const invalidAddr = addresses.find(addr => !xrpl.isValidAddress(addr));
-               if (invalidAddr) {
-                    return `Invalid signer address: ${invalidAddr}`;
-               }
-
-               if (seeds.some(s => !xrpl.isValidSecret(s))) {
-                    return 'One or more signer seeds are invalid';
-               }
-          }
-
-          return null;
-     }
-
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
@@ -958,12 +880,22 @@ export class CreateDidComponent implements AfterViewChecked {
           await this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
-          this.currencyField = '';
-          this.currencyBalanceField = '0';
+     clearFields(clearAllFields: boolean) {
+          if (clearAllFields) {
+               this.didDetails.document = '';
+               this.didDetails.uri = '';
+               this.didDetails.data = '';
+               this.ticketSequence = '';
+               this.isTicket = false;
+               this.isMultiSign = false;
+               this.isRegularKeyAddress = false;
+          }
           this.memoField = '';
+          this.isMemoEnabled = false;
           this.ticketSequence = '';
           this.isTicket = false;
+          this.isMultiSign = false;
+          this.isRegularKeyAddress = false;
           this.cdr.detectChanges();
      }
 

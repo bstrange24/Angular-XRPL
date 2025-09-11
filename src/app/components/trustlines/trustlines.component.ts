@@ -13,6 +13,7 @@ import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-in
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     senderAddress?: string;
      seed?: string;
      amount?: string;
      destination?: string;
@@ -273,7 +274,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'get');
+          const errors = await this.validateInputs(inputs, 'get');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -500,7 +501,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'set');
+          const errors = await this.validateInputs(inputs, 'set');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -666,7 +667,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'remove');
+          const errors = await this.validateInputs(inputs, 'remove');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -863,6 +864,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                destinationTag: this.destinationTagField,
                amount: this.amountField,
                destination: this.destinationFields,
@@ -870,7 +872,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'issue');
+          const errors = await this.validateInputs(inputs, 'issue');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1255,7 +1257,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'change');
+          const errors = await this.validateInputs(inputs, 'change');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1461,7 +1463,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
           // Common validators as functions
@@ -1508,6 +1510,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                return null;
           };
 
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
+               }
+               return null;
+          };
+
           const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
                if (!addressesStr || !seedsStr) return null; // Not required
                const addresses = this.utilsService.getMultiSignAddress(addressesStr);
@@ -1526,18 +1535,46 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+          // --- Async validator: check if destination account requires a destination tag ---
+          const checkDestinationTagRequirement = async (): Promise<string | null> => {
+               if (!inputs.destination) return null; // Skip if no destination provided
+               try {
+                    const client = await this.xrplService.getClient();
+                    const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
+
+                    if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
+                         return `ERROR: Receiver requires a Destination Tag for payment`;
+                    }
+               } catch (err) {
+                    console.error('Failed to check destination tag requirement:', err);
+                    return `Could not validate destination account`;
+               }
+               return null;
+          };
+
+          // --- Action-specific config ---
+          const actionConfig: Record<
+               string,
+               {
+                    required: (keyof ValidationInputs)[];
+                    customValidators?: (() => string | null)[];
+                    asyncValidators?: (() => Promise<string | null>)[];
+               }
+          > = {
                get: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
+                    asyncValidators: [],
                },
                set: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.ticket, 'Ticket', 0, true)],
+                    asyncValidators: [],
                },
                remove: {
                     required: ['selectedAccount', 'seed', 'destination'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.ticket, 'Ticket', 0, true)],
+                    asyncValidators: [],
                },
                issue: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination'],
@@ -1547,13 +1584,15 @@ export class TrustlinesComponent implements AfterViewChecked {
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
                          () => isValidNumber(inputs.ticket, 'Ticket', 0, true),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                     ],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                change: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                },
-               default: { required: [], customValidators: [] },
+               default: { required: [], customValidators: [], asyncValidators: [] },
           };
 
           const config = actionConfig[action] || actionConfig['default'];
@@ -1569,6 +1608,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                const err = validator();
                if (err) errors.push(err);
           });
+
+          // --- Run async validators ---
+          if (config.asyncValidators) {
+               for (const validator of config.asyncValidators) {
+                    const err = await validator();
+                    if (err) errors.push(err);
+               }
+          }
 
           // Always validate optional fields if provided (e.g., multi-sign, regular key)
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
@@ -1667,7 +1714,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           await this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           this.amountField = '';
           this.currencyField = '';
           this.currencyBalanceField = '0';

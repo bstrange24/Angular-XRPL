@@ -21,6 +21,7 @@ import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-in
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     senderAddress?: string;
      seed?: string;
      weWantAmountField?: string;
      weSpendAmountField?: string;
@@ -1585,7 +1586,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving getTokenBalance in ${this.executionTime}ms`);
           }
      }
@@ -1773,7 +1774,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving onWeWantCurrencyChange in ${this.executionTime}ms`);
           }
      }
@@ -1781,6 +1782,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      async onWeSpendCurrencyChange() {
           console.log('Entering onWeSpendCurrencyChange');
           const startTime = Date.now();
+          this.setSuccessProperties();
 
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
@@ -1824,7 +1826,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving onWeSpendCurrencyChange in ${this.executionTime}ms`);
           }
      }
@@ -1849,6 +1851,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      async getXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet): Promise<string> {
           console.log('Entering getXrpBalance');
           const startTime = Date.now();
+          this.setSuccessProperties();
 
           try {
                const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
@@ -1870,7 +1873,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving getXrpBalance in ${this.executionTime}ms`);
           }
      }
@@ -1939,6 +1942,13 @@ export class CreateAmmComponent implements AfterViewChecked {
           const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidSecret(value)) {
                     return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
                }
                return null;
           };
@@ -2164,9 +2174,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
-                    await this.onWeWantCurrencyChange();
-                    await this.onWeSpendCurrencyChange();
-                    await this.getAMMPoolInfo();
+                    await Promise.all([this.onWeWantCurrencyChange(), this.onWeSpendCurrencyChange(), this.getAMMPoolInfo()]);
                } else if (address) {
                     this.setError('Invalid XRP address');
                }
@@ -2187,7 +2195,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           await this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           this.memoField = '';
           this.ticketSequence = '';
           this.isTicket = false;
@@ -2232,6 +2240,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      async getCurrencyBalance(address: string, currency: string, issuer?: string): Promise<string | null> {
           console.log('Entering getCurrencyBalance');
           const startTime = Date.now();
+          this.setSuccessProperties();
 
           try {
                const client = await this.xrplService.getClient();
@@ -2276,7 +2285,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving getCurrencyBalance in ${this.executionTime}ms`);
           }
      }
@@ -2492,7 +2501,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.phnixExchangeXrp = 'Error';
           } finally {
                this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving updateTokenBalanceAndExchange in ${this.executionTime}ms`);
           }
 
@@ -2726,7 +2735,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.phnixExchangeXrp = 'Error';
           } finally {
                this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
+               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving updateTokenBalanceAndExchange1 in ${this.executionTime}ms`);
           }
 

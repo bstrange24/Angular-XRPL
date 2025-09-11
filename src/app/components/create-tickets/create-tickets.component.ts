@@ -13,6 +13,7 @@ import { AppConstants } from '../../core/app.constants';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     senderAddress?: string;
      seed?: string;
      ticketCount?: string;
      ticketSequence?: string;
@@ -603,6 +604,13 @@ export class CreateTicketsComponent implements AfterViewChecked {
                return null;
           };
 
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
+               }
+               return null;
+          };
+
           const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number): string | null => {
                if (value === undefined) return null; // Not required, so skip
                const num = parseFloat(value);
@@ -762,7 +770,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           this.amountField = '';
           this.expirationTimeField = '';
           this.memoField = '';

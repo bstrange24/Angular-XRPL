@@ -13,6 +13,7 @@ import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-in
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     senderAddress?: string;
      seed?: string;
      nftIdField?: string;
      uri?: string;
@@ -2044,6 +2045,13 @@ export class CreateNftComponent implements AfterViewChecked {
                return null;
           };
 
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
+               }
+               return null;
+          };
+
           const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number): string | null => {
                if (value === undefined) return null; // Not required, so skip
                const num = parseFloat(value);
@@ -2160,45 +2168,6 @@ export class CreateNftComponent implements AfterViewChecked {
           return errors;
      }
 
-     private validateInputs1(inputs: { seed?: string; amount?: string; destination?: string; checkId?: string; selectedAccount?: 'account1' | 'account2' | 'issuer' | null; nftIdField?: string; uri?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
-               return 'Please select an account';
-          }
-          if (inputs.seed != undefined) {
-               const { type, value } = this.utilsService.detectXrpInputType(inputs.seed);
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
-               }
-               if (!this.utilsService.validateInput(inputs.seed)) {
-                    return 'Account seed cannot be empty';
-               }
-          } else {
-               return 'Account seed is invalid';
-          }
-          if (inputs.amount != undefined) {
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
-                    return 'Amount must be a valid number';
-               }
-          }
-          if (inputs.amount != undefined && inputs.amount && parseFloat(inputs.amount) <= 0) {
-               return 'Amount must be a positive number';
-          }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
-               return 'Destination cannot be empty';
-          }
-          if (inputs.checkId != undefined && !this.utilsService.validateInput(inputs.checkId)) {
-               return 'Check ID cannot be empty';
-          }
-          if (inputs.nftIdField != undefined && !this.utilsService.validateInput(inputs.nftIdField)) {
-               return 'NFT ID cannot be empty';
-          }
-
-          if (inputs.uri && !this.utilsService.validateInput(inputs.uri)) {
-               return 'ERROR: URI field cannot be empty';
-          }
-          return null;
-     }
-
      async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
@@ -2270,7 +2239,7 @@ export class CreateNftComponent implements AfterViewChecked {
           this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           this.amountField = '';
           this.minterAddressField = '';
           this.issuerAddressField = '';

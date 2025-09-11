@@ -14,6 +14,7 @@ import { sign, verify } from 'ripple-keypairs';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | null;
+     senderAddress?: string;
      seed?: string;
      amount?: string;
      destination?: string;
@@ -221,7 +222,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
           };
-          const errors = this.validateInputs(inputs, 'get');
+          const errors = await this.validateInputs(inputs, 'get');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -301,6 +302,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
+               senderAddress: this.utilsService.getSelectedAddressWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                destination: this.destinationField,
                amount: this.amountField,
                settleDelay: this.settleDelayField,
@@ -314,7 +316,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
 
-          const errors = this.validateInputs(inputs, this.channelAction);
+          const errors = await this.validateInputs(inputs, this.channelAction);
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -813,7 +815,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'generate');
+          const errors = await this.validateInputs(inputs, 'generate');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -956,7 +958,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
           // Common validators as functions
@@ -977,6 +979,13 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidSecret(value)) {
                     return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
                }
                return null;
           };
@@ -1028,7 +1037,31 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           };
 
           // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+          const checkDestinationTagRequirement = async (): Promise<string | null> => {
+               if (!inputs.destination) return null; // Skip if no destination provided
+               try {
+                    const client = await this.xrplService.getClient();
+                    const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
+
+                    if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
+                         return `ERROR: Receiver requires a Destination Tag for payment`;
+                    }
+               } catch (err) {
+                    console.error('Failed to check destination tag requirement:', err);
+                    return `Could not validate destination account`;
+               }
+               return null;
+          };
+
+          // --- Action-specific config ---
+          const actionConfig: Record<
+               string,
+               {
+                    required: (keyof ValidationInputs)[];
+                    customValidators?: (() => string | null)[];
+                    asyncValidators?: (() => Promise<string | null>)[];
+               }
+          > = {
                create: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination', 'settleDelay'],
                     customValidators: [
@@ -1037,19 +1070,23 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.settleDelay, 'Settle Delay', 0),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                     ],
                },
                fund: {
                     required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                renew: {
                     required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                claim: {
                     required: ['selectedAccount', 'seed', 'amount', 'channelID', 'channelClaimSignatureField', 'publicKeyField'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isRequired(inputs.channelClaimSignatureField, 'Channel Claim Signature'), () => isRequired(inputs.publicKeyField, 'Public Key')],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isRequired(inputs.channelClaimSignatureField, 'Channel Claim Signature'), () => isRequired(inputs.publicKeyField, 'Public Key'), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                close: {
                     required: ['selectedAccount', 'seed', 'channelID'],
@@ -1063,7 +1100,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
                },
-               default: { required: [], customValidators: [] },
+               default: { required: [], customValidators: [], asyncValidators: [] },
           };
 
           const config = actionConfig[action] || actionConfig['default'];
@@ -1080,158 +1117,13 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                if (err) errors.push(err);
           });
 
-          // Always validate optional fields if provided (e.g., multi-sign, regular key)
-          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
-          if (multiErr) errors.push(multiErr);
-
-          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
-          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
-
-          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
-          if (regSeedErr) errors.push(regSeedErr);
-
-          // Selected account check (common to most)
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
+          // --- Run async validators ---
+          if (config.asyncValidators) {
+               for (const validator of config.asyncValidators) {
+                    const err = await validator();
+                    if (err) errors.push(err);
+               }
           }
-
-          return errors;
-     }
-
-     private validateInputs1(inputs: ValidationInputs, action: string): string[] {
-          const errors: string[] = [];
-
-          // Common validators as functions
-          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
-               if (value == null) {
-                    return `${fieldName} cannot be empty`;
-               }
-               if (!this.utilsService.validateInput(value)) {
-                    return `${fieldName} cannot be empty`;
-               }
-               return null;
-          };
-
-          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
-               if (value && !xrpl.isValidAddress(value)) {
-                    return `${fieldName} is invalid`;
-               }
-               return null;
-          };
-
-          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
-               if (value && !xrpl.isValidSecret(value)) {
-                    return `${fieldName} is invalid`;
-               }
-               return null;
-          };
-
-          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number): string | null => {
-               if (value === undefined) return null; // Not required, so skip
-               const num = parseFloat(value);
-               if (isNaN(num) || !isFinite(num)) {
-                    return `${fieldName} must be a valid number`;
-               }
-               if (minValue !== undefined && num <= minValue) {
-                    return `${fieldName} must be greater than ${minValue}`;
-               }
-               return null;
-          };
-
-          const isValidSeed = (value: string | undefined): string | null => {
-               if (value) {
-                    const { type, value: detectedValue } = this.utilsService.detectXrpInputType(value);
-                    if (detectedValue === 'unknown') {
-                         return 'Account seed is invalid';
-                    }
-               }
-               return null;
-          };
-
-          const isValidChannelId = (value: string | undefined): string | null => {
-               if (value && !/^[0-9A-Fa-f]{64}$/.test(value)) {
-                    return 'Channel ID must be a 64-character hexadecimal string';
-               }
-               return null;
-          };
-
-          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
-               if (!addressesStr || !seedsStr) return null; // Not required
-               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
-               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
-               if (invalidAddr) {
-                    return `Invalid signer address: ${invalidAddr}`;
-               }
-               return null;
-          };
-
-          // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
-               create: {
-                    required: ['selectedAccount', 'seed', 'amount', 'destination', 'settleDelay'],
-                    customValidators: [
-                         () => isValidNumber(inputs.amount, 'Amount', 0),
-                         () => isValidNumber(inputs.settleDelay, 'Settle Delay', 0), // XRPL settleDelay >=1, but adjust as needed
-                         () => isValidXrpAddress(inputs.destination, 'Destination'),
-                         () => isValidSeed(inputs.seed),
-                    ],
-               },
-               fund: {
-                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
-                    customValidators: [() => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidSeed(inputs.seed)],
-               },
-               renew: {
-                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'], // Similar to fund
-                    customValidators: [() => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidSeed(inputs.seed)],
-               },
-               claim: {
-                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'channelClaimSignatureField', 'publicKeyField'],
-                    customValidators: [
-                         () => isValidNumber(inputs.amount, 'Amount', 0),
-                         () => isValidChannelId(inputs.channelID),
-                         () => isValidSeed(inputs.seed),
-                         // Receiver-specific
-                         () => (inputs.channelClaimSignatureField ? isRequired(inputs.channelClaimSignatureField, 'Channel Claim Signature') : null),
-                         () => (inputs.publicKeyField ? isRequired(inputs.publicKeyField, 'Public Key') : null),
-                    ],
-               },
-               close: {
-                    required: ['selectedAccount', 'seed', 'channelID'],
-                    customValidators: [() => isValidChannelId(inputs.channelID), () => isValidSeed(inputs.seed)],
-               },
-               get: {
-                    // Added for getPaymentChannels
-                    required: ['selectedAccount', 'seed'],
-                    customValidators: [() => isValidSeed(inputs.seed)],
-               },
-               generate: {
-                    // Added for generateCreatorClaimSignature
-                    required: ['selectedAccount', 'seed', 'amount', 'channelID', 'destination'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.amount, 'Amount', 0), () => isValidChannelId(inputs.channelID), () => isValidXrpAddress(inputs.destination, 'Destination')],
-               },
-               default: { required: [], customValidators: [] },
-          };
-
-          const config = actionConfig[action] || actionConfig['default'];
-
-          // Check required fields
-          config.required.forEach((field: keyof ValidationInputs) => {
-               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
-               if (err) errors.push(err);
-          });
-
-          // Run custom validators
-          config.customValidators?.forEach((validator: () => string | null) => {
-               const err = validator();
-               if (err) errors.push(err);
-          });
 
           // Always validate optional fields if provided (e.g., multi-sign, regular key)
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
@@ -1320,7 +1212,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.displayDataForAccount('account2');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           this.amountField = '';
           this.destinationTagField = '';
           this.channelIDField = '';

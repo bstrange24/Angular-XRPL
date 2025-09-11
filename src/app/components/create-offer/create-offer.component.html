@@ -2,7 +2,6 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <!-- <app-wallet-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-input> -->
      <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
 
      <fieldset>
@@ -19,7 +18,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="accountName1Field" size="42" [(ngModel)]="account1.name" name="accountName1Field" />
+                                        <input type="text" id="accountName1Field" [(ngModel)]="account1.name" name="accountName1Field" />
                                         <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
                                         <label for="account1">Account 1</label>
                                    </td>
@@ -31,7 +30,9 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="accountAddress1Field" size="42" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="text" id="accountAddress1Field" [(ngModel)]="account1.address" name="accountAddress1Field" />
+                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="account2">Account 2</label>
                                    </td>
                               </tr>
                               <tr>
@@ -41,7 +42,9 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="accountSeed1Field" size="42" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="text" id="accountSeed1Field" [(ngModel)]="account1.seed" name="accountSeed1Field" />
+                                        <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
+                                        <label for="accountIssuer">Account 3</label>
                                    </td>
                               </tr>
                               <tr>
@@ -291,7 +294,7 @@
                                    <td colspan="2">
                                         <button type="button" (click)="createOffer()">Create Offer</button>
                                         <button type="button" (click)="cancelOffer()">Cancel Offer</button>
-                                        <button type="button" (click)="clearFields()">Clear Fields</button>
+                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
                               <tr style="vertical-align: top">

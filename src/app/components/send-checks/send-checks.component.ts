@@ -13,6 +13,7 @@ import { AppConstants } from '../../core/app.constants';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     senderAddress?: string;
      seed?: string;
      amount?: string;
      destination?: string;
@@ -247,7 +248,7 @@ export class SendChecksComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'get');
+          const errors = await this.validateInputs(inputs, 'get');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -340,11 +341,12 @@ export class SendChecksComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
                amount: this.amountField,
           };
-          const errors = this.validateInputs(inputs, 'send');
+          const errors = await this.validateInputs(inputs, 'send');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -523,7 +525,7 @@ export class SendChecksComponent implements AfterViewChecked {
                amount: this.amountField,
                checkId: this.checkIdField,
           };
-          const errors = this.validateInputs(inputs, 'cash');
+          const errors = await this.validateInputs(inputs, 'cash');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -670,7 +672,7 @@ export class SendChecksComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                checkId: this.checkIdField,
           };
-          const errors = this.validateInputs(inputs, 'cancel');
+          const errors = await this.validateInputs(inputs, 'cancel');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -861,7 +863,7 @@ export class SendChecksComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
           // Common validators as functions
@@ -882,6 +884,13 @@ export class SendChecksComponent implements AfterViewChecked {
           const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidSecret(value)) {
                     return `${fieldName} is invalid`;
+               }
+               return null;
+          };
+
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
                }
                return null;
           };
@@ -925,11 +934,36 @@ export class SendChecksComponent implements AfterViewChecked {
                return null;
           };
 
+          // --- Async validator: check if destination account requires a destination tag ---
+          const checkDestinationTagRequirement = async (): Promise<string | null> => {
+               if (!inputs.destination) return null; // Skip if no destination provided
+               try {
+                    const client = await this.xrplService.getClient();
+                    const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
+
+                    if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
+                         return `ERROR: Receiver requires a Destination Tag for payment`;
+                    }
+               } catch (err) {
+                    console.error('Failed to check destination tag requirement:', err);
+                    return `Could not validate destination account`;
+               }
+               return null;
+          };
+
           // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+          const actionConfig: Record<
+               string,
+               {
+                    required: (keyof ValidationInputs)[];
+                    customValidators?: (() => string | null)[];
+                    asyncValidators?: (() => Promise<string | null>)[];
+               }
+          > = {
                get: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
+                    asyncValidators: [],
                },
                send: {
                     required: ['selectedAccount', 'seed', 'destination', 'amount'],
@@ -938,17 +972,21 @@ export class SendChecksComponent implements AfterViewChecked {
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isValidNumber(inputs.amount, 'Amount', 0),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                     ],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                cash: {
                     required: ['selectedAccount', 'seed', 'destination', 'amount', 'checkId'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.amount, 'Amount', 0), () => isRequired(inputs.checkId, 'Check ID')],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.amount, 'Amount', 0), () => isRequired(inputs.checkId, 'Check ID'), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                cancel: {
                     required: ['selectedAccount', 'seed', 'checkId'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.checkId, 'Check ID')],
+                    asyncValidators: [],
                },
-               default: { required: [], customValidators: [] },
+               default: { required: [], customValidators: [], asyncValidators: [] },
           };
 
           const config = actionConfig[action] || actionConfig['default'];
@@ -964,6 +1002,14 @@ export class SendChecksComponent implements AfterViewChecked {
                const err = validator();
                if (err) errors.push(err);
           });
+
+          // --- Run async validators ---
+          if (config.asyncValidators) {
+               for (const validator of config.asyncValidators) {
+                    const err = await validator();
+                    if (err) errors.push(err);
+               }
+          }
 
           // Always validate optional fields if provided (e.g., multi-sign, regular key)
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
@@ -1061,7 +1107,7 @@ export class SendChecksComponent implements AfterViewChecked {
           this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
           this.amountField = '';
           this.expirationTimeField = '';
           this.memoField = '';

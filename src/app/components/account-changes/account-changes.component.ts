@@ -56,6 +56,7 @@ export class AccountChangesComponent {
      spinner: boolean = false;
      url: string = '';
      filterValue: string = '';
+     isExpanded: boolean = false;
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
@@ -71,6 +72,10 @@ export class AccountChangesComponent {
                this.loadBalanceChanges(true); // Initial load
           }
           this.cdr.detectChanges();
+     }
+
+     toggleExpanded() {
+          this.isExpanded = !this.isExpanded;
      }
 
      applyFilter(filterValue: string) {
@@ -266,7 +271,7 @@ export class AccountChangesComponent {
                               };
                               tokenChange = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value) - parseFloat(prevBalanceField.value));
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeCurrencyCode(balanceField.currency) : balanceField.currency ?? '';
+                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency ?? '';
                               tokenCurrency = `${curr}`;
                          } else if (modified.NewFields?.Balance) {
                               prevBalanceField = modified.PreviousFields?.Balance || {
@@ -275,7 +280,7 @@ export class AccountChangesComponent {
                               const balanceField = modified.NewFields.Balance;
                               tokenChange = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value));
                               tokenBalanceAfter = tokenChange;
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeCurrencyCode(balanceField.currency) : balanceField.currency ?? '';
+                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency ?? '';
                               tokenCurrency = `${curr}`;
                          } else if (node.DeletedNode) {
                               prevBalanceField = modified.PreviousFields?.Balance || {
@@ -284,7 +289,7 @@ export class AccountChangesComponent {
                               const balanceField = modified.FinalFields.Balance;
                               tokenChange = this.utilsService.roundToEightDecimals(-parseFloat(balanceField.value));
                               tokenBalanceAfter = 0;
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeCurrencyCode(balanceField.currency) : balanceField.currency ?? '';
+                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency ?? '';
                               tokenCurrency = `${curr}`;
                          }
 
@@ -337,10 +342,6 @@ export class AccountChangesComponent {
 
      trackByHash(index: number, item: any): string {
           return item.hash; // Unique identifier for rows
-     }
-
-     clearFields() {
-          this.cdr.detectChanges();
      }
 
      private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
@@ -410,6 +411,10 @@ export class AccountChangesComponent {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
           return wallet;
+     }
+
+     shortCurrencyDisplay(hex: string): string {
+          return hex.length > 5 ? `${hex.slice(0, 10)}...` : hex;
      }
 
      async displayDataForAccount1() {

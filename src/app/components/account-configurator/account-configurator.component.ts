@@ -13,6 +13,7 @@ import { AppConstants } from '../../core/app.constants';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | null;
+     senderAddress?: string;
      seed?: string;
      destination?: string;
      amount?: string;
@@ -436,9 +437,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(accountInfo);
                this.loadSignerList(wallet.classicAddress);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-               this.ticketSequence = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -537,11 +536,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.setSuccess(this.result);
                this.resultField.nativeElement.classList.add('success');
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -727,12 +725,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.isUpdateMetaData = true;
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
+               this.clearFields(false);
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -915,12 +911,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
+               this.clearFields(false);
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -1427,9 +1421,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
                // if (enableRegularKeyFlag === 'Y') {
                //      this.storageService.set('regularKey', this.regularKeyAccount);
                //      this.storageService.set('regularKeySeed', this.regularKeyAccountSeed);
@@ -1455,6 +1446,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
+               this.clearFields(false);
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -1581,12 +1573,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
 
+               this.clearFields(false);
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -1956,74 +1946,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           return errors;
      }
 
-     private validateInputs1(inputs: { seed?: string; amount?: string; destination?: string; sequence?: string; selectedAccount?: 'account1' | 'account2' | null; multiSignAddresses?: string; multiSignSeeds?: string; regularKeyAccount?: string; regularKeyAccountSeeds?: string }): string | null {
-          if (inputs.selectedAccount !== undefined && !inputs.selectedAccount) {
-               return 'Please select an account';
-          }
-          if (inputs.seed != undefined) {
-               const { value } = this.utilsService.detectXrpInputType(inputs.seed);
-               if (value === 'unknown') {
-                    return 'Account seed is invalid';
-               }
-          }
-          if (inputs.amount != undefined) {
-               if (!this.utilsService.validateInput(inputs.amount)) {
-                    return 'XRP Amount cannot be empty';
-               }
-               if (isNaN(parseFloat(inputs.amount ?? '')) || !isFinite(parseFloat(inputs.amount ?? ''))) {
-                    return 'XRP Amount must be a valid number';
-               }
-               if (inputs.amount && parseFloat(inputs.amount) <= 0) {
-                    return 'XRP Amount must be a positive number';
-               }
-          }
-          if (inputs.destination != undefined && !this.utilsService.validateInput(inputs.destination)) {
-               return 'Destination cannot be empty';
-          }
-          if (inputs.multiSignAddresses && inputs.multiSignSeeds) {
-               const addresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-               const seeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-
-               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
-               if (invalidAddr) {
-                    return `Invalid signer address: ${invalidAddr}`;
-               }
-
-               if (seeds.some((s: string) => !xrpl.isValidSecret(s))) {
-                    return 'One or more signer seeds are invalid';
-               }
-
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-          }
-          if (inputs.regularKeyAccountSeeds && inputs.regularKeyAccount) {
-               const addresses = this.utilsService.getMultiSignAddress(inputs.regularKeyAccount);
-               const seeds = this.utilsService.getMultiSignSeeds(inputs.regularKeyAccountSeeds);
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required to set a Regular Key';
-               }
-               for (const addr of addresses) {
-                    if (!xrpl.isValidAddress(addr)) {
-                         return `Invalid signer address: ${addr}`;
-                    }
-               }
-               for (const seed of seeds) {
-                    if (!xrpl.isValidSecret(seed)) {
-                         return 'One or more signer seeds are invalid';
-                    }
-               }
-          } else if (this.isSetRegularKey) {
-          }
-          return null;
-     }
-
      refreshUiAccountObjects(accountObjects: any, wallet: any) {
           const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
           if (signerAccounts && signerAccounts.length > 0) {
@@ -2054,24 +1976,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.depositAuthAddress = '';
                this.isdepositAuthAddress = false;
           }
-          this.isMemoEnabled = false;
-          this.memoField = '';
      }
 
      refreshUiIAccountMetaData(accountInfo: any) {
           const { TickSize, TransferRate, Domain, MessageKey } = accountInfo.account_data;
-
-          // this.isUpdateMetaData = !!(TickSize || TransferRate || Domain || MessageKey);
-
-          // if (!this.isUpdateMetaData) {
-          //      return;
-          // }
-
           this.tickSize = TickSize || '';
           this.transferRate = TransferRate ? ((TransferRate / 1_000_000_000 - 1) * 100).toFixed(3) : '';
           this.domain = Domain ? this.utilsService.decodeHex(Domain) : '';
           this.isMessageKey = !!MessageKey;
-
           this.cdr.detectChanges();
      }
 
@@ -2185,14 +2097,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           await this.displayDataForAccount('issuer');
      }
 
-     clearFields() {
+     clearFields(clearAllFields: boolean) {
+          if (clearAllFields) {
+               this.ticketSequence = '';
+               this.isTicket = false;
+               this.isMultiSign = false;
+               this.useMultiSign = false;
+               this.isAuthorizedNFTokenMinter = false;
+               this.isdepositAuthAddress = false;
+               this.isUpdateMetaData = false;
+               this.isSetRegularKey = false;
+          }
           this.memoField = '';
-          this.ticketSequence = '';
-          this.isTicket = false;
-          this.isMultiSign = false;
-          this.useMultiSign = false;
-          this.multiSignAddress = '';
-          this.isUpdateMetaData = false;
+          this.isMemoEnabled = false;
           this.cdr.detectChanges();
      }
 
