@@ -1661,6 +1661,7 @@ export class UtilsService {
                AMMWithdraw: ['Amount', 'Amount2', 'LPTokenIn'],
                AMMVote: [],
                AMMDelete: [],
+               MPTokenIssuanceCreate: ['AssetScale', 'Fee', 'Flags', 'MaximumAmount', 'TransferFee'],
                EnableAmendment: [],
                SetFee: [],
                UNLModify: [],
@@ -1861,6 +1862,10 @@ export class UtilsService {
                                      ...(entry.PreviousTxnID ? [{ key: 'Previous Txn ID', value: `<code>${entry.PreviousTxnID}</code>` }] : []),
                                      ...(entry.PreviousTxnLgrSeq ? [{ key: 'Previous Txn Lgr Seq', value: entry.PreviousTxnLgrSeq }] : []),
                                      ...Object.entries(entry.FinalFields || {}).map(([k, v]) => ({
+                                          key: k,
+                                          value: this.formatValue(k, v),
+                                     })),
+                                     ...Object.entries(entry.NewFields || {}).map(([k, v]) => ({
                                           key: k,
                                           value: this.formatValue(k, v),
                                      })),

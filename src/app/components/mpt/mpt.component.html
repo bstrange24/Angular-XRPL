@@ -87,16 +87,6 @@
                                         <input type="text" id="totalExecutionTime" size="40" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                                    </td>
                               </tr>
-                              <tr class="metaData">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
-                                             <label for="mptIssuanceIdField">MPT Issuance ID</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="mptIssuanceIdField" size="60" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField" />
-                                   </td>
-                              </tr>
                          </table>
 
                          <table id="flags">
@@ -396,6 +386,16 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <tr class="multisignAddressClass">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
+                                        <label for="mptIssuanceIdField">MPT Issuance ID</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="mptIssuanceIdField" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField"></textarea>
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
