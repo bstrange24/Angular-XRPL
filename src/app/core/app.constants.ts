@@ -119,6 +119,17 @@ export const AppConstants = {
           tfMutable: 16,
      },
 
+     TF_INNER_BATCH_TXN: {
+          BATCH_TXN: 1073741824, // 262144 in decimal
+     },
+
+     BATCH_FLAGS: {
+          ALL_OR_NOTHING: 65536,
+          ONLY_ONE: 131072,
+          UNTIL_FAILURE: 262144,
+          INDEPENDENT: 524288,
+     },
+
      // You can extend with CheckCash, AMM, etc.
 
      // Account Flags (from your flagList in AccountComponent)

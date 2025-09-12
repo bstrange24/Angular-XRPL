@@ -19,18 +19,15 @@
      <nav id="navbar" class="navbar" [style.backgroundColor]="navbarColor">
           <div class="navbar-container">
                <div class="navbar-links">
-                    <!-- <a routerLink="/account" routerLinkActive="active" (click)="setActiveLink('/account')">Account Info</a> -->
-                    <!-- <a routerLink="/delete-account" routerLinkActive="active" (click)="setActiveLink('/delete-account')">Delete Account</a> -->
-
                     <div class="dropdown accounts-dropdown" [ngClass]="{ active: isAccountsDropdownActive }">
                          <a href="#" class="dropdown-toggle" aria-label="Toggle Accounts dropdown" (click)="toggleAccountsDropdown($event)">Accounts ▾</a>
                          <div class="dropdown-menu">
-                              <!-- <a routerLink="/account" routerLinkActive="active" (click)="setActiveAccountsLink('/account')">Account Info</a> -->
                               <a routerLink="/account-configurator" routerLinkActive="active" (click)="setActiveAccountsLink('/account-configurator')">Configurator</a>
                               <a routerLink="/account-changes" routerLinkActive="active" (click)="setActiveAccountsLink('/account-changes')">Balance Changes</a>
                               <a routerLink="/delete-account" routerLinkActive="active" (click)="setActiveAccountsLink('/delete-account')">Delete Account</a>
                               <a routerLink="/create-credentials" routerLinkActive="active" (click)="setActiveAccountsLink('/create-credentials')">Create Credentials</a>
                               <a routerLink="/create-did" routerLinkActive="active" (click)="setActiveAccountsLink('/create-did')">Create DID</a>
+                              <a routerLink="/permissioned-domain" routerLinkActive="active" (click)="setActiveAccountsLink('/permissioned-domain')">Permissioned Domain</a>
                          </div>
                     </div>
 
@@ -50,7 +47,6 @@
                     <a routerLink="/create-tickets" routerLinkActive="active" (click)="setActiveLink('/create-tickets')">Tickets</a>
                     <a routerLink="/create-offer" routerLinkActive="active" (click)="setActiveLink('/create-offer')">Offers</a>
                     <a routerLink="/create-amm" routerLinkActive="active" (click)="setActiveLink('/create-amm')">AMM</a>
-                    <!-- <a routerLink="/send-currency" routerLinkActive="active" (click)="setActiveLink('/send-currency')">Currency</a> -->
                     <a routerLink="/create-nft" routerLinkActive="active" (click)="setActiveLink('/create-nft')">NFTs</a>
                     <a routerLink="/mpt" routerLinkActive="active" (click)="setActiveLink('/mpt')">MPT</a>
                     <!-- <a routerLink="/fiat-on-off-ramp" routerLinkActive="active" (click)="setActiveLink('/fiat-on-off-ramp')"> Fiat On/Off Ramp </a> -->

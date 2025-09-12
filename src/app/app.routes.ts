@@ -15,6 +15,7 @@ import { CreateCredentialsComponent } from './components/create-credentials/crea
 import { CreateDidComponent } from './components/create-did/create-did.component';
 import { AccountChangesComponent } from './components/account-changes/account-changes.component';
 import { MptComponent } from './components/mpt/mpt.component';
+import { PermissionedDomainComponent } from './components/permissioned-domain/permissioned-domain.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -24,6 +25,8 @@ export const routes: Routes = [
      { path: 'account-configurator', component: AccountConfiguratorComponent, data: { title: 'Account Configurator' } },
      { path: 'create-credentials', component: CreateCredentialsComponent, data: { title: 'Account Credentials' } },
      { path: 'create-did', component: CreateDidComponent, data: { title: 'Account DID' } },
+     { path: 'permissioned-domain', component: PermissionedDomainComponent, data: { title: 'Permissioned Domain' } },
+
      { path: 'send-xrp', component: SendXrpComponent, data: { title: 'Send XRP' } },
      { path: 'create-payment-channel', component: CreatePaymentChannelComponent, data: { title: 'Payment Channel' } },
      { path: 'create-time-escrow', component: CreateTimeEscrowComponent, data: { title: 'Time Escrow' } },

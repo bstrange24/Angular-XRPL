@@ -10,6 +10,7 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
+import { BatchService } from '../../services/batch/batch-service.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
@@ -17,6 +18,7 @@ interface ValidationInputs {
      seed?: string;
      nftIdField?: string;
      uri?: string;
+     batchMode?: string;
      amount?: string;
      nftIndexField?: string;
      nftCountField?: string;
@@ -101,6 +103,7 @@ export class CreateNftComponent implements AfterViewChecked {
      onlyXrpNft: { checked: any } | undefined;
      transferableNft: { checked: any } | undefined;
      mutableNft: { checked: any } | undefined;
+     batchMode: 'allOrNothing' | 'onlyOne' | 'untilFailure' | 'independent' = 'allOrNothing';
      amountField: string = '';
      minterAddressField: string = '';
      issuerAddressField: string = '';
@@ -128,7 +131,7 @@ export class CreateNftComponent implements AfterViewChecked {
      spinner = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private batchService: BatchService) {}
 
      ngOnInit() {}
 
@@ -278,6 +281,28 @@ export class CreateNftComponent implements AfterViewChecked {
                          title: string;
                          openByDefault: boolean;
                          subItems: NFTSectionSubItem[];
+                    }
+
+                    const TF_BURNABLE = 0x00000001;
+                    const burnableNftIds = accountNfts.result.account_nfts.filter((nft: { Flags: number }) => (nft.Flags & TF_BURNABLE) !== 0).map((nft: { NFTokenID: any }) => nft.NFTokenID);
+                    if (burnableNftIds.length > 0) {
+                         data.sections.push({
+                              title: `Burnable NFT IDs`,
+                              openByDefault: true,
+                              subItems: [
+                                   {
+                                        key: `NFT ID's`,
+                                        openByDefault: false,
+                                        content: burnableNftIds.map((id: any) => ({ key: 'NFToken ID', value: `<code>${id}</code>` })),
+                                   },
+                              ],
+                         });
+                    } else {
+                         data.sections.push({
+                              title: `Burnable NFT IDs`,
+                              openByDefault: true,
+                              content: [{ key: 'Status', value: 'No burnable NFTs found' }],
+                         });
                     }
 
                     data.sections.push({
@@ -471,6 +496,7 @@ export class CreateNftComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                nftCountField: this.nftCountField,
+               batchMode: this.batchMode ? this.batchMode : '',
                uri: this.uriField,
           };
           const errors = this.validateInputs(inputs, 'mintBatch');
@@ -478,182 +504,20 @@ export class CreateNftComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
-          const flags = this.setNftFlags();
+          const nftFlags = this.setNftFlags();
+          const batchFlags = this.setBatchFlags();
 
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Minting Batch NFT ...');
 
-               const transactionResults = [];
-
-               // Build and submit each NFTokenMint
-               for (let i = 0; i < parseInt(this.nftCountField); i++) {
-                    const fee = await this.xrplService.calculateTransactionFee(client);
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-                    const tx: NFTokenMint = {
-                         TransactionType: 'NFTokenMint',
-                         Account: wallet.classicAddress,
-                         URI: xrpl.convertStringToHex(this.uriField),
-                         Flags: flags,
-                         NFTokenTaxon: 0,
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    };
-
-                    if (this.ticketSequence) {
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-                         this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
-                    } else {
-                         const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                         this.utilsService.setTicketSequence(tx, getAccountInfo.result.account_data.Sequence, false);
-                    }
-
-                    if (this.memoField) {
-                         this.utilsService.setMemoField(tx, this.memoField);
-                    }
-
-                    try {
-                         let signedTx: { tx_blob: string; hash: string } | null = null;
-
-                         if (this.isMultiSign) {
-                              const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-                              if (signerAddresses.length === 0) {
-                                   return this.setError('ERROR: No signer addresses provided for multi-signing');
-                              }
-
-                              const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-                              if (signerSeeds.length === 0) {
-                                   return this.setError('ERROR: No signer seeds provided for multi-signing');
-                              }
-
-                              try {
-                                   const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
-                                   signedTx = result.signedTx;
-                                   tx.Signers = result.signers;
-
-                                   console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-
-                                   if (!signedTx) {
-                                        return this.setError('ERROR: No valid signature collected for multisign transaction');
-                                   }
-
-                                   const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
-                                   console.log(`multiSignFee: ${multiSignFee}`);
-                                   tx.Fee = multiSignFee;
-                                   const finalTx = xrpl.decode(signedTx.tx_blob);
-                                   console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
-
-                                   if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, multiSignFee)) {
-                                        return this.setError('ERROR: Insufficient XRP to complete transaction');
-                                   }
-                              } catch (err: any) {
-                                   return this.setError(`ERROR: ${err.message}`);
-                              }
-                         } else {
-                              const preparedTx = await client.autofill(tx);
-                              console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                              signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
-
-                              if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
-                                   return this.setError('ERROR: Insufficient XRP to complete transaction');
-                              }
-                         }
-
-                         console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
-
-                         if (!signedTx) {
-                              return this.setError('ERROR: Failed to sign transaction.');
-                         }
-                         console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
-
-                         this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-                         const response = await client.submitAndWait(signedTx.tx_blob);
-                         console.log('Submit Response:', JSON.stringify(response, null, 2));
-
-                         if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                              console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
-                              this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                              return;
-                         }
-
-                         transactionResults.push(response);
-                    } catch (singleError: any) {
-                         console.error('Individual Transaction Error:', singleError);
-
-                         // Retry if LastLedgerSequence expired
-                         if (singleError.message.includes('LastLedgerSequence')) {
-                              console.warn('Retrying transaction with updated LastLedgerSequence');
-                              const preparedTx = await client.autofill(tx);
-                              console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                              const signedTx = wallet.sign(preparedTx);
-                              const singleTx = await client.submitAndWait(signedTx.tx_blob);
-                              transactionResults.push(singleTx);
-                         } else {
-                              throw singleError; // Rethrow other errors
-                         }
-                    }
-               }
-
-               console.log('All NFT Mint Results:', transactionResults);
-
-               // Render the last result (you could also render all if you prefer)
-               const lastTx = transactionResults[transactionResults.length - 1];
-               this.utilsService.renderTransactionsResults(lastTx, this.resultField.nativeElement);
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
-               await this.updateXrpBalance(client, wallet);
-          } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving mintBatchNFT in ${this.executionTime}ms`);
-          }
-     }
-
-     async mintBatchNFT1() {
-          console.log('Entering mintBatchNFT');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               nftCountField: this.nftCountField,
-               uri: this.uriField,
-          };
-          const errors = this.validateInputs(inputs, 'mintBatch');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
-
-          const flags = this.setNftFlags();
-
-          try {
-               const environment = this.xrplService.getNet().environment;
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Minting Batch NFT1 ...');
-
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-               // Define tfInnerBatchTxn flag (try different values if 0x00010000 fails)
-               const TF_INNER_BATCH_TXN = 1073741824; // 262144 in decimal
 
                const transactions: NFTokenMint[] = [];
                for (let i = 0; i < parseInt(this.nftCountField); i++) {
@@ -661,119 +525,36 @@ export class CreateNftComponent implements AfterViewChecked {
                          TransactionType: 'NFTokenMint',
                          Account: wallet.classicAddress,
                          URI: xrpl.convertStringToHex(this.uriField),
-                         Flags: flags | TF_INNER_BATCH_TXN, // Combine existing flags with tfInnerBatchTxn
+                         Flags: nftFlags | AppConstants.TF_INNER_BATCH_TXN.BATCH_TXN, // Combine existing flags with tfInnerBatchTxn
                          NFTokenTaxon: 0,
                          Fee: '0', // Fee must be "0" for inner transactions
                     });
                }
 
                let tx;
-               if (transactions.length > 1) {
-                    const batchTx: any = {
-                         TransactionType: 'Batch',
-                         Account: wallet.classicAddress,
-                         RawTransactions: transactions.map(trx => ({
-                              RawTransaction: {
-                                   TransactionType: trx.TransactionType,
-                                   Account: trx.Account,
-                                   URI: trx.URI,
-                                   Flags: (Number(trx.Flags) || 0) | TF_INNER_BATCH_TXN, // Ensure tfInnerBatchTxn
-                                   NFTokenTaxon: trx.NFTokenTaxon,
-                                   Fee: '0', // Explicitly set Fee to "0"
-                              }, // Exclude Sequence, LastLedgerSequence, SigningPubKey
-                         })),
+
+               if (transactions.length === 1) {
+                    // Normal NFTokenMint (no batch needed)
+                    const singleTx: NFTokenMint = {
+                         ...transactions[0],
+                         Flags: nftFlags, // remove tfInnerBatchTxn when it's standalone
+                         Fee: fee,
                     };
-                    console.log('Submitting Batch Transaction:', JSON.stringify(batchTx, null, 2));
-                    try {
-                         // Autofill only the outer Batch transaction
-                         const preparedBatchTx = await client.autofill(batchTx);
-                         console.log('Prepared Batch Transaction:', JSON.stringify(preparedBatchTx, null, 2));
-                         tx = await client.submitAndWait(preparedBatchTx, { wallet });
-                    } catch (error) {
-                         console.error('Batch Transaction Error:', error);
-                         console.warn('Falling back to individual transactions due to Batch error');
-                         const transactionResults = [];
-                         for (const transaction of transactions) {
-                              try {
-                                   const preparedTx = await client.autofill({
-                                        ...transaction,
-                                        Flags: flags, // Remove tfInnerBatchTxn for individual transactions
-                                        LastLedgerSequence: undefined, // Let autofill set a fresh LastLedgerSequence
-                                   } as NFTokenMint);
-                                   console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                                   const signedTx = wallet.sign(preparedTx);
-                                   const singleTx = await client.submitAndWait(signedTx.tx_blob);
-                                   if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                                        this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                        return;
-                                   }
-                                   transactionResults.push(singleTx);
-                              } catch (singleError: any) {
-                                   console.error('Individual Transaction Error:', singleError);
-                                   if (singleError.message.includes('LastLedgerSequence')) {
-                                        console.warn('Retrying transaction with updated LastLedgerSequence');
-                                        const preparedTx = await client.autofill({
-                                             ...transaction,
-                                             Flags: flags,
-                                             LastLedgerSequence: undefined, // Retry with fresh LastLedgerSequence
-                                        } as NFTokenMint);
-                                        console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                                        const signedTx = wallet.sign(preparedTx);
-                                        const singleTx = await client.submitAndWait(signedTx.tx_blob);
-                                        if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                                             this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                             return;
-                                        }
-                                        transactionResults.push(singleTx);
-                                   } else {
-                                        throw singleError; // Rethrow non-recoverable errors
-                                   }
-                              }
-                         }
-                         console.log('transactionResults', transactionResults);
-                         tx = transactionResults[transactionResults.length - 1];
-                    }
+
+                    const prepared = await client.autofill(singleTx);
+                    tx = await client.submitAndWait(prepared, { wallet });
                } else {
-                    const transactionResults = [];
-                    for (const transaction of transactions) {
-                         try {
-                              const preparedTx = await client.autofill({
-                                   ...transaction,
-                                   Flags: flags, // Remove tfInnerBatchTxn for individual transactions
-                                   LastLedgerSequence: undefined, // Let autofill set a fresh LastLedgerSequence
-                              } as NFTokenMint);
-                              console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                              const signedTx = wallet.sign(preparedTx);
-                              const singleTx = await client.submitAndWait(signedTx.tx_blob);
-                              if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                                   this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                   return;
-                              }
-                              transactionResults.push(singleTx);
-                         } catch (singleError: any) {
-                              console.error('Individual Transaction Error:', singleError);
-                              if (singleError.message.includes('LastLedgerSequence')) {
-                                   console.warn('Retrying transaction with updated LastLedgerSequence');
-                                   const preparedTx = await client.autofill({
-                                        ...transaction,
-                                        Flags: flags,
-                                        LastLedgerSequence: undefined, // Retry with fresh LastLedgerSequence
-                                   } as NFTokenMint);
-                                   console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                                   const signedTx = wallet.sign(preparedTx);
-                                   const singleTx = await client.submitAndWait(signedTx.tx_blob);
-                                   if (singleTx.result.meta && typeof singleTx.result.meta !== 'string' && (singleTx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                                        this.utilsService.renderTransactionsResults(singleTx, this.resultField.nativeElement);
-                                        return;
-                                   }
-                                   transactionResults.push(singleTx);
-                              } else {
-                                   throw singleError; // Rethrow non-recoverable errors
-                              }
-                         }
+                    // Batch submit if > 1
+                    if (this.isMultiSign) {
+                         tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, {
+                              isMultiSign: true,
+                              signerAddresses: this.multiSignAddress,
+                              signerSeeds: this.multiSignSeeds,
+                              fee: '12', // optional override
+                         });
+                    } else {
+                         tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, { useRegularKeyWalletSignTx: regularKeyWalletSignTx });
                     }
-                    console.log('transactionResults', transactionResults);
-                    tx = transactionResults[transactionResults.length - 1];
                }
 
                console.log('Mint NFT tx', tx);
@@ -926,6 +707,100 @@ export class CreateNftComponent implements AfterViewChecked {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving burnNFT in ${this.executionTime}ms`);
+          }
+     }
+
+     async burnBatchNFT() {
+          console.log('Entering burnBatchNFT');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               nftIdField: this.nftIdField,
+               batchMode: this.batchMode ? this.batchMode : '',
+               uri: this.uriField,
+          };
+          const errors = this.validateInputs(inputs, 'burn');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
+          }
+
+          // const validNFTs = this.utilsService.parseAndValidateNFTokenIDs(this.nftIdField);
+          // if (!validNFTs) {
+          //      return this.setError(`ERROR: Invalid NFT Id`);
+          // }
+
+          const nftIds = this.utilsService.getNftIds(this.nftIdField);
+          const batchFlags = this.setBatchFlags();
+
+          try {
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+               this.updateSpinnerMessage('Burning Batch NFT ...');
+
+               const transactions: any[] = nftIds.map((nftId: any) => ({
+                    TransactionType: 'NFTokenBurn',
+                    Account: wallet.classicAddress,
+                    NFTokenID: nftId,
+                    Flags: AppConstants.TF_INNER_BATCH_TXN.BATCH_TXN, // 1073741824
+                    Fee: '0',
+               }));
+
+               let tx;
+
+               if (transactions.length === 1) {
+                    // Normal NFTokenBurn (no batch needed)
+                    const singleTx: NFTokenBurn = {
+                         ...transactions[0],
+                         Fee: undefined, // let autofill set correct fee
+                         Flags: fee,
+                    };
+
+                    const prepared = await client.autofill(singleTx);
+                    console.log('Single-sign batch:', JSON.stringify(prepared, null, 2));
+                    tx = await client.submitAndWait(prepared, { wallet });
+                    console.log('tx:', JSON.stringify(tx, null, 2));
+               } else {
+                    // Batch submit if > 1
+                    if (this.isMultiSign) {
+                         tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, {
+                              isMultiSign: true,
+                              signerAddresses: this.multiSignAddress,
+                              signerSeeds: this.multiSignSeeds,
+                              fee: '12', // optional override
+                         });
+                    } else {
+                         tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, { useRegularKeyWalletSignTx: regularKeyWalletSignTx });
+                    }
+               }
+
+               console.log('Burn NFT tx', tx);
+
+               if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+                    return;
+               }
+
+               // Render all successful transactions
+               this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving burnBatchNFT in ${this.executionTime}ms`);
           }
      }
 
@@ -1932,11 +1807,11 @@ export class CreateNftComponent implements AfterViewChecked {
      setNftFlags() {
           let flags = 0;
           if (this.burnableNft) {
-               flags = xrpl.NFTokenMintFlags.tfBurnable;
+               flags |= xrpl.NFTokenMintFlags.tfBurnable;
           }
 
           if (this.onlyXrpNft) {
-               flags = xrpl.NFTokenMintFlags.tfOnlyXRP;
+               flags |= xrpl.NFTokenMintFlags.tfOnlyXRP;
           }
 
           if (this.transferableNft) {
@@ -1947,7 +1822,29 @@ export class CreateNftComponent implements AfterViewChecked {
                flags |= xrpl.NFTokenMintFlags.tfMutable;
           }
 
-          console.log('flags ' + flags);
+          console.log('NFt flags ' + flags);
+          return flags;
+     }
+
+     setBatchFlags() {
+          let flags = 0;
+          if (this.batchMode === 'allOrNothing') {
+               flags |= AppConstants.BATCH_FLAGS.ALL_OR_NOTHING;
+          }
+
+          if (this.batchMode === 'onlyOne') {
+               flags |= AppConstants.BATCH_FLAGS.ONLY_ONE;
+          }
+
+          if (this.batchMode === 'untilFailure') {
+               flags |= AppConstants.BATCH_FLAGS.UNTIL_FAILURE;
+          }
+
+          if (this.batchMode === 'independent') {
+               flags |= AppConstants.BATCH_FLAGS.INDEPENDENT;
+          }
+
+          console.log('Batch flags ' + flags);
           return flags;
      }
 
@@ -2009,7 +1906,6 @@ export class CreateNftComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
@@ -2064,6 +1960,17 @@ export class CreateNftComponent implements AfterViewChecked {
                return null;
           };
 
+          const isBatchCountValid = (value: string | undefined, fieldName: string): string | null => {
+               if (value === undefined) return null; // Not required, so skip
+               const num = parseInt(value);
+               if (num > 8) {
+                    return `${fieldName} must be less than 8`;
+               } else if (num <= 0) {
+                    return `${fieldName} cannot be zero`;
+               }
+               return null;
+          };
+
           const isValidSeed = (value: string | undefined): string | null => {
                if (value) {
                     const { type, value: detectedValue } = this.utilsService.detectXrpInputType(value);
@@ -2103,7 +2010,7 @@ export class CreateNftComponent implements AfterViewChecked {
                },
                mintBatch: {
                     required: ['selectedAccount', 'seed', 'nftCountField'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.nftCountField, 'NFT count', 0), () => isRequired(inputs.uri, 'URI')],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.nftCountField, 'NFT count', 0), () => isRequired(inputs.uri, 'URI'), () => isBatchCountValid(inputs.nftCountField, 'NFT Count'), () => isRequired(inputs.batchMode, 'Batch Mode')],
                },
                burn: {
                     required: ['selectedAccount', 'seed', 'nftIdField'],
@@ -2166,6 +2073,11 @@ export class CreateNftComponent implements AfterViewChecked {
           }
 
           return errors;
+     }
+
+     setBatchMode(mode: 'allOrNothing' | 'onlyOne' | 'untilFailure' | 'independent') {
+          this.batchMode = mode;
+          this.toggleFlags(); // optional: update your XRPL batch flags
      }
 
      async getWallet() {

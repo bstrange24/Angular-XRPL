@@ -299,6 +299,12 @@ export class UtilsService {
           return /^[0-9A-Fa-f]{64}$/.test(input);
      }
 
+     parseAndValidateNFTokenIDs(idsString: string): string[] {
+          const ids = idsString.split(',').map(id => id.trim());
+          const validIds = ids.filter(id => /^[0-9A-Fa-f]{64}$/.test(id));
+          return validIds;
+     }
+
      isValidCTID(input: string): boolean {
           return /^C[0-9A-Fa-f]+$/.test(input);
      }
@@ -476,6 +482,13 @@ export class UtilsService {
 
      getMultiSignAddress(multiSignAddress: any) {
           return multiSignAddress
+               .split(',')
+               .map((s: string) => s.trim())
+               .filter((s: string) => s.length > 0);
+     }
+
+     getNftIds(nftId: any) {
+          return nftId
                .split(',')
                .map((s: string) => s.trim())
                .filter((s: string) => s.length > 0);
@@ -1663,6 +1676,7 @@ export class UtilsService {
                XChainModifyBridge: ['MinAccountCreateAmount', 'SignatureReward'],
                DIDSet: ['Data', 'URI', 'Attestation'],
                DIDDelete: [],
+               RawTransaction: ['Account', 'Fee', 'Flags'],
           };
 
           if (txArray.length === 0) {
