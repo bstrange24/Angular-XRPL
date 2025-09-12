@@ -4,7 +4,7 @@ import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
-import { BookOffer, IssuedCurrencyAmount, AMMInfoRequest, TrustSetFlags } from 'xrpl';
+import { BookOffer, IssuedCurrencyAmount, AMMInfoRequest } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -29,7 +29,7 @@ interface ValidationInputs {
      weSpendCurrencyField?: string;
      weWantIssuerField?: string;
      weSpendIssuerField?: string;
-     withdrawlLpTokenFromPoolField?: string;
+     lpTokenBalanceField?: string;
      tradingFeeField?: string;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
@@ -348,7 +348,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'getPoolInfo');
+          const errors = await this.validateInputs(inputs, 'getPoolInfo');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -523,7 +523,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'create');
+          const errors = await this.validateInputs(inputs, 'create');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -739,7 +739,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'deposit');
+          const errors = await this.validateInputs(inputs, 'deposit');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -944,13 +944,13 @@ export class CreateAmmComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               withdrawlLpTokenFromPoolField: this.withdrawlLpTokenFromPoolField,
+               lpTokenBalanceField: this.lpTokenBalanceField,
                weWantCurrencyField: this.weWantCurrencyField,
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'withdraw');
+          const errors = await this.validateInputs(inputs, 'withdraw');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1126,13 +1126,13 @@ export class CreateAmmComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               withdrawlLpTokenFromPoolField: this.withdrawlLpTokenFromPoolField,
+               lpTokenBalanceField: this.lpTokenBalanceField,
                weWantCurrencyField: this.weWantCurrencyField,
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'withdraw');
+          const errors = await this.validateInputs(inputs, 'withdraw');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1299,6 +1299,157 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
+     async clawbackFromAMM() {
+          console.log('Entering clawbackFromAMM');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               lpTokenBalanceField: this.lpTokenBalanceField, // how much LP to claw back
+               weWantCurrencyField: this.weWantCurrencyField, // AMM asset
+               weWantIssuerField: this.weWantIssuerField !== 'XRP' ? this.weWantIssuerField : undefined,
+               weSpendCurrencyField: this.weSpendCurrencyField,
+               weSpendIssuerField: this.weSpendIssuerField !== 'XRP' ? this.weSpendIssuerField : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'ammclawback');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
+          }
+
+          try {
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+               this.updateSpinnerMessage('Clawing back AMM LP tokens...');
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               // Build Asset + Asset2 (AMM pool definition)
+               const assetDef: xrpl.Currency = {
+                    currency: this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? 'XRP' : this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField),
+                    issuer: this.weSpendCurrencyField !== AppConstants.XRP_CURRENCY ? this.weSpendIssuerField : '',
+               };
+
+               const asset2Def: xrpl.Currency = {
+                    currency: this.weWantCurrencyField === AppConstants.XRP_CURRENCY ? 'XRP' : this.utilsService.encodeCurrencyCode(this.weWantCurrencyField),
+                    issuer: this.weWantCurrencyField !== AppConstants.XRP_CURRENCY ? this.weWantIssuerField : '',
+               };
+
+               const ammClawbackTx: xrpl.AMMClawback = {
+                    TransactionType: 'AMMClawback',
+                    Account: wallet.classicAddress,
+                    Asset: assetDef,
+                    Asset2: asset2Def,
+                    Amount: {
+                         currency: 'AMM', // LP tokens are represented as AMM token
+                         issuer: wallet.classicAddress,
+                         value: this.lpTokenBalanceField,
+                    },
+                    Holder: '',
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    Fee: fee,
+               };
+
+               // Ticket support
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(ammClawbackTx, this.ticketSequence, true);
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(ammClawbackTx, getAccountInfo.result.account_data.Sequence, false);
+               }
+
+               if (this.memoField) {
+                    this.utilsService.setMemoField(ammClawbackTx, this.memoField);
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               // --- Multi-sign ---
+               if (this.isMultiSign) {
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
+                    }
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({
+                              client,
+                              wallet,
+                              environment,
+                              tx: ammClawbackTx,
+                              signerAddresses,
+                              signerSeeds,
+                              fee,
+                         });
+                         signedTx = result.signedTx;
+                         ammClawbackTx.Signers = result.signers;
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         ammClawbackTx.Fee = multiSignFee;
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammClawbackTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    // --- Single-sign ---
+                    const preparedTx = await client.autofill(ammClawbackTx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammClawbackTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+
+               this.updateSpinnerMessage('Submitting AMM Clawback transaction...');
+               const response = await client.submitAndWait(signedTx.tx_blob);
+
+               console.log('AMMClawback Response:', JSON.stringify(response, null, 2));
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               // Refresh UI
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+
+               this.isMemoEnabled = false;
+               this.memoField = '';
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving clawbackFromAMM in ${this.executionTime}ms`);
+          }
+     }
+
      async swapViaAMM() {
           console.log('Entering swapViaAMM');
           const startTime = Date.now();
@@ -1314,7 +1465,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'swap');
+          const errors = await this.validateInputs(inputs, 'swap');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1463,7 +1614,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'tokenBalance');
+          const errors = await this.validateInputs(inputs, 'tokenBalance');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1599,7 +1750,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
           };
-          const errors = this.validateInputs(inputs, 'weWantCurrencyChange');
+          const errors = await this.validateInputs(inputs, 'weWantCurrencyChange');
           if (errors.length > 0) {
                this.weWantTokenBalanceField = '0';
                return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -1787,7 +1938,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
           };
-          const errors = this.validateInputs(inputs, 'weSpendCurrencyChange');
+          const errors = await this.validateInputs(inputs, 'weSpendCurrencyChange');
           if (errors.length > 0) {
                this.weSpendTokenBalanceField = '0';
                return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -1918,7 +2069,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.weSpendAmountField = '';
      }
 
-     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
           // Common validators as functions
@@ -2007,7 +2158,14 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+          const actionConfig: Record<
+               string,
+               {
+                    required: (keyof ValidationInputs)[];
+                    customValidators?: (() => string | null)[];
+                    asyncValidators?: (() => Promise<string | null>)[];
+               }
+          > = {
                getPoolInfo: {
                     required: ['selectedAccount', 'seed', 'weWantCurrencyField', 'weSpendCurrencyField'],
                     customValidators: [
@@ -2019,6 +2177,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                     ],
+                    asyncValidators: [],
                },
                create: {
                     required: ['selectedAccount', 'seed', 'weWantAmountField', 'weSpendAmountField', 'weWantCurrencyField', 'weSpendCurrencyField'],
@@ -2034,7 +2193,10 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.weSpendIssuerField),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.weWantCurrencyField),
                     ],
+                    asyncValidators: [],
                },
                deposit: {
                     required: ['selectedAccount', 'seed', 'weWantAmountField', 'weWantCurrencyField', 'weSpendCurrencyField'],
@@ -2048,13 +2210,16 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.weSpendIssuerField),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.weWantCurrencyField),
                     ],
+                    asyncValidators: [],
                },
                withdraw: {
-                    required: ['selectedAccount', 'seed', 'withdrawlLpTokenFromPoolField', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    required: ['selectedAccount', 'seed', 'lpTokenBalanceField', 'weWantCurrencyField', 'weSpendCurrencyField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
-                         () => isValidNumber(inputs.withdrawlLpTokenFromPoolField, 'LP token amount', 0),
+                         () => isValidNumber(inputs.lpTokenBalanceField, 'LP token amount', 0),
                          () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
                          () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
@@ -2077,19 +2242,36 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                     ],
                },
+               clawback: {
+                    required: ['selectedAccount', 'seed', 'lpTokenBalanceField', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.lpTokenBalanceField, 'LP token amount to claw back', 0),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                    ],
+                    asyncValidators: [],
+               },
                tokenBalance: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
+                    asyncValidators: [],
                },
                weWantCurrencyChange: {
                     required: ['selectedAccount'],
                     customValidators: [() => isValidXrpAddress(this.utilsService.getSelectedAddressWithIssuer(inputs.selectedAccount || '', this.account1, this.account2, this.issuer), 'Account address')],
+                    asyncValidators: [],
                },
                weSpendCurrencyChange: {
                     required: ['selectedAccount'],
                     customValidators: [() => isValidXrpAddress(this.utilsService.getSelectedAddressWithIssuer(inputs.selectedAccount || '', this.account1, this.account2, this.issuer), 'Account address')],
+                    asyncValidators: [],
                },
-               default: { required: [], customValidators: [] },
+               default: { required: [], customValidators: [], asyncValidators: [] },
           };
 
           const config = actionConfig[action] || actionConfig['default'];
@@ -2105,6 +2287,14 @@ export class CreateAmmComponent implements AfterViewChecked {
                const err = validator();
                if (err) errors.push(err);
           });
+
+          // --- Run async validators ---
+          if (config.asyncValidators) {
+               for (const validator of config.asyncValidators) {
+                    const err = await validator();
+                    if (err) errors.push(err);
+               }
+          }
 
           // Always validate optional fields if provided (e.g., multi-sign, regular key)
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);

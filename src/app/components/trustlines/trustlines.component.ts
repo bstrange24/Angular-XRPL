@@ -1248,6 +1248,152 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
+     async clawbackTrustLine() {
+          console.log('Entering clawbackTrustLine');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          const inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               amount: this.amountField,
+               destination: this.destinationFields,
+               ticket: this.ticketSequence,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+          };
+          const errors = await this.validateInputs(inputs, 'clawback');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
+          }
+
+          try {
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+               this.updateSpinnerMessage('Clawing back tokens...');
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+               const currencyFieldTemp = this.utilsService.encodeIfNeeded(this.currencyField);
+               if (!/^[A-Z0-9]{3}$|^[0-9A-Fa-f]{40}$/.test(currencyFieldTemp)) {
+                    throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
+               }
+
+               let clawbackTx: any = {
+                    TransactionType: 'Clawback',
+                    Account: wallet.classicAddress,
+                    Amount: {
+                         currency: currencyFieldTemp,
+                         issuer: this.destinationFields,
+                         value: this.amountField,
+                    },
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
+
+               if (this.ticketSequence) {
+                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(clawbackTx, this.ticketSequence, true);
+               } else {
+                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    this.utilsService.setTicketSequence(clawbackTx, getAccountInfo.result.account_data.Sequence, false);
+               }
+
+               if (this.memoField) {
+                    this.utilsService.setMemoField(clawbackTx, this.memoField);
+               }
+
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.isMultiSign) {
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+
+                    if (signerAddresses.length === 0) {
+                         return this.setError('ERROR: No signer addresses provided for multi-signing');
+                    }
+                    if (signerSeeds.length === 0) {
+                         return this.setError('ERROR: No signer seeds provided for multi-signing');
+                    }
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({
+                              client,
+                              wallet,
+                              environment,
+                              tx: clawbackTx,
+                              signerAddresses,
+                              signerSeeds,
+                              fee,
+                         });
+                         signedTx = result.signedTx;
+                         clawbackTx.Signers = result.signers;
+
+                         console.log('Clawback with Signers:', JSON.stringify(clawbackTx, null, 2));
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: No valid signature collected for multisign transaction');
+                         }
+
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
+                         clawbackTx.Fee = multiSignFee;
+
+                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, clawbackTx, multiSignFee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    } catch (err: any) {
+                         return this.setError(`ERROR: ${err.message}`);
+                    }
+               } else {
+                    const preparedTx = await client.autofill(clawbackTx);
+                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+
+                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, clawbackTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+               }
+
+               if (!signedTx) {
+                    return this.setError('ERROR: Failed to sign transaction.');
+               }
+               console.log('signed:', JSON.stringify(signedTx, null, 2));
+
+               this.updateSpinnerMessage('Submitting Clawback transaction...');
+               const response = await client.submitAndWait(signedTx.tx_blob);
+               console.log('Response:', JSON.stringify(response, null, 2));
+
+               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    return;
+               }
+
+               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+
+               this.clearFields(false);
+
+               await this.updateCurrencyBalance(wallet);
+               this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving clawbackTrustLine in ${this.executionTime}ms`);
+          }
+     }
+
      async onCurrencyChange() {
           console.log('Entering onCurrencyChange');
           const startTime = Date.now();
@@ -1715,9 +1861,12 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      clearFields(clearAllFields: boolean) {
-          this.amountField = '';
-          this.currencyField = '';
-          this.currencyBalanceField = '0';
+          if (clearAllFields) {
+               this.amountField = '';
+               this.currencyField = '';
+               this.currencyBalanceField = '0';
+               this.destinationTagField = '';
+          }
           this.memoField = '';
           this.ticketSequence = '';
           this.isTicket = false;

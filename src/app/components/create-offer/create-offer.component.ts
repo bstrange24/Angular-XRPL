@@ -349,7 +349,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'fetchXrpPrice');
+          const errors = await this.validateInputs(inputs, 'fetchXrpPrice');
           if (errors.length > 0) {
                this.xrpPrice = 'Error';
                return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -495,7 +495,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'getOffers');
+          const errors = await this.validateInputs(inputs, 'getOffers');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -604,7 +604,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                regularKeyAddress: this.isRegularKeyAddress && !this.isMultiSign ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress && !this.isMultiSign ? this.regularKeySeed : undefined,
           };
-          const errors = this.validateInputs(inputs, 'getOrderBook');
+          const errors = await this.validateInputs(inputs, 'getOrderBook');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -826,7 +826,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = this.validateInputs(inputs, 'createOffer');
+          const errors = await this.validateInputs(inputs, 'createOffer');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1482,7 +1482,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                regularKeyAddress: this.isRegularKeyAddress && !this.isMultiSign ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress && !this.isMultiSign ? this.regularKeySeed : undefined,
           };
-          const errors = this.validateInputs(inputs, 'cancelOffer');
+          const errors = await this.validateInputs(inputs, 'cancelOffer');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -1688,7 +1688,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'getTokenBalance');
+          const errors = await this.validateInputs(inputs, 'getTokenBalance');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -2119,7 +2119,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
           };
-          const errors = this.validateInputs(inputs, 'onWeWantCurrencyChange');
+          const errors = await this.validateInputs(inputs, 'onWeWantCurrencyChange');
           if (errors.length > 0) {
                this.weWantTokenBalanceField = '0';
                return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -2170,7 +2170,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
           };
-          const errors = this.validateInputs(inputs, 'onWeSpendCurrencyChange');
+          const errors = await this.validateInputs(inputs, 'onWeSpendCurrencyChange');
           if (errors.length > 0) {
                this.weSpendTokenBalanceField = '0';
                return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -2256,7 +2256,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
                weSpendAmountField: this.weSpendAmountField,
           };
-          const errors = this.validateInputs(inputs, 'updateTokenBalanceAndExchange');
+          const errors = await this.validateInputs(inputs, 'updateTokenBalanceAndExchange');
           if (errors.length > 0) {
                this.phnixBalance = '0';
                this.phnixExchangeXrp = '0';
@@ -2481,7 +2481,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                weSpendCurrencyField: this.weSpendCurrencyField,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = this.validateInputs(inputs, 'updateTokenBalanceAndExchange1');
+          const errors = await this.validateInputs(inputs, 'updateTokenBalanceAndExchange1');
           if (errors.length > 0) {
                this.phnixBalance = '0';
                this.phnixExchangeXrp = '0';
@@ -2793,7 +2793,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
-     private validateInputs(inputs: ValidationInputs, action: string): string[] {
+     private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
           // Common validators as functions
@@ -2892,7 +2892,14 @@ export class CreateOfferComponent implements AfterViewChecked {
           };
 
           // Action-specific config: required fields and custom rules
-          const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
+          const actionConfig: Record<
+               string,
+               {
+                    required: (keyof ValidationInputs)[];
+                    customValidators?: (() => string | null)[];
+                    asyncValidators?: (() => Promise<string | null>)[];
+               }
+          > = {
                fetchXrpPrice: {
                     required: ['selectedAccount', 'weWantCurrencyField', 'weSpendCurrencyField'],
                     customValidators: [
@@ -2903,10 +2910,12 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                     ],
+                    asyncValidators: [],
                },
                getOffers: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
+                    asyncValidators: [],
                },
                getOrderBook: {
                     required: ['selectedAccount', 'seed', 'weWantCurrencyField', 'weSpendCurrencyField'],
@@ -2923,6 +2932,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                     ],
+                    asyncValidators: [],
                },
                createOffer: {
                     required: ['selectedAccount', 'seed', 'weWantAmountField', 'weSpendAmountField', 'weWantCurrencyField', 'weSpendCurrencyField'],
@@ -2943,7 +2953,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.weSpendIssuerField),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.weWantCurrencyField),
                     ],
+                    asyncValidators: [],
                },
                cancelOffer: {
                     required: ['selectedAccount', 'seed', 'offerSequenceField'],
@@ -2955,18 +2968,22 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                     ],
+                    asyncValidators: [],
                },
                getTokenBalance: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
+                    asyncValidators: [],
                },
                onWeWantCurrencyChange: {
                     required: ['selectedAccount'],
                     customValidators: [() => isValidXrpAddress(this.utilsService.getSelectedAddressWithIssuer(inputs.selectedAccount || '', this.account1, this.account2, this.issuer), 'Account address')],
+                    asyncValidators: [],
                },
                onWeSpendCurrencyChange: {
                     required: ['selectedAccount'],
                     customValidators: [() => isValidXrpAddress(this.utilsService.getSelectedAddressWithIssuer(inputs.selectedAccount || '', this.account1, this.account2, this.issuer), 'Account address')],
+                    asyncValidators: [],
                },
                updateTokenBalanceAndExchange: {
                     required: ['selectedAccount', 'weWantCurrencyField', 'weSpendCurrencyField'],
@@ -2980,6 +2997,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                          () => (inputs.weSpendAmountField ? isValidNumber(inputs.weSpendAmountField, 'We spend amount', 0) : null),
                     ],
+                    asyncValidators: [],
                },
                updateTokenBalanceAndExchange1: {
                     required: ['selectedAccount', 'weSpendCurrencyField'],
@@ -2989,8 +3007,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                     ],
+                    asyncValidators: [],
                },
-               default: { required: [], customValidators: [] },
+               default: { required: [], customValidators: [], asyncValidators: [] },
           };
 
           const config = actionConfig[action] || actionConfig['default'];
