@@ -1,9 +1,17 @@
 .transaction-layout {
      display: grid;
-     grid-template-columns: 2fr 1fr;
+     grid-template-columns: 1.5fr 1fr;
      gap: 20px;
      align-items: start;
 }
+
+
+/* .transaction-layout {
+     display: grid;
+     grid-template-columns: 2fr 1fr;
+     gap: 20px;
+     align-items: start;
+} */
 
 .left-column {
      display: flex;
@@ -178,12 +186,21 @@ label.switch {
      margin-right: auto;
 } */
 
+/* .nft-option label {
+     white-space: nowrap;
+} */
+
+/* .nft-options-grid {
+     display: grid;
+     grid-template-columns: repeat(2, 1fr);
+     gap: 12px 20px;
+     margin-top: 1px;
+} */
+
 .nft-options-grid {
      display: grid;
      grid-template-columns: 1.0fr 1.0fr 1.0fr 1.0fr;
-     /* two equal columns */
      gap: 12px 20px;
-     /* row gap | column gap */
      margin-top: 1px;
 }
 

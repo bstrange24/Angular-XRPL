@@ -1,9 +1,16 @@
 .transaction-layout {
      display: grid;
-     grid-template-columns: 2fr 1fr;
+     grid-template-columns: 1.5fr 1fr;
      gap: 20px;
      align-items: start;
 }
+
+/* .transaction-layout {
+     display: grid;
+     grid-template-columns: 2fr 1fr;
+     gap: 20px;
+     align-items: start;
+} */
 
 .left-column {
      display: flex;

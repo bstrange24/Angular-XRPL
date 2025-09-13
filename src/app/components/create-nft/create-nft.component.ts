@@ -85,6 +85,8 @@ export class CreateNftComponent implements AfterViewChecked {
      multiSignSeeds: string = '';
      isUpdateMetaData: boolean = false;
      isUpdateNFTMetaData: boolean = false;
+     isBatchModeEnabled: boolean = false;
+     isNftFlagModeEnabled: boolean = false;
      tickSize: string = '';
      transferRate: string = '';
      isMessageKey: boolean = false;
@@ -358,7 +360,10 @@ export class CreateNftComponent implements AfterViewChecked {
                return this.setError('ERROR: Cannot enable both NoFreeze and GlobalFreeze');
           }
 
-          const flags = this.setNftFlags();
+          let nftFlags = 0;
+          if (this.isNftFlagModeEnabled) {
+               nftFlags = this.setNftFlags();
+          }
 
           try {
                const environment = this.xrplService.getNet().environment;
@@ -375,7 +380,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const tx: NFTokenMint = {
                     TransactionType: 'NFTokenMint',
                     Account: wallet.classicAddress,
-                    Flags: flags,
+                    Flags: nftFlags,
                     NFTokenTaxon: 0,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -504,7 +509,14 @@ export class CreateNftComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
-          const nftFlags = this.setNftFlags();
+          if (!this.isBatchModeEnabled) {
+               return this.setError('Batch Mode slider is not enabled.');
+          }
+
+          let nftFlags = 0;
+          if (this.isNftFlagModeEnabled) {
+               nftFlags = this.setNftFlags();
+          }
           const batchFlags = this.setBatchFlags();
 
           try {
