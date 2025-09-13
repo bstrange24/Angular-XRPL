@@ -15,8 +15,8 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
-import { StateService } from '../../services/state-service.service';
-import { AppState } from '../../services/state-service.service';
+import { StateService } from '../../services/app-state/state-service.service';
+import { AppState } from '../../services/app-state/state-service.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;

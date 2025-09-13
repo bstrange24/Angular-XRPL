@@ -5,7 +5,7 @@ import * as xrpl from 'xrpl';
 import { AppConstants } from '../core/app.constants';
 import { BehaviorSubject, Observable, of, firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { TokenCacheService } from './token-cache.service';
+import { TokenCacheService } from './token-cache/token-cache.service';
 
 interface Token {
      transactionType: string;

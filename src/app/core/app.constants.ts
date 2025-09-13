@@ -2,6 +2,13 @@
 import { ECDSA } from 'xrpl';
 import * as xrpl from 'xrpl';
 
+interface DelegateAction {
+     id: number;
+     key: string;
+     txType: string;
+     description: string;
+}
+
 export const AppConstants = {
      // XRPL Network Settings
      NETWORKS: {
@@ -170,6 +177,21 @@ export const AppConstants = {
           asfDisallowIncomingTrustline: 'disallowIncomingTrustline',
           asfAllowTrustLineClawback: 'allowTrustLineClawback',
      },
+
+     DELEGATE_ACTIONS: [
+          { id: 65537, key: 'TrustlineAuthorize', txType: '', description: 'Can authorize individual trust lines.' },
+          { id: 65538, key: 'TrustlineFreeze', txType: '', description: 'Can freeze individual trust lines.' },
+          { id: 65539, key: 'TrustlineUnfreeze', txType: '', description: 'Can unfreeze individual trust lines.' },
+          { id: 65540, key: 'AccountDomainSet', txType: '', description: 'Can set the Domain field of the account.' },
+          { id: 65541, key: 'AccountEmailHashSet', txType: '', description: 'Can set the EmailHash field of the account.' },
+          { id: 65542, key: 'AccountMessageKeySet', txType: '', description: 'Can set the MessageKey field of the account.' },
+          { id: 65543, key: 'AccountTransferRateSet', txType: '', description: 'Can set the transfer fee of fungible tokens.' },
+          { id: 65544, key: 'AccountTickSizeSet', txType: '', description: 'Can set the tick size of fungible tokens.' },
+          { id: 65545, key: 'PaymentMint', txType: '', description: 'Can send payments that mint fungible tokens or MPTs.' },
+          { id: 65546, key: 'PaymentBurn', txType: '', description: 'Can send payments that burn fungible tokens or MPTs.' },
+          { id: 65547, key: 'MPTokenIssuanceLock', txType: '', description: 'Can lock balances of a particular MPT.' },
+          { id: 65548, key: 'MPTokenIssuanceUnlock', txType: '', description: 'Can unlock balances of a particular MPT.' },
+     ],
 
      NESTED_FIELDS: ['SetFlag', 'ClearFlag'],
 
