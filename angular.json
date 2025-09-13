@@ -36,7 +36,11 @@
               "ripple-keypairs",
               "five-bells-condition",
               "buffer",
-              "process"
+              "process",
+              "flagnames",
+              "js-sha256",
+              "ajv",
+              "ajv-formats"
             ]
           },
           "configurations": {
@@ -44,7 +48,7 @@
               "budgets": [
                {
                     "type": "initial",
-                    "maximumWarning": "2MB",
+                    "maximumWarning": "3MB",
                     "maximumError": "3MB"
                   },
                   {
