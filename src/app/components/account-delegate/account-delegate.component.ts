@@ -102,6 +102,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
      multiSignSeeds: string = '';
      actions: DelegateAction[] = AppConstants.DELEGATE_ACTIONS;
      selected: Set<number> = new Set<number>();
+     delegateSelections: Record<string, Set<number>> = {};
      destinationFields: string = '';
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
@@ -234,6 +235,12 @@ export class AccountDelegateComponent implements AfterViewChecked {
           return this.actions.filter(a => this.selected.has(a.id));
      }
 
+     async onDestinationChange(event: Event) {
+          const value = (event.target as HTMLSelectElement).value;
+          console.log('Selected:', value);
+          await this.getAccountDetails();
+     }
+
      toggleTicketSequence() {
           this.cdr.detectChanges();
      }
@@ -270,7 +277,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
 
-               const delegateObjects = accountObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'Delegate');
+               const delegateObjects = accountObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'Delegate' && o.Authorize === this.destinationFields);
                console.debug(`Delegate Objects: ${JSON.stringify(delegateObjects, null, '\t')}`);
 
                // Prepare data for renderAccountDetails
@@ -322,6 +329,21 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          }),
                     });
                }
+
+               delegateObjects.forEach(delegated => {
+                    // Only access 'Authorize' if it exists on the object
+                    const delegateAccount = (delegated as any).Authorize ?? '';
+                    const permissions = Array.isArray((delegated as any).Permissions) ? (delegated as any).Permissions : [];
+
+                    const permissionKeys = permissions.map((p: any) => p.Permission?.PermissionValue).filter(Boolean);
+
+                    // Map keys to action IDs
+                    const selectedIds = new Set<number>(this.actions.filter(a => permissionKeys.includes(a.key)).map(a => a.id));
+
+                    if (delegateAccount) {
+                         this.delegateSelections[delegateAccount] = selectedIds;
+                    }
+               });
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);

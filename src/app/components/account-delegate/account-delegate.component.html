@@ -267,7 +267,7 @@
                                    <label for="destinationFields">Authorize</label>
                               </td>
                               <td>
-                                   <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                   <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields" (change)="onDestinationChange($event)">
                                         <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
                                    </select>
                               </td>
