@@ -931,13 +931,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                sequence: this.isTicket ? this.ticketSequence : undefined,
-               signers: enableMultiSignFlag === 'Y' ? this.signers : undefined,
-               signerQuorum: enableMultiSignFlag === 'Y' ? this.signerQuorum : undefined,
+               signers: this.signers ? this.signers : undefined,
+               signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
           };
+
           const errors = await this.validateInputs(inputs, 'setMultiSign');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
