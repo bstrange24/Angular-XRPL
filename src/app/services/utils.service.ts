@@ -382,16 +382,20 @@ export class UtilsService {
 
      convertXRPLTime(rippleTime: any) {
           const rippleEpochOffset = 946684800;
-const cancelAfterUnix = rippleTime + rippleEpochOffset; // 1757804253
+          const cancelAfterUnix = rippleTime + rippleEpochOffset; // 1757804253
 
-const cancelAfterDate = new Date(cancelAfterUnix * 1000);
-console.log(cancelAfterDate.toUTCString());
+          const cancelAfterDate = new Date(cancelAfterUnix * 1000);
+          const formatter1 = this.dateFormatter();
+          console.log('toUTCString: ', cancelAfterDate.toUTCString());
+          console.log('Formatter 1: ', formatter1.format(cancelAfterDate));
+          return formatter1.format(cancelAfterDate);
 
           // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
-          const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
-          const date = new Date((rippleTime + rippleEpoch) * 1000);
-          const formatter = this.dateFormatter();
-          return formatter.format(date);
+          // const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
+          // const date = new Date((rippleTime + rippleEpoch) * 1000);
+          // const formatter = this.dateFormatter();
+          // console.log('Formatter OG: ', formatter.format(date));
+          // return formatter.format(date);
      }
 
      convertToUnixTimestamp(dateString: any) {
@@ -404,31 +408,67 @@ console.log(cancelAfterDate.toUTCString());
       * Convert XRPL Expiration (Ripple Epoch seconds) to "MM/DD/YYYY HH:MM:SS" UTC string
       * @param rippleSeconds - Expiration from XRPL tx (seconds since 2000-01-01 UTC)
       */
-     toFormattedExpiration(rippleSeconds: number): string {
-          // Convert to UNIX epoch seconds
-          const unixSeconds = rippleSeconds + 946684800;
-          const date = new Date(unixSeconds * 1000);
+     // toFormattedExpiration(rippleSeconds: number): string {
+     //      // Convert to UNIX epoch seconds
+     //      const unixSeconds = rippleSeconds + 946684800;
+     //      const date = new Date(unixSeconds * 1000);
 
-          const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
-          const day = String(date.getUTCDate()).padStart(2, '0');
-          const year = date.getUTCFullYear();
+     //      const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
+     //      const day = String(date.getUTCDate()).padStart(2, '0');
+     //      const year = date.getUTCFullYear();
 
-          let hours = date.getUTCHours();
-          const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-          const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+     //      let hours = date.getUTCHours();
+     //      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+     //      const seconds = String(date.getUTCSeconds()).padStart(2, '0');
 
-          const ampm = hours >= 12 ? 'PM' : 'AM';
-          hours = hours % 12;
-          if (hours === 0) hours = 12; // handle midnight/noon
-          const hoursStr = String(hours).padStart(2, '0');
+     //      const ampm = hours >= 12 ? 'PM' : 'AM';
+     //      hours = hours % 12;
+     //      if (hours === 0) hours = 12; // handle midnight/noon
+     //      const hoursStr = String(hours).padStart(2, '0');
 
-          return `${month}/${day}/${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+     //      return `${month}/${day}/${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
+     // }
+
+     // toRippleTime(dateTimeStr: string): number {
+     //      // dateTimeStr example: "2025-12-25T15:30"
+     //      const date = new Date(dateTimeStr + ':00Z'); // Force UTC
+     //      return Math.floor(date.getTime() / 1000) - 946684800;
+     // }
+
+     toRippleTime(isoDate: string): number {
+          // Ripple epoch starts 2000-01-01T00:00:00Z
+          const rippleEpoch = Date.UTC(2000, 0, 1, 0, 0, 0);
+
+          // Parse the input date
+          const inputDate = new Date(isoDate).getTime();
+
+          // Convert ms → seconds and subtract epoch
+          return Math.floor((inputDate - rippleEpoch) / 1000);
      }
 
-     toRippleTime(dateTimeStr: string): number {
-          // dateTimeStr example: "2025-12-25T15:30"
-          const date = new Date(dateTimeStr + ':00Z'); // Force UTC
-          return Math.floor(date.getTime() / 1000) - 946684800;
+     fromRippleTime(rippleTime: number): { isoUTC: string; est: string } {
+          // Ripple epoch starts 2000-01-01T00:00:00Z
+          const rippleEpoch = Date.UTC(2000, 0, 1, 0, 0, 0);
+
+          // Convert ripple seconds back to JS time
+          const date = new Date(rippleEpoch + rippleTime * 1000);
+
+          // ISO UTC string
+          const isoUTC = date.toISOString();
+
+          // EST (America/New_York) using 12-hour clock
+          const est = new Intl.DateTimeFormat('en-US', {
+               timeZone: 'America/New_York',
+               year: 'numeric',
+               month: '2-digit',
+               day: '2-digit',
+               hour: '2-digit',
+               minute: '2-digit',
+               second: '2-digit',
+               hour12: true,
+          }).format(date);
+
+          return { isoUTC, est };
      }
 
      // Returns ripple-epoch seconds (number) or undefined if empty/invalid

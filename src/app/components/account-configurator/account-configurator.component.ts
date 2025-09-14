@@ -18,6 +18,7 @@ interface ValidationInputs {
      destination?: string;
      amount?: string;
      sequence?: string;
+     flags?: any;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
      regularKeyAccount?: string;
@@ -455,18 +456,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'updateFlags');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
-
-          if (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze) {
-               return this.setError('ERROR: Cannot enable both NoFreeze and GlobalFreeze');
-          }
 
           this.clearUiIAccountMetaData();
 
@@ -486,6 +479,16 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
                     return;
+               }
+
+               inputs = {
+                    ...inputs,
+                    flags: accountInfo.result.account_flags,
+               };
+
+               const errors = await this.validateInputs(inputs, 'updateFlags');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
                const transactions = [];
@@ -935,9 +938,23 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                sequence: this.isTicket ? this.ticketSequence : undefined,
-               signers: this.signers ? this.signers : undefined,
-               signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
+               // signers: this.signers ? this.signers : undefined,
+               // signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
           };
+
+          if (enableMultiSignFlag === 'Y') {
+               inputs = {
+                    ...inputs,
+                    signers: this.signers,
+                    signerQuorum: this.signerQuorum,
+               };
+          } else {
+               inputs = {
+                    ...inputs,
+                    signers: [],
+                    signerQuorum: 0,
+               };
+          }
 
           const errors = await this.validateInputs(inputs, 'setMultiSign');
           if (errors.length > 0) {
@@ -1055,216 +1072,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                     signerListTx.LastLedgerSequence = currentLedger + AppConstants.LAST_LEDGER_ADD_TIME;
                     console.error(`signerListTx enableMultiSignFlag = N ${JSON.stringify(signerListTx, null, 2)}`);
-               }
-
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, signerListTx, fee)) {
-                    return this.setError('ERROR: Insufficent XRP to complete transaction');
-               }
-
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
-
-               const response = await client.submitAndWait(signerListTx, { wallet });
-               console.log(`response, ${JSON.stringify(response, null, '\t')}`);
-               if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    return;
-               }
-
-               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               if (enableMultiSignFlag === 'Y') {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    this.storageService.set(singerEntriesAccount, signerEntries);
-               } else {
-                    this.storageService.removeValue('signerEntries');
-                    this.signerQuorum = 0;
-               }
-
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
-
-               await this.updateXrpBalance(client, wallet);
-          } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving setMultiSign in ${this.executionTime}ms`);
-          }
-     }
-
-     async setMultiSign1(enableMultiSignFlag: 'Y' | 'N') {
-          console.log('Entering setMultiSign');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
-               sequence: this.isTicket ? this.ticketSequence : undefined,
-               signers: enableMultiSignFlag === 'Y' ? this.signers : undefined,
-               signerQuorum: enableMultiSignFlag === 'Y' ? this.signerQuorum : undefined,
-          };
-          const errors = await this.validateInputs(inputs, 'setMultiSign');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
-
-          try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
-               this.updateSpinnerMessage('Setting Multi Sign...');
-
-               const fee = await this.xrplService.calculateTransactionFee(client);
-
-               let signerListTx: SignerListSet;
-               let signerEntries;
-               if (enableMultiSignFlag === 'Y') {
-                    // Create array of signer accounts and their weights
-                    signerEntries = this.signers
-                         .filter(s => s.account && s.weight > 0)
-                         .map(s => ({
-                              Account: s.account,
-                              SignerWeight: Number(s.weight),
-                              seed: s.seed,
-                         }));
-
-                    // Validate: At least one valid signer
-                    if (!signerEntries.length) {
-                         return this.setError('ERROR: No valid signer accounts provided');
-                    }
-
-                    // Validate: Self-address not included
-                    const selfAddress = wallet.classicAddress;
-                    if (signerEntries.some(entry => entry.Account === selfAddress)) {
-                         return this.setError('ERROR: Your own account cannot be in the signer list');
-                    }
-
-                    // Validate: Each is a classic XRPL address
-                    const invalidAddresses = signerEntries.filter(entry => !xrpl.isValidClassicAddress(entry.Account));
-                    if (invalidAddresses.length > 0) {
-                         return this.setError(`ERROR: Invalid XRPL addresses: ${invalidAddresses.map(entry => entry.Account).join(', ')}`);
-                    }
-
-                    // Validate: No duplicates
-                    const addresses = signerEntries.map(entry => entry.Account);
-                    const duplicates = addresses.filter((addr, idx, self) => self.indexOf(addr) !== idx);
-                    if (duplicates.length > 0) {
-                         return this.setError(`ERROR: Duplicate addresses detected: ${[...new Set(duplicates)].join(', ')}`);
-                    }
-
-                    // Validate: Max 8 signers
-                    if (signerEntries.length > 8) {
-                         return this.setError(`ERROR: XRPL allows max 8 signer entries. You provided ${signerEntries.length}`);
-                    }
-
-                    // Validate: Quorum does not exceed total weight
-                    const totalWeight = signerEntries.reduce((sum, entry) => sum + entry.SignerWeight, 0);
-                    const SignerQuorum = Number(this.signerQuorum);
-                    if (SignerQuorum > totalWeight) {
-                         return this.setError(`ERROR: Quorum (${SignerQuorum}) exceeds total signer weight (${totalWeight})`);
-                    }
-                    if (SignerQuorum <= 0) {
-                         return this.setError('ERROR: Quorum must be greater than 0');
-                    }
-
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    this.storageService.set(singerEntriesAccount, signerEntries);
-
-                    // Format SignerEntries for XRPL transaction
-                    const formattedSignerEntries = signerEntries.map(entry => ({
-                         SignerEntry: {
-                              Account: entry.Account,
-                              SignerWeight: entry.SignerWeight,
-                         },
-                    }));
-
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-                    signerListTx = await client.autofill({
-                         TransactionType: 'SignerListSet',
-                         Account: wallet.classicAddress,
-                         SignerQuorum,
-                         SignerEntries: formattedSignerEntries,
-                         Fee: fee,
-                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    });
-
-                    if (this.ticketSequence) {
-                         // Validate ticket sequence
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-
-                         signerListTx = await client.autofill({
-                              TransactionType: 'SignerListSet',
-                              Account: wallet.classicAddress,
-                              SignerQuorum,
-                              SignerEntries: formattedSignerEntries,
-                              TicketSequence: Number(this.ticketSequence),
-                              Sequence: 0,
-                              Fee: fee,
-                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                         });
-
-                         if (this.memoField) {
-                              this.utilsService.setMemoField(signerListTx, this.memoField);
-                         }
-                    } else {
-                         signerListTx = await client.autofill({
-                              TransactionType: 'SignerListSet',
-                              Account: wallet.classicAddress,
-                              SignerQuorum,
-                              SignerEntries: formattedSignerEntries,
-                              Fee: fee,
-                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                         });
-
-                         if (this.memoField) {
-                              this.utilsService.setMemoField(signerListTx, this.memoField);
-                         }
-                    }
-               } else {
-                    // Disable multi-sign (set SignerQuorum to 0 and empty SignerEntries)
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-                    if (this.ticketSequence) {
-                         // Validate ticket sequence
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-
-                         signerListTx = await client.autofill({
-                              TransactionType: 'SignerListSet',
-                              Account: wallet.classicAddress,
-                              SignerQuorum: 0,
-                              TicketSequence: Number(this.ticketSequence),
-                              Sequence: 0,
-                              Fee: fee,
-                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                         });
-
-                         if (this.memoField) {
-                              this.utilsService.setMemoField(signerListTx, this.memoField);
-                         }
-                    } else {
-                         signerListTx = await client.autofill({
-                              TransactionType: 'SignerListSet',
-                              Account: wallet.classicAddress,
-                              SignerQuorum: 0,
-                              Fee: fee,
-                              LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                         });
-
-                         if (this.memoField) {
-                              this.utilsService.setMemoField(signerListTx, this.memoField);
-                         }
-                    }
                }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, signerListTx, fee)) {
@@ -1877,7 +1684,12 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                },
                updateFlags: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [async () => isValidSeed(inputs.seed), async () => (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze ? 'Cannot enable both NoFreeze and GlobalFreeze' : null)],
+                    customValidators: [
+                         async () => isValidSeed(inputs.seed),
+                         async () => (this.flags.asfNoFreeze && this.flags.asfGlobalFreeze ? 'Cannot enable both NoFreeze and GlobalFreeze' : null),
+                         async () => (this.flags.asfDisableMaster && (this.useMultiSign || this.isSetRegularKey) ? 'Disabling the master key requires signing with the master key' : null),
+                         async () => (inputs.flags.disableMasterKey && !this.useMultiSign && !this.isSetRegularKey ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                },
                updateMetaData: {
                     required: ['selectedAccount', 'seed'],
