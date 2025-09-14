@@ -1248,8 +1248,8 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async clawbackTrustLine() {
-          console.log('Entering clawbackTrustLine');
+     async clawbackTokens() {
+          console.log('Entering clawbackTokens');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -1390,7 +1390,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving clawbackTrustLine in ${this.executionTime}ms`);
+               console.log(`Leaving clawbackTokens in ${this.executionTime}ms`);
           }
      }
 

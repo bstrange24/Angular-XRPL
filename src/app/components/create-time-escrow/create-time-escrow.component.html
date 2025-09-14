@@ -175,6 +175,16 @@
                               </tr>
                               <tr>
                                    <td>
+                                        <span class="tooltip" tooltip-data="Currency balance.">
+                                             <label for="expirationDate">Escrow Finish Time</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="datetime-local" id="expirationDate" size="41" [(ngModel)]="escrowFinishDateTimeField" name="expirationDate" step="1" (focus)="populateDefaultDateTime()" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="Escrow cancel time.">
                                              <label for="escrowCancelTimeField">Escrow Cancel Time</label>
                                         </span>
@@ -187,6 +197,16 @@
                                              <option value="hours">Hours</option>
                                              <option value="days">Days</option>
                                         </select>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Currency balance.">
+                                             <label for="expirationDate">Escrow Cancel Time</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="datetime-local" id="expirationDate" size="41" [(ngModel)]="escrowCancelDateTimeField" name="expirationDate" step="1" (focus)="populateDefaultDateTime()" />
                                    </td>
                               </tr>
                               <tr>

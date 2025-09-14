@@ -266,7 +266,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                                         { key: 'Settle Delay', value: `${SettleDelay}s` },
                                         { key: 'Expiration', value: Expiration ? `${this.utilsService.convertXRPLTime(Expiration)}` : 'N/A' },
                                         { key: 'Expired', value: Expiration ? `${Date.now() / 1000 > Expiration}` : 'False' },
-                                        // { key: 'Cancel After', value: CancelAfter ? `${this.utilsService.convertXRPLTime(CancelAfter)}` : 'N/A' },
+                                        { key: 'Cancel After', value: CancelAfter ? `${this.utilsService.convertXRPLTime(CancelAfter)}` : 'N/A' },
                                         // { key: 'Expired', value: CancelAfter ? `${Date.now() / 1000 > CancelAfter}` : 'False' },
                                    ],
                               };

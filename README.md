@@ -196,3 +196,12 @@ did:xrpl:raWwLN6xwPcwpLTiuHYf8S8vFaQtRzK9ey#vcs
 VerifiableCredentialService
 https://example.com/vc/
 did:xrpl:raWwLN6xwPcwpLTiuHYf8S8vFaQtRzK9ey#keys-1
+
+
+Check if master key is disabled
+IF IT IS
+   Check for multi sign
+   Check for reg key
+
+Batch on Tickets and Account Flag Set
+Date change in Escrow, Creds

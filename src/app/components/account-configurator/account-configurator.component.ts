@@ -317,7 +317,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfDefaultRipple = true;
           this.flags.asfDepositAuth = false;
           // this.flags.asfAuthorizedNFTokenMinter = false;
-          this.flags.asfAllowTrustLineClawback = false;
+          this.flags.asfAllowTrustLineClawback = true;
           this.flags.asfDisallowIncomingNFTokenOffer = true;
           this.flags.asfDisallowIncomingCheck = true;
           this.flags.asfDisallowIncomingPayChan = true;

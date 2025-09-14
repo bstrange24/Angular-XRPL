@@ -124,6 +124,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
+     escrowCancelDateTimeField: string = '';
+     escrowFinishDateTimeField: string = '';
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
 
@@ -442,6 +444,14 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           console.log('Entering createTimeBasedEscrow');
           const startTime = Date.now();
           this.setSuccessProperties();
+
+          const t =this.utilsService.convertDateTimeToRippleTime(this.escrowFinishDateTimeField);
+          console.log('t: ', t);
+          const r =this.utilsService.convertDateTimeToRippleTime(this.escrowCancelDateTimeField);
+          console.log('r: ', r);
+          if(1==1) {
+               return this.setError('ERROR: Finish After time must be provided');
+          }
 
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
@@ -1296,6 +1306,23 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
           this.spinner = false;
      }
+
+populateDefaultDateTime() {
+  if (!this.escrowCancelDateTimeField) {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    this.escrowCancelDateTimeField = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+  }
+}
+
+
 
      private setErrorProperties() {
           this.isSuccess = false;

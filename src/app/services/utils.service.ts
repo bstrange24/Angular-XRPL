@@ -381,6 +381,12 @@ export class UtilsService {
      }
 
      convertXRPLTime(rippleTime: any) {
+          const rippleEpochOffset = 946684800;
+const cancelAfterUnix = rippleTime + rippleEpochOffset; // 1757804253
+
+const cancelAfterDate = new Date(cancelAfterUnix * 1000);
+console.log(cancelAfterDate.toUTCString());
+
           // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
           const rippleEpoch = 946684800; // Jan 1, 2000 in Unix time
           const date = new Date((rippleTime + rippleEpoch) * 1000);
@@ -646,6 +652,15 @@ export class UtilsService {
                hour12: true, // Use 24-hour format; set to true for 12-hour with AM/PM
                // fractionalSecondDigits: 3, // Include milliseconds (3 digits)
           });
+     }
+
+     convertDateTimeToRippleTime(dateTimeField: string) {
+          const rippleEpochOffset = 946684800; // Seconds between 1970-01-01 and 2000-01-01 UTC
+          const date = new Date(dateTimeField); // parses as local time
+          const unixTimestamp = Math.floor(date.getTime() / 1000); // milliseconds ➜ seconds
+          const afterDate = unixTimestamp - rippleEpochOffset;
+          console.log('XRPL CancelAfter:', afterDate);
+          return afterDate;
      }
 
      addTime(amount: any, unit: 'seconds' | 'minutes' | 'hours' | 'days' = 'seconds', date = new Date()) {
