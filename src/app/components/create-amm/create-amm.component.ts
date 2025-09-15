@@ -23,6 +23,7 @@ interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      seed?: string;
+     account_info?: any;
      weWantAmountField?: string;
      weSpendAmountField?: string;
      weWantCurrencyField?: string;
@@ -31,10 +32,14 @@ interface ValidationInputs {
      weSpendIssuerField?: string;
      lpTokenBalanceField?: string;
      tradingFeeField?: string;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     isMultiSign?: boolean;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
 }
 
 interface SignerEntry {
@@ -340,7 +345,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                weWantCurrencyField: this.weWantCurrencyField,
@@ -348,16 +353,24 @@ export class CreateAmmComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'getPoolInfo');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.showSpinnerWithDelay('Getting AMM Pool Info...', 200);
+
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
-               this.showSpinnerWithDelay('Getting AMM Pool Info...', 200);
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getPoolInfo');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                // Ensure correct typing for XRPL 'Currency' type
                // const toXRPLCurrency = (currency: string, issuer: string) => {
@@ -510,7 +523,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                weWantAmountField: this.weWantAmountField,
@@ -520,22 +533,36 @@ export class CreateAmmComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
                tradingFeeField: this.tradingFeeField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'create');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Creating AMM Pool...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'create');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Creating AMM Pool...');
 
                const data: { sections: Section[] } = {
                     sections: [],
@@ -729,7 +756,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                weWantAmountField: this.weWantAmountField,
@@ -738,16 +765,33 @@ export class CreateAmmComponent implements AfterViewChecked {
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'deposit');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Deposit to AMM...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'deposit');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -941,7 +985,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                lpTokenBalanceField: this.lpTokenBalanceField,
@@ -949,16 +993,33 @@ export class CreateAmmComponent implements AfterViewChecked {
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'withdraw');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Withdrawl to AMM...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'withdraw');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -1123,7 +1184,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                lpTokenBalanceField: this.lpTokenBalanceField,
@@ -1131,16 +1192,33 @@ export class CreateAmmComponent implements AfterViewChecked {
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'withdraw');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Withdrawl LP From AMM...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'withdraw');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -1304,7 +1382,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                lpTokenBalanceField: this.lpTokenBalanceField, // how much LP to claw back
@@ -1312,16 +1390,33 @@ export class CreateAmmComponent implements AfterViewChecked {
                weWantIssuerField: this.weWantIssuerField !== 'XRP' ? this.weWantIssuerField : undefined,
                weSpendCurrencyField: this.weSpendCurrencyField,
                weSpendIssuerField: this.weSpendIssuerField !== 'XRP' ? this.weSpendIssuerField : undefined,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'ammclawback');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Clawback Tokens...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'ammclawback');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -2176,6 +2271,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                     ],
                     asyncValidators: [],
                },
@@ -2192,9 +2288,17 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
-                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.weSpendIssuerField),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.weWantCurrencyField),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -2212,6 +2316,15 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.weSpendIssuerField),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.weWantCurrencyField),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -2226,6 +2339,15 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                },
                swap: {
@@ -2253,6 +2375,15 @@ export class CreateAmmComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },

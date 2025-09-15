@@ -234,7 +234,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
@@ -322,9 +321,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                destination: this.credential.subject.destinationAddress,
                credentialType: this.credential.credential_type,
                isRegularKeyAddress: this.isRegularKeyAddress,
-               isMultiSign: this.isMultiSign,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
@@ -634,9 +633,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                credentialType: this.credential.credential_type,
                isRegularKeyAddress: this.isRegularKeyAddress,
-               isMultiSign: this.isMultiSign,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,

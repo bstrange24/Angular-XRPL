@@ -19,6 +19,7 @@ interface ValidationInputs {
      amount?: string;
      sequence?: string;
      flags?: any;
+     isMultiSign?: boolean;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
      regularKeyAccount?: string;
@@ -1122,6 +1123,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               isMultiSign: this.useMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
                regularKeyAccount: this.isSetRegularKey ? this.regularKeyAccount : undefined,

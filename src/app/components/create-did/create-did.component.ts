@@ -297,8 +297,10 @@ export class CreateDidComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
                didDocument: this.didDetails.document || undefined,
                didUri: this.didDetails.uri || undefined,
@@ -469,6 +471,7 @@ export class CreateDidComponent implements AfterViewChecked {
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };

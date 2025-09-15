@@ -13,16 +13,23 @@ import { AppConstants } from '../../core/app.constants';
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | null;
      senderAddress?: string;
+     account_info?: any;
      seed?: string;
      destination?: string;
      amount?: string;
      sequence?: string;
+     regularKeyAddress?: string;
+     regularKeySeed?: string;
+     isMultiSign?: boolean;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
      regularKeyAccount?: string;
      regularKeyAccountSeeds?: string;
      depositAuthAddress?: string;
      nfTokenMinterAddress?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
      tickSize?: string;
      transferRate?: string;
      domain?: string;
@@ -250,27 +257,26 @@ export class AccountDelegateComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'getAccountDetails');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
                this.showSpinnerWithDelay('Getting Account Details...', 200);
 
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               if (accountInfo.result.account_data.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
-                    return;
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getAccountDetails');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
@@ -369,23 +375,38 @@ export class AccountDelegateComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               isRegularKeyAddress: this.isSetRegularKey,
+               regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
+               regularKeySeed: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
+               isMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'delegateActions');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Delegate Actions...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'delegateActions');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
-
-               this.updateSpinnerMessage('Updating Account Flags...');
 
                let permissions: { Permission: { PermissionValue: string } }[] = [];
                if (delegate === 'clear') {
@@ -671,11 +692,22 @@ export class AccountDelegateComponent implements AfterViewChecked {
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => Promise<string | null>)[] }> = {
                getAccountDetails: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [async () => isValidSeed(inputs.seed)],
+                    customValidators: [async () => isValidSeed(inputs.seed), async () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                },
                delegateActions: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [async () => isValidSeed(inputs.seed)],
+                    customValidators: [
+                         async () => isValidSeed(inputs.seed),
+                         async () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         async () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         async () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         async () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         async () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                },
                default: { required: [], customValidators: [] },
           };

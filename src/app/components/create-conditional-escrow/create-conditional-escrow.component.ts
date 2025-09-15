@@ -15,6 +15,7 @@ import * as cc from 'five-bells-condition';
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
+     account_info?: any;
      seed?: string;
      amount?: string;
      destination?: string;
@@ -22,12 +23,18 @@ interface ValidationInputs {
      fulfillment?: string;
      escrowSequence?: string;
      cancelTime?: string;
-     multiSignAddresses?: string;
      destinationTag?: string;
      sequence?: string;
-     multiSignSeeds?: string;
-     regularKeyAddress?: string;
      regularKeySeed?: string;
+     isMultiSign?: boolean;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
+     regularKeyAccount?: string;
+     regularKeyAccountSeeds?: string;
+     regularKeyAddress?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
 }
 
 interface EscrowObject {
@@ -303,20 +310,28 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'get');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.showSpinnerWithDelay('Getting Escrows ...', 250);
+
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
-               this.showSpinnerWithDelay('Getting Escrows ...', 250);
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'get');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
                const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
                console.debug(`Escrow objects: ${JSON.stringify(escrowObjects, null, '\t')}`);
@@ -417,7 +432,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
@@ -428,22 +443,30 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                destinationTag: this.destinationTagField,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'create');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Create Time Based Escrow ...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'create');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Create Time Based Escrow ...');
 
                const finishAfterTime = this.utilsService.addTime(this.escrowFinishTimeField, this.escrowFinishTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
                const cancelAfterTime = this.utilsService.addTime(this.escrowCancelTimeField, this.escrowCancelTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -575,17 +598,13 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                conditionField: this.escrowConditionField,
                fulfillment: this.escrowFulfillmentField,
                escrowSequence: this.escrowSequenceNumberField,
           };
-          const errors = await this.validateInputs(inputs, 'finish');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           // If condition is provided, fulfillment is required
           if (this.escrowConditionField && !this.utilsService.validateInput(this.escrowFulfillmentField)) {
@@ -593,13 +612,24 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           }
 
           try {
+               this.updateSpinnerMessage('Finishing Escrow ...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'finish');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Finishing Escrow ...');
 
                // Fetch escrow objects for the account
                const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
@@ -732,24 +762,31 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                sequence: this.escrowSequenceNumberField,
           };
-          const errors = await this.validateInputs(inputs, 'cancel');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Cancelling Escrow ...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'cancel');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Cancelling Escrow ...');
 
                // Fetch escrow objects for the account
                const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
@@ -1074,7 +1111,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           > = {
                get: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [() => isValidSeed(inputs.seed)],
+                    customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                create: {
@@ -1087,17 +1124,48 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          () => isValidCondition(inputs.conditionField),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
                finish: {
                     required: ['selectedAccount', 'seed', 'escrowSequence', 'conditionField', 'fulfillment'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.escrowSequence, 'Escrow sequence number', 0), () => isValidCondition(inputs.conditionField), () => isValidFulfillment(inputs.fulfillment, inputs.conditionField)],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.escrowSequence, 'Escrow sequence number', 0),
+                         () => isValidCondition(inputs.conditionField),
+                         () => isValidFulfillment(inputs.fulfillment, inputs.conditionField),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                     asyncValidators: [],
                },
                cancel: {
                     required: ['selectedAccount', 'seed', 'escrowSequence'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.escrowSequence, 'Escrow sequence number', 0)],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.escrowSequence, 'Escrow sequence number', 0),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                     asyncValidators: [],
                },
                default: { required: [], customValidators: [], asyncValidators: [] },

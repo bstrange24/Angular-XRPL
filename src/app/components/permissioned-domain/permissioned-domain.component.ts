@@ -15,13 +15,17 @@ import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-in
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      seed?: string;
+     account_info?: any;
      destination?: string;
      domainId?: string;
      credentialType?: string;
+     isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     isMultiSign?: boolean;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
+     isTicket?: boolean;
      ticketSequence?: string;
      date?: string;
 }
@@ -334,10 +338,13 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                destination: this.credential.subject.destinationAddress,
                credentialType: this.credential.credential_type,
+               isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
           const errors = this.validateInputs(inputs, 'setPermissionedDomain');
@@ -476,8 +483,10 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                domainId: this.domainId,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
           const errors = this.validateInputs(inputs, 'deletePermissionedDomain');
@@ -754,25 +763,27 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidXrpAddress(inputs.destination, 'Destination address'),
-                         () => (this.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (this.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                },
                deletePermissionedDomain: {
                     required: ['selectedAccount', 'seed', 'domainId'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
-                         () => (this.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (this.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                     ],
                },

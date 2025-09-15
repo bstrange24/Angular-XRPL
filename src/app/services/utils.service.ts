@@ -523,7 +523,10 @@ export class UtilsService {
      }
 
      getMultiSignSeeds(multiSignSeeds: any) {
-          return multiSignSeeds.split(',').map((s: string) => s.trim());
+          return multiSignSeeds
+               .split(',')
+               .map((s: string) => s.trim())
+               .filter((s: string) => s.length > 0);
      }
 
      getMultiSignAddress(multiSignAddress: any) {

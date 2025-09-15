@@ -15,6 +15,7 @@ interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      seed?: string;
+     account_info?: any;
      amount?: string;
      destination?: string;
      mptIssuanceIdField?: string;
@@ -22,10 +23,14 @@ interface ValidationInputs {
      tokenCountField?: string;
      assetScaleField?: string;
      transferFeeField?: string;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     isMultiSign?: boolean;
+     multiSignAddresses?: string;
+     multiSignSeeds?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
 }
 
 interface AccountFlags {
@@ -223,20 +228,27 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'get');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Getting MPT Details...');
+
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
-               this.updateSpinnerMessage('Getting MPT Details...');
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'get');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`MPT Account Objects: ${JSON.stringify(mptokenObjects, null, '\t')}`);
@@ -318,7 +330,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
@@ -326,21 +338,36 @@ export class MptComponent implements AfterViewChecked {
                assetScaleField: this.assetScaleField,
                transferFeeField: this.flags.isTransferable ? this.transferFeeField : undefined,
                tokenCountField: this.tokenCountField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
                // flags: this.flags,
           };
-          const errors = await this.validateInputs(inputs, 'generate');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Generate MPT...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'generate');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Generate MPT...');
 
                let v_flags = 0;
                if (this.isMptFlagModeEnabled) {
@@ -490,26 +517,41 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
                mptIssuanceIdField: this.mptIssuanceIdField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
+               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'authorize');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Authorize MPT...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'authorize');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Authorize MPT...');
 
                const mptIssuanceId = this.mptIssuanceIdField;
 
@@ -625,7 +667,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
@@ -633,22 +675,35 @@ export class MptComponent implements AfterViewChecked {
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
                mptIssuanceIdField: this.mptIssuanceIdField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'send');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Sending MPT...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'send');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Sending MPT...');
 
                if (parseInt(this.amountField) <= 0) {
                     return this.setError('ERROR: Amount must be greater than 0');
@@ -785,27 +840,40 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                mptIssuanceIdField: this.mptIssuanceIdField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'setMptLocked');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Setting MPT Locked...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'setMptLocked');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Setting MPT Locked...');
 
                const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`MPT Account Objects: ${JSON.stringify(mptokenObjects, null, '\t')}`);
@@ -932,26 +1000,39 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                mptIssuanceIdField: this.mptIssuanceIdField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'delete');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.updateSpinnerMessage('Deleting MPT...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'delete');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Deleting MPT...');
 
                if (parseInt(this.amountField) <= 0) {
                     return this.setError('ERROR: Amount must be greater than 0');
@@ -1293,12 +1374,40 @@ export class MptComponent implements AfterViewChecked {
                },
                generate: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.assetScaleField, 'Asset scale', 0, 15), () => isValidNumber(inputs.transferFeeField, 'Transfer fee', 0, 1000000), () => isValidNumber(inputs.tokenCountField, 'Token count', 0), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.assetScaleField, 'Asset scale', 0, 15),
+                         () => isValidNumber(inputs.transferFeeField, 'Transfer fee', 0, 1000000),
+                         () => isValidNumber(inputs.tokenCountField, 'Token count', 0),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
                authorize: {
                     required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                     asyncValidators: [],
                },
                send: {
@@ -1311,17 +1420,52 @@ export class MptComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, undefined, true), // Allow empty
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
                delete: {
                     required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'), () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds)],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                     asyncValidators: [],
                },
                setMptLocked: {
                     required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'), () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds)],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
                     asyncValidators: [],
                },
                default: { required: [], customValidators: [], asyncValidators: [] },

@@ -15,12 +15,19 @@ interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      seed?: string;
+     account_info?: any;
      destination?: string;
      destinationTag?: string;
+     regularKeySeed?: string;
+     isMultiSign?: boolean;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
+     regularKeyAccount?: string;
+     regularKeyAccountSeeds?: string;
      regularKeyAddress?: string;
-     regularKeySeed?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
 }
 
 interface SignerEntry {
@@ -175,27 +182,26 @@ export class DeleteAccountComponent implements AfterViewChecked {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'getAccountDetails');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
                this.showSpinnerWithDelay('Getting Account Details ...', 100);
 
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               if (accountInfo.result.account_data.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
-                    return;
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getAccountDetails');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
@@ -233,6 +239,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                destinationTag: this.destinationTagField,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               isMultiSign: this.isMultiSign,
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
           };
