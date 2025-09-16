@@ -582,6 +582,12 @@
                               </td>
                          </tr>
                          <tr>
+                              <td></td>
+                              <td *ngIf="masterKeyDisabled">
+                                   <label style="color: red">Master Key is disabled on account. Use multi-sign or regular key to sign transactions.</label>
+                              </td>
+                         </tr>
+                         <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Setup Multi-Sign</label>
@@ -649,6 +655,7 @@
                                    <label for="isMultiSignAddressData"></label>
                               </td>
                          </tr>
+
                          <tr *ngIf="useMultiSign">
                               <td></td>
                               <td>

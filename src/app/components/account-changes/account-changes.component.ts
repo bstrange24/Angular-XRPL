@@ -58,7 +58,7 @@ export class AccountChangesComponent {
      filterValue: string = '';
      isExpanded: boolean = false;
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngAfterViewInit() {
           console.log('ngAfterViewInit: Viewport initialized:', this.viewport);

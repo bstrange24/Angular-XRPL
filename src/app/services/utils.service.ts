@@ -30,7 +30,7 @@ export class UtilsService {
      isSuccess: boolean = false;
      spinner: boolean = false;
 
-     constructor(private xrplService: XrplService, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly storageService: StorageService) {}
 
      ledgerEntryTypeFields = {
           AccountRoot: {
@@ -526,21 +526,21 @@ export class UtilsService {
           return multiSignSeeds
                .split(',')
                .map((s: string) => s.trim())
-               .filter((s: string) => s.length > 0);
+               .filter((s: string) => s.length > 0 && s !== '');
      }
 
      getMultiSignAddress(multiSignAddress: any) {
           return multiSignAddress
                .split(',')
                .map((s: string) => s.trim())
-               .filter((s: string) => s.length > 0);
+               .filter((s: string) => s.length > 0 && s !== '');
      }
 
      getNftIds(nftId: any) {
           return nftId
                .split(',')
                .map((s: string) => s.trim())
-               .filter((s: string) => s.length > 0);
+               .filter((s: string) => s.length > 0 && s !== '');
      }
 
      labelCurrencyCode(code: String) {
@@ -749,35 +749,62 @@ export class UtilsService {
 
      async getWallet(seed: string, environment: string): Promise<xrpl.Wallet> {
           const savedEncryptionType = this.storageService.getInputValue('encryptionType');
-          // console.log(`savedEncryptionType: ${savedEncryptionType}`);
-
           const result = this.detectXrpInputType(seed);
-          if (savedEncryptionType === 'true') {
-               if (result.type === 'seed') {
-                    return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
-               } else if (result.type === 'mnemonic') {
-                    return Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
-               } else if (result.type === 'secret_numbers') {
-                    return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+          try {
+               if (savedEncryptionType === 'true') {
+                    if (result.type === 'seed') {
+                         return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+                    } else if (result.type === 'mnemonic') {
+                         return Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+                    } else if (result.type === 'secret_numbers') {
+                         return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+                    } else {
+                         throw new Error('Invalid seed or mnemonic format');
+                    }
                } else {
-                    throw new Error('Invalid seed or mnemonic format');
+                    if (result.type === 'seed') {
+                         return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+                    } else if (result.type === 'mnemonic') {
+                         return Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+                    } else if (result.type === 'secret_numbers') {
+                         return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+                    } else {
+                         throw new Error('Invalid seed or mnemonic format');
+                    }
                }
-          } else {
-               if (result.type === 'seed') {
-                    return xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
-               } else if (result.type === 'mnemonic') {
-                    return Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
-               } else if (result.type === 'secret_numbers') {
-                    return walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
-               } else {
-                    throw new Error('Invalid seed or mnemonic format');
-               }
+          } catch (error: any) {
+               throw new Error('Invalid seed or mnemonic format');
           }
-          // if (savedEncryptionType === 'true') {
-          //      return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.ED25519 });
-          // } else {
-          //      return seed.split(' ').length > 1 ? xrpl.Wallet.fromMnemonic(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 }) : xrpl.Wallet.fromSeed(seed, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
-          // }
+     }
+
+     validateSeed(seed: string) {
+          const savedEncryptionType = this.storageService.getInputValue('encryptionType');
+          const result = this.detectXrpInputType(seed);
+          try {
+               if (result.type === 'unknown') {
+                    return false;
+               }
+               if (savedEncryptionType === 'true') {
+                    if (result.type === 'seed') {
+                         xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+                    } else if (result.type === 'mnemonic') {
+                         Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+                    } else if (result.type === 'secret_numbers') {
+                         walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.ED25519 });
+                    }
+               } else {
+                    if (result.type === 'seed') {
+                         xrpl.Wallet.fromSeed(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+                    } else if (result.type === 'mnemonic') {
+                         Wallet.fromMnemonic(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+                    } else if (result.type === 'secret_numbers') {
+                         walletFromSecretNumbers(result.value, { algorithm: AppConstants.ENCRYPTION.SECP256K1 });
+                    }
+               }
+               return true;
+          } catch (error: any) {
+               return false;
+          }
      }
 
      detectXrpInputType(input: string): { type: InputType; value: string } {
@@ -2703,6 +2730,18 @@ export class UtilsService {
 
      setIssuerAddress(tx: any, issuerAddressField: string) {
           tx.Issuer = issuerAddressField;
+     }
+
+     async applyTicketSequence(tx: any, client: xrpl.Client, account: string, ticketSequence: string) {
+          if (ticketSequence) {
+               if (!(await this.xrplService.checkTicketExists(client, account, Number(ticketSequence)))) {
+                    throw new Error(`Ticket Sequence ${ticketSequence} not found for account ${account}`);
+               }
+               this.setTicketSequence(tx, ticketSequence, true);
+          } else {
+               const accountInfo = await this.xrplService.getAccountInfo(client, account, 'validated', '');
+               this.setTicketSequence(tx, accountInfo.result.account_data.Sequence, false);
+          }
      }
 
      setTicketSequence(tx: any, ticketSequence: string, useTicket: boolean) {

@@ -15,14 +15,22 @@ interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      seed?: string;
+     account_info?: any;
      amount?: string;
      destination?: string;
      checkId?: string;
      destinationTag?: string;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
+     multiSignSeeds?: string;
+     multiSignAddresses?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface SignerEntry {
@@ -71,7 +79,8 @@ export class SendChecksComponent implements AfterViewChecked {
      memoField: string = '';
      isMemoEnabled: boolean = false;
      multiSignAddress: string = '';
-     isMultiSign: boolean = false;
+     // isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      multiSignSeeds: string = '';
      isRegularKeyAddress: boolean = false;
      regularKeySeed: string = '';
@@ -82,11 +91,13 @@ export class SendChecksComponent implements AfterViewChecked {
      isTicketEnabled: boolean = false;
      spinner: boolean = false;
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      issuers: string[] = [];
      selectedIssuer: string = '';
      tokenBalance: string = '';
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+          XRP: '',
      };
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
@@ -97,7 +108,7 @@ export class SendChecksComponent implements AfterViewChecked {
      tokenToRemove: string = '';
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      async ngOnInit(): Promise<void> {
           const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
@@ -173,7 +184,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -244,23 +255,31 @@ export class SendChecksComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'get');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
                this.showSpinnerWithDelay('Getting Checks ...', 250);
 
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
                const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');
+
+               inputs = {
+                    ...inputs,
+                    account_info: check_objects,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getChecks');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+
                console.debug(`Check objects: ${JSON.stringify(check_objects, null, '\t')}`);
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                const data = {
                     sections: [{}],
@@ -314,7 +333,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -342,10 +361,19 @@ export class SendChecksComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               amount: this.amountField,
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
-               amount: this.amountField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
+
           const errors = await this.validateInputs(inputs, 'send');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -387,7 +415,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                // Build SendMax amount
                let sendMax;
@@ -437,7 +465,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -524,8 +552,16 @@ export class SendChecksComponent implements AfterViewChecked {
                destination: this.destinationFields,
                amount: this.amountField,
                checkId: this.checkIdField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'cash');
+          const errors = await this.validateInputs(inputs, 'cashCheck');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -535,7 +571,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                if (this.currencyFieldDropDownValue !== AppConstants.XRP_CURRENCY) {
                     const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');
@@ -585,7 +621,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -672,7 +708,7 @@ export class SendChecksComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                checkId: this.checkIdField,
           };
-          const errors = await this.validateInputs(inputs, 'cancel');
+          const errors = await this.validateInputs(inputs, 'cancelCheck');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -682,7 +718,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -721,7 +757,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -825,7 +861,7 @@ export class SendChecksComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -840,8 +876,17 @@ export class SendChecksComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
 
           // Always reset memo fields
@@ -860,6 +905,15 @@ export class SendChecksComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -960,7 +1014,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     asyncValidators?: (() => Promise<string | null>)[];
                }
           > = {
-               get: {
+               getChecks: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                     asyncValidators: [],
@@ -976,12 +1030,12 @@ export class SendChecksComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               cash: {
+               cashCheck: {
                     required: ['selectedAccount', 'seed', 'destination', 'amount', 'checkId'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.destination, 'Destination'), () => isValidNumber(inputs.amount, 'Amount', 0), () => isRequired(inputs.checkId, 'Check ID'), () => isNotSelfPayment(inputs.senderAddress, inputs.destination)],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               cancel: {
+               cancelCheck: {
                     required: ['selectedAccount', 'seed', 'checkId'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.checkId, 'Check ID')],
                     asyncValidators: [],

@@ -10,17 +10,25 @@ import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
+import { BatchService } from '../../services/batch/batch-service.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      seed?: string;
+     account_info?: any;
+     isRegularKeyAddress?: boolean;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
+     isTicket?: boolean;
      ticketCount?: string;
      ticketSequence?: string;
      multiSignAddresses?: string;
      multiSignSeeds?: string;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface SignerEntry {
@@ -71,7 +79,8 @@ export class CreateTicketsComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isMultiSignTransaction: boolean = false;
      multiSignAddress: string = '';
-     isMultiSign: boolean = false;
+     // isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      multiSignSeeds: string = '';
      isRegularKeyAddress: boolean = false;
      regularKeySeed: string = '';
@@ -83,10 +92,13 @@ export class CreateTicketsComponent implements AfterViewChecked {
      issuers: string[] = [];
      selectedIssuer: string = '';
      tokenBalance: string = '';
+     isBatchModeEnabled: boolean = false;
+     batchMode: 'allOrNothing' | 'onlyOne' | 'untilFailure' | 'independent' = 'allOrNothing';
+     masterKeyDisabled: boolean = false;
      spinnerMessage: string = '';
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly batchService: BatchService) {}
 
      ngOnInit() {}
 
@@ -143,7 +155,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -174,28 +186,37 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     toggleFlags() {}
+
      async getTickets() {
           console.log('Entering getTickets');
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'get');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
                this.showSpinnerWithDelay('Getting Tickets ...', 250);
 
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
                const ticket_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
+
+               inputs = {
+                    ...inputs,
+                    account_info: ticket_objects,
+               };
+
+               const errors = this.validateInputs(inputs, 'getTickets');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
                console.debug(`Ticket objects: ${JSON.stringify(ticket_objects, null, '\t')}`);
+
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                // Prepare data for renderAccountDetails
                const data = {
@@ -235,7 +256,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -262,8 +283,16 @@ export class CreateTicketsComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                ticketCount: this.ticketCountField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = this.validateInputs(inputs, 'create');
+          const errors = this.validateInputs(inputs, 'createTicket');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -273,7 +302,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Create Ticket ...');
 
@@ -304,7 +333,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -377,19 +406,31 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
      }
 
-     async cancelTicket() {
-          console.log('Entering cancelTicket');
+     async createBatchTicket() {
+          console.log('Entering createBatchTicket');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               ticketSequence: this.ticketSequence,
+               ticketCount: this.ticketCountField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = this.validateInputs(inputs, 'cancel');
+          const errors = this.validateInputs(inputs, 'createTicket');
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
+          }
+
+          if (!this.isBatchModeEnabled) {
+               return this.setError('Batch Mode slider is not enabled.');
           }
 
           try {
@@ -397,10 +438,106 @@ export class CreateTicketsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
+               this.updateSpinnerMessage('Create Batch Ticket ...');
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               const batchFlags = this.setBatchFlags();
+
+               const ticketCount = parseInt(this.ticketCountField);
+               if (isNaN(ticketCount) || ticketCount < 1 || ticketCount > 250) {
+                    throw new Error('TicketCount must be between 1 and 250');
+               }
+
+               const transactions: TicketCreate[] = [];
+               for (let i = 0; i < parseInt(this.ticketCountField); i++) {
+                    transactions.push({
+                         TransactionType: 'TicketCreate',
+                         Account: wallet.classicAddress,
+                         Flags: AppConstants.TF_INNER_BATCH_TXN.BATCH_TXN,
+                         TicketCount: parseInt(this.ticketCountField),
+                         Fee: '0', // Fee must be "0" for inner transactions
+                    });
+               }
+
+               let tx;
+
+               if (transactions.length === 1) {
+                    // Normal NFTokenMint (no batch needed)
+                    const singleTx: TicketCreate = {
+                         ...transactions[0],
+                         Fee: fee,
+                    };
+
+                    const prepared = await client.autofill(singleTx);
+                    tx = await client.submitAndWait(prepared, { wallet });
+               } else {
+                    // Batch submit if > 1
+                    if (this.useMultiSign) {
+                         tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, {
+                              isMultiSign: true,
+                              signerAddresses: this.multiSignAddress,
+                              signerSeeds: this.multiSignSeeds,
+                              fee: '12', // optional override
+                         });
+                    } else {
+                         tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, { useRegularKeyWalletSignTx: regularKeyWalletSignTx });
+                    }
+               }
+
+               console.log('Create Batch Ticket tx', tx);
+
+               if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+                    return;
+               }
+
+               // Render all successful transactions
+               this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+               await this.updateXrpBalance(client, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving createBatchTicket in ${this.executionTime}ms`);
+          }
+     }
+
+     async cancelTicket() {
+          console.log('Entering cancelTicket');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          let inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               ticketSequence: this.ticketSequence,
+          };
+
+          try {
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
                const ticket_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
+
+               inputs = {
+                    ...inputs,
+                    account_info: ticket_objects,
+               };
+
+               const errors = this.validateInputs(inputs, 'cancelTicket');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
                console.debug('Ticket Objects: ', ticket_objects);
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const ticketExists = ticket_objects.result.account_objects.some((ticket: any) => ticket.TicketSequence === Number(this.ticketSequence));
 
@@ -436,7 +573,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -538,7 +675,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -553,8 +690,17 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
 
           // Always reset memo fields
@@ -573,6 +719,15 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -652,15 +807,15 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
           // Action-specific config: required fields and custom rules
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
-               get: {
+               getTickets: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                },
-               create: {
+               createTicket: {
                     required: ['selectedAccount', 'seed', 'ticketCount'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.ticketCount, 'Ticket count', 0)],
                },
-               cancel: {
+               cancelTicket: {
                     required: ['selectedAccount', 'seed', 'ticketSequence'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.ticketSequence, 'Ticket sequence', 0)],
                },
@@ -697,6 +852,33 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
 
           return errors;
+     }
+
+     setBatchMode(mode: 'allOrNothing' | 'onlyOne' | 'untilFailure' | 'independent') {
+          this.batchMode = mode;
+          this.toggleFlags(); // optional: update your XRPL batch flags
+     }
+
+     setBatchFlags() {
+          let flags = 0;
+          if (this.batchMode === 'allOrNothing') {
+               flags |= AppConstants.BATCH_FLAGS.ALL_OR_NOTHING;
+          }
+
+          if (this.batchMode === 'onlyOne') {
+               flags |= AppConstants.BATCH_FLAGS.ONLY_ONE;
+          }
+
+          if (this.batchMode === 'untilFailure') {
+               flags |= AppConstants.BATCH_FLAGS.UNTIL_FAILURE;
+          }
+
+          if (this.batchMode === 'independent') {
+               flags |= AppConstants.BATCH_FLAGS.INDEPENDENT;
+          }
+
+          console.log('Batch flags ' + flags);
+          return flags;
      }
 
      async getWallet() {

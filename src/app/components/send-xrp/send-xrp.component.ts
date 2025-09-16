@@ -31,11 +31,14 @@ interface ValidationInputs {
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     isMultiSign?: boolean;
-     multiSignAddresses?: string;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
      multiSignSeeds?: string;
+     multiSignAddresses?: string;
      isTicket?: boolean;
      ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface SignerEntry {
@@ -89,20 +92,22 @@ export class SendXrpComponent implements AfterViewChecked {
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
      spinner: boolean = false;
-     isMultiSign: boolean = false;
+     // isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      isRegularKeyAddress: boolean = false;
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
      isTicket: boolean = false;
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      destinationFields: string = '';
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      memoFields = ['memoField', 'isMemoEnabled'] as const;
      tagFields = ['destinationTagField', 'sourceTagField'] as const;
-     multiSignFields = ['isMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
-     allFields = ['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'isMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
+     multiSignFields = ['useMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
+     allFields = ['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'useMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
 
      constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private stateService: StateService) {}
 
@@ -168,7 +173,7 @@ export class SendXrpComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -205,27 +210,26 @@ export class SendXrpComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'get');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
                this.showSpinnerWithDelay('Getting Account Details ...', 100);
 
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               if (accountInfo.result.account_data.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
-                    return;
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getAccountDetails');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
@@ -234,13 +238,12 @@ export class SendXrpComponent implements AfterViewChecked {
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                // this.stateService.resetPartialState(['isMemoEnabled', 'memoField']);
                this.clearFields(false);
-
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -270,9 +273,9 @@ export class SendXrpComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.regularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.regularKeySeed ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.ticketSequence,
           };
@@ -290,12 +293,12 @@ export class SendXrpComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'send');
+               const errors = await this.validateInputs(inputs, 'sendXrp');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -337,7 +340,7 @@ export class SendXrpComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -405,7 +408,6 @@ export class SendXrpComponent implements AfterViewChecked {
                // this.updateMemo();
                // console.log('Component AFTER call, snapshot:', this.stateService.getState());
                this.clearFields(false);
-
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
                console.error('Error:', error);
@@ -444,7 +446,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -459,14 +461,22 @@ export class SendXrpComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
-
           if (regularKey) {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
@@ -476,6 +486,15 @@ export class SendXrpComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -583,12 +602,12 @@ export class SendXrpComponent implements AfterViewChecked {
                     asyncValidators?: (() => Promise<string | null>)[];
                }
           > = {
-               get: {
+               getAccountDetails: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
-               send: {
+               sendXrp: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -599,15 +618,15 @@ export class SendXrpComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.ticketSequence, 'Ticket', 0, true),
                          () => isValidInvoiceId(inputs.invoiceId),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
@@ -639,6 +658,10 @@ export class SendXrpComponent implements AfterViewChecked {
           // --- Always validate optional fields ---
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
+
+          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
 
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
           if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') {
@@ -756,34 +779,15 @@ export class SendXrpComponent implements AfterViewChecked {
      //           isRegularKeyAddress: this.isRegularKeyAddress,
      //           regularKeyAddress: this.regularKeyAddress,
      //           regularKeySeed: this.regularKeySeed,
-     //           isMultiSign: this.isMultiSign,
+     //           useMultiSign: this.useMultiSign,
      //           signerQuorum: this.signerQuorum,
      //           multiSignAddress: this.multiSignAddress,
      //           multiSignSeeds: this.multiSignSeeds,
      //      });
      // }
 
-     updateMemo() {
-          this.updateFields(this.memoFields);
-     }
-
-     // update just tags
-     updateTags() {
-          this.updateFields(this.tagFields);
-     }
-
-     // update multi-sign info
-     updateMultiSign() {
-          this.updateFields(this.multiSignFields);
-     }
-
-     // update everything
-     updateAllFields() {
-          this.updateFields(this.allFields);
-     }
-
      clearFields(clearAllFields: boolean) {
-          // this.stateService.resetPartialState(['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'isMultiSign']);
+          // this.stateService.resetPartialState(['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'useMultiSign']);
           if (clearAllFields) {
                this.amountField = '';
                this.invoiceIdField = '';
@@ -793,8 +797,6 @@ export class SendXrpComponent implements AfterViewChecked {
 
           this.ticketSequence = '';
           this.isTicket = false;
-          this.isMultiSign = false;
-          this.isRegularKeyAddress = false;
           this.memoField = '';
           this.isMemoEnabled = false;
           this.cdr.detectChanges();
