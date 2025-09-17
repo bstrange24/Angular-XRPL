@@ -95,6 +95,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      memoField: string = '';
      isMemoEnabled: boolean = false;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      domainId: string = '';
      credentialType: string = '';
      credentialData: string = '';
@@ -702,6 +704,12 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           } else {
                this.useMultiSign = false;
           }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
+          }
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -728,6 +736,12 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 

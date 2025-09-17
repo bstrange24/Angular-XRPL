@@ -80,6 +80,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      isUpdateMetaData: boolean = false;
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      memoField: string = '';
      isMemoEnabled: boolean = false;
      credentialType: string = '';
@@ -1054,6 +1056,12 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           } else {
                this.useMultiSign = false;
           }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
+          }
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -1079,6 +1087,12 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 

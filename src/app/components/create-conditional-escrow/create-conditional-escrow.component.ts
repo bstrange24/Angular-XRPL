@@ -119,6 +119,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
      signerQuorum: number = 0;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
      issuers: string[] = [];
      destinationFields: string = '';
@@ -1028,10 +1030,16 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (this.masterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
 
           // Always reset memo fields
@@ -1063,6 +1071,12 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 

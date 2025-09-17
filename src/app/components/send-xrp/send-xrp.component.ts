@@ -94,6 +94,8 @@ export class SendXrpComponent implements AfterViewChecked {
      spinner: boolean = false;
      // isMultiSign: boolean = false;
      useMultiSign: boolean = false;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      isRegularKeyAddress: boolean = false;
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
@@ -461,10 +463,10 @@ export class SendXrpComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
           if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
@@ -472,10 +474,16 @@ export class SendXrpComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (this.masterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
      }
 
@@ -503,6 +511,12 @@ export class SendXrpComponent implements AfterViewChecked {
                this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 

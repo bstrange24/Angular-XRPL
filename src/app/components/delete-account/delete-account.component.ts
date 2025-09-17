@@ -76,6 +76,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
@@ -429,12 +431,22 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
           this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
                this.useMultiSign = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
      }
 
@@ -452,12 +464,22 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 

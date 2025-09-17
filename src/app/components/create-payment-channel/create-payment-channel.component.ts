@@ -108,6 +108,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
      signerQuorum: number = 0;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
@@ -1004,6 +1006,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           } else {
                this.masterKeyDisabled = false;
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 
