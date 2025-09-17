@@ -144,7 +144,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
                this.updateDestinations();
-               this.destinationFields = this.issuer.address;
+               this.credential.subject.destinationAddress = this.issuer.address;
           } catch (error: any) {
                console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -697,7 +697,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
@@ -724,7 +724,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
                this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.isRegularKeyAddress = false;
@@ -872,7 +872,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          this.destinations = [...Object.values(this.knownDestinations)];
+          // this.destinations = [...Object.values(this.knownDestinations)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 

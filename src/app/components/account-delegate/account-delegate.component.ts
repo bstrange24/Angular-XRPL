@@ -770,7 +770,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (signerAccounts && signerAccounts.length > 0) {
+          if (this.masterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
@@ -796,7 +796,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (xrpl.isValidAddress(this.regularKeyAccount)) {
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAccount)) {
                this.isSetRegularKey = true; // Force to true if master key is disabled
           } else {
                this.isSetRegularKey = false;
@@ -805,7 +805,8 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
      private updateDestinations() {
           const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-          this.destinations = [...Object.values(knownDestinationsTemp)];
+          // this.destinations = [...Object.values(knownDestinationsTemp)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
           this.destinationFields = this.issuer.address;
      }
