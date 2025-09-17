@@ -80,6 +80,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      isUpdateMetaData: boolean = false;
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      memoField: string = '';
      isMemoEnabled: boolean = false;
      credentialType: string = '';
@@ -131,7 +133,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
                this.updateDestinations();
-               this.destinationFields = this.issuer.address;
+               this.credential.subject.destinationAddress = this.issuer.address;
           } catch (error: any) {
                console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -1049,10 +1051,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
      }
 
@@ -1075,10 +1083,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
                this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 
@@ -1262,7 +1276,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          this.destinations = [...Object.values(this.knownDestinations)];
+          // this.destinations = [...Object.values(this.knownDestinations)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 

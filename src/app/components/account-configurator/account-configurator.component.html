@@ -648,7 +648,7 @@
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                        <label>Use Multi-Sign Address</label>
+                                        <label [ngStyle]="{'color': multiSigningEnabled ? '#4CAF50' : 'white'}">Use Multi-Sign Address</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -699,8 +699,8 @@
                          </tr>
                          <tr>
                               <td>
-                                   <span class="tooltip" tooltip-data="Check this to enable Set Regular Key">
-                                        <label>Setup/Use Regular Key</label>
+                                   <span class="tooltip" tooltip-data="Check this to use Regular Key Address">
+                                        <label [ngStyle]="{'color': regularKeySigningEnabled ? '#4CAF50' : 'white'}">Use Regular Key</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">

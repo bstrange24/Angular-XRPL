@@ -106,6 +106,8 @@ export class AccountDelegateComponent implements AfterViewChecked {
      regularKeyAccountSeed: string = '';
      signerQuorum: number = 0;
      multiSignSeeds: string = '';
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      actions: DelegateAction[] = AppConstants.DELEGATE_ACTIONS;
      selected: Set<number> = new Set<number>();
      delegateSelections: Record<string, Set<number>> = {};
@@ -770,10 +772,22 @@ export class AccountDelegateComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
+          }
+
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
      }
 
@@ -796,16 +810,23 @@ export class AccountDelegateComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (xrpl.isValidAddress(this.regularKeyAccount)) {
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAccount)) {
                this.isSetRegularKey = true; // Force to true if master key is disabled
           } else {
                this.isSetRegularKey = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 
      private updateDestinations() {
           const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-          this.destinations = [...Object.values(knownDestinationsTemp)];
+          // this.destinations = [...Object.values(knownDestinationsTemp)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
           this.destinationFields = this.issuer.address;
      }

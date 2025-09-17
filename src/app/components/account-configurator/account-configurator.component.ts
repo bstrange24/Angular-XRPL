@@ -109,6 +109,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      regularKeyAccountSeed: string = '';
      signerQuorum: number = 0;
      multiSignSeeds: string = '';
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      nfTokenMinterAddress: string = '';
      isUpdateMetaData: boolean = false;
      isHolderConfiguration: boolean = false;

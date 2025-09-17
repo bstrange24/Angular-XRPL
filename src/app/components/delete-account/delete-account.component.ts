@@ -76,6 +76,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
@@ -98,10 +100,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-               // if (Object.keys(this.knownDestinations).length === 0) {
                this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-               // }
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
           } catch (error) {
@@ -133,6 +132,22 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     onAccountChange() {
+          const accountHandlers: Record<string, () => void> = {
+               account1: () => {
+                    void this.displayDataForAccount1();
+               },
+               account2: () => {
+                    void this.displayDataForAccount2();
+               },
+               issuer: () => {
+                    void this.displayDataForAccount3();
+               },
+          };
+
+          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+     }
+
      validateQuorum() {
           const totalWeight = this.signers.reduce((sum, s) => sum + (s.weight || 0), 0);
           if (this.signerQuorum > totalWeight) {
@@ -157,26 +172,10 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
-     }
-
-     onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
-          };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+          this.cdr.detectChanges();
      }
 
      async getAccountDetails() {
@@ -432,12 +431,22 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
           this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
                this.useMultiSign = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
      }
 
@@ -455,12 +464,22 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 
@@ -635,7 +654,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          this.destinations = [...Object.values(this.knownDestinations)];
+          // this.destinations = [...Object.values(this.knownDestinations)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
 

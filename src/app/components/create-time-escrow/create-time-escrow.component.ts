@@ -114,6 +114,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
      signerQuorum: number = 0;
+     multiSigningEnabled: boolean = false;
+     regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
      issuers: string[] = [];
      destinationFields: string = '';
@@ -1010,12 +1012,22 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
+          } else {
+               this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
-               this.masterKeyDisabled = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
           }
 
           // Always reset memo fields
@@ -1037,12 +1049,22 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
                this.isRegularKeyAddress = false;
+          }
+
+          if (regularKey) {
+               this.regularKeySigningEnabled = true;
+          } else {
+               this.regularKeySigningEnabled = false;
           }
      }
 
@@ -1275,7 +1297,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
      private updateDestinations() {
           const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-          this.destinations = [...Object.values(knownDestinationsTemp)];
+          // this.destinations = [...Object.values(knownDestinationsTemp)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
           this.destinationFields = this.issuer.address;
      }
