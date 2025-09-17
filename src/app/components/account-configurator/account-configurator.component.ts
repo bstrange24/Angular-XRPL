@@ -145,11 +145,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
-     OnInit(): void {
+     ngOnInit(): void {
           console.log(`Account Configuratior OnInit called`);
      }
 
-     async AfterViewInit() {
+     async ngAfterViewInit() {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -1744,17 +1744,15 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-          if (signerAccounts && signerAccounts.length > 0) {
-               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.debug(`refreshUiAccountObjects singerEntriesAccount ${wallet.classicAddress} ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
 
-                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
-                    this.multiSignSeeds = seeds;
-                    this.multiSignAddress = addresses;
-               }
+          if (signerAccounts?.length) {
+               const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
+               const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
+
+               console.debug(`refreshUiAccountObjects singerEntriesAccount ${wallet.classicAddress} ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+
+               this.multiSignAddress = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
+               this.multiSignSeeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';

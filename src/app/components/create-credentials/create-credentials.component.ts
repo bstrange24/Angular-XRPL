@@ -118,6 +118,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngOnInit() {
+          console.log(`Create Credentials OnInit called`);
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
           if (storedDestinations) {
                this.knownDestinations = storedDestinations;
@@ -131,7 +132,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
-          } catch (error) {
+          } catch (error: any) {
+               console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -163,10 +165,17 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
      onAccountChange() {
           const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
+               account1: () => {
+                    void this.displayDataForAccount1();
+               },
+               account2: () => {
+                    void this.displayDataForAccount2();
+               },
+               issuer: () => {
+                    void this.displayDataForAccount3();
+               },
           };
+
           (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
      }
 
@@ -186,7 +195,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -194,17 +204,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -268,20 +271,14 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          key: `Credential ${index + 1} (${credential.CredentialType || 'Unknown Type'})`,
                          openByDefault: index === 0, // Open the first credential by default
                          content: [
-                              { key: 'LedgerEntryType', value: credential.LedgerEntryType || 'N/A' },
                               { key: 'Credential Type', value: Buffer.from(credential.CredentialType, 'hex').toString('utf8') || 'N/A' },
                               { key: 'Subject', value: credential.Subject || 'N/A' },
-                              { key: 'Index', value: credential.index || 'N/A' },
-                              {
-                                   key: 'Expiration',
-                                   value: credential.Expiration ? this.utilsService.fromRippleTime(credential.Expiration).est : 'N/A',
-                              },
                               { key: 'Issuer', value: credential.Issuer || 'N/A' },
-                              { key: 'Flags', value: flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) },
-                              {
-                                   key: 'URI',
-                                   value: credential.URI ? Buffer.from(credential.URI, 'hex').toString('utf8') : 'N/A',
-                              },
+                              { key: 'Index', value: credential.index || 'N/A' },
+                              { key: 'Expiration', value: credential.Expiration ? this.utilsService.fromRippleTime(credential.Expiration).est : 'N/A' },
+                              { key: 'Credential Flags', value: this.utilsService.getCredentialStatus(credential.Flags) },
+                              { key: 'Account Flags', value: flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) },
+                              { key: 'URI', value: credential.URI ? Buffer.from(credential.URI, 'hex').toString('utf8') : 'N/A' },
                               { key: 'PreviousTxnLgrSeq', value: credential.PreviousTxnLgrSeq?.toString() || 'N/A' },
                               { key: 'PreviousTxnID', value: credential.PreviousTxnID || 'N/A' },
                          ],
@@ -453,6 +450,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                this.clearFields(false);
 
@@ -772,6 +772,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                this.clearFields(false);
 
@@ -968,8 +971,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          { key: 'Credential Type', value: ledgerEntryRequest.credential.credential_type || 'Credential' },
                          { key: 'Issuer', value: ledgerEntryRequest.credential.issuer || 'N/A' },
                          { key: 'Subject', value: ledgerEntryRequest.credential.subject || 'N/A' },
-                         { key: 'Expiration', value: credential.Expiration || 'Credential' },
-                         { key: 'Flags', value: credential.Flags || 'N/A' },
+                         { key: 'Expiration', value: this.utilsService.fromRippleTime(credential.Expiration).est || 'Credential' },
+                         { key: 'Flags', value: this.utilsService.getCredentialStatus(credential.Flags) },
                          { key: 'IssuerNode', value: credential.IssuerNode || 'N/A' },
                          { key: 'PreviousTxnID', value: credential.PreviousTxnID || 'N/A' },
                          { key: 'PreviousTxnLgrSeq', value: credential.PreviousTxnLgrSeq || 'N/A' },
@@ -999,7 +1002,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                              if (entry.SignerEntry?.Account) {
                                    signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
@@ -1040,12 +1043,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
           this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
+          } else {
+               this.masterKeyDisabled = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
                this.useMultiSign = true; // Force to true if master key is disabled
           } else {
                this.useMultiSign = false;
-               this.masterKeyDisabled = false;
           }
      }
 
@@ -1062,11 +1069,15 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
                this.isRegularKeyAddress = false;
           }
      }
@@ -1092,13 +1103,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidSecret(value)) {
                     return `${fieldName} is invalid`;
-               }
-               return null;
-          };
-
-          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
-               if (sender && receiver && sender === receiver) {
-                    return `Sender and receiver cannot be the same`;
                }
                return null;
           };

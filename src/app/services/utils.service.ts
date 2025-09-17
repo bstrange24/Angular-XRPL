@@ -667,6 +667,10 @@ export class UtilsService {
           return result.length ? result.join(', ') : 'None';
      }
 
+     getCredentialStatus(flags: number): string {
+          return flags === 65536 ? 'Credential accepted' : 'Credential not accepted';
+     }
+
      parseTransferRateToPercentage(transferRate: string) {
           const rate = parseInt(transferRate, 10);
           if (isNaN(rate) || rate < 1000000000) {
