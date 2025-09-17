@@ -31,7 +31,7 @@ export class XrplService {
      private tokenCache = new Map<string, { createdAt: Date; checkedAt: number }>();
      private proxyServer = 'http://localhost:3000';
 
-     constructor(private storageService: StorageService, private http: HttpClient, private tokenCacheService: TokenCacheService) {}
+     constructor(private readonly storageService: StorageService, private readonly http: HttpClient, private readonly tokenCacheService: TokenCacheService) {}
 
      async getClient(): Promise<xrpl.Client> {
           if (!this.client || !this.client.isConnected()) {

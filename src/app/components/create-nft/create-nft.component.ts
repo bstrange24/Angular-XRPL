@@ -16,6 +16,7 @@ interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      seed?: string;
+     account_info?: any;
      nftIdField?: string;
      uri?: string;
      batchMode?: string;
@@ -23,10 +24,17 @@ interface ValidationInputs {
      nftIndexField?: string;
      nftCountField?: string;
      issuerAddressField?: string;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
+     isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
+     multiSignSeeds?: string;
+     multiSignAddresses?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface AccountFlags {
@@ -80,7 +88,8 @@ export class CreateNftComponent implements AfterViewChecked {
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
-     isMultiSign: boolean = false;
+     // isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
      isUpdateMetaData: boolean = false;
@@ -115,6 +124,7 @@ export class CreateNftComponent implements AfterViewChecked {
      nftIndexField: string = '';
      nftCountField: string = '';
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      flags: AccountFlags = {
           asfRequireDest: false,
           asfRequireAuth: false,
@@ -133,7 +143,7 @@ export class CreateNftComponent implements AfterViewChecked {
      spinner = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private batchService: BatchService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly batchService: BatchService) {}
 
      ngOnInit() {}
 
@@ -190,7 +200,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -245,6 +255,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const accountNfts = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
                console.debug(`Account Nft objects: ${JSON.stringify(accountNfts, null, '\t')}`);
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                // Prepare data for renderAccountDetails
                const data = {
@@ -323,7 +334,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -370,7 +381,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Minting NFT ...');
 
@@ -413,7 +424,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -524,7 +535,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Minting Batch NFT ...');
 
@@ -557,7 +568,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     tx = await client.submitAndWait(prepared, { wallet });
                } else {
                     // Batch submit if > 1
-                    if (this.isMultiSign) {
+                    if (this.useMultiSign) {
                          tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, {
                               isMultiSign: true,
                               signerAddresses: this.multiSignAddress,
@@ -612,7 +623,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Burning NFT ...');
 
@@ -643,7 +654,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -751,9 +762,10 @@ export class CreateNftComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                const fee = await this.xrplService.calculateTransactionFee(client);
-               let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Burning Batch NFT ...');
 
@@ -781,7 +793,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     console.log('tx:', JSON.stringify(tx, null, 2));
                } else {
                     // Batch submit if > 1
-                    if (this.isMultiSign) {
+                    if (this.useMultiSign) {
                          tx = await this.batchService.submitBatchTransaction(client, wallet, transactions, batchFlags, {
                               isMultiSign: true,
                               signerAddresses: this.multiSignAddress,
@@ -834,6 +846,7 @@ export class CreateNftComponent implements AfterViewChecked {
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                // Prepare data for rendering
                type SectionContent = { key: string; value: string };
@@ -876,7 +889,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                try {
                     const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-                    this.refreshUiAccountObjects(accountObjects, wallet);
+                    this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                     // const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
                     // if (signerAccounts && signerAccounts.length > 0) {
                     //      if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
@@ -891,12 +904,12 @@ export class CreateNftComponent implements AfterViewChecked {
                     //                })
                     //                .filter(seed => seed !== null)
                     //                .join(',\n');
-                    //           this.isMultiSign = true;
+                    //           this.useMultiSign = true;
                     //      }
                     // } else {
                     //      this.multiSignAddress = 'No Multi-Sign address configured for account';
                     //      this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-                    //      this.isMultiSign = false;
+                    //      this.useMultiSign = false;
                     // }
 
                     const nftInfo = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
@@ -1095,7 +1108,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
 
                this.isMemoEnabled = false;
@@ -1132,7 +1145,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Buying NFT ...');
 
@@ -1209,7 +1222,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1309,7 +1322,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Selling NFT ...');
 
@@ -1349,7 +1362,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1449,7 +1462,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Cancel NFT Buy Offer ...');
 
@@ -1480,7 +1493,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1579,7 +1592,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Cancel NFT Sell Offer ...');
 
@@ -1610,7 +1623,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1711,7 +1724,7 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Updating NFT Meta Data ...');
 
@@ -1729,7 +1742,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1887,7 +1900,7 @@ export class CreateNftComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1902,8 +1915,17 @@ export class CreateNftComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
 
           // Always reset memo fields
@@ -1922,6 +1944,15 @@ export class CreateNftComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 

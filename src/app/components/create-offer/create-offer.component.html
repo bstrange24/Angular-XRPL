@@ -457,6 +457,12 @@
                               </td>
                          </tr>
                          <tr>
+                              <td></td>
+                              <td *ngIf="masterKeyDisabled">
+                                   <label style="color: red">Master Key is disabled. Use multi-sign or regular key to sign transactions.</label>
+                              </td>
+                         </tr>
+                         <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Use Multi-Sign Address</label>
@@ -464,17 +470,17 @@
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
-                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="useMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isMultiSignAddressData"></label>
                               </td>
                          </tr>
-                         <tr *ngIf="isMultiSign">
+                         <tr *ngIf="useMultiSign">
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
                                              <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
                                                        <label for="multiSignAddress">Signer Addresses</label>
@@ -484,7 +490,7 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
                                              <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
                                                        <label for="multiSignSeeds">Signer Seeds</label>
@@ -494,7 +500,7 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
                                              <td>
                                                   <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
                                                        <label for="quorum">Signer Quorum:</label>

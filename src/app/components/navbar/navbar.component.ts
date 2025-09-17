@@ -29,7 +29,7 @@ export class NavbarComponent implements OnInit {
      currentDateTime: string = ''; // Store formatted date/time
      private timerSubscription: Subscription | null = null; // For real-time updates
 
-     constructor(private storageService: StorageService, private utilsService: UtilsService, private xrplService: XrplService, private router: Router, private datePipe: DatePipe) {}
+     constructor(private readonly storageService: StorageService, private readonly utilsService: UtilsService, private readonly xrplService: XrplService, private readonly router: Router, private readonly datePipe: DatePipe) {}
 
      ngOnInit() {
           // Initialize network

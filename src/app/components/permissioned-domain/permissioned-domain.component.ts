@@ -19,15 +19,17 @@ interface ValidationInputs {
      destination?: string;
      domainId?: string;
      credentialType?: string;
+     date?: string;
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     isMultiSign?: boolean;
-     multiSignAddresses?: string;
+     useMultiSign?: boolean;
      multiSignSeeds?: string;
+     multiSignAddresses?: string;
      isTicket?: boolean;
      ticketSequence?: string;
-     date?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface SignerEntry {
@@ -86,7 +88,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      isRegularKeyAddress: boolean = false;
      regularKeyAddress: string = '';
      regularKeySeed: string = '';
-     isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      multiSignAddress: string = '';
      isUpdateMetaData: boolean = false;
      multiSignSeeds: string = '';
@@ -99,6 +101,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      subject: string = '';
      spinner: boolean = false;
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      credential = {
           version: '1.0',
           credential_type: 'KYCCredential',
@@ -125,9 +128,10 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngOnInit() {
+          console.log(`Create Permissioned Domain OnInit called`);
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
           if (storedDestinations) {
                this.knownDestinations = storedDestinations;
@@ -141,7 +145,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
                this.updateDestinations();
                this.destinationFields = this.issuer.address;
-          } catch (error) {
+          } catch (error: any) {
+               console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -173,10 +178,17 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
      onAccountChange() {
           const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
+               account1: () => {
+                    void this.displayDataForAccount1();
+               },
+               account2: () => {
+                    void this.displayDataForAccount2();
+               },
+               issuer: () => {
+                    void this.displayDataForAccount3();
+               },
           };
+
           (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
      }
 
@@ -190,13 +202,14 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -204,17 +217,10 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -226,27 +232,26 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'getPermissionedDomainForAccount');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
+               this.showSpinnerWithDelay('Getting Permissioned Domains...', 200);
+
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-
-               this.showSpinnerWithDelay('Getting Credentials...', 200);
-
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-               if (accountInfo.result.account_data.length <= 0) {
-                    this.resultField.nativeElement.innerHTML = `No account data found for ${wallet.classicAddress}`;
-                    this.resultField.nativeElement.classList.add('error');
-                    this.setErrorProperties();
-                    return;
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = this.validateInputs(inputs, 'getPermissionedDomainForAccount');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
@@ -311,7 +316,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -333,7 +338,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                destination: this.credential.subject.destinationAddress,
@@ -341,23 +346,31 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = this.validateInputs(inputs, 'setPermissionedDomain');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = this.validateInputs(inputs, 'setPermissionedDomain');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Setting Permissioned Domain...');
 
@@ -396,7 +409,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -477,29 +490,37 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
                domainId: this.domainId,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = this.validateInputs(inputs, 'deletePermissionedDomain');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = this.validateInputs(inputs, 'deletePermissionedDomain');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Deleting Permissioned Domain...');
 
@@ -546,7 +567,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -629,7 +650,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                              if (entry.SignerEntry?.Account) {
                                    signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
@@ -650,7 +671,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -665,8 +686,21 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          this.useMultiSign = false;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled) {
+               this.masterKeyDisabled = true;
+          } else {
+               this.masterKeyDisabled = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
           }
      }
 
@@ -681,6 +715,19 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled) {
+               this.masterKeyDisabled = true;
+          } else {
+               this.masterKeyDisabled = false;
+          }
+
+          if (xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -756,34 +803,36 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
                getPermissionedDomainForAccount: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [() => isValidSeed(inputs.seed)],
+                    customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                },
                setPermissionedDomain: {
                     required: ['selectedAccount', 'seed', 'destination', 'credentialType'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidXrpAddress(inputs.destination, 'Destination address'),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                },
                deletePermissionedDomain: {
                     required: ['selectedAccount', 'seed', 'domainId'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                     ],
                },
@@ -905,7 +954,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.credential.uri = '';
                this.ticketSequence = '';
                this.isTicket = false;
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.isRegularKeyAddress = false;
           }
           this.memoField = '';

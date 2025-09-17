@@ -110,6 +110,85 @@
                                         <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence to cancel" [(ngModel)]="ticketSequence" name="ticketSequence" />
                                    </td>
                               </tr>
+                              <!-- <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Update Batch Mode to interact with NFTs.">
+                                             <label>Batch Mode</label>
+                                        </span>
+                                   </td>
+                                   <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                        <label class="switch">
+                                             <input type="checkbox" id="isBatchModeEnabled" [(ngModel)]="isBatchModeEnabled" name="isBatchModeEnabled" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                        <label for="isBatchModeEnabled"></label>
+                                   </td>
+                              </tr>
+                              <br />
+                              <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="All transactions must succeed or else the whole batch fails.">
+                                             <label for="batchAllOrNothing">All or Nothing</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="batchAllOrNothing" class="" [checked]="batchMode === 'allOrNothing'" (change)="setBatchMode('allOrNothing')" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+                              <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Only the first successful transaction is applied. All transactions afterward fail or are skipped.">
+                                             <label for="batchOnlyOne">Only One</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="batchOnlyOne" class="" [checked]="batchMode === 'onlyOne'" (change)="setBatchMode('onlyOne')" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+
+                              <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="All transactions will be applied, regardless of failure.">
+                                             <label for="batchIndependent">Independent</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="batchIndependent" class="" [checked]="batchMode === 'independent'" (change)="setBatchMode('independent')" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+
+                              <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="All transactions are applied until the first failure; subsequent transactions are skipped.">
+                                             <label for="batchUntilFailure">Until Failure</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="batchUntilFailure" class="" [checked]="batchMode === 'untilFailure'" (change)="setBatchMode('untilFailure')" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+                              <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Ticket count for batch">
+                                             <label for="ticketCountField">Ticket Count Batch</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="ticketCountField" size="40" placeholder="Number of tickets to create 1-250" [(ngModel)]="ticketCountField" name="ticketCountField" />
+                                   </td>
+                              </tr> -->
                          </table>
                     </div>
 
@@ -125,6 +204,7 @@
                                    <td colspan="2">
                                         <button type="button" (click)="getTickets()">Get Tickets</button>
                                         <button type="button" (click)="createTicket()">Create Tickets</button>
+                                        <button type="button" (click)="createBatchTicket()">Create Batch Tickets</button>
                                         <button type="button" (click)="cancelTicket()">Cancel Tickets</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
@@ -207,20 +287,6 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <tr>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Add memo to transaction.">
-                                        <label>Memo</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
-                                        <span class="slider round"></span>
-                                   </label>
-                                   <label for="isMemoEnabled"></label>
-                              </td>
-                         </tr>
                          <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
                               <td>
                                    <span class="tooltip" tooltip-data="">
@@ -232,6 +298,12 @@
                               </td>
                          </tr>
                          <tr>
+                              <td></td>
+                              <td *ngIf="masterKeyDisabled">
+                                   <label style="color: red">Master Key is disabled. Use multi-sign or regular key to sign transactions.</label>
+                              </td>
+                         </tr>
+                         <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Use Multi-Sign Address</label>
@@ -239,17 +311,17 @@
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
-                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="isMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
+                                        <input type="checkbox" id="isMultiSignAddressData" [(ngModel)]="useMultiSign" (ngModelChange)="toggleMultiSign()" name="isMultiSignAddressData" />
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isMultiSignAddressData"></label>
                               </td>
                          </tr>
-                         <tr *ngIf="isMultiSign">
+                         <tr *ngIf="useMultiSign">
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
                                              <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
                                                        <label for="multiSignAddress">Signer Addresses</label>
@@ -259,7 +331,7 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
                                              <td>
                                                   <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
                                                        <label for="multiSignSeeds">Signer Seeds</label>
@@ -269,7 +341,7 @@
                                                   <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
                                              </td>
                                         </tr>
-                                        <tr class="multisignAddressClass" *ngIf="isMultiSign">
+                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
                                              <td>
                                                   <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
                                                        <label for="quorum">Signer Quorum:</label>

@@ -22,11 +22,14 @@ interface ValidationInputs {
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     isMultiSign?: boolean;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
      ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface TrustLine {
@@ -86,7 +89,8 @@ export class TrustlinesComponent implements AfterViewChecked {
      totalXrpReserves: string = '';
      executionTime: string = '';
      destinationTagField: string = '';
-     isMultiSign = false;
+     // isMultiSign = false;
+     useMultiSign: boolean = false;
      multiSignAddress: string = '';
      isUpdateMetaData = false;
      multiSignSeeds: string = '';
@@ -98,8 +102,10 @@ export class TrustlinesComponent implements AfterViewChecked {
      regularKeyAddress: string = '';
      spinner = false;
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+          XRP: '',
      };
      private knownDestinations: { [key: string]: string } = {};
      currencies: string[] = [];
@@ -155,7 +161,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                .map(([name]) => name);
      }
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngOnInit() {
           const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
@@ -230,7 +236,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -277,14 +283,6 @@ export class TrustlinesComponent implements AfterViewChecked {
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               isRegularKeyAddress: this.isRegularKeyAddress,
-               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
-               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
-               isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
 
           try {
@@ -299,7 +297,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'setCredentials');
+               const errors = await this.validateInputs(inputs, 'getTrustlinesForAccount');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -446,7 +444,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -508,12 +506,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
+               destinationTag: this.destinationTagField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -531,13 +530,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'setCredentials');
+               const errors = await this.validateInputs(inputs, 'setTrustLine');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                // Validate flag combinations
                if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
@@ -600,7 +599,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -690,9 +689,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -710,13 +709,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'remove');
+               const errors = await this.validateInputs(inputs, 'removeTrustline');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                // Validate flag combinations
                if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
@@ -817,7 +816,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -910,9 +909,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -930,13 +929,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'issue');
+               const errors = await this.validateInputs(inputs, 'issueCurrency');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
                console.debug(`Trust lines for ${wallet.classicAddress} ${JSON.stringify(trustLines, null, '\t')}`);
@@ -1021,7 +1020,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     let signedTx: { tx_blob: string; hash: string } | null = null;
 
-                    if (this.isMultiSign) {
+                    if (this.useMultiSign) {
                          const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                          if (signerAddresses.length === 0) {
                               return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1147,7 +1146,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1307,16 +1306,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'clawback');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
                this.updateSpinnerMessage('Clawing back tokens...');
@@ -1331,13 +1326,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'issue');
+               const errors = await this.validateInputs(inputs, 'clawbackTokens');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -1374,7 +1369,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
 
@@ -1466,10 +1461,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
           };
-          const errors = await this.validateInputs(inputs, 'change');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
                const client = await this.xrplService.getClient();
@@ -1481,7 +1472,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'change');
+               const errors = await this.validateInputs(inputs, 'onCurrencyChange');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -1646,7 +1637,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1661,8 +1652,17 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
 
           // Always reset memo fields
@@ -1672,7 +1672,6 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      private refreshUiAccountInfo(accountInfo: any) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
-
           if (regularKey) {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
@@ -1681,6 +1680,15 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -1782,49 +1790,48 @@ export class TrustlinesComponent implements AfterViewChecked {
                     asyncValidators?: (() => Promise<string | null>)[];
                }
           > = {
-               get: {
+               getTrustlinesForAccount: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
-               set: {
+               setTrustLine: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.amount, 'Amount', 0),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
-               remove: {
+               removeTrustline: {
                     required: ['selectedAccount', 'seed', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
+                         () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
-               issue: {
+               issueCurrency: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1834,21 +1841,42 @@ export class TrustlinesComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.ticketSequence, 'Ticket', 0, true),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               change: {
+               onCurrencyChange: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
+                    asyncValidators: [],
+               },
+               clawbackTokens: {
+                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidNumber(inputs.amount, 'Amount', 0),
+                         () => isValidXrpAddress(inputs.destination, 'Destination'),
+                         () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
+                         () => isValidNumber(inputs.ticketSequence, 'Ticket', 0, true),
+                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                    ],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                default: { required: [], customValidators: [], asyncValidators: [] },
           };
@@ -1884,6 +1912,10 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
+
+          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
 
           // Selected account check (common to most)
           if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {

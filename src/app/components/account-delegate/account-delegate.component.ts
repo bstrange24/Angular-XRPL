@@ -18,21 +18,21 @@ interface ValidationInputs {
      destination?: string;
      amount?: string;
      sequence?: string;
-     regularKeyAddress?: string;
-     regularKeySeed?: string;
-     isMultiSign?: boolean;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
-     isRegularKeyAddress?: boolean;
-     regularKeyAccount?: string;
-     regularKeyAccountSeeds?: string;
      depositAuthAddress?: string;
      nfTokenMinterAddress?: string;
-     isTicket?: boolean;
-     ticketSequence?: string;
      tickSize?: string;
      transferRate?: string;
      domain?: string;
+     isRegularKeyAddress?: boolean;
+     regularKeyAddress?: string;
+     regularKeyAccount?: string;
+     regularKeyAccountSeeds?: string;
+     regularKeySeed?: string;
+     useMultiSign?: boolean;
+     multiSignSeeds?: string;
+     multiSignAddresses?: string;
+     isTicket?: boolean;
+     ticketSequence?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
 }
@@ -99,7 +99,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      isMemoEnabled: boolean = false;
-     isMultiSign: boolean = false;
      useMultiSign: boolean = false;
      multiSignAddress: string = '';
      isSetRegularKey: boolean = false;
@@ -115,7 +114,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
      destinations: string[] = [];
      leftActions: any;
      rightActions: any;
-
+     masterKeyDisabled: boolean = false;
      memoField: string = '';
      spinnerMessage: string = '';
      flags: AccountFlags = {
@@ -136,9 +135,10 @@ export class AccountDelegateComponent implements AfterViewChecked {
      spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngOnInit() {
+          console.log(`Account Delegate OnInit called`);
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
           if (storedDestinations) {
                this.knownDestinations = storedDestinations;
@@ -152,7 +152,8 @@ export class AccountDelegateComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                this.updateDestinations();
-          } catch (error) {
+          } catch (error: any) {
+               console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -184,12 +185,18 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
      onAccountChange() {
           const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
+               account1: () => {
+                    void this.displayDataForAccount1();
+               },
+               account2: () => {
+                    void this.displayDataForAccount2();
+               },
+               issuer: () => {
+                    void this.displayDataForAccount3();
+               },
           };
+
           (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
-          this.configurationType = null;
      }
 
      validateQuorum() {
@@ -202,13 +209,14 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -216,17 +224,10 @@ export class AccountDelegateComponent implements AfterViewChecked {
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleSelection(actionId: number, event: Event) {
@@ -353,7 +354,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(accountObjects, wallet);
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -381,7 +382,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isSetRegularKey,
                regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
                regularKeySeed: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
-               isMultiSign: this.useMultiSign,
+               useMultiSign: this.useMultiSign,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
@@ -406,7 +407,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
 
                let permissions: { Permission: { PermissionValue: string } }[] = [];
                if (delegate === 'clear') {
@@ -541,7 +542,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
+                              if (entry.SignerEntry?.Account) {
                                    signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
@@ -658,7 +659,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
           const validateSigners = async (signers: { account: string; weight: number }[] | undefined): Promise<string[]> => {
                const errors: string[] = [];
-               if (!signers || !signers.length) {
+               if (!signers?.length) {
                     errors.push('No valid signer accounts provided');
                     return errors;
                }
@@ -698,15 +699,17 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [
                          async () => isValidSeed(inputs.seed),
+                         async () => isValidXrpAddress(inputs.destination, 'Destination address'),
+                         async () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         async () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         async () => (inputs.useMultiSign ? (await validateSigners(inputs.signers)).join('; ') : null),
                          async () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          async () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         async () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         async () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          async () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         async () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         async () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                },
                default: { required: [], customValidators: [] },
@@ -741,26 +744,36 @@ export class AccountDelegateComponent implements AfterViewChecked {
           return errors;
      }
 
-     refreshUiAccountObjects(accountObjects: any, wallet: any) {
-          const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-          if (signerAccounts && signerAccounts.length > 0) {
-               if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
-                    const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
-                    console.debug(`refreshUiAccountObjects singerEntriesAccount ${wallet.classicAddress} ${JSON.stringify(this.storageService.get(singerEntriesAccount), null, '\t')}`);
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+          const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
-                    const addresses = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
-                    const seeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
-                    this.multiSignSeeds = seeds;
-                    this.multiSignAddress = addresses;
-               }
+          if (signerAccounts?.length) {
+               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
+               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
+
+               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+
+               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
-               this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-               this.isMultiSign = false;
-               this.useMultiSign = false;
+               this.multiSignSeeds = '';
                this.storageService.removeValue('signerEntries');
+          }
+
+          this.useMultiSign = false;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled) {
+               this.masterKeyDisabled = true;
+          } else {
+               this.masterKeyDisabled = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
           }
      }
 
@@ -774,6 +787,19 @@ export class AccountDelegateComponent implements AfterViewChecked {
                this.isSetRegularKey = false;
                this.regularKeyAccount = 'No RegularKey configured for account';
                this.regularKeyAccountSeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled) {
+               this.masterKeyDisabled = true;
+          } else {
+               this.masterKeyDisabled = false;
+          }
+
+          if (xrpl.isValidAddress(this.regularKeyAccount)) {
+               this.isSetRegularKey = true; // Force to true if master key is disabled
+          } else {
+               this.isSetRegularKey = false;
           }
      }
 
@@ -859,7 +885,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
           if (clearAllFields) {
                this.ticketSequence = '';
                this.isTicket = false;
-               this.isMultiSign = false;
                this.useMultiSign = false;
                this.isSetRegularKey = false;
           }

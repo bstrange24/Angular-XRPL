@@ -11,10 +11,11 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                             <label>Configuration Templates:</label>
+                                             <label for="isHolderConfiguration">Configuration Templates:</label>
                                         </span>
                                    </td>
                                    <td>
@@ -105,6 +106,7 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="(asfRequireDest) Requires a destination tag for incoming payments">
@@ -199,6 +201,7 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="(asfDepositAuth) Requires preauthorization for incoming deposits">
@@ -422,6 +425,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
@@ -582,6 +586,12 @@
                               </td>
                          </tr>
                          <tr>
+                              <td></td>
+                              <td *ngIf="masterKeyDisabled">
+                                   <label style="color: red">Master Key is disabled. Use multi-sign or regular key to sign transactions.</label>
+                              </td>
+                         </tr>
+                         <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
                                         <label>Setup Multi-Sign</label>
@@ -649,6 +659,7 @@
                                    <label for="isMultiSignAddressData"></label>
                               </td>
                          </tr>
+
                          <tr *ngIf="useMultiSign">
                               <td></td>
                               <td>

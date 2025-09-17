@@ -26,11 +26,14 @@ interface ValidationInputs {
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     isMultiSign?: boolean;
-     multiSignAddresses?: string;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
      multiSignSeeds?: string;
+     multiSignAddresses?: string;
      isTicket?: boolean;
      ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface AccountFlags {
@@ -80,7 +83,8 @@ export class MptComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
-     isMultiSign: boolean = false;
+     // isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
@@ -100,6 +104,7 @@ export class MptComponent implements AfterViewChecked {
      regularKeyAddress: string = '';
      amountField: string = '';
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      flags: AccountFlags = {
           isClawback: false,
           isLock: false,
@@ -123,7 +128,7 @@ export class MptComponent implements AfterViewChecked {
           0x00000040: 'CanClawback',
      };
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngOnInit() {
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
@@ -192,7 +197,7 @@ export class MptComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -307,7 +312,7 @@ export class MptComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -341,9 +346,9 @@ export class MptComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
                // flags: this.flags,
@@ -367,7 +372,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                let v_flags = 0;
                if (this.isMptFlagModeEnabled) {
@@ -432,7 +437,7 @@ export class MptComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -526,9 +531,9 @@ export class MptComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -551,7 +556,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const mptIssuanceId = this.mptIssuanceIdField;
 
@@ -582,7 +587,7 @@ export class MptComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -678,9 +683,9 @@ export class MptComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -703,7 +708,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                if (parseInt(this.amountField) <= 0) {
                     return this.setError('ERROR: Amount must be greater than 0');
@@ -755,7 +760,7 @@ export class MptComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -848,9 +853,9 @@ export class MptComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -873,7 +878,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`MPT Account Objects: ${JSON.stringify(mptokenObjects, null, '\t')}`);
@@ -915,7 +920,7 @@ export class MptComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1007,9 +1012,9 @@ export class MptComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -1032,7 +1037,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                if (parseInt(this.amountField) <= 0) {
                     return this.setError('ERROR: Amount must be greater than 0');
@@ -1080,7 +1085,7 @@ export class MptComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1224,7 +1229,7 @@ export class MptComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1239,8 +1244,17 @@ export class MptComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
 
           // Always reset memo fields
@@ -1260,6 +1274,15 @@ export class MptComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -1382,13 +1405,13 @@ export class MptComponent implements AfterViewChecked {
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
@@ -1400,13 +1423,13 @@ export class MptComponent implements AfterViewChecked {
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -1422,13 +1445,13 @@ export class MptComponent implements AfterViewChecked {
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
@@ -1440,13 +1463,13 @@ export class MptComponent implements AfterViewChecked {
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -1458,13 +1481,13 @@ export class MptComponent implements AfterViewChecked {
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -1596,7 +1619,7 @@ export class MptComponent implements AfterViewChecked {
           this.tokenCountField = '';
           this.amountField = '';
           this.isTicket = false;
-          this.isMultiSign = false;
+          this.useMultiSign = false;
           this.multiSignAddress = '';
           this.flags.isClawback = false;
           this.flags.isLock = false;

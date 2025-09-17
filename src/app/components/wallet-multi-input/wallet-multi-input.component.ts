@@ -60,7 +60,7 @@ export class WalletMultiInputComponent {
           encryptionAlgorithm: '',
      };
 
-     constructor(private storageService: StorageService, private xrplService: XrplService, private utilsService: UtilsService) {}
+     constructor(private readonly storageService: StorageService, private readonly xrplService: XrplService, private readonly utilsService: UtilsService) {}
 
      ngOnInit() {
           // Load saved input values

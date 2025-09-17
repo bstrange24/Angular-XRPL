@@ -21,15 +21,19 @@ interface ValidationInputs {
      finishTime?: string;
      cancelTime?: string;
      sequence?: string;
+     escrow_objects?: any;
      destinationTag?: string;
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     isMultiSign?: boolean;
-     multiSignAddresses?: string;
+     // isMultiSign?: boolean;
+     useMultiSign?: boolean;
      multiSignSeeds?: string;
+     multiSignAddresses?: string;
      isTicket?: boolean;
      ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface EscrowObject {
@@ -102,7 +106,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      isMultiSignTransaction: boolean = false;
-     isMultiSign: boolean = false;
+     // isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      multiSignSeeds: string = '';
      multiSignAddress: string = '';
      isRegularKeyAddress: boolean = false;
@@ -113,8 +118,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      issuers: string[] = [];
      destinationFields: string = '';
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      tokenBalance: string = '';
-     // Add a map of known issuers for tokens
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
           XRP: '',
@@ -132,7 +137,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      escrowCancelDateTimeField: string = '';
      escrowFinishDateTimeField: string = '';
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      async ngOnInit(): Promise<void> {
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
@@ -209,7 +214,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -245,8 +250,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.selectedIssuer = '';
           this.tokenBalance = '';
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
-               const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
-               const address = this.utilsService.getSelectedAddressWithOutIssuer(this.selectedAccount, this.account1, this.account2);
+               const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+               const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
@@ -276,19 +281,24 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      async getEscrowOwnerAddress() {
-          const activeAccount = this.getActiveAccount();
-          if (!activeAccount || !activeAccount.address) {
-               console.error('No account selected or address missing');
-               return;
-          }
-
-          if (!xrpl.isValidAddress(activeAccount.address)) {
-               console.error('Invalid address');
-               return;
-          }
+          let inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+          };
 
           const client = await this.xrplService.getClient();
-          const escrowsTx = await this.xrplService.getAccountObjects(client, activeAccount.address, 'validated', 'escrow');
+          const escrowsTx = await this.xrplService.getAccountObjects(client, inputs.senderAddress ? inputs.senderAddress : '', 'validated', 'escrow');
+
+          inputs = {
+               ...inputs,
+               account_info: escrowsTx,
+          };
+
+          const errors = await this.validateInputs(inputs, 'getEscrowOwnerAddress');
+          if (errors.length > 0) {
+               return this.setError(`ERROR: ${errors.join('; ')}`);
+          }
+          console.debug(`accountInfo for ${inputs.senderAddress ? inputs.senderAddress : ''} ${JSON.stringify(escrowsTx, null, '\t')}`);
 
           const previousTxnIDs = escrowsTx.result.account_objects.map(obj => obj.PreviousTxnID);
           console.log(`PreviousTxnIDs: ${JSON.stringify(previousTxnIDs, null, '\t')}`);
@@ -299,7 +309,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }));
 
           if (previousTxnIDs.length === 0) {
-               this.escrowOwnerField = activeAccount.address;
+               this.escrowOwnerField = inputs.senderAddress ? inputs.senderAddress : '';
           } else {
                for (const [index, previousTxnID] of previousTxnIDs.entries()) {
                     if (typeof previousTxnID === 'string') {
@@ -315,19 +325,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          }
                     }
                }
-          }
-     }
-
-     private getActiveAccount() {
-          switch (this.selectedAccount) {
-               case 'account1':
-                    return this.account1;
-               case 'account2':
-                    return this.account2;
-               case 'issuer':
-                    return this.issuer;
-               default:
-                    return null;
           }
      }
 
@@ -353,7 +350,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'getCredentialsForAccount');
+               const errors = await this.validateInputs(inputs, 'get');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -414,9 +411,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                                    openByDefault: false,
                                    content: [
                                         { key: 'Owner', value: `<code>${Owner || 'N/A'}</code>` },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID || 'N/A'}</code>` },
                                         { key: 'Sequence', value: Sequence !== null && Sequence !== undefined ? String(Sequence) : 'N/A' },
-                                        { key: 'Ticket Sequence', value: TicketSequence !== null && TicketSequence !== undefined ? String(TicketSequence) : 'N/A' },
                                         { key: 'Amount', value: Amount ? `${xrpl.dropsToXrp(Amount)} XRP` : 'N/A' },
                                         { key: 'Destination', value: Destination ? `<code>${Destination}</code>` : 'N/A' },
                                         ...(Condition ? [{ key: 'Condition', value: `<code>${Condition}</code>` }] : []),
@@ -424,6 +419,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                                         ...(FinishAfter ? [{ key: 'Finish After', value: this.utilsService.convertXRPLTime(FinishAfter) }] : []),
                                         ...(DestinationTag ? [{ key: 'Destination Tag', value: String(DestinationTag) }] : []),
                                         ...(Memo ? [{ key: 'Memo', value: this.utilsService.decodeHex(Memo) }] : []),
+                                        { key: 'Ticket Sequence', value: TicketSequence !== null && TicketSequence !== undefined ? String(TicketSequence) : 'N/A' },
+                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID || 'N/A'}</code>` },
                                         ...(escrow && (escrow as any).SourceTag ? [{ key: 'Source Tag', value: String((escrow as any).SourceTag) }] : []),
                                    ],
                               };
@@ -433,11 +430,15 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                this.utilsService.renderPaymentChannelDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), wallet);
+               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                this.getEscrowOwnerAddress();
+
+               if (this.currencyFieldDropDownValue !== 'XRP') {
+                    await this.updatedTokenBalance(client, wallet);
+               }
 
                this.isMemoEnabled = false;
                this.memoField = '';
@@ -462,13 +463,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           console.log('t: ', t);
           const r = this.utilsService.convertDateTimeToRippleTime(this.escrowCancelDateTimeField);
           console.log('r: ', r);
-          if (1 == 1) {
-               return this.setError('ERROR: Finish After time must be provided');
-          }
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
@@ -478,9 +476,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -503,7 +501,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                const finishAfterTime = this.utilsService.addTime(this.escrowFinishTimeField, this.escrowFinishTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
                const cancelAfterTime = this.utilsService.addTime(this.escrowCancelTimeField, this.escrowCancelTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -555,7 +553,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -637,27 +635,32 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                sequence: this.escrowSequenceNumberField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
 
           try {
+               this.updateSpinnerMessage('Finishing Escrow ...');
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
+               const escrow = await this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField));
 
                inputs = {
                     ...inputs,
                     account_info: accountInfo,
+                    escrow_objects: escrowObjects,
                };
 
                const errors = await this.validateInputs(inputs, 'finish');
@@ -665,26 +668,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Finishing Escrow ...');
-
-               // Fetch escrow objects for the account
-               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
-               if (escrowObjects.result.account_objects.length <= 0) {
-                    return this.setError(`No escrows found for account ${wallet.classicAddress}`);
-               }
-
-               // Find the escrow with the specified sequence number
-               const escrow = await this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField));
-               if (!escrow) {
-                    return this.setError(`No escrow found for sequence ${this.escrowSequenceNumberField}`);
-               }
-               const escrowOwner = escrow.Account;
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                // Check if the escrow can be canceled based on the CancelAfter time
                const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
-               const escrowStatus = this.utilsService.checkTimeBasedEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishEscrow');
+               const escrowStatus = this.utilsService.checkTimeBasedEscrowStatus({ FinishAfter: escrow.FinishAfter, CancelAfter: escrow.CancelAfter, owner: escrow.Account }, currentRippleTime, wallet.classicAddress, 'finishEscrow');
 
                if (!escrowStatus.canFinish && !escrowStatus.canCancel) {
                     return this.setError(`ERROR:\n${escrowStatus.reasonCancel}\n${escrowStatus.reasonFinish}`);
@@ -693,10 +681,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (!escrowStatus.canFinish) {
                     return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
                }
-
-               // if (!escrowStatus.canCancel) {
-               // return this.setError(`ERROR: ${escrowStatus.reasonCancel}`);
-               // }
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -726,7 +710,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -807,14 +791,14 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                sequence: this.escrowSequenceNumberField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
@@ -826,10 +810,12 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
 
                inputs = {
                     ...inputs,
                     account_info: accountInfo,
+                    escrow_objects: escrowObjects,
                };
 
                const errors = await this.validateInputs(inputs, 'cancel');
@@ -837,13 +823,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               // Fetch escrow objects for the account
-               const escrowObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow');
-               if (escrowObjects.result.account_objects.length <= 0) {
-                    return this.setError(`No escrows found for account ${wallet.classicAddress}`);
-               }
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                let foundSequenceNumber = false;
                let escrowOwner = this.account1.address;
@@ -908,7 +888,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -1010,7 +990,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1025,8 +1005,17 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
+               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+               this.masterKeyDisabled = false;
           }
 
           // Always reset memo fields
@@ -1041,11 +1030,19 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -1150,6 +1147,27 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     asyncValidators?: (() => Promise<string | null>)[];
                }
           > = {
+               getEscrowOwnerAddress: {
+                    required: ['senderAddress'],
+                    customValidators: [() => isValidXrpAddress(inputs.senderAddress, 'Account not found'), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
+                    asyncValidators: [],
+               },
+               toggleIssuerField: {
+                    required: ['selectedAccount', 'seed'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         // () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         // () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         // () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         // () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                    ],
+                    asyncValidators: [],
+               },
                get: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
@@ -1165,15 +1183,15 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.cancelTime, 'Escrow cancel time', 0),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
@@ -1182,15 +1200,16 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.sequence, 'Escrow sequence number', 0),
+                         () => (inputs.escrow_objects === undefined || inputs.escrow_objects === null ? `No escrows found for account` : null),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -1201,13 +1220,13 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.sequence, 'Escrow sequence number', 0),
                          () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.isMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
                     asyncValidators: [],
                },
@@ -1415,6 +1434,25 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                this.escrowCancelDateTimeField = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
           }
+     }
+
+     private async updatedTokenBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const tokenBalanceData = await this.utilsService.getTokenBalance(client, wallet.classicAddress, this.currencyFieldDropDownValue, '');
+          this.issuers = tokenBalanceData.issuers;
+          this.tokenBalance = tokenBalanceData.total.toString();
+          const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, wallet.classicAddress);
+          console.log(`balanceResult ${balanceResult}`);
+          if (balanceResult) {
+               this.tokenBalance = Math.abs(balanceResult).toString();
+          }
+          if (this.selectedAccount === 'account1') {
+               this.account1.balance = tokenBalanceData.xrpBalance.toString();
+          } else if (this.selectedAccount === 'account2') {
+               this.account2.balance = tokenBalanceData.xrpBalance.toString();
+          } else {
+               this.issuer.balance = tokenBalanceData.xrpBalance.toString();
+          }
+          this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
      }
 
      private setErrorProperties() {

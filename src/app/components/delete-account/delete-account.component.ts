@@ -18,16 +18,16 @@ interface ValidationInputs {
      account_info?: any;
      destination?: string;
      destinationTag?: string;
-     regularKeySeed?: string;
-     isMultiSign?: boolean;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
      isRegularKeyAddress?: boolean;
-     regularKeyAccount?: string;
-     regularKeyAccountSeeds?: string;
      regularKeyAddress?: string;
+     regularKeySeed?: string;
+     useMultiSign?: boolean;
+     multiSignSeeds?: string;
+     multiSignAddresses?: string;
      isTicket?: boolean;
      ticketSequence?: string;
+     signerQuorum?: number;
+     signers?: { account: string; weight: number }[];
 }
 
 interface SignerEntry {
@@ -70,7 +70,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      isMemoEnabled: boolean = false;
      memoField: string = '';
      isMultiSignTransaction: boolean = false;
-     isMultiSign: boolean = false;
+     useMultiSign: boolean = false;
      isRegularKeyAddress: boolean = false;
      regularKeyAddress: string = '';
      regularKeySeed: string = '';
@@ -78,12 +78,13 @@ export class DeleteAccountComponent implements AfterViewChecked {
      multiSignSeeds: string = '';
      spinner: boolean = false;
      spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
      destinationFields: string = '';
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
 
      ngOnInit(): void {
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
@@ -142,7 +143,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      async toggleMultiSign() {
           try {
-               if (!this.isMultiSign) {
+               if (!this.useMultiSign) {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
@@ -210,7 +211,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(accountObjects, wallet);
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
@@ -239,9 +240,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
                destinationTag: this.destinationTagField,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               isMultiSign: this.isMultiSign,
-               multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
           };
           const errors = await this.validateInputs(inputs, 'deleteAccount');
           if (errors.length > 0) {
@@ -253,7 +254,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.isMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                this.updateSpinnerMessage('Deleting account ...');
 
@@ -290,7 +291,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
                let signedTx: { tx_blob: string; hash: string } | null = null;
 
-               if (this.isMultiSign) {
+               if (this.useMultiSign) {
                     const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
                     if (signerAddresses.length === 0) {
                          return this.setError('ERROR: No signer addresses provided for multi-signing');
@@ -411,7 +412,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -426,8 +427,17 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.isMultiSign = false;
                this.storageService.removeValue('signerEntries');
+          }
+
+          this.useMultiSign = false;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.masterKeyDisabled = true;
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.useMultiSign = false;
           }
      }
 
@@ -438,11 +448,19 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
+          }
+
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.masterKeyDisabled = true;
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
+               this.masterKeyDisabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -551,7 +569,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           > = {
                getAccountDetails: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [() => isValidSeed(inputs.seed)],
+                    customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                deleteAccount: {
@@ -560,12 +578,16 @@ export class DeleteAccountComponent implements AfterViewChecked {
                          () => isValidSeed(inputs.seed),
                          () => isValidXrpAddress(inputs.destination, 'Destination address'),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (this.isRegularKeyAddress && !this.isMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
@@ -692,7 +714,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           if (clearAllFields) {
                this.destinationTagField = '';
                this.isRegularKeyAddress = false;
-               this.isMultiSign = false;
+               this.useMultiSign = false;
           }
           this.memoField = '';
           this.isMemoEnabled = false;

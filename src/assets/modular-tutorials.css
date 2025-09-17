@@ -1,3 +1,14 @@
+.app-scale {
+     transform: scale(0.9);
+     transform-origin: top left;
+     width: 111.111%;
+     /* compensate to prevent horizontal scroll */
+     box-sizing: border-box;
+     margin: 0 auto;
+     padding-left: 5px;
+     padding-right: 5px;
+}
+
 .main-container {
      padding: 10px;
      /* Adds 20px space around all content */
@@ -1860,4 +1871,8 @@ mark {
      width: 300px;
      /* consistent input/dropdown width */
      height: 28px;
+}
+
+.masterKeyDisabledClass {
+     color: red;
 }
