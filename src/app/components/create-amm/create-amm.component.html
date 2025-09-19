@@ -168,7 +168,7 @@
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Amounts of assets in pool 1.">
-                                             <label for="assetPool1Balance">Asset in Pool 1</label>
+                                             <label for="assetPool1Balance">Total Assets in Pool 1</label>
                                         </span>
                                    </td>
                                    <td>
@@ -182,7 +182,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" [(ngModel)]="tradingFeeField" name="tradingFeeField" id="tradingFeeField" size="42" />
+                                        <input type="text" [(ngModel)]="tradingFeeField" placeholder="Example: 500 is 0.05%" name="tradingFeeField" id="tradingFeeField" size="42" />
                                    </td>
                               </tr>
                               <tr>
@@ -255,10 +255,7 @@
                                    </td>
                                    <td>
                                         <select class="timeUnit" id="weSpendCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
-                                             <option value="XRP">XRP</option>
-                                             <option value="RLUSD">RLUSD</option>
-                                             <option value="USD">USD</option>
-                                             <option value="USDC">USDC</option>
+                                             <option *ngFor="let curr of xrpOnly" [value]="curr">{{curr}}</option>
                                         </select>
                                    </td>
                               </tr>
@@ -295,7 +292,7 @@
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Amounts of assets in pool 2.">
-                                             <label for="assetPool2Balance">Asset in Pool 2</label>
+                                             <label for="assetPool2Balance">Total Assets in Pool 2</label>
                                         </span>
                                    </td>
                                    <td>
@@ -336,7 +333,6 @@
                                         <button type="button" (click)="createAMM()">Create AMM</button>
                                         <button type="button" (click)="depositToAMM()">Deposit Token to AMM</button>
                                         <button type="button" (click)="withdrawlTokenFromAMM()">Withdrawl Token from AMM</button>
-                                        <button type="button" (click)="withdrawlLpFromAMM()">Withdrawl LP from AMM</button>
                                         <button type="button" (click)="clawbackFromAMM()">AMM Clawback</button>
                                         <button type="button" (click)="swapViaAMM()">Swap via AMM</button>
                                    </td>

@@ -46,16 +46,16 @@
           "configurations": {
             "production": {
               "budgets": [
-               {
-                    "type": "initial",
-                    "maximumWarning": "4MB",
-                    "maximumError": "4MB"
-                  },
-                  {
-                    "type": "anyComponentStyle",
-                    "maximumWarning": "6KB",
-                    "maximumError": "10KB"
-                  }
+                {
+                  "type": "initial",
+                  "maximumWarning": "4MB",
+                  "maximumError": "4MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "6KB",
+                  "maximumError": "10KB"
+                }
               ],
               "outputHashing": "all"
             },
@@ -102,11 +102,23 @@
             ],
             "scripts": []
           }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
+          }
         }
       }
     }
   },
   "cli": {
-    "analytics": false
+    "analytics": false,
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   }
 }

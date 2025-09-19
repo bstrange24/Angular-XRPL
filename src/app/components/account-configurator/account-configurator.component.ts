@@ -156,7 +156,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
           } catch (error: any) {
-               console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
+               console.error(`No wallet could be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();

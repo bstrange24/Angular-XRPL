@@ -189,7 +189,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                }
                this.updateDestinations();
-          } catch (error) {
+          } catch (error: any) {
+               console.error(`No wallet could be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -244,25 +245,19 @@ export class TrustlinesComponent implements AfterViewChecked {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -288,7 +283,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.showSpinnerWithDelay('Getting Trustlines...', 200);
+               this.showSpinnerWithDelay('Getting Trustlines...', 100);
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
@@ -341,25 +336,39 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
                     this.gatewayBalance = '';
                } else {
-                    // Group trust lines by currency and issuer, and calculate total balance for each
-                    const balanceByToken = activeTrustLines.reduce((acc: { [key: string]: number }, line: xrpl.LedgerEntry.RippleState) => {
+                    // Group by currency and counterparty instead
+                    const balanceByCounterparty = activeTrustLines.reduce((acc: { [key: string]: number }, line: xrpl.LedgerEntry.RippleState) => {
                          const currency = this.utilsService.decodeIfNeeded(line.Balance.currency);
 
-                         const isLow = wallet.classicAddress < line.HighLimit.issuer;
-                         const issuer = isLow ? line.HighLimit.issuer : line.LowLimit.issuer;
-                         const balance = parseFloat(line.Balance.value);
+                         const isOurWalletLow = wallet.classicAddress === line.LowLimit.issuer;
+                         const isOurWalletHigh = wallet.classicAddress === line.HighLimit.issuer;
 
-                         const key = `${currency}:${issuer}`;
+                         if (!isOurWalletLow && !isOurWalletHigh) {
+                              return acc;
+                         }
+
+                         const counterparty = isOurWalletLow ? line.HighLimit.issuer : line.LowLimit.issuer;
+                         let balance = parseFloat(line.Balance.value);
+
+                         if (isOurWalletHigh) {
+                              balance = 0;
+                         } else if (isOurWalletLow) {
+                              balance = -balance;
+                         }
+
+                         // Group by counterparty instead of token issuer
+                         const key = `${currency}:${counterparty}`;
                          acc[key] = (acc[key] || 0) + balance;
                          return acc;
                     }, {} as { [key: string]: number });
 
                     // Format totals for display
-                    const totalBalances = Object.entries(balanceByToken).map(([key, balance]) => {
-                         const [currency, issuer] = key.split(':');
+                    const totalBalances = Object.entries(balanceByCounterparty).map(([key, balance]) => {
+                         const [currency, counterparty] = key.split(':');
                          const formattedBalance = balance.toFixed(8);
+
                          return {
-                              key: `Total ${currency} Balance${issuer !== 'no-issuer' ? ` (Issuer: ${issuer})` : ''}`,
+                              key: `Total ${currency} Balance (Counterparty: ${counterparty})`,
                               value: `${formattedBalance} ${currency}`,
                          };
                     });
@@ -370,22 +379,41 @@ export class TrustlinesComponent implements AfterViewChecked {
                          content: totalBalances, // Display all token totals
                          subItems: activeTrustLines.map((line, index) => {
                               const currency = this.utilsService.decodeIfNeeded(line.Balance.currency);
-                              const isLow = wallet.classicAddress < line.HighLimit.issuer;
-                              const issuer = isLow ? line.HighLimit.issuer : line.LowLimit.issuer;
-                              const limit = isLow ? line.LowLimit.value : line.HighLimit.value;
-                              const balance = line.Balance.value;
+
+                              const isOurWalletLow = wallet.classicAddress === line.LowLimit.issuer;
+                              const isOurWalletHigh = wallet.classicAddress === line.HighLimit.issuer;
+
+                              const counterparty = isOurWalletLow ? line.HighLimit.issuer : line.LowLimit.issuer;
+                              const ourLimit = isOurWalletLow ? line.LowLimit.value : line.HighLimit.value;
+                              const theirLimit = isOurWalletLow ? line.HighLimit.value : line.LowLimit.value;
+
+                              let ourBalance = parseFloat(line.Balance.value);
+                              let balanceStatus = '';
+
+                              if (isOurWalletHigh) {
+                                   // We're the HIGH account with limit 0 - we can't hold positive balance
+                                   if (parseFloat(ourLimit) === 0) {
+                                        balanceStatus = `(Unreceivable: ${ourBalance} ${currency} owed by counterparty)`;
+                                        ourBalance = 0;
+                                   } else {
+                                        ourBalance = -ourBalance;
+                                   }
+                              } else if (isOurWalletLow) {
+                                   // We're the LOW account - negative balance means we owe
+                                   ourBalance = -ourBalance;
+                              }
 
                               return {
-                                   key: `Trust Line ${index + 1} (${currency}, Issuer: ${issuer})`,
+                                   key: `Trust Line ${index + 1} (${currency}, Counterparty: ${counterparty})`,
                                    openByDefault: false,
                                    content: [
                                         { key: 'Currency', value: currency },
-                                        { key: 'Issuer', value: `<code>${issuer}</code>` },
-                                        { key: 'Balance', value: `${balance} ${currency}` },
-                                        { key: 'Limit', value: limit },
+                                        { key: 'Account Balance', value: `${ourBalance} ${currency} ${balanceStatus}` },
+                                        { key: 'Account Limit', value: ourLimit },
+                                        { key: 'Account Position', value: isOurWalletLow ? 'Low Account' : 'High Account' },
+                                        { key: 'Counterparty', value: `<code>${counterparty}</code>` },
+                                        { key: 'Counter Party Limit', value: theirLimit },
                                         { key: 'Flags', value: this.decodeRippleStateFlags(line.Flags).join(', ') || 'None' },
-                                        { key: 'PreviousTxnID', value: String(line.PreviousTxnID) },
-                                        { key: 'Index', value: String(line.index) },
                                    ],
                               };
                          }),
@@ -416,17 +444,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                          const balanceItems = [];
                          for (const [issuer, currencies] of Object.entries(tokenBalance.result.assets)) {
                               for (const { currency, value } of currencies) {
-                                   let displayCurrency = currency;
-                                   const curr = this.utilsService.decodeIfNeeded(this.currencyField);
-                                   if (currency.length > 3) {
-                                        const tempCurrency = currency;
-                                        displayCurrency = this.utilsService.decodeCurrencyCode(currency);
-                                        if (displayCurrency.length > 8) {
-                                             displayCurrency = tempCurrency;
-                                        }
-                                   }
+                                   let displayCurrency = this.utilsService.formatValueForKey('currency', currency);
                                    balanceItems.push({
-                                        key: `${displayCurrency} from ${issuer}`,
+                                        key: `${this.utilsService.formatCurrencyForDisplay(currency)} from ${issuer}`,
                                         openByDefault: false,
                                         content: [
                                              { key: 'Currency', value: displayCurrency },
@@ -1459,148 +1479,29 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-          };
-
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
-
-               const errors = await this.validateInputs(inputs, 'onCurrencyChange');
-               if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
-               }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
-
-               this.spinner = true;
                await this.updateCurrencyBalance(wallet);
 
-               // Fetch token balances
                const gatewayBalances = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
                console.debug(`gatewayBalances ${wallet.classicAddress} ${JSON.stringify(gatewayBalances.result, null, '\t')}`);
 
-               // Prepare data for rendering
-               interface SectionContent {
-                    key: string;
-                    value: string;
-               }
-
-               interface SectionSubItem {
-                    key: string;
-                    openByDefault: boolean;
-                    content: SectionContent[];
-               }
-
-               interface Section {
-                    title: string;
-                    openByDefault: boolean;
-                    content?: SectionContent[];
-                    subItems?: SectionSubItem[];
-               }
-
-               const data: { sections: Section[] } = {
-                    sections: [],
-               };
-
-               interface SectionContent {
-                    key: string;
-                    value: string;
-               }
-
-               interface SectionSubItem {
-                    key: string;
-                    openByDefault: boolean;
-                    content: SectionContent[];
-               }
-
-               interface Section {
-                    title: string;
-                    openByDefault: boolean;
-                    content?: SectionContent[];
-                    subItems?: SectionSubItem[];
-               }
-
-               // Obligations section (tokens issued by the account)
-               if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
-                    data.sections.push({
-                         title: `Issuer Obligations (${Object.keys(gatewayBalances.result.obligations).length})`,
-                         openByDefault: true,
-                         subItems: Object.entries(gatewayBalances.result.obligations).map(([oblCurrency, amount], index) => {
-                              const displayCurrency = this.utilsService.decodeIfNeeded(oblCurrency);
-                              return {
-                                   key: `Obligation ${index + 1} (${displayCurrency})`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'Currency', value: displayCurrency },
-                                        { key: 'Amount', value: amount },
-                                   ],
-                              };
-                         }),
-                    });
-               } else {
-                    this.gatewayBalance = '';
-                    data.sections.push({
-                         title: 'Issuer Obligations',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: 'No obligations issued' }],
-                    });
-               }
-
-               // Balances section (tokens held by the account)
                let balanceTotal: number = 0;
                if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
-                    const balanceItems = [];
                     for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
                          for (const { currency, value } of currencies) {
-                              let displayCurrency = currency;
-                              const curr = this.utilsService.decodeIfNeeded(this.currencyField);
-                              if (currency.length > 3) {
-                                   const tempCurrency = currency;
-                                   displayCurrency = this.utilsService.decodeCurrencyCode(currency);
-                                   if (displayCurrency.length > 8) {
-                                        displayCurrency = tempCurrency;
-                                   }
-                              }
-                              balanceItems.push({
-                                   key: `${displayCurrency} from ${issuer.slice(0, 8)}...`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'Currency', value: displayCurrency },
-                                        { key: 'Issuer', value: `<code>${issuer}</code>` },
-                                        { key: 'Amount', value: value },
-                                   ],
-                              });
-
-                              if (displayCurrency === this.currencyField) {
+                              if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyField) {
                                    balanceTotal = balanceTotal + Number(value);
                               }
                          }
                     }
-                    data.sections.push({
-                         title: `Balances (${balanceItems.length})`,
-                         openByDefault: true,
-                         subItems: balanceItems,
-                    });
                     this.gatewayBalance = balanceTotal.toString();
-               } else {
-                    this.updateGatewayBalance(gatewayBalances);
-                    data.sections.push({
-                         title: 'Balances',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: 'No balances (tokens held by you)' }],
-                    });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
                this.destinationFields = this.knownTrustLinesIssuers[this.currencyField];
+               this.getTrustlinesForAccount();
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
                this.currencyBalanceField = '0';

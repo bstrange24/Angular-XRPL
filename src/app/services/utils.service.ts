@@ -543,20 +543,51 @@ export class UtilsService {
                .filter((s: string) => s.length > 0 && s !== '');
      }
 
-     labelCurrencyCode(code: String) {
-          if (code.length === 40) {
-               return `LP-${code.slice(0, 40).toUpperCase()}`;
-          } else {
-               return code;
-          }
-     }
-
      populateKnownDestinations(knownDestinations: any, account1: string, account2: string, issuer: string) {
           return (knownDestinations = {
                Account1: account1,
                Account2: account2,
                Account3: issuer,
           });
+     }
+
+     formatTokenBalance(field: string, roundTo: number): string {
+          Number(field).toLocaleString();
+          return Number(field).toLocaleString(undefined, {
+               minimumFractionDigits: 0,
+               maximumFractionDigits: roundTo, // enough to preserve precision
+               useGrouping: true,
+          });
+     }
+
+     removeCommaFromAmount(field: string): string {
+          return field.replace(/,/g, '');
+     }
+
+     formatCurrencyForDisplay(v: any): string {
+          const strV = String(v);
+          const normalizedCurrency = this.normalizeCurrencyCode(strV);
+          if (normalizedCurrency === '') {
+               return `(LP Token) ${strV}`;
+          } else {
+               return `${normalizedCurrency}`;
+          }
+     }
+
+     formatValueForKey(k: string, v: any): string {
+          const strV = String(v);
+          if (k === 'index' || k === 'Account' || k === 'issuer') {
+               return `<code>${strV}</code>`;
+          }
+          if (k === 'currency') {
+               const normalizedCurrency = this.normalizeCurrencyCode(strV);
+               if (normalizedCurrency === '') {
+                    return `(LP Token) <code>${strV}</code>`;
+               } else {
+                    return `<code>${normalizedCurrency}</code>`;
+               }
+          }
+          return strV;
      }
 
      normalizeAccounts(accounts: Record<string, string>, newAddress: string): Record<string, string> {
@@ -1369,7 +1400,8 @@ export class UtilsService {
                                    } else if (typeof obj[field] === 'object') {
                                         content = Object.entries(obj[field]).map(([k, v]) => ({
                                              key: k,
-                                             value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : k === 'currency' ? this.decodeIfNeeded(String(v)) : String(v),
+                                             value: this.formatValueForKey(k, v),
+                                             // value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : k === 'currency' ? this.decodeIfNeeded(String(v)) : String(v),
                                              // value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : this.decodeIfNeeded(String(v)),
                                         }));
                                    } else if (nestedFields.includes('HighLimit') && field === 'Flags') {
