@@ -721,14 +721,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, '\t'));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
 
@@ -886,14 +886,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     this.updateSpinnerMessage(`Submitting DepositPreauth for ${authorizedAddress} to the Ledger...`);
                     const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, '\t'));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                         console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          return this.setError(`ERROR: Transaction failed for ${authorizedAddress}`);
                     }
 
+                    console.log('Submit Response:', JSON.stringify(response, null, '\t'));
                     const result = response.result;
                     results.push({ result });
                }
@@ -1003,15 +1003,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
 
                const response = await client.submitAndWait(signedTx.tx_blob, { wallet });
-               console.log(`response, ${JSON.stringify(response, null, 2)}`);
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
-               // Success flow
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1146,14 +1145,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
 
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, '\t'));
-
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, '\t'));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);

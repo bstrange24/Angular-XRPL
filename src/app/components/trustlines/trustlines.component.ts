@@ -22,7 +22,6 @@ interface ValidationInputs {
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     // isMultiSign?: boolean;
      useMultiSign?: boolean;
      multiSignSeeds?: string;
      multiSignAddresses?: string;
@@ -89,7 +88,6 @@ export class TrustlinesComponent implements AfterViewChecked {
      totalXrpReserves: string = '';
      executionTime: string = '';
      destinationTagField: string = '';
-     // isMultiSign = false;
      useMultiSign: boolean = false;
      multiSignAddress: string = '';
      isUpdateMetaData = false;
@@ -106,7 +104,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
      private knownTrustLinesIssuers: { [key: string]: string } = {
-          RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+          // RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
           XRP: '',
      };
      private knownDestinations: { [key: string]: string } = {};
@@ -327,7 +325,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               // const activeTrustLines: TrustLine[] = activeTrustLine as TrustLine[];
                if (activeTrustLines.length === 0) {
                     data.sections.push({
                          title: 'Trust Lines',
@@ -470,9 +467,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-               this.amountField = '';
+               this.clearFields(false);
 
                const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
                const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
@@ -673,20 +668,19 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Response:', JSON.stringify(response, null, '\t'));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -890,20 +884,19 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Response:', JSON.stringify(response, null, '\t'));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -1094,14 +1087,14 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                     const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Response:', JSON.stringify(response, null, '\t'));
 
                     if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                         console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                          this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                          return;
                     }
 
+                    console.log('Response:', JSON.stringify(response, null, '\t'));
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
@@ -1299,8 +1292,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               this.clearFields(false);
 
                await this.updateXrpBalance(client, wallet);
                await this.updateCurrencyBalance(wallet);
@@ -1447,14 +1439,14 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting Clawback transaction...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1497,7 +1489,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               }
                          }
                     }
-                    this.gatewayBalance = balanceTotal.toString();
+                    this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
                }
 
                this.destinationFields = this.knownTrustLinesIssuers[this.currencyField];
@@ -1578,9 +1570,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.multiSigningEnabled = false;
           }
 
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
+          this.clearFields(false);
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -1850,10 +1840,13 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      private updateDestinations() {
           const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-          // this.destinations = [...Object.values(knownDestinationsTemp)];
-          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '' && d !== 'XRP');
           this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
           this.destinationFields = this.issuer.address;
+     }
+
+     get currencyOptions(): string[] {
+          return Object.values(this.currencies).filter(key => key !== 'XRP');
      }
 
      async getWallet() {
@@ -1906,8 +1899,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
-                    await this.onCurrencyChange();
-                    await this.getTrustlinesForAccount();
+                    await Promise.all([this.onCurrencyChange(), this.getTrustlinesForAccount()]);
+                    // await this.onCurrencyChange();
+                    // await this.getTrustlinesForAccount();
                } else if (address) {
                     this.setError('Invalid XRP address');
                }
@@ -1931,10 +1925,9 @@ export class TrustlinesComponent implements AfterViewChecked {
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
                this.amountField = '';
-               this.currencyField = '';
-               this.currencyBalanceField = '0';
                this.destinationTagField = '';
           }
+          this.isMemoEnabled = false;
           this.memoField = '';
           this.ticketSequence = '';
           this.isTicket = false;
@@ -1958,7 +1951,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (wallet.classicAddress) {
                const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, wallet.classicAddress);
                balance = balanceResult !== null ? balanceResult.toString() : '0';
-               this.currencyBalanceField = balance;
+               this.currencyBalanceField = this.utilsService.formatTokenBalance(balance, 18);
           } else {
                this.currencyBalanceField = '0';
           }
@@ -1967,7 +1960,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      private updateGatewayBalance(gatewayBalances: xrpl.GatewayBalancesResponse) {
           if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
                const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
-               this.gatewayBalance = gatewayBalances.result.obligations[displayCurrency];
+               this.gatewayBalance = this.utilsService.formatTokenBalance(gatewayBalances.result.obligations[displayCurrency], 18);
           }
      }
 

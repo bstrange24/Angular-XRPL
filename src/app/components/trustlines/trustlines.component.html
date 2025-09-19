@@ -82,7 +82,7 @@
                                    </td>
                                    <td>
                                         <select class="timeUnit" id="currencyField" [(ngModel)]="currencyField" (ngModelChange)="onCurrencyChange()" name="currencyField">
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                             <option *ngFor="let curr of currencyOptions" [value]="curr">{{ curr }}</option>
                                         </select>
                                    </td>
                               </tr>
@@ -115,7 +115,7 @@
                                         <label for="destinationFields">Destination</label>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" (ngModelChange)="clearFields(true)" name="destinationFields">
                                              <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
                                         </select>
                                    </td>
