@@ -153,7 +153,8 @@ export class CreateNftComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-          } catch (error) {
+          } catch (error: any) {
+               console.error(`No wallet could be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -208,25 +209,19 @@ export class CreateNftComponent implements AfterViewChecked {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -240,66 +235,51 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          const inputs: ValidationInputs = {
+          let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
           };
-          const errors = this.validateInputs(inputs, 'get');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
                this.showSpinnerWithDelay('Getting NFT Details ...', 100);
 
-               const accountNfts = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
-               console.debug(`Account Nft objects: ${JSON.stringify(accountNfts, null, '\t')}`);
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+               const classicAddress = wallet.classicAddress;
 
-               // Prepare data for renderAccountDetails
+               const errors = this.validateInputs(inputs, 'get');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+
+               // ➤ PHASE 1: PARALLELIZE all independent API calls
+               const [accountNfts, accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountNFTs(client, classicAddress, 'validated', ''), this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`account objects:`, accountObjects.result);
+               console.debug(`Account NFTs:`, accountNfts.result);
+
+               // Prepare data structure
                const data = {
                     sections: [{}],
                };
 
-               if (accountNfts.result.account_nfts.length <= 0) {
+               const nfts = accountNfts.result.account_nfts || [];
+
+               if (nfts.length <= 0) {
                     data.sections.push({
                          title: 'NFTs',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No NFTs found for <code>${wallet.classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No NFTs found for <code>${classicAddress}</code>` }],
                     });
                } else {
-                    interface NFT {
-                         NFTokenID: string;
-                         NFTokenTaxon: number;
-                         Issuer?: string;
-                         URI?: string;
-                         Flags: number;
-                         TransferFee?: number;
-                         nft_serial?: number;
-                    }
-
-                    interface NFTSectionContent {
-                         key: string;
-                         value: string;
-                    }
-
-                    interface NFTSectionSubItem {
-                         key: string;
-                         openByDefault: boolean;
-                         content: NFTSectionContent[];
-                    }
-
-                    interface NFTSection {
-                         title: string;
-                         openByDefault: boolean;
-                         subItems: NFTSectionSubItem[];
-                    }
-
+                    // Define flags (you can move this to a constant outside the function if reused elsewhere)
                     const TF_BURNABLE = 0x00000001;
-                    const burnableNftIds = accountNfts.result.account_nfts.filter((nft: { Flags: number }) => (nft.Flags & TF_BURNABLE) !== 0).map((nft: { NFTokenID: any }) => nft.NFTokenID);
+
+                    // Filter burnable NFTs
+                    const burnableNftIds = nfts.filter((nft: any) => (nft.Flags & TF_BURNABLE) !== 0).map((nft: any) => nft.NFTokenID);
+
                     if (burnableNftIds.length > 0) {
                          data.sections.push({
                               title: `Burnable NFT IDs`,
@@ -308,7 +288,10 @@ export class CreateNftComponent implements AfterViewChecked {
                                    {
                                         key: `NFT ID's`,
                                         openByDefault: false,
-                                        content: burnableNftIds.map((id: any) => ({ key: 'NFToken ID', value: `<code>${id}</code>` })),
+                                        content: burnableNftIds.map((id: any) => ({
+                                             key: 'NFToken ID',
+                                             value: `<code>${id}</code>`,
+                                        })),
                                    },
                               ],
                          });
@@ -320,11 +303,13 @@ export class CreateNftComponent implements AfterViewChecked {
                          });
                     }
 
+                    // Add all NFTs section
                     data.sections.push({
-                         title: `NFTs (${accountNfts.result.account_nfts.length})`,
+                         title: `NFTs (${nfts.length})`,
                          openByDefault: true,
-                         subItems: (accountNfts.result.account_nfts as NFT[]).map((nft: NFT, index: number): NFTSectionSubItem => {
+                         subItems: nfts.map((nft: any, index: number) => {
                               const { NFTokenID, NFTokenTaxon, Issuer, URI, Flags, TransferFee } = nft;
+
                               return {
                                    key: `NFT ${index + 1} (ID: ${NFTokenID.slice(0, 8)}...)`,
                                    openByDefault: false,
@@ -334,19 +319,30 @@ export class CreateNftComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched data — no redundant API calls!
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
 
-               await this.updateXrpBalance(client, wallet);
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for NFTs:', err);
+                         // Don't break main render — NFTs are already shown
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               console.error('Error in getNFT:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -479,14 +475,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -709,14 +705,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -837,10 +833,11 @@ export class CreateNftComponent implements AfterViewChecked {
 
           const inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
                nftIdField: this.nftIdField,
           };
-          const errors = this.validateInputs(inputs, 'getOffers');
+
+          const errors = this.validateInputs(inputs, 'getNFTOffers'); // Note: typo? Should be 'getNFTOffers'?
           if (errors.length > 0) {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
@@ -848,278 +845,115 @@ export class CreateNftComponent implements AfterViewChecked {
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
 
-               // Prepare data for rendering
-               type SectionContent = { key: string; value: string };
-               type SectionSubItem = { key: string; openByDefault: boolean; content: SectionContent[] };
-               type Section = { title: string; openByDefault: boolean; content: SectionContent[] } | { title: string; openByDefault: boolean; subItems: SectionSubItem[] };
-               const data: { sections: Section[] } = {
-                    sections: [],
-               };
+               // ➤ PHASE 1: PARALLELIZE all independent API calls
+               const [accountInfo, accountObjects, nftInfo, sellOffersResponse, buyOffersResponse] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountNFTs(client, classicAddress, 'validated', '').catch(() => ({ result: { account_nfts: [] } })),
+                    this.xrplService.getNFTSellOffers(client, this.nftIdField).catch(err => {
+                         console.warn('Sell Offers Error:', err.message);
+                         return { result: { offers: [] } };
+                    }),
+                    this.xrplService.getNFTBuyOffers(client, this.nftIdField).catch(err => {
+                         console.warn('Buy Offers Error:', err.message);
+                         return { result: { offers: [] } };
+                    }),
+               ]);
 
-               // Step 1: Verify NFT exists
-               let nftExists = false;
-               let nftDetails: { title: string; openByDefault: boolean; content: { key: string; value: string }[] } | undefined = undefined;
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`nftInfo for ${classicAddress}:`, nftInfo.result);
+               console.debug(`sellOffersResponse for ${classicAddress}:`, sellOffersResponse.result);
+               console.debug(`buyOffersResponse for ${classicAddress}:`, buyOffersResponse.result);
 
-               interface NFT {
-                    NFTokenID: string;
-                    NFTokenTaxon: number;
-                    Issuer?: string;
-                    URI?: string;
-                    Flags: number;
-                    TransferFee?: number;
-                    nft_serial?: number;
-               }
+               // Prepare data structure
+               const data: { sections: any[] } = { sections: [] };
 
-               interface NFTSectionContent {
-                    key: string;
-                    value: string;
-               }
+               // ➤ SECTION 1: NFT Details
+               const nfts = nftInfo.result.account_nfts || [];
+               const nft = nfts.find((n: any) => n.NFTokenID === this.nftIdField);
 
-               interface NFTSectionSubItem {
-                    key: string;
-                    openByDefault: boolean;
-                    content: NFTSectionContent[];
-               }
-
-               interface NFTSection {
-                    title: string;
-                    openByDefault: boolean;
-                    subItems: NFTSectionSubItem[];
-               }
-
-               try {
-                    const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-                    this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                    // const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
-                    // if (signerAccounts && signerAccounts.length > 0) {
-                    //      if (Array.isArray(signerAccounts) && signerAccounts.length > 0) {
-                    //           const signerEntries: SignerEntry[] = this.storageService.get('signerEntries') || [];
-
-                    //           this.multiSignAddress = signerAccounts.map(account => account.split('~')[0] + ',\n').join('');
-                    //           this.multiSignSeeds = signerAccounts
-                    //                .map(account => {
-                    //                     const address = account.split('~')[0];
-                    //                     const entry = signerEntries.find((entry: SignerEntry) => entry.Account === address);
-                    //                     return entry ? entry.SingnerSeed : null;
-                    //                })
-                    //                .filter(seed => seed !== null)
-                    //                .join(',\n');
-                    //           this.useMultiSign = true;
-                    //      }
-                    // } else {
-                    //      this.multiSignAddress = 'No Multi-Sign address configured for account';
-                    //      this.multiSignSeeds = ''; // Clear seeds if no signer accounts
-                    //      this.useMultiSign = false;
-                    // }
-
-                    const nftInfo = await this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '');
-                    console.debug(`Account Nft objects: ${JSON.stringify(nftInfo, null, '\t')}`);
-                    const nfts = nftInfo.result.account_nfts || [];
-                    interface AccountNFT {
-                         NFTokenID: string;
-                         NFTokenTaxon: number;
-                         Issuer?: string;
-                         URI?: string;
-                         Flags: number;
-                         TransferFee?: number;
-                         nft_serial?: number;
-                    }
-
-                    nftExists = nfts.some((nft: AccountNFT) => nft.NFTokenID === this.nftIdField);
-                    if (nftExists) {
-                         const nft: NFT | undefined = nfts.find((nft: NFT) => nft.NFTokenID === this.nftIdField);
-                         if (nft) {
-                              nftDetails = {
-                                   title: 'NFT Details',
-                                   openByDefault: true,
-                                   content: [{ key: 'NFToken ID', value: `<code>${nft.NFTokenID}</code>` }, { key: 'Issuer', value: `<code>${nft.Issuer || wallet.classicAddress}</code>` }, { key: 'Taxon', value: String(nft.NFTokenTaxon) }, ...(nft.URI ? [{ key: 'URI', value: `<code>${nft.URI}</code>` }] : []), { key: 'Serial', value: String(nft.nft_serial) }],
-                              };
-                              data.sections.push(nftDetails);
-                         }
-                    } else {
-                         data.sections.push({
-                              title: 'NFT Details',
-                              openByDefault: true,
-                              content: [{ key: 'Status', value: `No NFT found for TokenID <code>${this.nftIdField}</code> in account <code>${wallet.classicAddress}</code>` }],
-                         });
-                    }
-               } catch (nftError: any) {
-                    console.warn('Account NFTs Error:', nftError);
+               if (nft) {
                     data.sections.push({
                          title: 'NFT Details',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `WARNING: Could not verify NFT existence: ${nftError.message}` }],
+                         content: [{ key: 'NFToken ID', value: `<code>${nft.NFTokenID}</code>` }, { key: 'Issuer', value: `<code>${nft.Issuer || classicAddress}</code>` }, { key: 'Taxon', value: String(nft.NFTokenTaxon) }, ...(nft.URI ? [{ key: 'URI', value: `<code>${nft.URI}</code>` }] : []), { key: 'Serial', value: String(nft.nft_serial || 'N/A') }],
+                    });
+               } else {
+                    data.sections.push({
+                         title: 'NFT Details',
+                         openByDefault: true,
+                         content: [
+                              {
+                                   key: 'Status',
+                                   value: `No NFT found for TokenID <code>${this.nftIdField}</code> in account <code>${classicAddress}</code>`,
+                              },
+                         ],
                     });
                }
 
-               // Step 2: Fetch sell offers
-               let sellOffers: any[] = [];
-               try {
-                    const sellOffersResponse = await this.xrplService.getNFTSellOffers(client, this.nftIdField);
-                    sellOffers = sellOffersResponse.result.offers || [];
-                    if (sellOffers.length === 0) {
-                         data.sections.push({
-                              title: 'Sell Offers',
-                              openByDefault: true,
-                              content: [
-                                   {
-                                        key: 'Status',
-                                        value: 'No sell offers available',
-                                   },
-                              ],
-                         });
-                    } else {
-                         interface SellOffer {
-                              nft_offer_index: string;
-                              amount?: string;
-                              owner: string;
-                              expiration?: number;
-                              destination?: string;
-                         }
-
-                         interface SellSectionContent {
-                              key: string;
-                              value: string;
-                         }
-
-                         interface SellSectionSubItem {
-                              key: string;
-                              openByDefault: boolean;
-                              content: SellSectionContent[];
-                         }
-
-                         interface SellSection {
-                              title: string;
-                              openByDefault: boolean;
-                              subItems: SellSectionSubItem[];
-                         }
-
-                         const sellSection: SellSection = {
-                              title: `Sell Offers (${sellOffers.length})`,
-                              openByDefault: true,
-                              subItems: sellOffers.length
-                                   ? (sellOffers as SellOffer[]).map(
-                                          (offer: SellOffer, index: number): SellSectionSubItem => ({
-                                               key: `Sell Offer ${index + 1} (Index: ${offer.nft_offer_index.slice(0, 8)}...)`,
-                                               openByDefault: false,
-                                               content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${xrpl.dropsToXrp(offer.amount)} XRP` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
-                                          })
-                                     )
-                                   : [
-                                          {
-                                               key: 'No Sell Offers',
-                                               openByDefault: false,
-                                               content: [{ key: 'Status', value: 'No sell offers available' }],
-                                          },
-                                     ],
-                         };
-                         data.sections.push(sellSection);
-                    }
-               } catch (sellError: any) {
-                    console.warn('Sell Offers Error:', sellError);
+               // ➤ SECTION 2: Sell Offers
+               const sellOffers = sellOffersResponse.result.offers || [];
+               if (sellOffers.length === 0) {
                     data.sections.push({
                          title: 'Sell Offers',
                          openByDefault: true,
-                         content: [
-                              {
-                                   key: 'Status',
-                                   value: sellError.message.includes('object was not found') || sellError.message.includes('act not found') ? 'No sell offers available' : `Error fetching sell offers: ${sellError.message}`,
-                              },
-                         ],
+                         content: [{ key: 'Status', value: 'No sell offers available' }],
+                    });
+               } else {
+                    data.sections.push({
+                         title: `Sell Offers (${sellOffers.length})`,
+                         openByDefault: true,
+                         subItems: sellOffers.map((offer: any, index: number) => ({
+                              key: `Sell Offer ${index + 1} (Index: ${offer.nft_offer_index.slice(0, 8)}...)`,
+                              openByDefault: false,
+                              content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${xrpl.dropsToXrp(offer.amount)} XRP` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
+                         })),
                     });
                }
 
-               // Step 3: Fetch buy offers
-               let buyOffers: any = [];
-               try {
-                    const buyOffersResponse = await this.xrplService.getNFTBuyOffers(client, this.nftIdField);
-                    buyOffers = buyOffersResponse.result.offers || [];
-                    if (buyOffers) {
-                         data.sections.push({
-                              title: 'Sell Offers',
-                              openByDefault: true,
-                              content: [
-                                   {
-                                        key: 'Status',
-                                        value: 'No sell offers available',
-                                   },
-                              ],
-                         });
-                    } else {
-                         interface BuyOffer {
-                              nft_offer_index: string;
-                              amount?: string;
-                              owner: string;
-                              expiration?: number;
-                              destination?: string;
-                         }
-
-                         interface BuySectionContent {
-                              key: string;
-                              value: string;
-                         }
-
-                         interface BuySectionSubItem {
-                              key: string;
-                              openByDefault: boolean;
-                              content: BuySectionContent[];
-                         }
-
-                         interface BuySection {
-                              title: string;
-                              openByDefault: boolean;
-                              subItems: BuySectionSubItem[];
-                         }
-
-                         const buySection: BuySection = {
-                              title: `Buy Offers (${buyOffers.length})`,
-                              openByDefault: true,
-                              subItems: buyOffers.length
-                                   ? (buyOffers as BuyOffer[]).map(
-                                          (offer: BuyOffer, index: number): BuySectionSubItem => ({
-                                               key: `Buy Offer ${index + 1} (Index: ${offer.nft_offer_index.slice(0, 8)}...)`,
-                                               openByDefault: false,
-                                               content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${xrpl.dropsToXrp(offer.amount)} XRP` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
-                                          })
-                                     )
-                                   : [
-                                          {
-                                               key: 'No Buy Offers',
-                                               openByDefault: false,
-                                               content: [{ key: 'Status', value: 'No buy offers available' }],
-                                          },
-                                     ],
-                         };
-                         data.sections.push(buySection);
-                    }
-               } catch (buyError: any) {
-                    console.warn('Buy Offers Error:', buyError);
+               // ➤ SECTION 3: Buy Offers
+               const buyOffers = buyOffersResponse.result.offers || [];
+               if (buyOffers.length === 0) {
                     data.sections.push({
                          title: 'Buy Offers',
                          openByDefault: true,
-                         content: [
-                              {
-                                   key: 'Status',
-                                   value: buyError.message.includes('object was not found') || buyError.message.includes('act not found') ? 'No buy offers available' : `Error fetching buy offers: ${buyError.message}`,
-                              },
-                         ],
+                         content: [{ key: 'Status', value: 'No buy offers available' }],
+                    });
+               } else {
+                    data.sections.push({
+                         title: `Buy Offers (${buyOffers.length})`,
+                         openByDefault: true,
+                         subItems: buyOffers.map((offer: any, index: number) => ({
+                              key: `Buy Offer ${index + 1} (Index: ${offer.nft_offer_index.slice(0, 8)}...)`,
+                              openByDefault: false,
+                              content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${xrpl.dropsToXrp(offer.amount)} XRP` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
+                         })),
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
-               await this.updateXrpBalance(client, wallet);
+               // ➤ DEFER: Non-critical UI updates
+               setTimeout(async () => {
+                    try {
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for NFT offers:', err);
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               console.error('Error in getNFTOffers:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -1277,14 +1111,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1418,14 +1252,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1548,14 +1382,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1679,14 +1513,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1795,14 +1629,14 @@ export class CreateNftComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
                const response = await client.submitAndWait(tx, { wallet });
-               console.log('Submit Response:', JSON.stringify(response, null, 2));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -2081,7 +1915,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     required: ['selectedAccount', 'seed', 'nftIdField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
                },
-               getOffers: {
+               getNFTOffers: {
                     required: ['selectedAccount', 'seed', 'nftIdField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
                },

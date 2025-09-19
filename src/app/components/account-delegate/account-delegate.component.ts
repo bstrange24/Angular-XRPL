@@ -262,15 +262,19 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
           };
 
           try {
-               this.showSpinnerWithDelay('Getting Account Details...', 200);
+               this.showSpinnerWithDelay('Getting Account Details ...', 100);
 
+               // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // Phase 2: Fetch account info + objects in PARALLEL
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -281,91 +285,31 @@ export class AccountDelegateComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
 
-               const delegateObjects = accountObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'Delegate' && o.Authorize === this.destinationFields);
-               console.debug(`Delegate Objects: ${JSON.stringify(delegateObjects, null, '\t')}`);
-
-               // Prepare data for renderAccountDetails
-               const data = {
-                    sections: [{}],
-               };
-
-               if (delegateObjects.length <= 0) {
-                    data.sections.push({
-                         title: 'Delegate',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: `No Delegated objects found for <code>${wallet.classicAddress}</code>` }],
-                    });
-                    this.selected.clear();
-               } else {
-                    data.sections.push({
-                         title: `Delegate`,
-                         openByDefault: true,
-                         subItems: delegateObjects.map(delegated => {
-                              const { LedgerEntryType, PreviousTxnID } = delegated;
-                              const authorize = (delegated as any).Authorize;
-                              const account = (delegated as any).Account;
-
-                              // Build a display string for permissions
-                              const permissionValues = ('Permissions' in delegated && Array.isArray((delegated as any).Permissions) ? (delegated as any).Permissions : [])
-                                   .map((p: any) => p.Permission?.PermissionValue)
-                                   .filter(Boolean)
-                                   .join(', '); // e.g. "TrustlineAuthorize, TrustlineFreeze"
-
-                              const delegatedPermissions = 'Permissions' in delegated && Array.isArray(delegated.Permissions) ? delegated.Permissions : [];
-
-                              const permissionKeys: string[] = delegatedPermissions.map((p: any) => p.Permission?.PermissionValue).filter(Boolean);
-
-                              const selectedIds = new Set<number>(this.actions.filter(a => permissionKeys.includes(a.key)).map(a => a.id));
-                              // Update your component state
-                              this.selected = selectedIds;
-
-                              return {
-                                   key: `Delegate Object`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Account', value: account },
-                                        { key: 'Authorize Account', value: authorize },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
-                                        { key: 'Permissions', value: permissionValues || 'None' },
-                                   ],
-                              };
-                         }),
-                    });
-               }
-
-               delegateObjects.forEach(delegated => {
-                    // Only access 'Authorize' if it exists on the object
-                    const delegateAccount = (delegated as any).Authorize ?? '';
-                    const permissions = Array.isArray((delegated as any).Permissions) ? (delegated as any).Permissions : [];
-
-                    const permissionKeys = permissions.map((p: any) => p.Permission?.PermissionValue).filter(Boolean);
-
-                    // Map keys to action IDs
-                    const selectedIds = new Set<number>(this.actions.filter(a => permissionKeys.includes(a.key)).map(a => a.id));
-
-                    if (delegateAccount) {
-                         this.delegateSelections[delegateAccount] = selectedIds;
-                    }
-               });
-
-               this.utilsService.renderPaymentChannelDetails(data);
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-               this.refreshUiAccountInfo(accountInfo);
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.clearFields(false);
-
-               await this.updateXrpBalance(client, wallet);
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.clearFields(false);
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates:', err);
+                         // Don't break main flow — account details are already rendered
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               console.error('Error in getAccountDetails:', error);
+               this.setError(error.message || 'Unknown error');
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -513,14 +457,14 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
 
+               console.log('Submit Response:', JSON.stringify(response, null, 2));
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);

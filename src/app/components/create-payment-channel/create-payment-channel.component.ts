@@ -130,7 +130,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           try {
                const wallet = await this.getWallet();
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-          } catch (error) {
+          } catch (error: any) {
+               console.error(`No wallet could be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -186,25 +187,19 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -226,6 +221,126 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      async getPaymentChannels() {
+          console.log('Entering getPaymentChannels');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          let inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount || '', this.account1, this.account2),
+          };
+
+          try {
+               this.showSpinnerWithDelay('Getting Payment Channels...', 200);
+
+               // Phase 1: Get client + wallet
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+               const classicAddress = wallet.classicAddress;
+
+               // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
+               const [accountInfo, paymentChannelObjects, allAccountObjects] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'payment_channel'),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), // for refreshUiAccountObjects
+               ]);
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getPaymentChannels');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`account objects:`, allAccountObjects.result);
+               console.debug(`Payment channel objects:`, paymentChannelObjects.result);
+
+               type PaymentChannelObject = any; // Replace with actual type if available
+               const channels = paymentChannelObjects.result.account_objects as PaymentChannelObject[];
+
+               const data = {
+                    sections: [{}],
+               };
+
+               if (!channels || channels.length === 0) {
+                    data.sections.push({
+                         title: 'Payment Channels',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: `No payment channels found for <code>${classicAddress}</code>` }],
+                    });
+               } else {
+                    data.sections.push({
+                         title: `Payment Channels (${channels.length})`,
+                         openByDefault: true,
+                         subItems: channels.map((channel, index) => {
+                              const { index: channelId, Destination, Amount, Balance, SettleDelay, PublicKey, Expiration, CancelAfter } = channel;
+
+                              // Handle BigInt safely
+                              const totalAmount = typeof Amount === 'string' ? BigInt(Amount) : BigInt(0);
+                              const claimedBalance = typeof Balance === 'string' ? BigInt(Balance) : BigInt(0);
+                              const availableDrops = totalAmount - claimedBalance;
+                              const availableXRP = xrpl.dropsToXrp(availableDrops);
+
+                              const now = Math.floor(Date.now() / 1000); // current time in seconds
+
+                              return {
+                                   key: `Channel ${index + 1} (ID: ${channelId?.slice(0, 8) || 'N/A'}...)`,
+                                   openByDefault: false,
+                                   content: [
+                                        { key: 'Channel ID', value: `<code>${channelId || 'N/A'}</code>` },
+                                        { key: 'Destination', value: `<code>${Destination || 'N/A'}</code>` },
+                                        { key: 'Total Amount', value: `${xrpl.dropsToXrp(totalAmount)} XRP` },
+                                        { key: 'Claimed Balance', value: `${xrpl.dropsToXrp(claimedBalance)} XRP` },
+                                        { key: 'Remaining', value: `${availableXRP} XRP` },
+                                        { key: 'Settle Delay', value: `${SettleDelay || 0}s` },
+                                        { key: 'Expiration', value: Expiration ? this.utilsService.convertXRPLTime(Expiration) : 'N/A' },
+                                        { key: 'Expired', value: Expiration ? (now > Expiration ? 'True' : 'False') : 'False' },
+                                        { key: 'Cancel After', value: CancelAfter ? this.utilsService.convertXRPLTime(CancelAfter) : 'N/A' },
+                                        // Optional: Uncomment if you want to show CancelAfter expired status
+                                        // { key: 'Cancel Expired', value: CancelAfter ? (now > CancelAfter ? 'True' : 'False') : 'False' },
+                                   ],
+                              };
+                         }),
+                    });
+               }
+
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderDetails(data);
+               this.setSuccess(this.result);
+
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched allAccountObjects and accountInfo
+                         this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
+
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for payment channels:', err);
+                         // Don't break main render — payment channels are already shown
+                    }
+               }, 0);
+          } catch (error: any) {
+               console.error('Error in getPaymentChannels:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving getPaymentChannels in ${this.executionTime}ms`);
+          }
+     }
+
+     async getPaymentChannels1() {
           console.log('Entering getPaymentChannels');
           const startTime = Date.now();
           this.setSuccessProperties();
@@ -293,7 +408,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));

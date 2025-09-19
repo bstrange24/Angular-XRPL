@@ -221,7 +221,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.dataSource.paginator = this.paginator;
                this.dataSource.sort = this.sort;
                this.startPriceRefresh(); // Start polling for price
-          } catch (error) {
+          } catch (error: any) {
+               console.error(`No wallet could be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
           } finally {
                this.cdr.detectChanges();
@@ -276,25 +277,19 @@ export class CreateOfferComponent implements AfterViewChecked {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+          } catch (error: any) {
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
      }
 
      async toggleUseMultiSign() {
-          try {
-               if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-                    this.multiSignSeeds = '';
-                    this.cdr.detectChanges();
-                    return;
-               }
-          } catch (error) {
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
+          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
+               this.multiSignSeeds = '';
           }
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
@@ -504,7 +499,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
           };
 
           try {
@@ -512,7 +507,10 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // ➤ PHASE 1: PARALLELIZE — fetch account info + offers + account objects together
+               const [accountInfo, offersResponse, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountOffers(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -524,74 +522,83 @@ export class CreateOfferComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`offers for ${classicAddress}:`, offersResponse.result);
+               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
 
-               // Fetch offers
-               const offersResponse = await this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '');
-               console.debug(`offers for ${wallet.classicAddress} ${JSON.stringify(offersResponse, null, '\t')}`);
-
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
-
-               // Prepare data for rendering
-               interface SectionContent {
-                    key: string;
-                    value: string;
-               }
-
-               interface SectionSubItem {
-                    key: string;
-                    openByDefault: boolean;
-                    content: SectionContent[];
-               }
-
-               interface Section {
-                    title: string;
-                    openByDefault: boolean;
-                    content?: SectionContent[];
-                    subItems?: SectionSubItem[];
-               }
-
-               const data: { sections: Section[] } = {
-                    sections: [],
+               // Prepare data structure
+               const data = {
+                    sections: [{}],
                };
 
-               // Offers section
-               if (!offersResponse.result.offers || offersResponse.result.offers.length <= 0) {
+               const offers = offersResponse.result.offers || [];
+
+               if (offers.length <= 0) {
                     data.sections.push({
                          title: 'Offers',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No offers found for <code>${wallet.address}</code>` }],
+                         content: [{ key: 'Status', value: `No offers found for <code>${classicAddress}</code>` }],
                     });
                } else {
                     data.sections.push({
-                         title: `Offers (${offersResponse.result.offers.length})`,
+                         title: `Offers (${offers.length})`,
                          openByDefault: true,
-                         subItems: offersResponse.result.offers.map((offer, index) => {
+                         subItems: offers.map((offer, index) => {
+                              // Format taker_gets
                               const takerGets = typeof offer.taker_gets === 'string' ? `${xrpl.dropsToXrp(offer.taker_gets)} XRP` : `${offer.taker_gets.value} ${offer.taker_gets.currency}${offer.taker_gets.issuer ? ` (Issuer: ${offer.taker_gets.issuer})` : ''}`;
+
+                              // Format taker_pays
                               const takerPays = typeof offer.taker_pays === 'string' ? `${xrpl.dropsToXrp(offer.taker_pays)} XRP` : `${offer.taker_pays.value} ${offer.taker_pays.currency}${offer.taker_pays.issuer ? ` (Issuer: ${offer.taker_pays.issuer})` : ''}`;
+
+                              // Build content array
+                              const content: { key: string; value: string }[] = [
+                                   { key: 'Sequence', value: String(offer.seq) },
+                                   { key: 'Taker Gets', value: takerGets },
+                                   { key: 'Taker Pays', value: takerPays },
+                                   { key: 'Rate', value: this.calculateRate(offer.taker_gets, offer.taker_pays) },
+                              ];
+
+                              if (offer.expiration) {
+                                   content.push({ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() });
+                              }
+                              if (offer.flags != null) {
+                                   content.push({ key: 'Flags', value: String(offer.flags) });
+                              }
 
                               return {
                                    key: `Offer ${index + 1} (Sequence: ${offer.seq})`,
                                    openByDefault: false,
-                                   content: [{ key: 'Sequence', value: String(offer.seq) }, { key: 'Taker Gets', value: takerGets }, { key: 'Taker Pays', value: takerPays }, { key: 'Rate', value: this.calculateRate(offer.taker_gets, offer.taker_pays) }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.flags ? [{ key: 'Flags', value: String(offer.flags) }] : [])],
+                                   content,
                               };
                          }),
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-               this.refreshUiAccountInfo(accountInfo);
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched data — no redundant API calls!
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         // Update balance — this is async but non-blocking
+                         this.account1.balance = await this.getXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for offers:', err);
+                         // Don't break main render — offers are already shown
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getOffers:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -607,7 +614,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
                weWantCurrencyField: this.weWantCurrencyField,
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
@@ -621,17 +628,16 @@ export class CreateOfferComponent implements AfterViewChecked {
                isTicket: this.isTicket,
                ticketSequence: this.isTicket ? this.ticketSequence : undefined,
           };
-          const errors = await this.validateInputs(inputs, 'getOrderBook');
-          if (errors.length > 0) {
-               return this.setError(`ERROR: ${errors.join('; ')}`);
-          }
 
           try {
                this.updateSpinnerMessage('Getting Order Book...');
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // ➤ PHASE 1: Fetch account info (needed for validation)
+               const accountInfo = await this.xrplService.getAccountInfo(client, classicAddress, 'validated', '');
 
                inputs = {
                     ...inputs,
@@ -642,9 +648,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               // Initialize currency objects with proper typing
+               // ➤ PHASE 2: Prepare currency objects
                const we_want: CurrencyAmount =
                     this.weWantCurrencyField === 'XRP'
                          ? { currency: 'XRP', value: this.weWantAmountField }
@@ -665,35 +670,42 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                // Decode currencies for display
                const displayWeWantCurrency = we_want.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_want.currency) : we_want.currency;
+
                const displayWeSpendCurrency = we_spend.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_spend.currency) : we_spend.currency;
 
-               // Determine offer type
                const offerType = we_spend.currency === AppConstants.XRP_CURRENCY ? 'buy' : 'sell';
 
-               // Fetch all market data in parallel
+               // ➤ PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
                const [orderBook, counterOrderBook, ammData] = await Promise.all([
                     client.request({
                          command: 'book_offers',
-                         taker: wallet.address,
+                         taker: classicAddress, // ← Use classicAddress, not wallet.address
                          ledger_index: 'current',
                          taker_gets: we_want,
                          taker_pays: we_spend,
                     }),
                     client.request({
                          command: 'book_offers',
-                         taker: wallet.address,
+                         taker: classicAddress,
                          ledger_index: 'current',
                          taker_gets: we_spend,
                          taker_pays: we_want,
                     }),
                     client.request(this.createAmmRequest(we_spend, we_want)).catch(() => null) as Promise<AMMInfoResponse | null>,
                ]);
-               // Process AMM data if available
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`orderBook:`, orderBook.result);
+               console.debug(`counterOrderBook:`, counterOrderBook.result);
+               console.debug(`ammData: `, ammData ? ammData.result : '');
+
+               // ➤ PHASE 4: Process AMM data if available
                const combinedOffers: CustomBookOffer[] = [...orderBook.result.offers];
+
                if (ammData?.result?.amm) {
                     const amm = ammData.result.amm;
 
-                    // Convert AMM amounts to XRPL Amount type
                     const takerGets: string | IssuedCurrencyAmount = this.isTokenAmount(we_want)
                          ? {
                                 currency: we_want.currency,
@@ -723,22 +735,27 @@ export class CreateOfferComponent implements AfterViewChecked {
                          TakerPays: takerPays,
                          isAMM: true,
                          rate: new BigNumber(typeof amm.amount2 === 'string' ? xrpl.dropsToXrp(amm.amount2) : amm.amount2.value).dividedBy(typeof amm.amount === 'string' ? xrpl.dropsToXrp(amm.amount) : amm.amount.value),
-                         // Add required BookOffer fields with default values
                          BookDirectory: '0',
                          BookNode: '0',
                          OwnerNode: '0',
                          PreviousTxnID: '0',
                          PreviousTxnLgrSeq: 0,
                     };
+
                     combinedOffers.unshift(ammOffer);
                }
 
-               // Calculate market stats
+               // ➤ PHASE 5: Calculate stats
                const spread = this.computeBidAskSpread(offerType === 'sell' ? counterOrderBook.result.offers : combinedOffers, offerType === 'sell' ? combinedOffers : counterOrderBook.result.offers);
+
                const liquidity = this.computeLiquidityRatio(offerType === 'sell' ? counterOrderBook.result.offers : combinedOffers, offerType === 'sell' ? combinedOffers : counterOrderBook.result.offers, offerType === 'sell');
+
                const stats = this.computeAverageExchangeRateBothWays(combinedOffers, 5);
 
-               // Prepare data for rendering
+               // ➤ PHASE 6: Build UI data — RENDER IMMEDIATELY
+               const pair = `${displayWeWantCurrency}/${displayWeSpendCurrency}`;
+               const reversePair = `${displayWeSpendCurrency}/${displayWeWantCurrency}`;
+
                const data = {
                     sections: [
                          {
@@ -760,12 +777,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                     ],
                };
 
-               // Restore original Statistics section
+               // Add stats if available
                if (combinedOffers.length > 0 || ammData?.result?.amm) {
                     this.populateStatsFields(stats, we_want, we_spend, spread, liquidity, offerType);
 
-                    const pair = `${displayWeWantCurrency}/${displayWeSpendCurrency}`;
-                    const reversePair = `${displayWeSpendCurrency}/${displayWeWantCurrency}`;
                     const statsContent = [
                          { key: 'VWAP', value: `${stats.forward.vwap.toFixed(8)} ${pair}` },
                          { key: 'Simple Average', value: `${stats.forward.simpleAvg.toFixed(8)} ${pair}` },
@@ -798,13 +813,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                     // Add AMM spot price if available
                     if (ammData?.result?.amm) {
                          const amm = ammData.result.amm;
-                         const spotPrice = amm.trading_fee / 1000000; // Convert to percentage
+                         const spotPrice = amm.trading_fee / 1000000;
                          statsContent.push({
                               key: 'AMM Spot Price',
                               value: `${spotPrice.toFixed(8)} ${pair}`,
                          });
 
-                         const tradingFeeBps = ammData.result.amm.trading_fee; // e.g. 38
+                         const tradingFeeBps = amm.trading_fee;
                          data.sections.push({
                               title: 'AMM Pool',
                               content: [
@@ -820,13 +835,22 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderDetails(data);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Update balance — async but non-blocking
+                         this.account1.balance = await this.getXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error updating balance after order book render:', err);
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getOrderBook:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -1341,7 +1365,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                console.log('Response:', JSON.stringify(response, null, '\t'));
 
                if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Transaction failed: ${JSON.stringify(response, null, 2)}`);
+                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
                     this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     return;
                }
@@ -1493,7 +1517,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     ],
                });
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                (response.result as any).clearInnerHtml = false;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
@@ -1712,7 +1736,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
 
                // Render summary and details in data.sections
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
 
                if (hasError) {
                     this.setErrorProperties();
@@ -1839,7 +1863,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
 
                this.setSuccess(this.result);
 
