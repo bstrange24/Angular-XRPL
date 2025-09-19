@@ -198,29 +198,39 @@ export class CreateTicketsComponent implements AfterViewChecked {
           try {
                this.showSpinnerWithDelay('Getting Tickets ...', 250);
 
+               // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const ticket_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
+               const classicAddress = wallet.classicAddress;
+
+               // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
+               const [accountInfo, ticketObjects, allAccountObjects] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'ticket'),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), // for refreshUiAccountObjects
+               ]);
 
                inputs = {
                     ...inputs,
-                    account_info: ticket_objects,
+                    account_info: ticketObjects,
                };
 
                const errors = this.validateInputs(inputs, 'getTickets');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`Ticket objects: ${JSON.stringify(ticket_objects, null, '\t')}`);
 
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`account objects:`, allAccountObjects.result);
+               console.debug(`check objects:`, ticketObjects.result);
 
                // Prepare data for renderAccountDetails
                const data = {
                     sections: [{}],
                };
 
-               if (ticket_objects.result.account_objects.length <= 0) {
+               if (ticketObjects.result.account_objects.length <= 0) {
                     data.sections.push({
                          title: 'Tickets',
                          openByDefault: true,
@@ -228,14 +238,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     });
                } else {
                     // Sort tickets from oldest to newest.
-                    const sortedTickets = ticket_objects.result.account_objects.sort((a, b) => {
+                    const sortedTickets = ticketObjects.result.account_objects.sort((a, b) => {
                          const seqA = (a as any).TicketSequence ?? Number.MAX_SAFE_INTEGER;
                          const seqB = (b as any).TicketSequence ?? Number.MAX_SAFE_INTEGER;
                          return seqA - seqB;
                     });
 
                     data.sections.push({
-                         title: `Tickets (${ticket_objects.result.account_objects.length})`,
+                         title: `Tickets (${ticketObjects.result.account_objects.length})`,
                          openByDefault: true,
                          subItems: sortedTickets.map((ticket, counter) => {
                               const { LedgerEntryType, PreviousTxnID, index } = ticket;
@@ -251,16 +261,27 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     });
                }
 
+               // ✅ CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched allAccountObjects and accountInfo
+                         this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
 
-               await this.updateXrpBalance(client, wallet);
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for payment channels:', err);
+                         // Don't break main render — payment channels are already shown
+                    }
+               }, 0);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);

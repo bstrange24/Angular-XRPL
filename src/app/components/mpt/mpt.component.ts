@@ -232,7 +232,7 @@ export class MptComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
           };
 
           try {
@@ -240,7 +240,10 @@ export class MptComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // ➤ PHASE 1: PARALLELIZE — fetch account info + account objects together
+               const [accountInfo, mptokenObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -252,12 +255,17 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`MPT Account Objects: ${JSON.stringify(mptokenObjects, null, '\t')}`);
-               const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance' || o.LedgerEntryType === 'MPToken');
-               console.debug(`MPT Objects: ${JSON.stringify(mptokens, null, '\t')}`);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`MPT Account Objects:`, mptokenObjects.result);
 
-               // Prepare data for renderAccountDetails
+               // Filter MPT-related objects
+               const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance');
+
+               // Optional debug (lightweight)
+               // console.debug(`MPT Objects count:`, mptokens.length);
+
+               // Prepare data structure
                const data = {
                     sections: [{}],
                };
@@ -266,11 +274,11 @@ export class MptComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'MPT Tokens',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${classicAddress}</code>` }],
                     });
                } else {
-                    // Sort tickets from oldest to newest.
-                    const sortedMPT = mptokens.sort((a, b) => {
+                    // Sort by Sequence (oldest first)
+                    const sortedMPT = [...mptokens].sort((a, b) => {
                          const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
                          const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
                          return seqA - seqB;
@@ -307,19 +315,30 @@ export class MptComponent implements AfterViewChecked {
                     });
                }
 
+               // ✅ CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched data — no redundant API calls!
+                         this.refreshUiAccountObjects(mptokenObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
 
-               await this.updateXrpBalance(client, wallet);
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for MPT:', err);
+                         // Don't break main render — MPT details are already shown
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               console.error('Error in getMptDetails:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();

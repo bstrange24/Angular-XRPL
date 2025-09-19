@@ -260,6 +260,128 @@ export class SendChecksComponent implements AfterViewChecked {
           try {
                this.showSpinnerWithDelay('Getting Checks ...', 250);
 
+               // Phase 1: Get client + wallet
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+               const classicAddress = wallet.classicAddress;
+
+               // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
+               const [accountInfo, checkObjects, allAccountObjects] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'check'),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), // for refreshUiAccountObjects
+               ]);
+
+               inputs = {
+                    ...inputs,
+                    account_info: checkObjects,
+               };
+
+               const errors = await this.validateInputs(inputs, 'getChecks');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`account objects:`, allAccountObjects.result);
+               console.debug(`check objects:`, checkObjects.result);
+
+               const data = {
+                    sections: [{}],
+               };
+
+               if (checkObjects.result.account_objects.length <= 0) {
+                    data.sections.push({
+                         title: 'Checks',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: `No checks found for <code>${wallet.classicAddress}</code>` }],
+                    });
+               } else {
+                    data.sections.push({
+                         title: `Checks (${checkObjects.result.account_objects.length})`,
+                         openByDefault: true,
+                         subItems: checkObjects.result.account_objects.map((check, counter) => {
+                              const Account = (check as any)['Account'];
+                              const Destination = (check as any)['Destination'];
+                              const Amount = (check as any)['Amount'];
+                              const Expiration = (check as any)['Expiration'];
+                              const InvoiceID = (check as any)['InvoiceID'];
+                              const DestinationTag = (check as any)['DestinationTag'];
+                              const SourceTag = (check as any)['SourceTag'];
+                              const PreviousTxnID = (check as any)['PreviousTxnID'];
+                              const PreviousTxnLgrSeq = (check as any)['PreviousTxnLgrSeq'];
+                              const Sequence = (check as any)['Sequence'];
+                              const index = (check as any)['index'];
+                              const sendMax = (check as any).SendMax;
+                              const amountValue = Amount || sendMax;
+                              const amountDisplay = amountValue ? (typeof amountValue === 'string' ? `${xrpl.dropsToXrp(amountValue)} XRP` : `${amountValue.value} ${amountValue.currency} (<code>${amountValue.issuer}</code>)`) : 'N/A';
+                              return {
+                                   key: `Check ${counter + 1} (ID: ${PreviousTxnID?.slice(0, 8) || ''}...)`,
+                                   openByDefault: false,
+                                   content: [
+                                        { key: 'Account', value: `<code>${Account}</code>` },
+                                        { key: 'Destination', value: `<code>${Destination}</code>` },
+                                        { key: 'Check ID / Ledger Index', value: `<code>${index}</code>` },
+                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+                                        { key: 'Previous Txn Ledger Sequence', value: `<code>${PreviousTxnLgrSeq}</code>` },
+                                        { key: Amount ? 'Amount' : 'SendMax', value: amountDisplay },
+                                        { key: 'Sequence', value: `<code>${Sequence}</code>` },
+                                        ...(Expiration ? [{ key: 'Expiration', value: new Date(Expiration * 1000).toLocaleString() }] : []),
+                                        ...(InvoiceID ? [{ key: 'Invoice ID', value: `<code>${InvoiceID}</code>` }] : []),
+                                        ...(DestinationTag ? [{ key: 'Destination Tag', value: String(DestinationTag) }] : []),
+                                        ...(SourceTag ? [{ key: 'Source Tag', value: String(SourceTag) }] : []),
+                                   ],
+                              };
+                         }),
+                    });
+               }
+
+               // ✅ CRITICAL: Render immediately
+               this.utilsService.renderDetails(data);
+               this.setSuccess(this.result);
+
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched allAccountObjects and accountInfo
+                         this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
+
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         await this.toggleIssuerField();
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for payment channels:', err);
+                         // Don't break main render — payment channels are already shown
+                    }
+               }, 0);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving getChecks in ${this.executionTime}ms`);
+          }
+     }
+
+     async getChecks1() {
+          console.log('Entering getChecks');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          let inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+          };
+
+          try {
+               this.showSpinnerWithDelay('Getting Checks ...', 250);
+
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const check_objects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check');

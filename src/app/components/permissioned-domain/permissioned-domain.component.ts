@@ -242,9 +242,13 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           try {
                this.showSpinnerWithDelay('Getting Permissioned Domains...', 200);
 
+               // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // Phase 2: Fetch account info + credential objects in PARALLEL
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'permissioned_domain')]);
 
                inputs = {
                     ...inputs,
@@ -255,10 +259,10 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'permissioned_domain');
-               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`Permissioned Domain objects for ${classicAddress}:`, accountObjects.result);
 
                type Section = {
                     title: string;
@@ -279,7 +283,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'Permissioned Domain',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No permissioned domains found for <code>${wallet.classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No permissioned domains found for <code>${classicAddress}</code>` }],
                     });
                } else {
                     const permissionedDomainItems = accountObjects.result.account_objects.map((pd: any, index: number) => {
@@ -316,15 +320,23 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     });
                }
 
+               // ✅ CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(accountInfo);
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.clearFields(false);
-
-               await this.updateXrpBalance(client, wallet);
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.clearFields(false);
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for credentials:', err);
+                         // Don't break main render — credentials are already shown
+                    }
+               }, 0);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);

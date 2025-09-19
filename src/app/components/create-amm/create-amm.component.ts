@@ -348,7 +348,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
                weWantCurrencyField: this.weWantCurrencyField,
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
@@ -360,7 +360,10 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // ➤ PHASE 1: Fetch account info + account objects in parallel
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -371,54 +374,35 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
+               // ➤ PHASE 2: Prepare assets
                const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.weWantIssuerField);
                const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.weSpendIssuerField);
-               // const asset = this.toXRPLCurrency(this.weWantCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
-               // const asset2 = this.toXRPLCurrency(this.weSpendCurrencyField, this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer));
-               console.info(`asset ${JSON.stringify(asset, null, '\t')}`);
-               console.info(`asset2 ${JSON.stringify(asset2, null, '\t')}`);
 
-               const ammInfoRequest = {
-                    command: 'amm_info',
-                    asset: asset as any,
-                    asset2: asset2 as any,
-                    ledger_index: 'validated',
-               };
-               console.info(JSON.stringify(ammInfoRequest, null, 2));
+               // Optional: Log lightweight version
+               // console.info(`asset:`, asset);
+               // console.info(`asset2:`, asset2);
 
-               let ammResponse: any;
-               try {
-                    ammResponse = await client.request({
-                         command: 'amm_info',
-                         asset: asset as any,
-                         asset2: asset2 as any,
-                         account: wallet.classicAddress,
-                         ledger_index: 'validated',
-                    });
-               } catch (error: any) {
-                    if (error.name === 'RippledError') {
-                         if (error.data?.error === 'actNotFound') {
+               // ➤ PHASE 3: Fetch AMM info + participation in parallel
+               const [ammResponse, participation] = await Promise.all([
+                    this.fetchAMMPoolInfo(client, asset, asset2, classicAddress).catch(err => {
+                         if (err.name === 'RippledError' && err.data?.error === 'actNotFound') {
                               console.warn('No AMM pool exists yet for this asset pair.');
-                         } else {
-                              console.error('RippledError:', error.data?.error_message || error.message);
+                              return null; // Graceful fallback
                          }
-                    } else {
-                         throw new Error(error);
-                    }
-               }
+                         console.error('Error fetching AMM info:', err);
+                         throw err; // Re-throw if not handled
+                    }),
+                    this.checkAmmParticipation(client, classicAddress).catch(err => {
+                         console.error('Error checking AMM participation:', err);
+                         return null;
+                    }),
+               ]);
 
-               const data: { sections: Section[] } = {
-                    sections: [],
-               };
-
-               console.info(`AMM Info ${JSON.stringify(ammResponse?.result, null, '\t')}`);
+               // ➤ PHASE 4: Build UI data — RENDER IMMEDIATELY
+               const data: { sections: Section[] } = { sections: [] };
 
                const amm = ammResponse?.result?.amm;
-
-               const participation = await this.checkAmmParticipation(client, wallet.classicAddress);
-               console.info(`participation ${JSON.stringify(participation, null, '\t')}`);
 
                if (!amm) {
                     data.sections.push({
@@ -428,7 +412,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                     });
 
                     if (participation) {
-                         // LP Token section
                          data.sections.push({
                               title: 'AMM Pool Participant',
                               openByDefault: true,
@@ -443,16 +426,23 @@ export class CreateAmmComponent implements AfterViewChecked {
                          });
                     }
                } else {
+                    // Format balances
                     this.assetPool1Balance = typeof amm.amount === 'string' ? xrpl.dropsToXrp(amm.amount) || amm.amount : this.utilsService.formatTokenBalance(amm.amount.value, 18).toString();
                     this.assetPool2Balance = typeof amm.amount2 === 'string' ? xrpl.dropsToXrp(amm.amount2) || amm.amount2.value : this.utilsService.formatTokenBalance(amm.amount2.value, 18).toString();
+
+                    // Decode currencies for display
+                    const assetCurrency = typeof amm.amount === 'string' ? 'XRP' : (amm.amount.currency.length > 3 ? this.utilsService.decodeCurrencyCode(amm.amount.currency) : amm.amount.currency) + (amm.amount.issuer ? ` (Issuer: ${amm.amount.issuer})` : '');
+
+                    const asset2Currency = typeof amm.amount2 === 'string' ? 'XRP' : (amm.amount2.currency.length > 3 ? this.utilsService.decodeCurrencyCode(amm.amount2.currency) : amm.amount2.currency) + (amm.amount2.issuer ? ` (Issuer: ${amm.amount2.issuer})` : '');
+
                     data.sections.push({
                          title: 'AMM Pool Info',
                          openByDefault: true,
                          content: [
                               { key: 'Account', value: amm.account },
-                              { key: 'Asset', value: typeof amm.amount === 'string' ? 'XRP' : (amm.amount.currency.length > 3 ? this.utilsService.decodeCurrencyCode(amm.amount.currency) : amm.amount.currency) + (amm.amount.issuer ? ` (Issuer: ${amm.amount.issuer})` : '') },
+                              { key: 'Asset', value: assetCurrency },
                               { key: 'Asset Amount', value: this.assetPool1Balance },
-                              { key: 'Asset2', value: typeof amm.amount2 === 'string' ? 'XRP' : (amm.amount2.currency.length > 3 ? this.utilsService.decodeCurrencyCode(amm.amount2.currency) : amm.amount2.currency) + (amm.amount2.issuer ? ` (Issuer: ${amm.amount2.issuer})` : '') },
+                              { key: 'Asset2', value: asset2Currency },
                               { key: 'Asset2 Amount', value: this.assetPool2Balance },
                               { key: 'LP Token Balance', value: `${this.utilsService.formatTokenBalance(amm.lp_token.value, 2)} ${amm.lp_token.currency}` },
                               { key: 'Asset Frozen', value: String(amm.asset_frozen || false) },
@@ -466,7 +456,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          data.sections.push({
                               title: 'Vote Slots',
                               openByDefault: false,
-                              subItems: amm.vote_slots.map((slot: { account: any; trading_fee: number; vote_weight: number }, index: number) => ({
+                              subItems: amm.vote_slots.map((slot: any, index: number) => ({
                                    key: `Vote Slot ${index + 1}`,
                                    openByDefault: false,
                                    content: [
@@ -492,24 +482,47 @@ export class CreateAmmComponent implements AfterViewChecked {
                     });
                }
 
+               // ✅ CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched data — no redundant API calls!
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
+
+                         // Update balance — async but non-blocking
+                         this.account1.balance = await this.getXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for AMM:', err);
+                         // Don't break main render — AMM info is already shown
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getAMMPoolInfo:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving getAMMPoolInfo in ${this.executionTime}ms`);
           }
+     }
+
+     // ➤ HELPER: Extracted for clarity + reusability
+     private async fetchAMMPoolInfo(client: any, asset: any, asset2: any, account: string): Promise<any> {
+          return client.request({
+               command: 'amm_info',
+               asset: asset,
+               asset2: asset2,
+               account: account,
+               ledger_index: 'validated',
+          });
      }
 
      async createAMM() {

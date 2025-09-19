@@ -229,9 +229,13 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           try {
                this.showSpinnerWithDelay('Getting Credentials...', 200);
 
+               // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const classicAddress = wallet.classicAddress;
+
+               // Phase 2: Fetch account info + credential objects in PARALLEL
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'credential')]);
 
                inputs = {
                     ...inputs,
@@ -242,10 +246,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
 
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential');
-               console.debug(`accountObjects for ${wallet.classicAddress} ${JSON.stringify(accountObjects.result, null, '\t')}`);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`credential objects for ${classicAddress}:`, accountObjects.result);
 
                type Section = {
                     title: string;
@@ -257,34 +261,45 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          content: { key: string; value: string }[];
                     }[];
                };
-               const data: { sections: Section[] } = {
-                    sections: [],
-               };
+
+               const data: { sections: Section[] } = { sections: [] };
 
                // Add credentials section
                if (!accountObjects.result.account_objects || accountObjects.result.account_objects.length <= 0) {
                     data.sections.push({
                          title: 'Credentials',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No credentials found for <code>${wallet.classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No credentials found for <code>${classicAddress}</code>` }],
                     });
                } else {
-                    const credentialItems = accountObjects.result.account_objects.map((credential: any, index: number) => ({
-                         key: `Credential ${index + 1} (${credential.CredentialType || 'Unknown Type'})`,
-                         openByDefault: index === 0, // Open the first credential by default
-                         content: [
-                              { key: 'Credential Type', value: Buffer.from(credential.CredentialType, 'hex').toString('utf8') || 'N/A' },
-                              { key: 'Subject', value: credential.Subject || 'N/A' },
-                              { key: 'Issuer', value: credential.Issuer || 'N/A' },
-                              { key: 'Index', value: credential.index || 'N/A' },
-                              { key: 'Expiration', value: credential.Expiration ? this.utilsService.fromRippleTime(credential.Expiration).est : 'N/A' },
-                              { key: 'Credential Flags', value: this.utilsService.getCredentialStatus(credential.Flags) },
-                              { key: 'Account Flags', value: flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) },
-                              { key: 'URI', value: credential.URI ? Buffer.from(credential.URI, 'hex').toString('utf8') : 'N/A' },
-                              { key: 'PreviousTxnLgrSeq', value: credential.PreviousTxnLgrSeq?.toString() || 'N/A' },
-                              { key: 'PreviousTxnID', value: credential.PreviousTxnID || 'N/A' },
-                         ],
-                    }));
+                    const credentialItems = accountObjects.result.account_objects.map((credential: any, index: number) => {
+                         // Helper: safely decode hex strings
+                         const decodeHex = (hex: string | undefined): string => {
+                              if (!hex) return 'N/A';
+                              try {
+                                   return Buffer.from(hex, 'hex').toString('utf8') || 'N/A';
+                              } catch {
+                                   return 'Invalid Hex';
+                              }
+                         };
+
+                         return {
+                              key: `Credential ${index + 1} (${credential.CredentialType ? decodeHex(credential.CredentialType) : 'Unknown Type'})`,
+                              openByDefault: index === 0, // Open first by default
+                              content: [
+                                   { key: 'Credential Type', value: decodeHex(credential.CredentialType) },
+                                   { key: 'Subject', value: credential.Subject || 'N/A' },
+                                   { key: 'Issuer', value: credential.Issuer || 'N/A' },
+                                   { key: 'Index', value: credential.index || 'N/A' },
+                                   { key: 'Expiration', value: credential.Expiration ? this.utilsService.fromRippleTime(credential.Expiration).est : 'N/A' },
+                                   { key: 'Credential Flags', value: this.utilsService.getCredentialStatus(credential.Flags) },
+                                   { key: 'Account Flags', value: flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) },
+                                   { key: 'URI', value: decodeHex(credential.URI) },
+                                   { key: 'PreviousTxnLgrSeq', value: credential.PreviousTxnLgrSeq?.toString() || 'N/A' },
+                                   { key: 'PreviousTxnID', value: credential.PreviousTxnID || 'N/A' },
+                              ],
+                         };
+                    });
 
                     data.sections.push({
                          title: `Credentials (${accountObjects.result.account_objects.length})`,
@@ -293,18 +308,26 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     });
                }
 
+               // ✅ CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(accountInfo);
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.clearFields(false);
-
-               await this.updateXrpBalance(client, wallet);
+               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.clearFields(false);
+                         await this.updateXrpBalance(client, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for credentials:', err);
+                         // Don't break main render — credentials are already shown
+                    }
+               }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               console.error('Error in getCredentialsForAccount:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
