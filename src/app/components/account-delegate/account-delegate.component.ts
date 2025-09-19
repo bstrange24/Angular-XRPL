@@ -354,7 +354,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     }
                });
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);

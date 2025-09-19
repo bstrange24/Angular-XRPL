@@ -147,16 +147,16 @@ export class TrustlinesComponent implements AfterViewChecked {
           tfClearFreeze: TrustSetFlags.tfClearFreeze,
      };
 
-     decodeRippleStateFlags(flags: number): string[] {
-          const ledgerFlagMap: { [key: string]: number } = {
-               lsfLowAuth: 0x00010000,
-               lsfHighAuth: 0x00040000,
-               lsfNoRipple: 0x00020000,
-               lsfLowFreeze: 0x00400000,
-               lsfHighFreeze: 0x00800000,
-          };
+     ledgerFlagMap: { [key: string]: number } = {
+          lsfLowAuth: 0x00010000,
+          lsfHighAuth: 0x00040000,
+          lsfNoRipple: 0x00020000,
+          lsfLowFreeze: 0x00400000,
+          lsfHighFreeze: 0x00800000,
+     };
 
-          return Object.entries(ledgerFlagMap)
+     decodeRippleStateFlags(flags: number): string[] {
+          return Object.entries(this.ledgerFlagMap)
                .filter(([_, bit]) => (flags & bit) !== 0)
                .map(([name]) => name);
      }
@@ -461,46 +461,15 @@ export class TrustlinesComponent implements AfterViewChecked {
                     }
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
                this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                this.clearFields(false);
 
-               const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
-               const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
-
-               if (rippleState && 'LedgerEntryType' in rippleState && rippleState.LedgerEntryType === 'RippleState') {
-                    const flagsNumber: number = rippleState.Flags ?? 0;
-
-                    const ledgerFlagMap: { [key: string]: number } = {
-                         lsfNoRipple: 0x00020000,
-                         lsfLowFreeze: 0x00400000,
-                         lsfHighFreeze: 0x00800000,
-                         lsfLowAuth: 0x00010000,
-                         lsfHighAuth: 0x00040000,
-                    };
-
-                    const isLowAddress = wallet.classicAddress < (rippleState as xrpl.LedgerEntry.RippleState).HighLimit.issuer;
-
-                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & (isLowAddress ? ledgerFlagMap['lsfLowAuth'] : ledgerFlagMap['lsfHighAuth']));
-                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & ledgerFlagMap['lsfNoRipple']);
-                    this.trustlineFlags['tfClearNoRipple'] = !(flagsNumber & ledgerFlagMap['lsfNoRipple']);
-                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & (isLowAddress ? ledgerFlagMap['lsfLowFreeze'] : ledgerFlagMap['lsfHighFreeze']));
-                    this.trustlineFlags['tfClearFreeze'] = !(flagsNumber & (isLowAddress ? ledgerFlagMap['lsfLowFreeze'] : ledgerFlagMap['lsfHighFreeze']));
-                    this.trustlineFlags['tfPartialPayment'] = false;
-                    this.trustlineFlags['tfNoDirectRipple'] = false;
-                    this.trustlineFlags['tfLimitQuality'] = false;
-
-                    this.cdr.detectChanges();
-               } else {
-                    Object.keys(this.trustlineFlags).forEach(key => {
-                         this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-                    });
-                    this.cdr.detectChanges();
-               }
+               this.updateTrustLineFlagsInUI(accountObjects, wallet);
 
                await this.updateXrpBalance(client, wallet);
           } catch (error: any) {
@@ -508,6 +477,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
+               this.cdr.detectChanges();
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving getTrustlinesForAccount in ${this.executionTime}ms`);
           }
@@ -1286,7 +1256,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     ],
                });
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                (response.result as any).clearInnerHtml = false;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
@@ -1602,6 +1572,31 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.regularKeySigningEnabled = true;
           } else {
                this.regularKeySigningEnabled = false;
+          }
+     }
+
+     private updateTrustLineFlagsInUI(accountObjects: xrpl.AccountObjectsResponse, wallet: xrpl.Wallet) {
+          const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
+          const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
+
+          if (rippleState && 'LedgerEntryType' in rippleState && rippleState.LedgerEntryType === 'RippleState') {
+               const flagsNumber: number = rippleState.Flags ?? 0;
+
+               const isLowAddress = wallet.classicAddress < (rippleState as xrpl.LedgerEntry.RippleState).HighLimit.issuer;
+
+               this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & (isLowAddress ? this.ledgerFlagMap['lsfLowAuth'] : this.ledgerFlagMap['lsfHighAuth']));
+               this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & this.ledgerFlagMap['lsfNoRipple']);
+               this.trustlineFlags['tfClearNoRipple'] = !(flagsNumber & this.ledgerFlagMap['lsfNoRipple']);
+               this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & (isLowAddress ? this.ledgerFlagMap['lsfLowFreeze'] : this.ledgerFlagMap['lsfHighFreeze']));
+               this.trustlineFlags['tfClearFreeze'] = !(flagsNumber & (isLowAddress ? this.ledgerFlagMap['lsfLowFreeze'] : this.ledgerFlagMap['lsfHighFreeze']));
+               this.trustlineFlags['tfPartialPayment'] = false;
+               this.trustlineFlags['tfNoDirectRipple'] = false;
+               this.trustlineFlags['tfLimitQuality'] = false;
+               this.showTrustlineOptions = true;
+          } else {
+               Object.keys(this.trustlineFlags).forEach(key => {
+                    this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
+               });
           }
      }
 

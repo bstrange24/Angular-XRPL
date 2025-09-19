@@ -168,7 +168,6 @@ export class CreateAmmComponent implements AfterViewChecked {
      weSpendIssuerField: string = '';
      weSpendAmountField: string = '';
      weSpendTokenBalanceField: string = '';
-     isMarketOrder: boolean = false;
      ticketCountField: string = '';
      ticketSequence: string = '';
      isTicket: boolean = false;
@@ -493,7 +492,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
@@ -2171,7 +2170,6 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.memoField = '';
           this.ticketSequence = '';
           this.isTicket = false;
-          this.isMarketOrder = false;
           this.cdr.detectChanges();
      }
 

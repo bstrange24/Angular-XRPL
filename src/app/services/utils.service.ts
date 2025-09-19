@@ -2168,7 +2168,7 @@ export class UtilsService {
           });
      }
 
-     renderPaymentChannelDetails(data: any) {
+     renderDetails(data: any) {
           const container = document.getElementById('resultField');
           if (!container) {
                console.error('Error: #resultField not found');

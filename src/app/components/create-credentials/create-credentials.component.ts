@@ -293,7 +293,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
                this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
@@ -859,7 +859,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          openByDefault: true,
                          content: [{ key: 'Status', value: `Credential type must be 128 characters as hexadecimal.` }],
                     });
-                    this.utilsService.renderPaymentChannelDetails(data);
+                    this.utilsService.renderDetails(data);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
                     return;
@@ -889,7 +889,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Credential not found.` }],
                          });
-                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.utilsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -899,7 +899,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Failed to check credential: ${error.message || 'Unknown error'}` }],
                          });
-                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.utilsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -919,7 +919,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     });
                     console.info('Credential is not accepted.');
                     this.resultField.nativeElement.classList.add('error');
-                    this.utilsService.renderPaymentChannelDetails(data);
+                    this.utilsService.renderDetails(data);
                     this.setErrorProperties();
                     return;
                }
@@ -942,7 +942,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Failed to check credential: ${error.message || 'Unknown error'}` }],
                          });
-                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.utilsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -958,7 +958,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Credential is expired.` }],
                          });
-                         this.utilsService.renderPaymentChannelDetails(data);
+                         this.utilsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -986,7 +986,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                // Credential has passed all checks
                console.info('Credential is valid.');
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                return true;
           } catch (error: any) {
                console.error('Error:', error);

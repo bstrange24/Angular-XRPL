@@ -575,7 +575,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
@@ -811,7 +811,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
@@ -1484,7 +1484,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     ],
                });
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
                (response.result as any).clearInnerHtml = false;
                this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
@@ -1703,7 +1703,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
 
                // Render summary and details in data.sections
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
 
                if (hasError) {
                     this.setErrorProperties();
@@ -1830,7 +1830,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderPaymentChannelDetails(data);
+               this.utilsService.renderDetails(data);
 
                this.setSuccess(this.result);
 
