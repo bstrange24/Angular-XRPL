@@ -115,7 +115,7 @@
                                         <label for="destinationFields">Destination</label>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" (ngModelChange)="clearFields(true)" name="destinationFields">
+                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
                                              <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
                                         </select>
                                    </td>
@@ -478,6 +478,20 @@
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to simulate a send xrp transaction">
+                                        <label>Simulate Transaction</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isSimulateEnabled" [(ngModel)]="isSimulateEnabled" (ngModelChange)="toggleTicketSequence()" name="isSimulateEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isSimulateEnabled"></label>
                               </td>
                          </tr>
                     </table>

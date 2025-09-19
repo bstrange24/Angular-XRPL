@@ -1876,3 +1876,27 @@ mark {
 .masterKeyDisabledClass {
      color: red;
 }
+
+
+.simulate-mode {
+     border-left: 4px solid #ff9800;
+     /* background-color: #fff8e1; */
+}
+
+.simulate-banner {
+     padding: 2px;
+     /* background: #ffecb3; */
+     font-weight: bold;
+     color: #e65100;
+     border-radius: 4px;
+     margin-bottom: 6px;
+}
+
+.simulate-banner-error {
+     padding: 2px;
+     /* background: #ffecb3; */
+     font-weight: bold;
+     color: red;
+     border-radius: 4px;
+     margin-bottom: 6px;
+}
