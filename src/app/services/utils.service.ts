@@ -971,8 +971,8 @@ export class UtilsService {
           return { canFinish, canCancel, reasonFinish, reasonCancel };
      }
 
-     isTxResponse(resp: SubmitResponse | TxResponse<SubmittableTransaction>): resp is TxResponse<SubmittableTransaction> {
-          return 'result' in resp;
+     isTxResponse(obj: any): obj is xrpl.TxResponse<xrpl.SubmittableTransaction> {
+          return obj && typeof obj !== 'string' && 'result' in obj;
      }
 
      /**
