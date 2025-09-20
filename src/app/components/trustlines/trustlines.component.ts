@@ -1893,8 +1893,11 @@ export class TrustlinesComponent implements AfterViewChecked {
      // HELPER: Submit or simulate transaction
      private async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }): Promise<any> {
           if (this.isSimulateEnabled) {
-               return await client.submit(signedTx.tx_blob, { failHard: true });
+               // return await client.submit(signedTx.tx_blob, { failHard: true });
+               console.log(`[SIMULATE] Validating transaction locally for ${signedTx.hash} (no broadcast)`);
+               return await client.submit(signedTx.tx_blob, { offline: true });
           } else {
+               console.log(`[REAL] Submitting transaction ${signedTx.hash} to network`);
                return await client.submitAndWait(signedTx.tx_blob);
           }
      }
