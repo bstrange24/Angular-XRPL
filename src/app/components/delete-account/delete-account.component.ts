@@ -226,7 +226,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
                          this.clearFields(false);
-                         await this.updateXrpBalance(client, wallet);
+                         await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates:', err);
                          // Don't break main flow — account details are already rendered
@@ -335,7 +335,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, payment, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, payment, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -350,7 +350,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                          signedTx = wallet.sign(preparedTx);
                     }
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, payment, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, payment, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -417,8 +417,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
@@ -427,7 +427,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {

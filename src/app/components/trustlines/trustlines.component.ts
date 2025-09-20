@@ -467,7 +467,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.utilsService.loadSignerList(classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
-                              await this.updateXrpBalance(client, wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Failed to load token balances:', err);
                               // Don't break UI — already rendered trust lines
@@ -549,7 +549,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.utilsService.loadSignerList(classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
-                              await this.updateXrpBalance(client, wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Failed to load token balances:', err);
                          }
@@ -666,7 +666,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                // PHASE 4: Validate balance
                const xrpAmount = this.currencyField === AppConstants.XRP_CURRENCY ? this.amountField : '0';
-               if (await this.utilsService.isInsufficientXrpBalance(client, xrpAmount, classicAddress, trustSetTx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, xrpAmount, classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -706,7 +706,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -847,7 +847,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                // ➤ Validate balance (always 0 XRP needed for removal)
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', classicAddress, trustSetTx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -887,7 +887,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -937,7 +937,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                const classicAddress = wallet.classicAddress;
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index + trust lines
-               let [accountInfo, fee, lastLedgerIndex, trustLines] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountLines(client, classicAddress, 'validated', '')]);
+               let [accountInfo, accountObjects, fee, lastLedgerIndex, trustLines] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountLines(client, classicAddress, 'validated', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo :`, accountInfo.result);
@@ -986,7 +986,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     }
 
                     // Validate balance
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', classicAddress, accountSetTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', classicAddress, accountSetTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 
@@ -1069,7 +1069,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                // Validate balance
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', classicAddress, paymentTx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', classicAddress, paymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -1165,8 +1165,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, wallet);
-                              await this.updateCurrencyBalance(wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateCurrencyBalance(wallet, accountObjects);
                               this.updateGatewayBalance(gatewayBalances);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -1217,7 +1217,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                const classicAddress = wallet.classicAddress;
 
                // ➤ PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo :`, accountInfo.result);
@@ -1271,7 +1271,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                // ➤ Validate balance (always 0 XRP needed for clawback)
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', classicAddress, clawbackTx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', classicAddress, clawbackTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -1309,8 +1309,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateCurrencyBalance(wallet);
-                              await this.updateXrpBalance(client, wallet);
+                              await this.updateCurrencyBalance(wallet, accountObjects);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                               this.updateGatewayBalance(await gatewayBalancePromise);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -1338,9 +1338,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const classicAddress = wallet.classicAddress;
+               const accountObjects = await this.xrplService.getAccountObjects(client, classicAddress, 'validated', '');
 
                // ➤ PHASE 1: PARALLELIZE — update balance + fetch gateway balances
-               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet), this.xrplService.getTokenBalance(client, classicAddress, 'validated', '')]);
+               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, classicAddress, 'validated', '')]);
 
                // ➤ PHASE 2: Calculate total balance for selected currency
                let balanceTotal: number = 0;
@@ -1402,8 +1403,8 @@ export class TrustlinesComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
 
@@ -1849,11 +1850,11 @@ export class TrustlinesComponent implements AfterViewChecked {
           await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
-     private async updateCurrencyBalance(wallet: xrpl.Wallet) {
+     private async updateCurrencyBalance(wallet: xrpl.Wallet, accountObjects: any) {
           let balance: string;
           const currencyCode = this.utilsService.encodeIfNeeded(this.currencyField);
           if (wallet.classicAddress) {
-               const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, wallet.classicAddress);
+               const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
                balance = balanceResult !== null ? balanceResult.toString() : '0';
                this.currencyBalanceField = this.utilsService.formatTokenBalance(balance, 18);
           } else {

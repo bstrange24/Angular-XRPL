@@ -247,15 +247,18 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.selectedIssuer = '';
           this.tokenBalance = '';
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
+               const client = await this.xrplService.getClient();
                const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
                const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
+               const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
+               const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
-                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, address, this.currencyFieldDropDownValue, '');
+                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, '');
                          this.issuers = tokenBalanceData.issuers;
                          this.tokenBalance = tokenBalanceData.total.toString();
-                         const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, address);
+                         const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects);
                          console.log(`balanceResult ${balanceResult}`);
                          if (balanceResult) {
                               this.tokenBalance = Math.abs(balanceResult).toString();
@@ -491,10 +494,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.getEscrowOwnerAddress();
 
                     if (this.currencyFieldDropDownValue !== 'XRP') {
-                         await this.updatedTokenBalance(client, wallet);
+                         await this.updatedTokenBalance(client, accountInfo, accountObjects, wallet);
                     }
 
-                    await this.updateXrpBalance(client, wallet);
+                    await this.updateXrpBalance(client, accountInfo, wallet);
 
                     this.isMemoEnabled = false;
                     this.memoField = '';
@@ -625,6 +628,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -636,7 +640,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -647,7 +651,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -672,7 +676,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -782,6 +786,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -793,7 +798,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -804,7 +809,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -828,7 +833,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -960,6 +965,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          escrowTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(escrowTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -971,7 +977,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -982,7 +988,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, escrowTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -1007,7 +1013,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1035,8 +1041,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
@@ -1045,7 +1051,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1512,11 +1518,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
      }
 
-     private async updatedTokenBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const tokenBalanceData = await this.utilsService.getTokenBalance(client, wallet.classicAddress, this.currencyFieldDropDownValue, '');
+     private async updatedTokenBalance(client: xrpl.Client, accountInfo: any, accountObjects: any, wallet: xrpl.Wallet) {
+          const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, wallet.classicAddress, this.currencyFieldDropDownValue, '');
           this.issuers = tokenBalanceData.issuers;
           this.tokenBalance = tokenBalanceData.total.toString();
-          const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, wallet.classicAddress);
+          const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects);
           console.log(`balanceResult ${balanceResult}`);
           if (balanceResult) {
                this.tokenBalance = Math.abs(balanceResult).toString();

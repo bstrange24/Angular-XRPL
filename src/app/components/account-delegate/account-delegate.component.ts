@@ -301,7 +301,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
                          this.clearFields(false);
-                         await this.updateXrpBalance(client, wallet);
+                         await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates:', err);
                          // Don't break main flow — account details are already rendered
@@ -423,6 +423,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          delegateSetTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(delegateSetTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -434,7 +435,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, delegateSetTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, delegateSetTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -445,7 +446,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, delegateSetTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, delegateSetTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -471,7 +472,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
                this.clearFields(false);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -499,8 +500,8 @@ export class AccountDelegateComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
@@ -690,7 +691,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           return errors;
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -735,7 +736,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           }
      }
 
-     refreshUiAccountInfo(accountInfo: any) {
+     refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
           if (regularKey) {
                this.regularKeyAccount = regularKey;

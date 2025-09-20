@@ -291,7 +291,7 @@ export class CreateDidComponent implements AfterViewChecked {
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
                          this.clearFields(false);
-                         await this.updateXrpBalance(client, wallet);
+                         await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for credentials:', err);
                          // Don't break main render — credentials are already shown
@@ -428,7 +428,7 @@ export class CreateDidComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didSetTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didSetTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -443,7 +443,7 @@ export class CreateDidComponent implements AfterViewChecked {
                          signedTx = wallet.sign(preparedTx);
                     }
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didSetTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didSetTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -469,7 +469,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                this.clearFields(false);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -587,7 +587,7 @@ export class CreateDidComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didDeleteTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didDeleteTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -597,7 +597,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     const preparedTx = await client.autofill(didDeleteTx);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, didDeleteTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didDeleteTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -623,7 +623,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                this.clearFields(false);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -651,8 +651,8 @@ export class CreateDidComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
@@ -661,7 +661,7 @@ export class CreateDidComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {

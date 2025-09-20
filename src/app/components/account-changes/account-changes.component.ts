@@ -144,6 +144,8 @@ export class AccountChangesComponent {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
                if (reset) {
                     this.balanceChanges = [];
                     this.balanceChangesDataSource.data = [];
@@ -187,7 +189,7 @@ export class AccountChangesComponent {
                this.marker = txResponse.result.marker;
                if (!this.marker) this.hasMoreData = false;
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error) {
                console.error('Error loading tx:', error);
                this.setError('Failed to load balance changes');
@@ -344,8 +346,8 @@ export class AccountChangesComponent {
           return item.hash; // Unique identifier for rows
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;

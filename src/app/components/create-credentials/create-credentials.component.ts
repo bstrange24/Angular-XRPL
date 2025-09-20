@@ -319,7 +319,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
                          this.clearFields(false);
-                         await this.updateXrpBalance(client, wallet);
+                         await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for credentials:', err);
                          // Don't break main render — credentials are already shown
@@ -430,6 +430,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          credentialCreateTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(credentialCreateTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -441,7 +442,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialCreateTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, credentialCreateTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -452,7 +453,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     const preparedTx = await client.autofill(credentialCreateTx);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialCreateTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, credentialCreateTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -481,7 +482,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                this.clearFields(false);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -603,7 +604,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialDeleteTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, credentialDeleteTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -614,7 +615,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     const preparedTx = await client.autofill(credentialDeleteTx);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialDeleteTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, credentialDeleteTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -640,7 +641,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                this.clearFields(false);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -763,7 +764,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialAcceptTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, credentialAcceptTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -774,7 +775,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     const preparedTx = await client.autofill(credentialAcceptTx);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, credentialAcceptTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, credentialAcceptTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -803,7 +804,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                this.clearFields(false);
 
-               await this.updateXrpBalance(client, wallet);
+               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1038,8 +1039,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
@@ -1048,7 +1049,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {

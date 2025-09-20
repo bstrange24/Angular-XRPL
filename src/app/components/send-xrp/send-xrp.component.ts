@@ -17,6 +17,7 @@ import { AppConstants } from '../../core/app.constants';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { StateService } from '../../services/app-state/state-service.service';
 import { AppState } from '../../services/app-state/state-service.service';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
@@ -110,7 +111,7 @@ export class SendXrpComponent implements AfterViewChecked {
      multiSignFields = ['useMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
      allFields = ['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'useMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private stateService: StateService) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private stateService: StateService, private xrplTransactions: XrplTransactionService) {}
 
      ngOnInit() {
           this.stateService.state$.subscribe(s => (this.state = s));
@@ -216,10 +217,9 @@ export class SendXrpComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info + objects in PARALLEL
-               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -232,21 +232,21 @@ export class SendXrpComponent implements AfterViewChecked {
                }
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
-               // ✅ CRITICAL: Render immediately
+               // Render immediately
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
-                         await this.updateXrpBalance(client, wallet);
+                         await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates:', err);
                          // Don't break main flow — account details are already rendered
@@ -294,10 +294,9 @@ export class SendXrpComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // PHASE 1: Fetch account info + calculate fee + ledger index in PARALLEL
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -314,7 +313,7 @@ export class SendXrpComponent implements AfterViewChecked {
                // PHASE 2: Prepare base payment
                let payment: xrpl.Payment = {
                     TransactionType: 'Payment',
-                    Account: classicAddress,
+                    Account: wallet.classicAddress,
                     Amount: xrpl.xrpToDrops(this.amountField),
                     Destination: this.destinationFields,
                     Fee: fee,
@@ -323,9 +322,9 @@ export class SendXrpComponent implements AfterViewChecked {
 
                // Handle Ticket Sequence
                if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, classicAddress, Number(this.ticketSequence));
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
                     if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${classicAddress}`);
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
                     this.utilsService.setTicketSequence(payment, this.ticketSequence, true);
                } else {
@@ -351,7 +350,8 @@ export class SendXrpComponent implements AfterViewChecked {
 
                // PHASE 4: Sign transaction
                // Sign transaction
-               let signedTx = await this.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee);
+               // let signedTx = await this.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee);
+               let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                if (!signedTx) {
                     return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -360,7 +360,8 @@ export class SendXrpComponent implements AfterViewChecked {
                // PHASE 5: Submit or Simulate
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Transaction (no funds will be moved)...' : 'Submitting to Ledger...');
 
-               const response = await this.submitTransaction(client, signedTx);
+               // const response = await this.submitTransaction(client, signedTx);
+               const response = await this.xrplTransactions.submitTransaction(client, signedTx, this.isSimulateEnabled);
 
                const isSuccess = this.utilsService.isTxSuccessful(response);
                if (!isSuccess) {
@@ -383,7 +384,7 @@ export class SendXrpComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -416,8 +417,8 @@ export class SendXrpComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet) {
-          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
@@ -426,7 +427,7 @@ export class SendXrpComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -465,7 +466,7 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     private refreshUiAccountInfo(accountInfo: any) {
+     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
           if (regularKey) {
                this.regularKeyAddress = regularKey;
@@ -802,42 +803,42 @@ export class SendXrpComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     // HELPER: Sign transaction (handles both single and multi-sign)
-     private async signTransaction(client: any, wallet: xrpl.Wallet, environment: string, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string): Promise<{ tx_blob: string; hash: string } | null> {
-          if (this.useMultiSign) {
-               const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-               const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+     // // HELPER: Sign transaction (handles both single and multi-sign)
+     // private async signTransaction(client: any, wallet: xrpl.Wallet, environment: string, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string): Promise<{ tx_blob: string; hash: string } | null> {
+     //      if (this.useMultiSign) {
+     //           const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+     //           const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
 
-               if (signerAddresses.length === 0) {
-                    throw new Error('No signer addresses provided for multi-signing');
-               }
-               if (signerSeeds.length === 0) {
-                    throw new Error('No signer seeds provided for multi-signing');
-               }
+     //           if (signerAddresses.length === 0) {
+     //                throw new Error('No signer addresses provided for multi-signing');
+     //           }
+     //           if (signerSeeds.length === 0) {
+     //                throw new Error('No signer seeds provided for multi-signing');
+     //           }
 
-               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
+     //           const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
 
-               tx.Signers = result.signers;
+     //           tx.Signers = result.signers;
 
-               // Recalculate fee for multisign
-               const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
-               tx.Fee = multiSignFee;
+     //           // Recalculate fee for multisign
+     //           const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
+     //           tx.Fee = multiSignFee;
 
-               return result.signedTx;
-          } else {
-               const preparedTx = await client.autofill(tx);
-               return useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : (await this.getWallet()).sign(preparedTx);
-          }
-     }
+     //           return result.signedTx;
+     //      } else {
+     //           const preparedTx = await client.autofill(tx);
+     //           return useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : (await this.getWallet()).sign(preparedTx);
+     //      }
+     // }
 
-     // HELPER: Submit or simulate transaction
-     private async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }): Promise<any> {
-          if (this.isSimulateEnabled) {
-               return await client.submit(signedTx.tx_blob, { failHard: true });
-          } else {
-               return await client.submitAndWait(signedTx.tx_blob);
-          }
-     }
+     // // HELPER: Submit or simulate transaction
+     // private async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }): Promise<any> {
+     //      if (this.isSimulateEnabled) {
+     //           return await client.submit(signedTx.tx_blob, { failHard: true });
+     //      } else {
+     //           return await client.submitAndWait(signedTx.tx_blob);
+     //      }
+     // }
 
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {

@@ -591,7 +591,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          this.memoField = '';
 
                          // Update balance — this is async but non-blocking
-                         this.account1.balance = await this.getXrpBalance(client, wallet);
+                         this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for offers:', err);
                          // Don't break main render — offers are already shown
@@ -844,7 +844,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                setTimeout(async () => {
                     try {
                          // Update balance — async but non-blocking
-                         this.account1.balance = await this.getXrpBalance(client, wallet);
+                         this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error updating balance after order book render:', err);
                     }
@@ -1327,6 +1327,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          offerCreateTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(offerCreateTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -1338,7 +1339,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, offerCreateTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, offerCreateTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -1350,7 +1351,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, offerCreateTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, offerCreateTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -1523,7 +1524,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1640,7 +1641,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                          signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, offerCancelTx, fee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, offerCancelTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
 
@@ -1744,7 +1745,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     this.setSuccess(this.result);
                }
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1867,7 +1868,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                this.setSuccess(this.result);
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
 
                if (this.weWantCurrencyField === 'XRP') {
                     // this.weSpendTokenBalanceField = currencyBalance.toString();
@@ -2213,11 +2214,13 @@ export class CreateOfferComponent implements AfterViewChecked {
           const client = await this.xrplService.getClient();
           const wallet = await this.getWallet();
 
+          const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
           try {
                this.spinner = true;
                let balance: string;
                if (this.weWantCurrencyField === 'XRP') {
-                    balance = await this.getXrpBalance(client, wallet);
+                    balance = await this.getXrpBalance(client, accountInfo, wallet);
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
                     balance = (await this.getCurrencyBalance(wallet.classicAddress, currencyCode, this.weWantIssuerField)) ?? '0';
@@ -2261,11 +2264,13 @@ export class CreateOfferComponent implements AfterViewChecked {
           const client = await this.xrplService.getClient();
           const wallet = await this.getWallet();
 
+          const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
           try {
                this.spinner = true;
                let balance: string;
                if (this.weSpendCurrencyField === 'XRP') {
-                    balance = await this.getXrpBalance(client, wallet);
+                    balance = await this.getXrpBalance(client, accountInfo, wallet);
                } else {
                     const currencyCode = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
                     balance = (await this.getCurrencyBalance(wallet.classicAddress, currencyCode, this.weSpendIssuerField)) ?? '0';
@@ -2353,6 +2358,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const wallet = await this.getWallet();
 
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
                if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
                }
@@ -2383,7 +2390,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                // Fetch balance for weWant currency
                let balance: string;
                if (this.weWantCurrencyField === 'XRP') {
-                    balance = await this.getXrpBalance(client, wallet);
+                    balance = await this.getXrpBalance(client, accountInfo, wallet);
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
                     balance = (await this.getCurrencyBalance(wallet.classicAddress, currencyCode, this.weWantIssuerField)) ?? '0';
@@ -2400,7 +2407,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     const xrpAmount = new BigNumber(this.weSpendAmountField);
 
                     // Check if balance is sufficient (amount + fee)
-                    const spendableXrp = new BigNumber(await this.getXrpBalance(client, wallet));
+                    const spendableXrp = new BigNumber(await this.getXrpBalance(client, this.refreshUiAccountInfo, wallet));
                     if (xrpAmount.plus(feeInXrp).gt(spendableXrp)) {
                          this.setError('Insufficient XRP balance (including fee)');
                          this.weWantAmountField = '0';
@@ -2807,13 +2814,13 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
-     async getXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet): Promise<string> {
+     async getXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet): Promise<string> {
           console.log('Entering getXrpBalance');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           try {
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
                this.ownerCount = ownerCount;
                this.totalXrpReserves = totalXrpReserves;
@@ -2837,7 +2844,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {

@@ -498,7 +498,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          this.memoField = '';
 
                          // Update balance — async but non-blocking
-                         this.account1.balance = await this.getXrpBalance(client, wallet);
+                         this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for AMM:', err);
                          // Don't break main render — AMM info is already shown
@@ -705,6 +705,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          ammCreateTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(ammCreateTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -716,7 +717,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammCreateTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammCreateTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -727,7 +728,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammCreateTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammCreateTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -754,7 +755,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.isMemoEnabled = false;
                this.memoField = '';
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -961,6 +962,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          ammDepositTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(ammDepositTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -972,7 +974,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammDepositTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammDepositTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -983,7 +985,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammDepositTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammDepositTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -1015,7 +1017,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.memoField = '';
                // this.amountField = '';
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1206,6 +1208,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          ammWithdrawTx.Signers = result.signers;
 
                          console.log('Payment with Signers:', JSON.stringify(ammWithdrawTx, null, 2));
+                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
 
                          if (!signedTx) {
                               return this.setError('ERROR: No valid signature collected for multisign transaction');
@@ -1217,7 +1220,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammWithdrawTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammWithdrawTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -1228,7 +1231,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammWithdrawTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammWithdrawTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -1261,7 +1264,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.memoField = '';
                // this.amountField = '';
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1376,15 +1379,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     }
 
                     try {
-                         const result = await this.utilsService.handleMultiSignTransaction({
-                              client,
-                              wallet,
-                              environment,
-                              tx: ammClawbackTx,
-                              signerAddresses,
-                              signerSeeds,
-                              fee,
-                         });
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: ammClawbackTx, signerAddresses, signerSeeds, fee });
                          signedTx = result.signedTx;
                          ammClawbackTx.Signers = result.signers;
 
@@ -1395,7 +1390,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
                          ammClawbackTx.Fee = multiSignFee;
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammClawbackTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammClawbackTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -1406,7 +1401,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     const preparedTx = await client.autofill(ammClawbackTx);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, ammClawbackTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, ammClawbackTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -1535,7 +1530,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          const finalTx = xrpl.decode(signedTx.tx_blob);
                          console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, paymentTx, multiSignFee)) {
+                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, paymentTx, multiSignFee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } catch (err: any) {
@@ -1546,7 +1541,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
                     signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, paymentTx, fee)) {
+                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, paymentTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
                }
@@ -1577,7 +1572,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.memoField = '';
                // this.amountField = '';
 
-               this.account1.balance = await this.getXrpBalance(client, wallet);
+               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1609,7 +1604,8 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                if (this.weWantCurrencyField === 'XRP') {
                     const client = await this.xrplService.getClient();
-                    balance = await this.getXrpBalance(client, wallet);
+                    const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                    balance = await this.getXrpBalance(client, accountInfo, wallet);
                     this.weWantTokenBalanceField = balance !== null ? balance : '0';
                     this.weWantIssuerField = '';
                } else {
@@ -1654,7 +1650,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                if (this.weSpendCurrencyField === 'XRP') {
                     const client = await this.xrplService.getClient();
-                    balance = await this.getXrpBalance(client, wallet);
+                    balance = await this.getXrpBalance(client, this.refreshUiAccountInfo, wallet);
                     this.weSpendTokenBalanceField = balance !== null ? balance : '0';
                     this.weSpendIssuerField = '';
                } else {
@@ -1696,12 +1692,12 @@ export class CreateAmmComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     async getXrpBalance(client: xrpl.Client, wallet: xrpl.Wallet): Promise<string> {
+     async getXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet): Promise<string> {
           console.log('Entering getXrpBalance');
           this.setSuccessProperties();
 
           try {
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, wallet.classicAddress);
+               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
                this.ownerCount = ownerCount;
                this.totalXrpReserves = totalXrpReserves;
@@ -1718,7 +1714,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: any) {
+     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1760,7 +1756,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.memoField = '';
      }
 
-     private refreshUiAccountInfo(accountInfo: any) {
+     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
 
           if (regularKey) {
