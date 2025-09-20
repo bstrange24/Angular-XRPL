@@ -97,6 +97,7 @@ export class SendChecksComponent implements AfterViewChecked {
      issuers: string[] = [];
      selectedIssuer: string = '';
      tokenBalance: string = '';
+     isSimulateEnabled: boolean = false;
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
           XRP: '',
@@ -213,21 +214,27 @@ export class SendChecksComponent implements AfterViewChecked {
      }
 
      async toggleIssuerField() {
-          this.issuers = [];
+          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
+this.issuers = [];
           this.selectedIssuer = '';
           this.tokenBalance = '';
-          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
                const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
                const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
-                         const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
-                         const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
-                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, '');
-                         this.issuers = tokenBalanceData.issuers;
+                         const [accountInfo, accountObjects] = await Promise.all([
+                              await this.xrplService.getAccountInfo(client, address, 'validated', ''),
+                              await this.xrplService.getAccountObjects(client, address, 'validated', ''),
+                         ]);
+                         const [tokenBalanceData, balanceResult] = await Promise.all([
+                              await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, ''),
+                             await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects),
+                         ]);
+                         // const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, '');
+                         // const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects);
                          this.tokenBalance = tokenBalanceData.total.toString();
-                         const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects);
+                         this.issuers = tokenBalanceData.issuers;
                          console.log(`balanceResult ${balanceResult}`);
                          if (balanceResult) {
                               this.tokenBalance = Math.abs(balanceResult).toString();
@@ -536,7 +543,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const accountInfo = this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -695,7 +702,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const accountInfo = this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -844,7 +851,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const accountInfo = this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 

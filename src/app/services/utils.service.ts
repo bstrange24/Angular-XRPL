@@ -3035,17 +3035,17 @@ export class UtilsService {
 
      async getXrplReserve(client: xrpl.Client) {
           try {
-               // Get the current ledger index from the client
-               const server_info = await this.xrplService.getXrplServerInfo(client, 'current', '');
-               // console.debug(`Server Info ${JSON.stringify(server_info, null, 2)}`);
+               // // Get the current ledger index from the client
+               // const server_info = await this.xrplService.getXrplServerInfo(client, 'current', '');
+               // // console.debug(`Server Info ${JSON.stringify(server_info, null, 2)}`);
 
-               if (server_info.result.info && server_info.result.info.validated_ledger) {
-                    console.debug(`Base Fee: ${server_info.result.info.validated_ledger.base_fee_xrp} XRP`);
-                    console.debug(`Base Reserve: ${server_info.result.info.validated_ledger.reserve_base_xrp} XRP`);
-                    console.debug(`Total incremental owner count: ${server_info.result.info.validated_ledger.reserve_inc_xrp} XRP`);
-               } else {
-                    console.warn('validated_ledger is undefined in server_info');
-               }
+               // if (server_info.result.info && server_info.result.info.validated_ledger) {
+               //      console.debug(`Base Fee: ${server_info.result.info.validated_ledger.base_fee_xrp} XRP`);
+               //      console.debug(`Base Reserve: ${server_info.result.info.validated_ledger.reserve_base_xrp} XRP`);
+               //      console.debug(`Total incremental owner count: ${server_info.result.info.validated_ledger.reserve_inc_xrp} XRP`);
+               // } else {
+               //      console.warn('validated_ledger is undefined in server_info');
+               // }
 
                const ledger_info = await this.xrplService.getXrplServerState(client, 'current', '');
                const ledgerData = ledger_info.result.state.validated_ledger;

@@ -18,6 +18,7 @@ import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-in
 import { StateService } from '../../services/app-state/state-service.service';
 import { AppState } from '../../services/app-state/state-service.service';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
+import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
@@ -111,7 +112,7 @@ export class SendXrpComponent implements AfterViewChecked {
      multiSignFields = ['useMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
      allFields = ['amountField', 'memoField', 'isMemoEnabled', 'invoiceIdField', 'ticketSequence', 'destinationTagField', 'sourceTagField', 'isTicket', 'useMultiSign', 'signerQuorum', 'multiSignAddress', 'multiSignSeeds'] as const;
 
-     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private stateService: StateService, private xrplTransactions: XrplTransactionService) {}
+     constructor(private xrplService: XrplService, private utilsService: UtilsService, private cdr: ChangeDetectorRef, private storageService: StorageService, private stateService: StateService, private xrplTransactions: XrplTransactionService, private renderUiComponentsService: RenderUiComponentsService) {}
 
      ngOnInit() {
           this.stateService.state$.subscribe(s => (this.state = s));
@@ -236,7 +237,7 @@ export class SendXrpComponent implements AfterViewChecked {
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
                // Render immediately
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               this.renderUiComponentsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates — let main render complete first
@@ -350,7 +351,6 @@ export class SendXrpComponent implements AfterViewChecked {
 
                // PHASE 4: Sign transaction
                // Sign transaction
-               // let signedTx = await this.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee);
                let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                if (!signedTx) {
@@ -360,7 +360,6 @@ export class SendXrpComponent implements AfterViewChecked {
                // PHASE 5: Submit or Simulate
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Transaction (no funds will be moved)...' : 'Submitting to Ledger...');
 
-               // const response = await this.submitTransaction(client, signedTx);
                const response = await this.xrplTransactions.submitTransaction(client, signedTx, this.isSimulateEnabled);
 
                const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -803,48 +802,11 @@ export class SendXrpComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     // // HELPER: Sign transaction (handles both single and multi-sign)
-     // private async signTransaction(client: any, wallet: xrpl.Wallet, environment: string, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string): Promise<{ tx_blob: string; hash: string } | null> {
-     //      if (this.useMultiSign) {
-     //           const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-     //           const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-
-     //           if (signerAddresses.length === 0) {
-     //                throw new Error('No signer addresses provided for multi-signing');
-     //           }
-     //           if (signerSeeds.length === 0) {
-     //                throw new Error('No signer seeds provided for multi-signing');
-     //           }
-
-     //           const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
-
-     //           tx.Signers = result.signers;
-
-     //           // Recalculate fee for multisign
-     //           const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
-     //           tx.Fee = multiSignFee;
-
-     //           return result.signedTx;
-     //      } else {
-     //           const preparedTx = await client.autofill(tx);
-     //           return useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : (await this.getWallet()).sign(preparedTx);
-     //      }
-     // }
-
-     // // HELPER: Submit or simulate transaction
-     // private async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }): Promise<any> {
-     //      if (this.isSimulateEnabled) {
-     //           return await client.submit(signedTx.tx_blob, { failHard: true });
-     //      } else {
-     //           return await client.submitAndWait(signedTx.tx_blob);
-     //      }
-     // }
-
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
-               this.utilsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
+               this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
           } else {
-               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+               this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
      }
 

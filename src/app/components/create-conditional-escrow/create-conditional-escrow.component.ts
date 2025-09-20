@@ -245,21 +245,29 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      }
 
      async toggleIssuerField() {
-          this.issuers = [];
+          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
+               this.issuers = [];
           this.selectedIssuer = '';
           this.tokenBalance = '';
-          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
                const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
                const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
-                         const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
-                         const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
-                         const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, '');
+                         const [accountInfo, accountObjects] = await Promise.all([
+                              await this.xrplService.getAccountInfo(client, address, 'validated', ''),
+                              await this.xrplService.getAccountObjects(client, address, 'validated', ''),
+                         ]);
+                         const [tokenBalanceData, balanceResult] = await Promise.all([
+                              await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, ''),
+                             await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects),
+                         ]);
+                         // const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
+                         // const accountObjects = await this.xrplService.getAccountObjects(client, address, 'validated', '');
+                         // const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, '');
+                         // const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects);
                          this.issuers = tokenBalanceData.issuers;
                          this.tokenBalance = tokenBalanceData.total.toString();
-                         const balanceResult = await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects);
                          console.log(`balanceResult ${balanceResult}`);
                          if (balanceResult) {
                               this.tokenBalance = Math.abs(balanceResult).toString();
