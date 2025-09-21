@@ -983,7 +983,7 @@ export class XrplService {
           try {
                // Fetch account objects (tickets)
                const ticket_objects = await this.getAccountObjects(client, account, 'validated', 'ticket');
-               console.debug(`Ticket Objects ${JSON.stringify(ticket_objects, null, '\t')}`);
+               console.debug(`Ticket Objects`, ticket_objects);
 
                // Check if the ticketSequence exists in the ticket_objects array
                const ticketExists = (ticket_objects.result.account_objects || []).some((ticket: any) => ticket.TicketSequence === ticketSequence);

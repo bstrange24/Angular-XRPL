@@ -311,72 +311,140 @@ export class SendXrpComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               // PHASE 2: Prepare base payment
-               let payment: xrpl.Payment = {
-                    TransactionType: 'Payment',
-                    Account: wallet.classicAddress,
-                    Amount: xrpl.xrpToDrops(this.amountField),
-                    Destination: this.destinationFields,
-                    Fee: fee,
-                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               };
+               let payment:xrpl.Payment;
 
-               // Handle Ticket Sequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+               if(this.isSimulateEnabled) {
+                    // Build base tx_json
+                    const baseTxJson: any = {
+                         TransactionType: 'Payment',
+                         Account: wallet.classicAddress,
+                         Destination: this.destinationFields,
+                         Amount: xrpl.xrpToDrops(this.amountField),
+                         Fee: fee,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+
+                    // Handle Ticket Sequence
+                    if (this.ticketSequence) {
+                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                         if (!ticketExists) {
+                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                         }
+                         this.utilsService.setTicketSequence(baseTxJson, this.ticketSequence, true);
+                    } else {
+                         this.utilsService.setTicketSequence(baseTxJson, accountInfo.result.account_data.Sequence, false);
                     }
-                    this.utilsService.setTicketSequence(payment, this.ticketSequence, true);
+
+                    // Optional fields
+                    if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                         this.utilsService.setDestinationTag(baseTxJson, this.destinationTagField);
+                    }
+                    if (this.memoField) {
+                         this.utilsService.setMemoField(baseTxJson, this.memoField);
+                    }
+                    if (this.invoiceIdField) {
+                         await this.utilsService.setInvoiceIdField(baseTxJson, this.invoiceIdField);
+                    }
+                    if (this.sourceTagField) {
+                         this.utilsService.setSourceTagField(baseTxJson, this.sourceTagField);
+                    }
+
+                    // Autofill, sign with regular key
+                    // const autofilled = await client.autofill(baseTxJson);
+                    // const signed = wallet.sign(autofilled);
+
+                    // Call simulate
+                    const simulation: xrpl.Payment = await client.request({
+                         command: "simulate",
+                         tx_json: baseTxJson,
+                         // tx_blob: signed.tx_blob,
+                    });
+
+                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                         (simulation['result'] as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
+                    }
+
+                    // Render result
+                    this.renderTransactionResult(simulation);
+
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
                } else {
-                    this.utilsService.setTicketSequence(payment, accountInfo.result.account_data.Sequence, false);
+                    // PHASE 2: Prepare base payment
+                    payment = {
+                         TransactionType: 'Payment',
+                         Account: wallet.classicAddress,
+                         Amount: xrpl.xrpToDrops(this.amountField),
+                         Destination: this.destinationFields,
+                         Fee: fee,
+                         LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    };
+               
+               
+                    // Handle Ticket Sequence
+                    if (this.ticketSequence) {
+                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                         if (!ticketExists) {
+                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                         }
+                         this.utilsService.setTicketSequence(payment, this.ticketSequence, true);
+                    } else {
+                         this.utilsService.setTicketSequence(payment, accountInfo.result.account_data.Sequence, false);
+                    }
+
+                    // Optional fields
+                    if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                         this.utilsService.setDestinationTag(payment, this.destinationTagField);
+                    }
+                    if (this.memoField) {
+                         this.utilsService.setMemoField(payment, this.memoField);
+                    }
+                    if (this.invoiceIdField) {
+                         await this.utilsService.setInvoiceIdField(payment, this.invoiceIdField);
+                    }
+                    if (this.sourceTagField) {
+                         this.utilsService.setSourceTagField(payment, this.sourceTagField);
+                    }
+
+                    // PHASE 3: Get regular key wallet (if needed)
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+                    // PHASE 4: Sign transaction
+                    // Sign transaction
+                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                    if (!signedTx) {
+                         return this.setError('ERROR: Failed to sign Payment transaction.');
+                    }
+
+                    // PHASE 5: Submit or Simulate
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Transaction (no funds will be moved)...' : 'Submitting to Ledger...');
+                    
+
+                    const response = await this.xrplTransactions.submitTransaction(client, signedTx, this.isSimulateEnabled);
+               
+                    const isSuccess = this.utilsService.isTxSuccessful(response);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                         (response.result as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    }
+
+                    // Render result
+                    this.renderTransactionResult(response);
+
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
                }
-
-               // Optional fields
-               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    this.utilsService.setDestinationTag(payment, this.destinationTagField);
-               }
-               if (this.memoField) {
-                    this.utilsService.setMemoField(payment, this.memoField);
-               }
-               if (this.invoiceIdField) {
-                    await this.utilsService.setInvoiceIdField(payment, this.invoiceIdField);
-               }
-               if (this.sourceTagField) {
-                    this.utilsService.setSourceTagField(payment, this.sourceTagField);
-               }
-
-               // PHASE 3: Get regular key wallet (if needed)
-               const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               // PHASE 4: Sign transaction
-               // Sign transaction
-               let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, payment, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
-
-               if (!signedTx) {
-                    return this.setError('ERROR: Failed to sign Payment transaction.');
-               }
-
-               // PHASE 5: Submit or Simulate
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Transaction (no funds will be moved)...' : 'Submitting to Ledger...');
-
-               const response = await this.xrplTransactions.submitTransaction(client, signedTx, this.isSimulateEnabled);
-
-               const isSuccess = this.utilsService.isTxSuccessful(response);
-               if (!isSuccess) {
-                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                    let userMessage = 'Transaction failed.\n';
-                    userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                    (response.result as any).errorMessage = userMessage;
-                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-               }
-
-               // Render result
-               this.renderTransactionResult(response);
-
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates (skip for simulation)
                if (!this.isSimulateEnabled) {
@@ -804,8 +872,10 @@ export class SendXrpComponent implements AfterViewChecked {
 
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
+               console.debug(`Simulate response`, response);
                this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
           } else {
+               console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
      }
