@@ -1144,7 +1144,7 @@ export class UtilsService {
                throw new Error('One or more signer addresses are not in the SignerList');
           }
 
-          console.log('SignerList:', JSON.stringify(signerList, null, 2));
+          console.log('SignerList:', signerList);
           console.log('Valid Signers:', validSigners);
           console.log('Provided Signers:', signerAddresses);
           console.log('Quorum:', quorum);
@@ -1162,7 +1162,7 @@ export class UtilsService {
           delete preparedTx.Signers;
           delete preparedTx.TxnSignature;
 
-          console.log('PreparedTx before signing:', JSON.stringify(preparedTx, null, 2));
+          console.log('PreparedTx before signing:', preparedTx);
 
           const signerBlobs: string[] = [];
 
@@ -1174,7 +1174,7 @@ export class UtilsService {
                }
 
                const signed = signerWallet.sign(preparedTx, true); // true = multisign
-               console.log('Signed Transaction:', JSON.stringify(signed, null, 2));
+               console.log('Signed Transaction:', signed);
 
                if (signed.tx_blob) {
                     signerBlobs.push(signed.tx_blob);
@@ -1185,8 +1185,8 @@ export class UtilsService {
                throw new Error('No valid signatures collected for multisign transaction');
           }
 
-          console.log('PreparedTx after signing:', JSON.stringify(preparedTx, null, 2));
-          console.log('signerBlobs:', JSON.stringify(signerBlobs, null, 2));
+          console.log('PreparedTx after signing:', preparedTx);
+          console.log('signerBlobs:', signerBlobs);
 
           // Combine all signatures into one final multisigned transaction
           const multisignedTxBlob = xrpl.multisign(signerBlobs);

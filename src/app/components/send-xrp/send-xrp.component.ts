@@ -311,11 +311,165 @@ export class SendXrpComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let payment:xrpl.Payment;
+               let paymentTx: xrpl.Payment = {
+                    TransactionType: 'Payment',
+                    Account: wallet.classicAddress,
+                    Destination: this.destinationFields,
+                    Amount: xrpl.xrpToDrops(this.amountField),
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
 
-               if(this.isSimulateEnabled) {
+               // Handle Ticket Sequence
+               if (this.ticketSequence) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                    if (!ticketExists) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(paymentTx, this.ticketSequence, true);
+               } else {
+                    this.utilsService.setTicketSequence(paymentTx, accountInfo.result.account_data.Sequence, false);
+               }
+
+               // Optional fields
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
+               }
+               if (this.memoField) {
+                    this.utilsService.setMemoField(paymentTx, this.memoField);
+               }
+               if (this.invoiceIdField) {
+                    await this.utilsService.setInvoiceIdField(paymentTx, this.invoiceIdField);
+               }
+               if (this.sourceTagField) {
+                    this.utilsService.setSourceTagField(paymentTx, this.sourceTagField);
+               }
+
+               if (this.isSimulateEnabled) {
+                    const simulation = await this.xrplTransactions.simulateTransaction(client, paymentTx);
+
+                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                         (simulation['result'] as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
+                    }
+
+                    // Render result
+                    this.renderTransactionResult(simulation);
+
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
+               } else {
+                    // PHASE 3: Get regular key wallet (if needed)
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+                    // PHASE 4: Sign transaction
+                    // Sign transaction
+                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                    if (!signedTx) {
+                         return this.setError('ERROR: Failed to sign Payment transaction.');
+                    }
+
+                    // PHASE 5: Submit or Simulate
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Transaction (no funds will be moved)...' : 'Submitting to Ledger...');
+
+                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                    const isSuccess = this.utilsService.isTxSuccessful(response);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                         (response.result as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    }
+                    // Render result
+                    this.renderTransactionResult(response);
+
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
+               }
+
+               // DEFER: Non-critical UI updates (skip for simulation)
+               if (!this.isSimulateEnabled) {
+                    setTimeout(async () => {
+                         try {
+                              this.clearFields(false);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
+                         } catch (err) {
+                              console.error('Error in post-tx cleanup:', err);
+                         }
+                    }, 0);
+               }
+          } catch (error: any) {
+               console.error('Error in sendXrp:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving sendXrp in ${this.executionTime}ms`);
+          }
+     }
+
+     async sendXrp1() {
+          console.log('Entering sendXrp');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          let inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+               amount: this.amountField,
+               destination: this.destinationFields,
+               destinationTag: this.destinationTagField,
+               sourceTag: this.sourceTagField,
+               invoiceId: this.invoiceIdField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.regularKeyAddress || undefined,
+               regularKeySeed: this.regularKeySeed || undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.ticketSequence,
+          };
+
+          try {
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'sending';
+               this.updateSpinnerMessage(`Preparing XRP Transaction (${mode})...`);
+
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               // PHASE 1: Fetch account info + calculate fee + ledger index in PARALLEL
+               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+
+               inputs = { ...inputs, account_info: accountInfo };
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo :`, accountInfo.result);
+               console.debug(`fee :`, fee);
+               console.debug(`currentLedger :`, currentLedger);
+
+               const errors = await this.validateInputs(inputs, 'sendXrp');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+
+               let payment: xrpl.Payment;
+
+               if (this.isSimulateEnabled) {
                     // Build base tx_json
-                    const baseTxJson: any = {
+                    payment = {
                          TransactionType: 'Payment',
                          Account: wallet.classicAddress,
                          Destination: this.destinationFields,
@@ -330,23 +484,23 @@ export class SendXrpComponent implements AfterViewChecked {
                          if (!ticketExists) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
-                         this.utilsService.setTicketSequence(baseTxJson, this.ticketSequence, true);
+                         this.utilsService.setTicketSequence(payment, this.ticketSequence, true);
                     } else {
-                         this.utilsService.setTicketSequence(baseTxJson, accountInfo.result.account_data.Sequence, false);
+                         this.utilsService.setTicketSequence(payment, accountInfo.result.account_data.Sequence, false);
                     }
 
                     // Optional fields
                     if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                         this.utilsService.setDestinationTag(baseTxJson, this.destinationTagField);
+                         this.utilsService.setDestinationTag(payment, this.destinationTagField);
                     }
                     if (this.memoField) {
-                         this.utilsService.setMemoField(baseTxJson, this.memoField);
+                         this.utilsService.setMemoField(payment, this.memoField);
                     }
                     if (this.invoiceIdField) {
-                         await this.utilsService.setInvoiceIdField(baseTxJson, this.invoiceIdField);
+                         await this.utilsService.setInvoiceIdField(payment, this.invoiceIdField);
                     }
                     if (this.sourceTagField) {
-                         this.utilsService.setSourceTagField(baseTxJson, this.sourceTagField);
+                         this.utilsService.setSourceTagField(payment, this.sourceTagField);
                     }
 
                     // Autofill, sign with regular key
@@ -354,11 +508,12 @@ export class SendXrpComponent implements AfterViewChecked {
                     // const signed = wallet.sign(autofilled);
 
                     // Call simulate
-                    const simulation: xrpl.Payment = await client.request({
-                         command: "simulate",
-                         tx_json: baseTxJson,
-                         // tx_blob: signed.tx_blob,
-                    });
+                    const simulation = await this.xrplTransactions.simulateTransaction(client, payment);
+                    // const simulation: xrpl.Payment = await client.request({
+                    //      command: 'simulate',
+                    //      tx_json: baseTxJson,
+                    //      // tx_blob: signed.tx_blob,
+                    // });
 
                     const isSuccess = this.utilsService.isTxSuccessful(simulation);
                     if (!isSuccess) {
@@ -385,8 +540,7 @@ export class SendXrpComponent implements AfterViewChecked {
                          Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
-               
-               
+
                     // Handle Ticket Sequence
                     if (this.ticketSequence) {
                          const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
@@ -425,10 +579,9 @@ export class SendXrpComponent implements AfterViewChecked {
 
                     // PHASE 5: Submit or Simulate
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Transaction (no funds will be moved)...' : 'Submitting to Ledger...');
-                    
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx, this.isSimulateEnabled);
-               
+                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
                     const isSuccess = this.utilsService.isTxSuccessful(response);
                     if (!isSuccess) {
                          const resultMsg = this.utilsService.getTransactionResultMessage(response);
@@ -501,7 +654,7 @@ export class SendXrpComponent implements AfterViewChecked {
                const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
                const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
 
-               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+               console.debug(`refreshUiAccountObjects:`, signerEntries);
 
                this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
                this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
@@ -872,7 +1025,6 @@ export class SendXrpComponent implements AfterViewChecked {
 
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
-               console.debug(`Simulate response`, response);
                this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
           } else {
                console.debug(`Response`, response);

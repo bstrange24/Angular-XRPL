@@ -5,11 +5,10 @@ import { flagNames } from 'flagnames';
 import * as xrpl from 'xrpl';
 
 @Injectable({
-  providedIn: 'root'
+     providedIn: 'root',
 })
 export class RenderUiComponentsService {
-
-     constructor(private readonly xrplService: XrplService,private utilsService: UtilsService) { }
+     constructor(private readonly xrplService: XrplService, private utilsService: UtilsService) {}
 
      renderSimulatedTransactionsResults(transactions: { type: string; result: any } | { type: string; result: any }[], container: HTMLElement): void {
           const txArray = Array.isArray(transactions) ? transactions : [transactions];
@@ -224,34 +223,34 @@ export class RenderUiComponentsService {
                txDataDetails.appendChild(txDataSummary);
                txDataDetails.appendChild(txDataTable);
 
-                    // Meta Data Table
-                    const metaContent = result.meta
-                         ? [
-                                { key: 'Transaction Index', value: result.meta.TransactionIndex || 'N/A' },
-                                { key: 'Transaction Result', value: result.meta.TransactionResult || 'N/A' },
-                                { key: 'Delivered Amount', value: result.meta.delivered_amount ? this.utilsService.formatAmount(result.meta.delivered_amount) : 'N/A' },
-                           ]
-                         : [];
+               // Meta Data Table
+               const metaContent = result.meta
+                    ? [
+                           { key: 'Transaction Index', value: result.meta.TransactionIndex || 'N/A' },
+                           { key: 'Transaction Result', value: result.meta.TransactionResult || 'N/A' },
+                           { key: 'Delivered Amount', value: result.meta.delivered_amount ? this.utilsService.formatAmount(result.meta.delivered_amount) : 'N/A' },
+                      ]
+                    : [];
 
-                    const metaTable = document.createElement('div');
-                    metaTable.className = 'result-table';
-                    const metaHeader = document.createElement('div');
-                    metaHeader.className = 'result-row result-header';
-                    metaHeader.innerHTML = `
+               const metaTable = document.createElement('div');
+               metaTable.className = 'result-table';
+               const metaHeader = document.createElement('div');
+               metaHeader.className = 'result-row result-header';
+               metaHeader.innerHTML = `
                    <div class="result-cell key">Key</div>
                    <div class="result-cell value">Value</div>
                  `;
-                    metaTable.appendChild(metaHeader);
+               metaTable.appendChild(metaHeader);
 
-                    metaContent.forEach(item => {
-                         const row = document.createElement('div');
-                         row.className = 'result-row';
-                         row.innerHTML = `
+               metaContent.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'result-row';
+                    row.innerHTML = `
                      <div class="result-cell key">${item.key}</div>
                      <div class="result-cell value">${item.value}</div>
                    `;
-                         metaTable.appendChild(row);
-                    });
+                    metaTable.appendChild(row);
+               });
 
                const metaDetails = document.createElement('details');
                metaDetails.className = 'nested-object';
@@ -296,84 +295,84 @@ export class RenderUiComponentsService {
                       })
                     : [];
 
-                              const affectedNodesDetails = document.createElement('details');
-                              affectedNodesDetails.className = 'nested-object';
-                              const affectedNodesSummary = document.createElement('summary');
-                              affectedNodesSummary.textContent = 'Affected Nodes';
-                              affectedNodesDetails.appendChild(affectedNodesSummary);
+               const affectedNodesDetails = document.createElement('details');
+               affectedNodesDetails.className = 'nested-object';
+               const affectedNodesSummary = document.createElement('summary');
+               affectedNodesSummary.textContent = 'Affected Nodes';
+               affectedNodesDetails.appendChild(affectedNodesSummary);
 
-                              affectedNodesContent.forEach((node: { key: string; content: any[] }) => {
-                                   const nodeDetails = document.createElement('details');
-                                   nodeDetails.className = 'nested-object';
-                                   const nodeSummary = document.createElement('summary');
-                                   nodeSummary.textContent = node.key;
-                                   nodeDetails.appendChild(nodeSummary);
+               affectedNodesContent.forEach((node: { key: string; content: any[] }) => {
+                    const nodeDetails = document.createElement('details');
+                    nodeDetails.className = 'nested-object';
+                    const nodeSummary = document.createElement('summary');
+                    nodeSummary.textContent = node.key;
+                    nodeDetails.appendChild(nodeSummary);
 
-                                   const nodeTable = document.createElement('div');
-                                   nodeTable.className = 'result-table';
-                                   const nodeHeader = document.createElement('div');
-                                   nodeHeader.className = 'result-row result-header';
-                                   nodeHeader.innerHTML = `
+                    const nodeTable = document.createElement('div');
+                    nodeTable.className = 'result-table';
+                    const nodeHeader = document.createElement('div');
+                    nodeHeader.className = 'result-row result-header';
+                    nodeHeader.innerHTML = `
                        <div class="result-cell key">Key</div>
                        <div class="result-cell value">Value</div>
                    `;
-                                   nodeTable.appendChild(nodeHeader);
+                    nodeTable.appendChild(nodeHeader);
 
-                                   node.content.forEach(item => {
-                                        const row = document.createElement('div');
-                                        row.className = 'result-row';
+                    node.content.forEach(item => {
+                         const row = document.createElement('div');
+                         row.className = 'result-row';
 
-                                        if (item.content) {
-                                             // Keep proper key + value structure
-                                             row.innerHTML = `<div class="result-cell key">${item.key}</div>`;
+                         if (item.content) {
+                              // Keep proper key + value structure
+                              row.innerHTML = `<div class="result-cell key">${item.key}</div>`;
 
-                                             const valueCell = document.createElement('div');
-                                             valueCell.className = 'result-cell value';
+                              const valueCell = document.createElement('div');
+                              valueCell.className = 'result-cell value';
 
-                                             const nestedDetails = document.createElement('details');
-                                             nestedDetails.className = 'nested-object';
+                              const nestedDetails = document.createElement('details');
+                              nestedDetails.className = 'nested-object';
 
-                                             const nestedSummary = document.createElement('summary');
-                                             nestedSummary.textContent = item.key;
-                                             nestedDetails.appendChild(nestedSummary);
+                              const nestedSummary = document.createElement('summary');
+                              nestedSummary.textContent = item.key;
+                              nestedDetails.appendChild(nestedSummary);
 
-                                             const nestedTable = document.createElement('div');
-                                             nestedTable.className = 'result-table';
-                                             const nestedHeader = document.createElement('div');
-                                             nestedHeader.className = 'result-row result-header';
-                                             nestedHeader.innerHTML = `
+                              const nestedTable = document.createElement('div');
+                              nestedTable.className = 'result-table';
+                              const nestedHeader = document.createElement('div');
+                              nestedHeader.className = 'result-row result-header';
+                              nestedHeader.innerHTML = `
                        <div class="result-cell key">Key</div>
                        <div class="result-cell value">Value</div>
                    `;
-                                             nestedTable.appendChild(nestedHeader);
+                              nestedTable.appendChild(nestedHeader);
 
-                                             item.content.forEach((nestedItem: { key: string; value?: string }) => {
-                                                  const nestedRow = document.createElement('div');
-                                                  nestedRow.className = 'result-row';
-                                                  nestedRow.innerHTML = `
+                              item.content.forEach((nestedItem: { key: string; value?: string }) => {
+                                   const nestedRow = document.createElement('div');
+                                   nestedRow.className = 'result-row';
+                                   nestedRow.innerHTML = `
                            <div class="result-cell key">${nestedItem.key}</div>
                            <div class="result-cell value">${nestedItem.value || ''}</div>
                        `;
-                                                  nestedTable.appendChild(nestedRow);
-                                             });
+                                   nestedTable.appendChild(nestedRow);
+                              });
 
-                                             nestedDetails.appendChild(nestedTable);
-                                             valueCell.appendChild(nestedDetails);
-                                             row.appendChild(valueCell);
-                                        } else {
-                                             // Normal key-value row
-                                             row.innerHTML = `
+                              nestedDetails.appendChild(nestedTable);
+                              valueCell.appendChild(nestedDetails);
+                              row.appendChild(valueCell);
+                         } else {
+                              // Normal key-value row
+                              row.innerHTML = `
                                <div class="result-cell key">${item.key}</div>
                                <div class="result-cell value">${item.value || ''}</div>
                            `;
-                                        }
+                         }
 
-                                        nodeTable.appendChild(row);
-                                   });
+                         nodeTable.appendChild(row);
+                    });
 
-                                   nodeDetails.appendChild(nodeTable);
-                                   affectedNodesDetails.appendChild(nodeDetails);
-                              });
+                    nodeDetails.appendChild(nodeTable);
+                    affectedNodesDetails.appendChild(nodeDetails);
+               });
 
                txDetails.appendChild(txTable);
                txDetails.appendChild(txDataDetails);
@@ -1509,5 +1508,4 @@ export class RenderUiComponentsService {
                });
           });
      }
-
 }

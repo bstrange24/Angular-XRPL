@@ -245,8 +245,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      async toggleIssuerField() {
           if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
                this.issuers = [];
-          this.selectedIssuer = '';
-          this.tokenBalance = '';
+               this.selectedIssuer = '';
+               this.tokenBalance = '';
                const client = await this.xrplService.getClient();
                const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
                const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
@@ -255,14 +255,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
                     try {
                          const client = await this.xrplService.getClient();
-                         const [accountInfo, accountObjects] = await Promise.all([
-                              await this.xrplService.getAccountInfo(client, address, 'validated', ''),
-                              await this.xrplService.getAccountObjects(client, address, 'validated', ''),
-                         ]);
-                         const [tokenBalanceData, balanceResult] = await Promise.all([
-                              await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, ''),
-                             await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects),
-                         ]);
+                         const [accountInfo, accountObjects] = await Promise.all([await this.xrplService.getAccountInfo(client, address, 'validated', ''), await this.xrplService.getAccountObjects(client, address, 'validated', '')]);
+                         const [tokenBalanceData, balanceResult] = await Promise.all([await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, ''), await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects)]);
                          // const tokenBalanceData = await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, '');
                          this.issuers = tokenBalanceData.issuers;
                          this.tokenBalance = tokenBalanceData.total.toString();
@@ -1066,7 +1060,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
                const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
 
-               console.log(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+               console.debug(`refreshUiAccountObjects:`, signerEntries);
 
                this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
                this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');

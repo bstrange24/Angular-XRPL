@@ -39,14 +39,24 @@ export class XrplTransactionService {
      }
 
      // HELPER: Submit or simulate transaction
-     async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }, isSimulateEnabled: boolean): Promise<any> {
-          if (isSimulateEnabled) {
-               console.log(`[SIMULATE] Validating transaction locally for ${signedTx.hash} (no broadcast)`);
-               return await client.submit(signedTx.tx_blob, { offline: true });
-               // return await client.submit(signedTx.tx_blob, { failHard: true });
-          } else {
-               console.log(`[REAL] Submitting transaction ${signedTx.hash} to network`);
-               return await client.submitAndWait(signedTx.tx_blob);
+     async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }): Promise<any> {
+          console.log(`[REAL] Submitting transaction ${signedTx.hash} to network`);
+          return await client.submitAndWait(signedTx.tx_blob);
+     }
+
+     async simulateTransaction(client: xrpl.Client, txJson: any): Promise<any> {
+          console.log('[SIMULATE] Simulating transaction:', txJson);
+          try {
+               const simulation = await client.request({
+                    command: 'simulate',
+                    tx_json: txJson,
+               });
+
+               console.log('[SIMULATE] Result:', simulation);
+               return simulation;
+          } catch (err) {
+               console.error('[SIMULATE] Error:', err);
+               throw err;
           }
      }
 }
