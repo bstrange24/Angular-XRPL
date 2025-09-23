@@ -377,6 +377,12 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                // Phase 2: Fetch account info and objects in parallel
                const [accountInfo, accountObjects, escrowObjects, tokenBalance] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'escrow'), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
+               // Optional: Only log debug if needed — stringify can be expensive
+               console.debug(`accountInfo for ${classicAddress}`, accountInfo.result);
+               console.debug(`accountObjects for ${classicAddress}`, accountObjects.result);
+               console.debug(`Escrow objects:`, escrowObjects.result);
+               console.debug(`tokenBalance:`, tokenBalance.result);
+
                inputs = {
                     ...inputs,
                     account_info: accountInfo,
@@ -386,12 +392,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-
-               // Optional: Only log debug if needed — stringify can be expensive
-               console.debug(`accountInfo for ${classicAddress}`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}`, accountObjects.result);
-               console.debug(`Escrow objects:`, escrowObjects.result);
-               console.debug(`tokenBalance:`, tokenBalance.result);
 
                const data = {
                     sections: [{}],
@@ -880,6 +880,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowFinishTx, this.memoField);
                }
 
+               // PHASE 4: Validate balance
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
                     if (this.amountField || this.amountField === '') {
                          if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowFinishTx, fee)) {
@@ -1070,7 +1071,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowCancelTx, this.memoField);
                }
 
-               // PHASE 4: Validate balance
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
                     if (this.amountField || this.amountField === '') {
                          if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
@@ -1375,18 +1375,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                },
                toggleIssuerField: {
                     required: ['selectedAccount', 'seed'],
-                    customValidators: [
-                         () => isValidSeed(inputs.seed),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         // () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         // () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         // () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         // () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         // () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                    ],
+                    customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                get: {
