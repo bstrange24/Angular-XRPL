@@ -248,41 +248,51 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      async toggleIssuerField() {
-          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
-               this.issuers = [];
-               this.selectedIssuer = '';
-               this.tokenBalance = '';
-               const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
-               const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
-               if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
-                    try {
-                         const client = await this.xrplService.getClient();
-                         const [accountInfo, accountObjects] = await Promise.all([await this.xrplService.getAccountInfo(client, address, 'validated', ''), await this.xrplService.getAccountObjects(client, address, 'validated', '')]);
-                         const [tokenBalanceData, balanceResult] = await Promise.all([await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, ''), await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects)]);
-                         this.tokenBalance = tokenBalanceData.total.toString();
-                         this.issuers = tokenBalanceData.issuers;
-                         console.log(`balanceResult ${balanceResult}`);
-                         if (balanceResult) {
-                              // this.tokenBalance = Math.abs(balanceResult).toString();
-                              this.tokenBalance = balanceResult.toString();
-                              this.gatewayBalance = tokenBalanceData.total.toString();
-                         }
+          console.log('Entering onCurrencyChange');
+          const startTime = Date.now();
+          this.setSuccessProperties();
 
-                         if (this.selectedAccount === 'account1') {
-                              this.account1.balance = tokenBalanceData.xrpBalance.toString();
-                         } else if (this.selectedAccount === 'account2') {
-                              this.account2.balance = tokenBalanceData.xrpBalance.toString();
-                         } else {
-                              this.issuer.balance = tokenBalanceData.xrpBalance.toString();
+          try {
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+
+               // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
+               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+
+               // PHASE 2: Calculate total balance for selected currency
+               let balanceTotal: number = 0;
+
+               if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+                    for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+                         for (const { currency, value } of currencies) {
+                              if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
+                                   balanceTotal += Number(value);
+                              }
                          }
-                         this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
-                    } catch (error: any) {
-                         console.error('Error fetching token balance:', error);
-                         this.setError(`ERROR: Failed to fetch token balance - ${error.message || 'Unknown error'}`);
                     }
+                    this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
+               } else {
+                    this.gatewayBalance = '0';
                }
+
+               // PHASE 3: Update destination field
+               this.destinationFields = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
+
+               // PHASE 4: Defer getTrustlinesForAccount — don't block UI
+               // setTimeout(() => {
+               //      this.getTrustlinesForAccount();
+               // }, 0);
+          } catch (error: any) {
+               console.error('Error in onCurrencyChange:', error);
+               this.tokenBalance = '0';
+               this.gatewayBalance = '0';
+               this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
           }
-          this.cdr.detectChanges();
      }
 
      async getEscrowOwnerAddress() {
@@ -600,6 +610,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     if (this.currencyFieldDropDownValue !== 'XRP') {
                          await this.updatedTokenBalance(client, accountInfo, accountObjects, wallet);
                     }
+
+                    await this.toggleIssuerField();
 
                     await this.updateXrpBalance(client, accountInfo, wallet);
 
@@ -1493,6 +1505,18 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
 
           return errors;
+     }
+
+     private async updateCurrencyBalance(wallet: xrpl.Wallet, accountObjects: any) {
+          let balance: string;
+          const currencyCode = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
+          if (wallet.classicAddress) {
+               const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
+               balance = balanceResult !== null ? balanceResult.toString() : '0';
+               this.tokenBalance = this.utilsService.formatTokenBalance(balance, 18);
+          } else {
+               this.tokenBalance = '0';
+          }
      }
 
      private updateDestinations() {

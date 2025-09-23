@@ -215,41 +215,51 @@ export class SendChecksComponent implements AfterViewChecked {
      }
 
      async toggleIssuerField() {
-          if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedAccount) {
-               this.issuers = [];
-               this.selectedIssuer = '';
-               this.tokenBalance = '';
-               const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
-               const address = this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer);
-               if (this.utilsService.validateInput(seed) && this.utilsService.validateInput(address)) {
-                    try {
-                         const client = await this.xrplService.getClient();
-                         const [accountInfo, accountObjects] = await Promise.all([await this.xrplService.getAccountInfo(client, address, 'validated', ''), await this.xrplService.getAccountObjects(client, address, 'validated', '')]);
-                         const [tokenBalanceData, balanceResult] = await Promise.all([await this.utilsService.getTokenBalance(client, accountInfo, address, this.currencyFieldDropDownValue, ''), await this.utilsService.getCurrencyBalance(this.currencyFieldDropDownValue, accountObjects)]);
-                         this.tokenBalance = tokenBalanceData.total.toString();
-                         this.issuers = tokenBalanceData.issuers;
-                         console.log(`balanceResult ${balanceResult}`);
-                         if (balanceResult) {
-                              // this.tokenBalance = Math.abs(balanceResult).toString();
-                              this.tokenBalance = balanceResult.toString();
-                              this.gatewayBalance = tokenBalanceData.total.toString();
-                         }
+          console.log('Entering onCurrencyChange');
+          const startTime = Date.now();
+          this.setSuccessProperties();
 
-                         if (this.selectedAccount === 'account1') {
-                              this.account1.balance = tokenBalanceData.xrpBalance.toString();
-                         } else if (this.selectedAccount === 'account2') {
-                              this.account2.balance = tokenBalanceData.xrpBalance.toString();
-                         } else {
-                              this.issuer.balance = tokenBalanceData.xrpBalance.toString();
+          try {
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+
+               // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
+               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+
+               // PHASE 2: Calculate total balance for selected currency
+               let balanceTotal: number = 0;
+
+               if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+                    for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+                         for (const { currency, value } of currencies) {
+                              if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
+                                   balanceTotal += Number(value);
+                              }
                          }
-                         this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
-                    } catch (error: any) {
-                         console.error('Error fetching token balance:', error);
-                         this.setError(`ERROR: Failed to fetch token balance - ${error.message || 'Unknown error'}`);
                     }
+                    this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
+               } else {
+                    this.gatewayBalance = '0';
                }
+
+               // PHASE 3: Update destination field
+               this.destinationFields = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
+
+               // // PHASE 4: Defer getTrustlinesForAccount — don't block UI
+               // setTimeout(() => {
+               //      // this.getChecks();
+               // }, 0);
+          } catch (error: any) {
+               console.error('Error in onCurrencyChange:', error);
+               this.tokenBalance = '0';
+               this.gatewayBalance = '0';
+               this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
           }
-          this.cdr.detectChanges();
      }
 
      async getChecks() {
@@ -354,11 +364,13 @@ export class SendChecksComponent implements AfterViewChecked {
                          this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(classicAddress, this.signers);
 
-                         this.isMemoEnabled = false;
-                         this.memoField = '';
-
-                         await this.toggleIssuerField();
                          await this.updateXrpBalance(client, accountInfo, wallet);
+                         await this.toggleIssuerField();
+                         await this.updateCurrencyBalance(wallet, allAccountObjects);
+                         this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+
+                         this.memoField = '';
+                         this.isMemoEnabled = false;
                     } catch (err) {
                          console.error('Error in deferred UI updates for payment channels:', err);
                          // Don't break main render — payment channels are already shown
@@ -433,7 +445,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -456,7 +468,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     sendMax = xrpl.xrpToDrops(this.amountField);
                } else {
                     sendMax = {
-                         currency: this.currencyFieldDropDownValue,
+                         currency: this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue),
                          value: this.amountField,
                          issuer: wallet.address,
                     };
@@ -555,6 +567,8 @@ export class SendChecksComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
+                              await this.updateCurrencyBalance(wallet, accountObjects);
+                              this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -598,7 +612,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, checkObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, checkObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -630,7 +644,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          ? xrpl.xrpToDrops(this.amountField)
                          : {
                                 value: this.amountField,
-                                currency: this.currencyFieldDropDownValue,
+                                currency: this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue),
                                 issuer: this.selectedIssuer,
                            };
 
@@ -719,6 +733,8 @@ export class SendChecksComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
+                              await this.updateCurrencyBalance(wallet, accountObjects);
+                              this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -752,7 +768,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -853,6 +869,8 @@ export class SendChecksComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
+                              await this.updateCurrencyBalance(wallet, accountObjects);
+                              this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -1151,6 +1169,25 @@ export class SendChecksComponent implements AfterViewChecked {
           }
 
           return errors;
+     }
+
+     private async updateCurrencyBalance(wallet: xrpl.Wallet, accountObjects: any) {
+          let balance: string;
+          const currencyCode = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
+          if (wallet.classicAddress) {
+               const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
+               balance = balanceResult !== null ? balanceResult.toString() : '0';
+               this.tokenBalance = this.utilsService.formatTokenBalance(balance, 18);
+          } else {
+               this.tokenBalance = '0';
+          }
+     }
+
+     private updateGatewayBalance(gatewayBalances: xrpl.GatewayBalancesResponse) {
+          if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
+               const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
+               this.gatewayBalance = this.utilsService.formatTokenBalance(gatewayBalances.result.obligations[displayCurrency], 18);
+          }
      }
 
      private updateDestinations() {
