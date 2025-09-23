@@ -32,6 +32,16 @@ export class UtilsService {
 
      constructor(private readonly xrplService: XrplService, private readonly storageService: StorageService) {}
 
+     MPT_FLAGS: Record<number, string> = {
+          0x00000001: 'MptLocked',
+          0x00000002: 'CanLock',
+          0x00000004: 'RequireAuth',
+          0x00000008: 'CanEscrow',
+          0x00000010: 'CanTrade',
+          0x00000020: 'CanTransfer',
+          0x00000040: 'CanClawback',
+     };
+
      ledgerEntryTypeFields = {
           AccountRoot: {
                fields: [
@@ -638,6 +648,9 @@ export class UtilsService {
                     if (xlf15d.match(/[a-zA-Z0-9]{3,}/) && xlf15d.toLowerCase() !== 'xrp') {
                          return xlf15d;
                     }
+               }
+               if (hex.startsWith('03')) {
+                    return 'LP Token ' + hex;
                }
                const decodedHex = Buffer.from(hex, 'hex').toString('utf-8').slice(0, maxLength).trim();
                if (decodedHex.match(/[a-zA-Z0-9]{3,}/) && decodedHex.toLowerCase() !== 'xrp') {
@@ -1360,6 +1373,20 @@ export class UtilsService {
           }
 
           return activeFlags;
+     }
+
+     getMptFlagsReadable(flags: number): string[] {
+          const readable: string[] = [];
+          for (const [bit, description] of Object.entries(this.MPT_FLAGS)) {
+               if ((flags & Number(bit)) !== 0) {
+                    if (readable.length == 0) {
+                         readable.push(description);
+                    } else {
+                         readable.push(' ' + description);
+                    }
+               }
+          }
+          return readable.length > 0 ? readable : ['No MPT flags set'];
      }
 
      formatFlags(flags: string[]): string {
@@ -2294,7 +2321,7 @@ export class UtilsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -2742,7 +2769,7 @@ export class UtilsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -2908,7 +2935,7 @@ export class UtilsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {

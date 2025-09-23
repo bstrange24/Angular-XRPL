@@ -231,6 +231,19 @@
                               </tr>
                               <tr>
                                    <td>
+                                        <span class="tooltip" tooltip-data="(asfAllowTrustLineLocking) Allows another account to mint NFTs">
+                                             <label for="asfAllowTrustLineLocking">Allow Trustline Locking</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <label class="switch">
+                                             <input type="checkbox" id="asfAllowTrustLineLocking" [(ngModel)]="flags.asfAllowTrustLineLocking" (ngModelChange)="onClawbackChange()" name="asfAllowTrustLineLocking" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
                                         <span class="tooltip" tooltip-data="(asfDisallowIncomingNFTokenOffer) Blocks incoming NFT offers">
                                              <label for="asfDisallowIncomingNFTokenOffer">Block NFT Offers</label>
                                         </span>

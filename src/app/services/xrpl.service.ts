@@ -702,12 +702,13 @@ export class XrplService {
           }
      }
 
-     async getAMMInfo(client: Client, asset: any, asset2: any, ledgerIndex: xrpl.LedgerIndex): Promise<any> {
+     async getAMMInfo(client: Client, asset: any, asset2: any, account: string, ledgerIndex: xrpl.LedgerIndex): Promise<any> {
           try {
-               const response = await client.request({
+               const response = client.request({
                     command: 'amm_info',
-                    asset: asset as any,
-                    asset2: asset2 as any,
+                    asset: asset,
+                    asset2: asset2,
+                    account: account,
                     ledger_index: ledgerIndex,
                });
                return response;
@@ -787,12 +788,29 @@ export class XrplService {
           try {
                const response = await client.request({
                     command: 'channel_verify',
-                    amount: amount,
+                    amount: xrpl.xrpToDrops(amount),
                     public_key: publicKey,
                     signature: signature,
                     channel_id: channelId,
                });
                return response;
+          } catch (error: any) {
+               console.error('Error verifying channel:', error);
+               throw new Error(`Failed to verifying channel: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getPaymentChannelAuthorized(client: Client, channelId: string, amount: string, wallet: xrpl.Wallet): Promise<any> {
+          try {
+               const channelAuthorize = await client.request({
+                    id: 'channel_authorize_example_id1',
+                    command: 'channel_authorize' as any, // Use type assertion
+                    channel_id: channelId, // Use the parameter instead of hardcoded value
+                    seed: wallet.seed, // Consider making this configurable
+                    key_type: 'secp256k1',
+                    amount: xrpl.xrpToDrops(amount), // Use the parameter
+               });
+               return channelAuthorize;
           } catch (error: any) {
                console.error('Error verifying channel:', error);
                throw new Error(`Failed to verifying channel: ${error.message || 'Unknown error'}`);
@@ -1026,13 +1044,14 @@ export class XrplService {
           }
      }
 
-     async getXrpReserveRequirements(client: Client, address: string) {
+     // async getXrpReserveRequirements(client: Client, accountInfo: any, server_info:any, address: string) {
+     async getXrpReserveRequirements(accountInfo: any, server_info: any) {
           try {
-               const accountInfo = await this.getAccountInfo(client, address, 'validated', '');
+               // const accountInfo = await this.getAccountInfo(client, address, 'validated', '');
                const currentReserve = accountInfo.result.account_data.Reserve;
                const ownerCount = accountInfo.result.account_data.OwnerCount;
 
-               const server_info = await this.getXrplServerInfo(client, 'current', '');
+               // const server_info = await this.getXrplServerInfo(client, 'current', '');
                const reserveBaseXrp = server_info.result.info.validated_ledger?.reserve_base_xrp || 10;
                const reserveIncXrp = server_info.result.info.validated_ledger?.reserve_inc_xrp || 2;
 

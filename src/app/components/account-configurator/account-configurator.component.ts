@@ -72,6 +72,7 @@ interface AccountFlags {
      asfDisallowIncomingCheck: boolean;
      asfDisallowIncomingPayChan: boolean;
      asfDisallowIncomingTrustline: boolean;
+     asfAllowTrustLineLocking: boolean;
 }
 
 @Component({
@@ -142,6 +143,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           asfDisallowIncomingCheck: false,
           asfDisallowIncomingPayChan: false,
           asfDisallowIncomingTrustline: false,
+          asfAllowTrustLineLocking: false,
      };
      spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
@@ -270,6 +272,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                asfDisallowIncomingCheck: false,
                asfDisallowIncomingPayChan: false,
                asfDisallowIncomingTrustline: false,
+               asfAllowTrustLineLocking: false,
           };
 
           // Reset metadata fields
@@ -449,11 +452,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                });
 
-               // ✅ CRITICAL: Render immediately
+               // CRITICAL: Render immediately
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -1311,6 +1314,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
 
+          const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
           if (flagPayload.SetFlag) {
                const flagToUpdate = Array.from(AppConstants.FLAGS.values()).find((flag: any) => flag.value === flagPayload.SetFlag);
                this.updateSpinnerMessage(`Submitting ${flagToUpdate ? flagToUpdate.label : 'Flag'} set flag to the Ledger...`);
@@ -1350,7 +1355,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     tx.TicketSequence = Number(this.ticketSequence);
                     tx.Sequence = 0;
                } else {
-                    const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
                     tx.Sequence = accountInfo.result.account_data.Sequence;
                }
 
@@ -1410,7 +1414,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, '0', wallet.classicAddress, tx, fee)) {
+               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, tx, fee)) {
                     return { success: false, message: 'ERROR: Insufficient XRP to complete transaction' };
                }
 

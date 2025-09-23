@@ -215,11 +215,11 @@ export class DeleteAccountComponent implements AfterViewChecked {
                console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
 
-               // ✅ CRITICAL: Render immediately
+               // CRITICAL: Render immediately
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);

@@ -45,7 +45,7 @@
     "stream-browserify": "^3.0.0",
     "tslib": "^2.3.0",
     "util": "^0.12.5",
-    "xrpl": "^4.4.0",
+    "xrpl": "^4.4.1",
     "xrpl-accountlib": "^8.4.0",
     "zone.js": "~0.15.0"
   },

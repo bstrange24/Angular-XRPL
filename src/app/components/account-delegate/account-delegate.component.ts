@@ -63,6 +63,7 @@ interface AccountFlags {
      asfDisallowIncomingCheck: boolean;
      asfDisallowIncomingPayChan: boolean;
      asfDisallowIncomingTrustline: boolean;
+     asfAllowTrustLineLocking: boolean;
 }
 
 interface DelegateAction {
@@ -133,6 +134,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           asfDisallowIncomingCheck: false,
           asfDisallowIncomingPayChan: false,
           asfDisallowIncomingTrustline: false,
+          asfAllowTrustLineLocking: false,
      };
      spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
@@ -290,11 +292,11 @@ export class AccountDelegateComponent implements AfterViewChecked {
                console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
 
-               // ✅ CRITICAL: Render immediately
+               // CRITICAL: Render immediately
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);

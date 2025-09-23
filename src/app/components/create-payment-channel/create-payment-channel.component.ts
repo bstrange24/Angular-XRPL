@@ -11,6 +11,8 @@ import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { sign, verify } from 'ripple-keypairs';
+import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | null;
@@ -27,7 +29,6 @@ interface ValidationInputs {
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     // isMultiSign?: boolean;
      useMultiSign?: boolean;
      multiSignSeeds?: string;
      multiSignAddresses?: string;
@@ -70,7 +71,7 @@ interface SignerEntry {
 })
 export class CreatePaymentChannelComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     @ViewChild('accountForm') accountForm!: NgForm;
+     // @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | null = 'account1';
      private lastResult: string = '';
      transactionInput: string = '';
@@ -100,7 +101,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
-     // isMultiSign: boolean = false;
      useMultiSign: boolean = false;
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
@@ -113,6 +113,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      spinner: boolean = false;
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
+     isSimulateEnabled: boolean = false;
      actions = [
           { value: 'create', label: 'Create' },
           { value: 'fund', label: 'Fund' },
@@ -122,7 +123,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      ];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
      ngOnInit() {}
 
@@ -236,29 +237,25 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
                const [accountInfo, paymentChannelObjects, allAccountObjects] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'payment_channel'),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), // for refreshUiAccountObjects
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel'),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), // for refreshUiAccountObjects
                ]);
-
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
-
-               const errors = await this.validateInputs(inputs, 'getPaymentChannels');
-               if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
-               }
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
                console.debug(`account objects:`, allAccountObjects.result);
                console.debug(`Payment channel objects:`, paymentChannelObjects.result);
+
+               inputs = { ...inputs, account_info: accountInfo };
+
+               const errors = await this.validateInputs(inputs, 'getPaymentChannels');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
 
                type PaymentChannelObject = any; // Replace with actual type if available
                const channels = paymentChannelObjects.result.account_objects as PaymentChannelObject[];
@@ -271,7 +268,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'Payment Channels',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No payment channels found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No payment channels found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     data.sections.push({
@@ -309,17 +306,17 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     });
                }
 
-               // ✅ CRITICAL: Render immediately
+               // CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          // Use pre-fetched allAccountObjects and accountInfo
                          this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                          this.isMemoEnabled = false;
                          this.memoField = '';
@@ -332,94 +329,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                }, 0);
           } catch (error: any) {
                console.error('Error in getPaymentChannels:', error);
-               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving getPaymentChannels in ${this.executionTime}ms`);
-          }
-     }
-
-     async getPaymentChannels1() {
-          console.log('Entering getPaymentChannels');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
-          };
-
-          try {
-               this.showSpinnerWithDelay('Getting Payment Channels...', 200);
-
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
-
-               const errors = await this.validateInputs(inputs, 'getPaymentChannels');
-               if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
-               }
-
-               const paymentChannelObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
-               console.debug(`Payment channel objects: ${JSON.stringify(paymentChannelObjects, null, '\t')}`);
-               const channels = paymentChannelObjects.result.account_objects as PaymentChannelObject[];
-
-               const data = {
-                    sections: [{}],
-               };
-
-               if (!channels || channels.length === 0) {
-                    data.sections.push({
-                         title: 'Payment Channels',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: `No payment channels found for <code>${wallet.classicAddress}</code>` }],
-                    });
-               } else {
-                    data.sections.push({
-                         title: `Payment Channels (${channels.length})`,
-                         openByDefault: true,
-                         subItems: channels.map((channel, index) => {
-                              const { index: channelId, Destination, Amount, Balance, SettleDelay, PublicKey, Expiration, CancelAfter } = channel;
-                              const available = xrpl.dropsToXrp(BigInt(Amount) - BigInt(Balance));
-                              return {
-                                   key: `Channel ${index + 1} (ID: ${channelId.slice(0, 8)}...)`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'Channel ID', value: `<code>${channelId}</code>` },
-                                        { key: 'Destination', value: `<code>${Destination}</code>` },
-                                        { key: 'Total Amount', value: `${xrpl.dropsToXrp(Amount)} XRP` },
-                                        { key: 'Claimed Balance', value: `${xrpl.dropsToXrp(Balance)} XRP` },
-                                        { key: 'Remaining', value: `${available} XRP` },
-                                        { key: 'Settle Delay', value: `${SettleDelay}s` },
-                                        { key: 'Expiration', value: Expiration ? `${this.utilsService.convertXRPLTime(Expiration)}` : 'N/A' },
-                                        { key: 'Expired', value: Expiration ? `${Date.now() / 1000 > Expiration}` : 'False' },
-                                        { key: 'Cancel After', value: CancelAfter ? `${this.utilsService.convertXRPLTime(CancelAfter)}` : 'N/A' },
-                                        // { key: 'Expired', value: CancelAfter ? `${Date.now() / 1000 > CancelAfter}` : 'False' },
-                                   ],
-                              };
-                         }),
-                    });
-               }
-
-               this.utilsService.renderDetails(data);
-               this.setSuccess(this.result);
-               this.refreshUiAccountObjects(await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), accountInfo, wallet);
-               this.refreshUiAccountInfo(await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''));
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-               this.isMemoEnabled = false;
-               this.memoField = '';
-
-               await this.updateXrpBalance(client, accountInfo, wallet);
-          } catch (error: any) {
-               console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -455,32 +364,37 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           };
 
           try {
-               this.updateSpinnerMessage('Payment Channels Transaction...');
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Preparing Payment Channels (${mode})...`);
 
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               const [accountInfo, fee, currentLedger, accountObject, payChannelResponse] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel')]);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               // Optional: Avoid heavy stringify in logs
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObject.result);
+               console.debug(`fee :`, fee);
+               console.debug(`currentLedger :`, currentLedger);
+               console.debug(`payChannelResponse for ${wallet.classicAddress}:`, payChannelResponse.result);
+
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, this.channelAction);
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               const fee = await this.xrplService.calculateTransactionFee(client);
                const action = this.channelAction;
 
                if (action === 'create') {
-                    this.updateSpinnerMessage('Creating Payment Channel...');
+                    this.resultField.nativeElement.innerHTML = '';
+                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+                    this.updateSpinnerMessage(`Preparing Create Payment Channel ${action} (${mode})...`);
 
-                    let tx: PaymentChannelCreate = {
+                    let paymentChannelCreateTx: PaymentChannelCreate = {
                          TransactionType: 'PaymentChannelCreate',
                          Account: wallet.classicAddress,
                          Amount: xrpl.xrpToDrops(this.amountField),
@@ -490,21 +404,25 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
+                    // Handle Ticket Sequence
                     if (this.ticketSequence) {
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                         if (!ticketExists) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
-                         this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
+                         this.utilsService.setTicketSequence(paymentChannelCreateTx, this.ticketSequence, true);
                     } else {
-                         const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                         this.utilsService.setTicketSequence(tx, getAccountInfo.result.account_data.Sequence, false);
+                         // Use pre-fetched sequence — no redundant call!
+                         this.utilsService.setTicketSequence(paymentChannelCreateTx, accountInfo.result.account_data.Sequence, false);
                     }
 
                     if (this.memoField) {
-                         this.utilsService.setMemoField(tx, this.memoField);
+                         this.utilsService.setMemoField(paymentChannelCreateTx, this.memoField);
                     }
 
-                    this.utilsService.setDestinationTag(tx, this.destinationTagField);
+                    if (this.destinationTagField) {
+                         this.utilsService.setDestinationTag(paymentChannelCreateTx, this.destinationTagField);
+                    }
 
                     if (this.paymentChannelCancelAfterTimeField) {
                          const cancelAfterTime = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -514,103 +432,93 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          if (cancelAfterTime <= currentLedgerTime) {
                               return this.setError('ERROR: Cancel After time must be in the future');
                          }
-                         tx.CancelAfter = cancelAfterTime;
+                         paymentChannelCreateTx.CancelAfter = cancelAfterTime;
                     }
 
                     if (this.publicKeyField) {
-                         tx.PublicKey = this.publicKeyField;
+                         paymentChannelCreateTx.PublicKey = this.publicKeyField;
                     }
 
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-                    tx.LastLedgerSequence = currentLedger + AppConstants.LAST_LEDGER_ADD_TIME;
+                    if (this.isSimulateEnabled) {
+                         const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelCreateTx);
 
-                    let signedTx: { tx_blob: string; hash: string } | null = null;
+                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                    if (this.useMultiSign) {
-                         const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-                         if (signerAddresses.length === 0) {
-                              return this.setError('ERROR: No signer addresses provided for multi-signing');
+                              (simulation['result'] as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                          }
 
-                         const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-                         if (signerSeeds.length === 0) {
-                              return this.setError('ERROR: No signer seeds provided for multi-signing');
-                         }
+                         // Render result
+                         this.renderTransactionResult(simulation);
 
-                         try {
-                              const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
-                              signedTx = result.signedTx;
-                              tx.Signers = result.signers;
-
-                              console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
-
-                              if (!signedTx) {
-                                   return this.setError('ERROR: No valid signature collected for multisign transaction');
-                              }
-
-                              const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
-                              console.log(`multiSignFee: ${multiSignFee}`);
-                              tx.Fee = multiSignFee;
-                              const finalTx = xrpl.decode(signedTx.tx_blob);
-                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
-
-                              if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, multiSignFee)) {
-                                   return this.setError('ERROR: Insufficient XRP to complete transaction');
-                              }
-                         } catch (err: any) {
-                              return this.setError(`ERROR: ${err.message}`);
-                         }
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     } else {
-                         const preparedTx = await client.autofill(tx);
-                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+                         // PHASE 5: Get regular key wallet
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         // Sign transaction
+                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
+
+                         // PHASE 7: Submit or Simulate
+                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
+                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (response.result as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                         }
+
+                         // Render result
+                         this.renderTransactionResult(response);
+
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     }
-
-                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign transaction.');
-                    }
-                    console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
-
-                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-                    const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, 2));
-
-                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         return;
-                    }
-
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('success');
                } else if (action === 'fund' || action === 'renew') {
-                    this.updateSpinnerMessage(`Payment Channel ${action}...`);
+                    this.resultField.nativeElement.innerHTML = '';
+                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+                    this.updateSpinnerMessage(`Preparing Fund/Renew Payment Channel ${action} (${mode})...`);
 
-                    let tx: PaymentChannelFund = {
+                    let paymentChannelFundTx: PaymentChannelFund = {
                          TransactionType: 'PaymentChannelFund',
                          Account: wallet.classicAddress,
                          Channel: this.channelIDField,
                          Amount: xrpl.xrpToDrops(this.amountField),
                     };
 
+                    // Handle Ticket Sequence
                     if (this.ticketSequence) {
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                         if (!ticketExists) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
-                         this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
+                         this.utilsService.setTicketSequence(paymentChannelFundTx, this.ticketSequence, true);
                     } else {
-                         const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                         this.utilsService.setTicketSequence(tx, getAccountInfo.result.account_data.Sequence, false);
+                         // Use pre-fetched sequence — no redundant call!
+                         this.utilsService.setTicketSequence(paymentChannelFundTx, accountInfo.result.account_data.Sequence, false);
                     }
 
                     if (this.memoField) {
-                         this.utilsService.setMemoField(tx, this.memoField);
+                         this.utilsService.setMemoField(paymentChannelFundTx, this.memoField);
+                    }
+
+                    if (this.destinationTagField) {
+                         this.utilsService.setDestinationTag(paymentChannelFundTx, this.destinationTagField);
                     }
 
                     if (this.paymentChannelCancelAfterTimeField) {
@@ -619,81 +527,68 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          if (newExpiration <= currentLedgerTime) {
                               return this.setError('ERROR: New expiration time must be in the future');
                          }
-                         tx.Expiration = newExpiration;
+                         paymentChannelFundTx.Expiration = newExpiration;
                     }
 
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-                    tx.LastLedgerSequence = currentLedger + AppConstants.LAST_LEDGER_ADD_TIME;
+                    if (this.isSimulateEnabled) {
+                         const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelFundTx);
 
-                    let signedTx: { tx_blob: string; hash: string } | null = null;
+                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                    if (this.useMultiSign) {
-                         const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-                         if (signerAddresses.length === 0) {
-                              return this.setError('ERROR: No signer addresses provided for multi-signing');
+                              (simulation['result'] as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                          }
 
-                         const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-                         if (signerSeeds.length === 0) {
-                              return this.setError('ERROR: No signer seeds provided for multi-signing');
-                         }
+                         // Render result
+                         this.renderTransactionResult(simulation);
 
-                         try {
-                              const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
-                              signedTx = result.signedTx;
-                              tx.Signers = result.signers;
-
-                              console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-
-                              if (!signedTx) {
-                                   return this.setError('ERROR: No valid signature collected for multisign transaction');
-                              }
-
-                              const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
-                              console.log(`multiSignFee: ${multiSignFee}`);
-                              tx.Fee = multiSignFee;
-                              const finalTx = xrpl.decode(signedTx.tx_blob);
-                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
-
-                              if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, multiSignFee)) {
-                                   return this.setError('ERROR: Insufficient XRP to complete transaction');
-                              }
-                         } catch (err: any) {
-                              return this.setError(`ERROR: ${err.message}`);
-                         }
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     } else {
-                         const preparedTx = await client.autofill(tx);
-                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+                         // PHASE 5: Get regular key wallet
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         // Sign transaction
+                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelFundTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
+
+                         // PHASE 7: Submit or Simulate
+                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Funding/Renewing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
+                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (response.result as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                         }
+
+                         // Render result
+                         this.renderTransactionResult(response);
+
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     }
-
-                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign transaction.');
-                    }
-                    console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
-
-                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-                    const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, 2));
-
-                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         return;
-                    }
-
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('success');
                } else if (action === 'claim') {
-                    this.updateSpinnerMessage('Claiming Payment Channel...');
+                    this.resultField.nativeElement.innerHTML = '';
+                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+                    this.updateSpinnerMessage(`Preparing Claim Payment Channel ${action} (${mode})...`);
+
+                    let authorizedWallet = await this.getPaymentChannelAuthorizedWallet(environment);
+                    const [signatureVerified, isChannelAuthorized] = await Promise.all([this.xrplService.getChannelVerifiy(client, this.channelIDField, this.amountField, this.publicKeyField, this.channelClaimSignatureField), this.xrplService.getPaymentChannelAuthorized(client, this.channelIDField, this.amountField, authorizedWallet)]);
 
                     // Get payment channel details to verify creator and receiver
-                    const payChannelResponse = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
                     const channels = payChannelResponse.result.account_objects as PaymentChannelObject[];
                     const channel = channels.find(c => c.index === this.channelIDField);
                     if (!channel) {
@@ -703,11 +598,15 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     // Determine if the selected account is the creator or receiver
                     const isReceiver = channel.Destination === wallet.classicAddress;
                     let signature = this.channelClaimSignatureField;
-                    if (!signature) {
-                         signature = this.generateChannelSignature(this.channelIDField, this.amountField, wallet);
+                    if (!signatureVerified.result.signature_verified) {
+                         return this.setError('ERROR: Invalid signature');
                     }
 
-                    let tx: PaymentChannelClaim = {
+                    if (isChannelAuthorized.result.signature !== signature) {
+                         return this.setError('Wallet is invalide for payment channel.');
+                    }
+
+                    let paymentChannelClaimTx: PaymentChannelClaim = {
                          TransactionType: 'PaymentChannelClaim',
                          Account: wallet.classicAddress,
                          Channel: this.channelIDField,
@@ -717,92 +616,83 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
+                    // Handle Ticket Sequence
                     if (this.ticketSequence) {
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                         if (!ticketExists) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
-                         this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
+                         this.utilsService.setTicketSequence(paymentChannelClaimTx, this.ticketSequence, true);
                     } else {
-                         const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                         this.utilsService.setTicketSequence(tx, getAccountInfo.result.account_data.Sequence, false);
+                         // Use pre-fetched sequence — no redundant call!
+                         this.utilsService.setTicketSequence(paymentChannelClaimTx, accountInfo.result.account_data.Sequence, false);
                     }
 
                     if (this.memoField) {
-                         this.utilsService.setMemoField(tx, this.memoField);
+                         this.utilsService.setMemoField(paymentChannelClaimTx, this.memoField);
                     }
 
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-                    tx.LastLedgerSequence = currentLedger + AppConstants.LAST_LEDGER_ADD_TIME;
+                    if (this.destinationTagField) {
+                         this.utilsService.setDestinationTag(paymentChannelClaimTx, this.destinationTagField);
+                    }
 
-                    let signedTx: { tx_blob: string; hash: string } | null = null;
+                    if (this.isSimulateEnabled) {
+                         const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelClaimTx);
 
-                    if (this.useMultiSign) {
-                         const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-                         if (signerAddresses.length === 0) {
-                              return this.setError('ERROR: No signer addresses provided for multi-signing');
+                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (simulation['result'] as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                          }
 
-                         const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-                         if (signerSeeds.length === 0) {
-                              return this.setError('ERROR: No signer seeds provided for multi-signing');
-                         }
-                         try {
-                              const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
-                              signedTx = result.signedTx;
-                              tx.Signers = result.signers;
+                         // Render result
+                         this.renderTransactionResult(simulation);
 
-                              console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
-
-                              if (!signedTx) {
-                                   return this.setError('ERROR: No valid signature collected for multisign transaction');
-                              }
-
-                              const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
-                              console.log(`multiSignFee: ${multiSignFee}`);
-                              tx.Fee = multiSignFee;
-                              const finalTx = xrpl.decode(signedTx.tx_blob);
-                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
-
-                              if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, multiSignFee)) {
-                                   return this.setError('ERROR: Insufficient XRP to complete transaction');
-                              }
-                         } catch (err: any) {
-                              return this.setError(`ERROR: ${err.message}`);
-                         }
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     } else {
-                         const preparedTx = await client.autofill(tx);
-                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+                         // PHASE 5: Get regular key wallet
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         // Sign transaction
+                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
+
+                         // PHASE 7: Submit or Simulate
+                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Claiming Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
+                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (response.result as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                         }
+
+                         // Render result
+                         this.renderTransactionResult(response);
+
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     }
-
-                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign transaction.');
-                    }
-                    console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
-
-                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-                    const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, 2));
-
-                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         return;
-                    }
-
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('success');
                } else if (action === 'close') {
-                    this.updateSpinnerMessage('Closing Payment Channel...');
+                    this.resultField.nativeElement.innerHTML = '';
+                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+                    this.updateSpinnerMessage(`Preparing Close Payment Channel ${action} (${mode})...`);
 
-                    const paymentChannel = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
-                    const channels = paymentChannel.result.account_objects as PaymentChannelObject[];
+                    // const paymentChannel = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel');
+                    const channels = payChannelResponse.result.account_objects as PaymentChannelObject[];
                     const channel = channels.find(c => c.index === this.channelIDField);
                     if (!channel) {
                          return this.setError(`ERROR: Payment channel ${this.channelIDField} not found`);
@@ -836,7 +726,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                     this.updateSpinnerMessage('Closing Payment Channel...');
 
-                    let tx: PaymentChannelClaim = {
+                    let paymentChannelClaimTx: PaymentChannelClaim = {
                          TransactionType: 'PaymentChannelClaim',
                          Account: wallet.classicAddress,
                          Channel: this.channelIDField,
@@ -844,95 +734,95 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
+                    // Handle Ticket Sequence
                     if (this.ticketSequence) {
-                         if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                         if (!ticketExists) {
                               return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                          }
-                         this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
+                         this.utilsService.setTicketSequence(paymentChannelClaimTx, this.ticketSequence, true);
                     } else {
-                         const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                         this.utilsService.setTicketSequence(tx, getAccountInfo.result.account_data.Sequence, false);
+                         // Use pre-fetched sequence — no redundant call!
+                         this.utilsService.setTicketSequence(paymentChannelClaimTx, accountInfo.result.account_data.Sequence, false);
                     }
 
                     if (this.memoField) {
-                         this.utilsService.setMemoField(tx, this.memoField);
+                         this.utilsService.setMemoField(paymentChannelClaimTx, this.memoField);
                     }
 
-                    const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-                    tx.LastLedgerSequence = currentLedger + AppConstants.LAST_LEDGER_ADD_TIME;
+                    if (this.destinationTagField) {
+                         this.utilsService.setDestinationTag(paymentChannelClaimTx, this.destinationTagField);
+                    }
 
-                    let signedTx: { tx_blob: string; hash: string } | null = null;
+                    if (this.isSimulateEnabled) {
+                         const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelClaimTx);
 
-                    if (this.useMultiSign) {
-                         const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-                         if (signerAddresses.length === 0) {
-                              return this.setError('ERROR: No signer addresses provided for multi-signing');
+                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (simulation['result'] as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                          }
 
-                         const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-                         if (signerSeeds.length === 0) {
-                              return this.setError('ERROR: No signer seeds provided for multi-signing');
-                         }
-                         try {
-                              const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
-                              signedTx = result.signedTx;
-                              tx.Signers = result.signers;
+                         // Render result
+                         this.renderTransactionResult(simulation);
 
-                              console.log('Payment with Signers:', JSON.stringify(tx, null, 2));
-                              console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
-
-                              if (!signedTx) {
-                                   return this.setError('ERROR: No valid signature collected for multisign transaction');
-                              }
-
-                              const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
-                              console.log(`multiSignFee: ${multiSignFee}`);
-                              tx.Fee = multiSignFee;
-                              const finalTx = xrpl.decode(signedTx.tx_blob);
-                              console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
-
-                              if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, multiSignFee)) {
-                                   return this.setError('ERROR: Insufficient XRP to complete transaction');
-                              }
-                         } catch (err: any) {
-                              return this.setError(`ERROR: ${err.message}`);
-                         }
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     } else {
-                         const preparedTx = await client.autofill(tx);
-                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                         signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+                         // PHASE 5: Get regular key wallet
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, tx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         // Sign transaction
+                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
+
+                         // PHASE 7: Submit or Simulate
+                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Closing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
+                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (response.result as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                         }
+
+                         // Render result
+                         this.renderTransactionResult(response);
+
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
                     }
-
-                    console.info(`Parse Tx Flags: ${JSON.stringify(xrpl.parseTransactionFlags(tx), null, '\t')}`);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign transaction.');
-                    }
-                    console.log(`signedTx: ${JSON.stringify(signedTx, null, '\t')}`);
-
-                    this.updateSpinnerMessage('Submitting transaction to the Ledger ...');
-                    const response = await client.submitAndWait(signedTx.tx_blob);
-                    console.log('Submit Response:', JSON.stringify(response, null, 2));
-
-                    if (response.result.meta && typeof response.result.meta !== 'string' && (response.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                         return;
-                    }
-
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    this.resultField.nativeElement.classList.add('success');
                }
 
-               this.setSuccess(this.result);
+               // DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Use pre-fetched allAccountObjects and accountInfo
+                         this.refreshUiAccountObjects(accountObject, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-               this.isMemoEnabled = false;
-               this.memoField = '';
+                         this.isMemoEnabled = false;
+                         this.memoField = '';
 
-               await this.updateXrpBalance(client, accountInfo, wallet);
+                         await this.updateXrpBalance(client, accountInfo, wallet);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for payment channels:', err);
+                         // Don't break main render — payment channels are already shown
+                    }
+               }, 0);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -942,6 +832,25 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.cdr.detectChanges();
                console.log(`Leaving handlePaymentChannelAction in ${this.executionTime}ms`);
           }
+     }
+
+     private async getPaymentChannelAuthorizedWallet(environment: string) {
+          let authorzedWalletSeed = '';
+          let authorizedWallet;
+          if (this.selectedAccount === 'account2') {
+               authorzedWalletSeed = this.utilsService.getSelectedSeedWithOutIssuer('account1', this.account1, this.account2);
+               authorizedWallet = await this.utilsService.getWallet(authorzedWalletSeed, environment);
+               if (!authorizedWallet) {
+                    throw new Error('ERROR: Wallet could not be created or is undefined');
+               }
+          } else {
+               authorzedWalletSeed = this.utilsService.getSelectedSeedWithOutIssuer('account2', this.account1, this.account2);
+               authorizedWallet = await this.utilsService.getWallet(authorzedWalletSeed, environment);
+               if (!authorizedWallet) {
+                    throw new Error('ERROR: Wallet could not be created or is undefined');
+               }
+          }
+          return authorizedWallet;
      }
 
      async generateCreatorClaimSignature() {
@@ -1043,6 +952,15 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
+     private renderTransactionResult(response: any): void {
+          if (this.isSimulateEnabled) {
+               this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
+          } else {
+               console.debug(`Response`, response);
+               this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
+          }
+     }
+
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
           const signerAccounts: string[] = [];
           if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
@@ -1090,17 +1008,25 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.useMultiSign = true; // Force to true if master key is disabled
           } else {
-               this.useMultiSign = false;
                this.masterKeyDisabled = false;
           }
 
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
+          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+               this.useMultiSign = true; // Force to true if master key is disabled
+          } else {
+               this.useMultiSign = false;
+          }
+
+          if (signerAccounts && signerAccounts.length > 0) {
+               this.multiSigningEnabled = true;
+          } else {
+               this.multiSigningEnabled = false;
+          }
+
+          this.clearFields(false);
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -1116,11 +1042,15 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
 
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled && !this.isRegularKeyAddress) {
+          if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
           } else {
                this.masterKeyDisabled = false;
+          }
+
+          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+               this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          } else {
                this.isRegularKeyAddress = false;
           }
 
@@ -1469,13 +1399,16 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      clearFields(clearAllFields: boolean) {
-          this.amountField = '';
-          this.destinationTagField = '';
-          this.channelIDField = '';
-          this.publicKeyField = '';
-          this.channelClaimSignatureField = '';
-          this.settleDelayField = '';
-          this.paymentChannelCancelAfterTimeField = '';
+          if (clearAllFields) {
+               this.amountField = '';
+               this.destinationTagField = '';
+               this.channelIDField = '';
+               this.publicKeyField = '';
+               this.channelClaimSignatureField = '';
+               this.settleDelayField = '';
+               this.paymentChannelCancelAfterTimeField = '';
+          }
+
           this.memoField = '';
           this.ticketSequence = '';
           this.isTicket = false;

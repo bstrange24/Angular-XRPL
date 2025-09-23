@@ -63,6 +63,7 @@ export const AppConstants = {
           14: 'asfDisallowIncomingPayChan',
           15: 'asfDisallowIncomingTrustline',
           16: 'asfAllowTrustLineClawback',
+          17: 'asfAllowTrustLineLocking',
      },
 
      ACCOUNT_ROOT_FLAGS: {
@@ -156,7 +157,7 @@ export const AppConstants = {
           { name: 'asfDisallowIncomingPayChan', label: 'Block Payment Channels', value: 14, xrplName: 'disallowIncomingPayChan', xrplEnum: xrpl.AccountSetAsfFlags.asfDisallowIncomingPayChan },
           { name: 'asfDisallowIncomingTrustline', label: 'Block Trust Lines', value: 15, xrplName: 'disallowIncomingTrustline', xrplEnum: xrpl.AccountSetAsfFlags.asfDisallowIncomingTrustline },
           { name: 'asfAllowTrustLineClawback', label: 'Allow Trust Line Clawback', value: 16, xrplName: 'allowTrustLineClawback', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineClawback },
-          // { name: 'asfAllowTrustLineLocking', label: 'Allow Trust Line Locking', value: 17, xrplName: 'asfAllowTrustLineLocking', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineClawback },
+          { name: 'asfAllowTrustLineLocking', label: 'Allow Trust Line Locking', value: 17, xrplName: 'allowTrustLineLocking', xrplEnum: xrpl.AccountSetAsfFlags.asfAllowTrustLineLocking },
           { name: 'passwordSpent', label: 'Set Regular Key', value: 100, xrplName: 'passwordSpent', xrplEnum: '' },
      ],
 
@@ -176,6 +177,7 @@ export const AppConstants = {
           asfDisallowIncomingPayChan: 'disallowIncomingPayChan',
           asfDisallowIncomingTrustline: 'disallowIncomingTrustline',
           asfAllowTrustLineClawback: 'allowTrustLineClawback',
+          asfAllowTrustLineLocking: 'allowTrustLineLocking',
      },
 
      DELEGATE_ACTIONS: [

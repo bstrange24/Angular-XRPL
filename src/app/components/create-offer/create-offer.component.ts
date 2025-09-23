@@ -19,6 +19,8 @@ import { MatTableModule } from '@angular/material/table';
 import { MatSortModule } from '@angular/material/sort';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatButtonModule } from '@angular/material/button';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
+import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
@@ -35,7 +37,6 @@ interface ValidationInputs {
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
-     // isMultiSign?: boolean;
      useMultiSign?: boolean;
      multiSignSeeds?: string;
      multiSignAddresses?: string;
@@ -157,7 +158,6 @@ export class CreateOfferComponent implements AfterViewChecked {
      isMemoEnabled: boolean = false;
      isMultiSignTransaction: boolean = false;
      multiSignAddress: string = '';
-     // isMultiSign: boolean = false;
      useMultiSign: boolean = false;
      multiSignSeeds: string = '';
      isRegularKeyAddress: boolean = false;
@@ -174,6 +174,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      tokenBalance: string = '';
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
+     isSimulateEnabled: boolean = false;
      phnixBalance: string = '0'; // Hardcoded for now, will be fetched dynamically
      phnixExchangeXrp: string = '0'; // To store the calculated XRP amount
      xrpPrice: string = '0'; // New property to store XRP price in RLUSD
@@ -198,7 +199,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      private priceRefreshInterval: any; // For polling
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {
           this.tokens$ = this.xrplService.tokens$; // Initialize tokens observable
      }
 
@@ -503,13 +504,15 @@ export class CreateOfferComponent implements AfterViewChecked {
           };
 
           try {
-               this.showSpinnerWithDelay('Getting Offers...', 200);
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Getting Offers (${mode})...`);
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const classicAddress = wallet.classicAddress;
 
-               // ➤ PHASE 1: PARALLELIZE — fetch account info + offers + account objects together
+               // PHASE 1: PARALLELIZE — fetch account info + offers + account objects together
                const [accountInfo, offersResponse, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountOffers(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = {
@@ -575,11 +578,11 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               // ✅ CRITICAL: Render immediately
+               // CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          // Use pre-fetched data — no redundant API calls!
@@ -591,7 +594,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          this.memoField = '';
 
                          // Update balance — this is async but non-blocking
-                         this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
+                         this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for offers:', err);
                          // Don't break main render — offers are already shown
@@ -630,13 +633,15 @@ export class CreateOfferComponent implements AfterViewChecked {
           };
 
           try {
-               this.updateSpinnerMessage('Getting Order Book...');
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Getting Order Book (${mode})...`);
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const classicAddress = wallet.classicAddress;
 
-               // ➤ PHASE 1: Fetch account info (needed for validation)
+               // PHASE 1: Fetch account info (needed for validation)
                const accountInfo = await this.xrplService.getAccountInfo(client, classicAddress, 'validated', '');
 
                inputs = {
@@ -649,7 +654,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               // ➤ PHASE 2: Prepare currency objects
+               // PHASE 2: Prepare currency objects
                const we_want: CurrencyAmount =
                     this.weWantCurrencyField === 'XRP'
                          ? { currency: 'XRP', value: this.weWantAmountField }
@@ -675,7 +680,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const offerType = we_spend.currency === AppConstants.XRP_CURRENCY ? 'buy' : 'sell';
 
-               // ➤ PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
+               // PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
                const [orderBook, counterOrderBook, ammData] = await Promise.all([
                     client.request({
                          command: 'book_offers',
@@ -691,7 +696,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                          taker_gets: we_spend,
                          taker_pays: we_want,
                     }),
-                    client.request(this.createAmmRequest(we_spend, we_want)).catch(() => null) as Promise<AMMInfoResponse | null>,
+                    client.request(this.createAmmRequest(we_spend, we_want)).catch(err => {
+                         console.warn('No AMM pool found for this pair:', err);
+                         return null; // prevent rejection
+                    }) as Promise<AMMInfoResponse | null>,
                ]);
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -700,7 +708,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                console.debug(`counterOrderBook:`, counterOrderBook.result);
                console.debug(`ammData: `, ammData ? ammData.result : '');
 
-               // ➤ PHASE 4: Process AMM data if available
+               // PHASE 4: Process AMM data if available
                const combinedOffers: CustomBookOffer[] = [...orderBook.result.offers];
 
                if (ammData?.result?.amm) {
@@ -745,14 +753,14 @@ export class CreateOfferComponent implements AfterViewChecked {
                     combinedOffers.unshift(ammOffer);
                }
 
-               // ➤ PHASE 5: Calculate stats
+               // PHASE 5: Calculate stats
                const spread = this.computeBidAskSpread(offerType === 'sell' ? counterOrderBook.result.offers : combinedOffers, offerType === 'sell' ? combinedOffers : counterOrderBook.result.offers);
 
                const liquidity = this.computeLiquidityRatio(offerType === 'sell' ? counterOrderBook.result.offers : combinedOffers, offerType === 'sell' ? combinedOffers : counterOrderBook.result.offers, offerType === 'sell');
 
                const stats = this.computeAverageExchangeRateBothWays(combinedOffers, 5);
 
-               // ➤ PHASE 6: Build UI data — RENDER IMMEDIATELY
+               // PHASE 6: Build UI data — RENDER IMMEDIATELY
                const pair = `${displayWeWantCurrency}/${displayWeSpendCurrency}`;
                const reversePair = `${displayWeSpendCurrency}/${displayWeWantCurrency}`;
 
@@ -835,16 +843,16 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               // ✅ CRITICAL: Render immediately
+               // CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               // ➤ DEFER: Non-critical UI updates — let main render complete first
+               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          // Update balance — async but non-blocking
-                         this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
+                         this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error updating balance after order book render:', err);
                     }
@@ -884,10 +892,22 @@ export class CreateOfferComponent implements AfterViewChecked {
           };
 
           try {
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Preparing Create Offer (${mode})...`);
+
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               // PHASE 1: PARALLELIZE — fetch account info + account objects together
+               const [accountInfo, fee, initialXrpBalance, trustLines, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), client.getXrpBalance(wallet.classicAddress), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.getXrplServerInfo(client, 'current', '')]);
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`trustLines:`, trustLines.result);
+               console.debug(`serverInfo:`, serverInfo);
+               console.debug(`fee:`, fee);
 
                inputs = {
                     ...inputs,
@@ -898,11 +918,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
-
-               let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-               this.updateSpinnerMessage('Creating Offer...');
 
                interface SpendObject {
                     amount?: string; // For XRP
@@ -958,9 +973,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                console.log(`issuerAddr ${issuerAddr}`);
                console.log(`issuerCur ${issuerCur}`);
 
-               const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
-               console.log(`trustLines ${JSON.stringify(trustLines.result.lines, null, 2)}`);
-
                const doesTrustLinesExists = trustLines.result.lines.filter((line: any) => {
                     // Decode currency for comparison
                     const decodedCurrency = line.currency.length > 3 ? this.utilsService.decodeCurrencyCode(line.currency) : line.currency;
@@ -973,7 +985,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                });
                console.debug(`Active trust lines for ${wallet.classicAddress}:`, doesTrustLinesExists);
 
-               const fee = await this.xrplService.calculateTransactionFee(client);
                if (doesTrustLinesExists.length <= 0) {
                     const decodedCurrency = issuerCur.length > 3 ? this.utilsService.encodeCurrencyCode(issuerCur) : issuerCur;
                     const currentLedger = await this.xrplService.getLastLedgerIndex(client);
@@ -989,13 +1000,49 @@ export class CreateOfferComponent implements AfterViewChecked {
                          LastLedgerSequence: currentLedger + 20,
                     };
 
-                    const ts_prepared = await client.autofill(trustSetTx);
-                    const ts_signed = wallet.sign(ts_prepared);
-                    trustSetResult = await client.submitAndWait(ts_signed.tx_blob);
+                    if (this.isSimulateEnabled) {
+                         const simulation = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
 
-                    if (trustSetResult.result.meta && typeof trustSetResult.result.meta !== 'string' && (trustSetResult.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                         this.utilsService.renderTransactionsResults(trustSetResult, this.resultField.nativeElement);
-                         return;
+                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (simulation['result'] as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
+                         }
+
+                         // Render result
+                         this.renderTransactionResult(simulation);
+
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccess(this.result);
+                    } else {
+                         // PHASE 5: Get regular key wallet
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+                         // Sign transaction
+                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                         if (!signedTx) {
+                              return this.setError('ERROR: Failed to sign Payment transaction.');
+                         }
+
+                         // PHASE 7: Submit or Simulate
+                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Swap via AMM (no changes will be made)...' : 'Submitting to Ledger...');
+
+                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
+                         if (!isSuccess) {
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              let userMessage = 'Transaction failed.\n';
+                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                              (response.result as any).errorMessage = userMessage;
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                         }
                     }
 
                     data.sections.push({
@@ -1017,7 +1064,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                // // Fetch reserve information
-               const xrpReserve = await this.xrplService.getXrpReserveRequirements(client, wallet.address);
+               const xrpReserve = await this.xrplService.getXrpReserveRequirements(accountInfo, serverInfo);
 
                data.sections.push({
                     title: 'Account Reserve Information',
@@ -1031,23 +1078,12 @@ export class CreateOfferComponent implements AfterViewChecked {
                });
 
                // Initial balances
-               const initialXrpBalance = await client.getXrpBalance(wallet.address);
-               // console.log(`Initial XRP Balance ${initialXrpBalance} (drops): ${xrpl.xrpToDrops(initialXrpBalance)}`);
-               // const tokenBalance = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? this.weWantCurrencyField : this.weSpendCurrencyField;
-               // let initialTokenBalance;
-               // if (this.phnixBalance != '') {
-               // initialTokenBalance = this.phnixBalance;
-               // } else {
-               // const initialTokenBalance = await this.xrplService.getOnlyTokenBalance(client, wallet.address, tokenBalance);
-               // }
-               // console.log(`Initial ${tokenBalance} Balance: ${initialTokenBalance}`);
+               console.log(`Initial XRP Balance ${initialXrpBalance} (drops): ${xrpl.xrpToDrops(initialXrpBalance)}`);
+
                data.sections.push({
                     title: 'Initial Balances',
                     openByDefault: true,
-                    content: [
-                         { key: 'XRP', value: `${initialXrpBalance} (${xrpl.xrpToDrops(initialXrpBalance)} drops)` },
-                         // { key: tokenBalance, value: initialTokenBalance },
-                    ],
+                    content: [{ key: 'XRP', value: `${initialXrpBalance} (${xrpl.xrpToDrops(initialXrpBalance)} drops)` }],
                });
 
                // Build currency objects
@@ -1070,21 +1106,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                     };
                }
 
-               // Validate balances
-               // if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY && Number(xrpl.xrpToDrops(initialXrpBalance)) < Number(this.weSpendAmountField)) {
-               //      this.setError('Insufficient XRP balance');
-               //      return;
-               // } else if (this.weSpendCurrencyField !== AppConstants.XRP_CURRENCY && Number(initialTokenBalance) < Number(this.weSpendAmountField)) {
-               //      this.setError(`Insufficient ${this.weSpendCurrencyField} balance`);
-               //      return;
-               // }
-
                if (we_want.currency.length > 3) {
                     we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
                }
-               // if (we_spend.currency && we_spend.currency.length > 3) {
-               //      we_spend.currency = this.utilsService.encodeCurrencyCode(we_spend.currency);
-               // }
 
                const offerType = we_spend.currency ? 'sell' : 'buy';
                console.log(`Offer Type: ${offerType}`);
@@ -1109,23 +1133,32 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               // Market analysis
-               const MAX_SLIPPAGE = 0.05;
-               const orderBook = await client.request({
-                    command: 'book_offers',
-                    taker: wallet.address,
-                    ledger_index: 'current',
-                    taker_gets: we_want,
-                    taker_pays: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
-               });
-               const oppositeOrderBook = await client.request({
-                    command: 'book_offers',
-                    taker: wallet.address,
-                    ledger_index: 'current',
-                    taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
-                    taker_pays: we_want,
-               });
+               // PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
+               const [orderBook, counterOrderBook, orderBook2] = await Promise.all([
+                    client.request({
+                         command: 'book_offers',
+                         taker: wallet.address,
+                         ledger_index: 'current',
+                         taker_gets: we_want,
+                         taker_pays: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
+                    }),
+                    client.request({
+                         command: 'book_offers',
+                         taker: wallet.address,
+                         ledger_index: 'current',
+                         taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
+                         taker_pays: we_want,
+                    }),
+                    client.request({
+                         command: 'book_offers',
+                         taker: wallet.address,
+                         ledger_index: 'current',
+                         taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
+                         taker_pays: we_want,
+                    }),
+               ]);
 
+               const MAX_SLIPPAGE = 0.05;
                const offers = orderBook.result.offers;
                let runningTotal = new BigNumber(0);
                const wantAmount = new BigNumber(this.weWantAmountField);
@@ -1163,13 +1196,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                if (runningTotal.eq(0)) {
-                    const orderBook2 = await client.request({
-                         command: 'book_offers',
-                         taker: wallet.address,
-                         ledger_index: 'current',
-                         taker_gets: we_spend.currency ? we_spend : { currency: AppConstants.XRP_CURRENCY, value: this.weSpendAmountField },
-                         taker_pays: we_want,
-                    });
                     const offeredQuality = new BigNumber(this.weWantAmountField).dividedBy(this.weSpendAmountField);
                     const offers2 = orderBook2.result.offers;
                     let runningTotal2 = new BigNumber(0);
@@ -1295,236 +1321,233 @@ export class CreateOfferComponent implements AfterViewChecked {
                };
 
                if (this.ticketSequence) {
-                    if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                    if (!ticketExists) {
                          return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
                     }
                     this.utilsService.setTicketSequence(offerCreateTx, this.ticketSequence, true);
                } else {
-                    const getAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    this.utilsService.setTicketSequence(offerCreateTx, getAccountInfo.result.account_data.Sequence, false);
+                    this.utilsService.setTicketSequence(offerCreateTx, accountInfo.result.account_data.Sequence, false);
                }
 
                if (this.memoField) {
                     this.utilsService.setMemoField(offerCreateTx, this.memoField);
                }
 
-               let signedTx: { tx_blob: string; hash: string } | null = null;
+               if (this.isSimulateEnabled) {
+                    const simulation = await this.xrplTransactions.simulateTransaction(client, offerCreateTx);
 
-               if (this.useMultiSign) {
-                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
-                    if (signerAddresses.length === 0) {
-                         return this.setError('ERROR: No signer addresses provided for multi-signing');
+                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                         (simulation['result'] as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
-                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
-                    if (signerSeeds.length === 0) {
-                         return this.setError('ERROR: No signer seeds provided for multi-signing');
-                    }
+                    // Render result
+                    this.renderTransactionResult(simulation);
 
-                    try {
-                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: offerCreateTx, signerAddresses, signerSeeds, fee });
-                         signedTx = result.signedTx;
-                         offerCreateTx.Signers = result.signers;
-
-                         console.log('Payment with Signers:', JSON.stringify(offerCreateTx, null, 2));
-                         console.log('SignedTx:', JSON.stringify(signedTx, null, 2));
-
-                         if (!signedTx) {
-                              return this.setError('ERROR: No valid signature collected for multisign transaction');
-                         }
-
-                         const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
-                         console.log(`multiSignFee: ${multiSignFee}`);
-                         offerCreateTx.Fee = multiSignFee;
-                         const finalTx = xrpl.decode(signedTx.tx_blob);
-                         console.log('Decoded Final Tx:', JSON.stringify(finalTx, null, 2));
-
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, offerCreateTx, multiSignFee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
-                         }
-                    } catch (err: any) {
-                         return this.setError(`ERROR: ${err.message}`);
-                    }
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
                } else {
-                    console.log(`trustSetTx: ${JSON.stringify(offerCreateTx, null, '\t')}`);
-                    const preparedTx = await client.autofill(offerCreateTx);
-                    console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
-                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+                    // PHASE 5: Get regular key wallet
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, offerCreateTx, fee)) {
-                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    // Sign transaction
+                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, offerCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                    if (!signedTx) {
+                         return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-               }
 
-               if (!signedTx) {
-                    return this.setError('ERROR: Failed to sign transaction.');
-               }
-               console.log('signed:', JSON.stringify(signedTx, null, '\t'));
+                    // PHASE 7: Submit or Simulate
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create AMM (no changes will be made)...' : 'Submitting to Ledger...');
 
-               this.updateSpinnerMessage('Submitting transaction to the Ledger...');
-               const response = await client.submitAndWait(signedTx.tx_blob);
-               console.log('Response:', JSON.stringify(response, null, '\t'));
+                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
-               if (response.result.meta && typeof response.result.meta !== 'string' && response.result.meta.TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    console.error(`Submit Response failed: ${JSON.stringify(response, null, 2)}`);
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-                    return;
-               }
+                    const isSuccess = this.utilsService.isTxSuccessful(response);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-               // let prepared: OfferCreate;
-               // if (this.ticketSequence) {
-               //      if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
-               //           return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-               //      }
-
-               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-               //      if (typeof we_spend1 === 'object') {
-               //           // Token case
-               //           prepared = await client.autofill({
-               //                TransactionType: 'OfferCreate',
-               //                Account: wallet.classicAddress,
-               //                TakerGets: we_spend1,
-               //                TakerPays: we_want1,
-               //                Flags: flags,
-               //                Sequence: 0,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-               //      } else {
-               //           // XRP case
-               //           prepared = await client.autofill({
-               //                TransactionType: 'OfferCreate',
-               //                Account: wallet.classicAddress,
-               //                TakerGets: we_spend1,
-               //                TakerPays: we_want1,
-               //                Flags: flags,
-               //                Sequence: 0,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-               //      }
-               // } else {
-               //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
-
-               //      if (typeof we_spend1 === 'object') {
-               //           // Token case
-               //           prepared = await client.autofill({
-               //                TransactionType: 'OfferCreate',
-               //                Account: wallet.classicAddress,
-               //                TakerGets: we_spend1,
-               //                TakerPays: we_want1,
-               //                Flags: flags,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-               //      } else {
-               //           // XRP case
-               //           prepared = await client.autofill({
-               //                TransactionType: 'OfferCreate',
-               //                Account: wallet.classicAddress,
-               //                TakerGets: we_spend1,
-               //                TakerPays: we_want1,
-               //                Flags: flags,
-               //                Fee: fee,
-               //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               //           });
-               //      }
-               // }
-
-               // if (this.memoField) {
-               //      prepared.Memos = [
-               //           {
-               //                Memo: {
-               //                     MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
-               //                     MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-               //                },
-               //           },
-               //      ];
-               // }
-
-               // const signed = wallet.sign(prepared);
-               // console.log(`signed: ${signed}`);
-               // const tx = await client.submitAndWait(signed.tx_blob);
-
-               // if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-               //      this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
-               //      return;
-               // }
-
-               // Balance changes
-               let balanceChanges: { account: string; balances: any[] }[] = [];
-               if (response.result.meta && typeof response.result.meta !== 'string') {
-                    balanceChanges = xrpl.getBalanceChanges(response.result.meta);
-               }
-               data.sections.push({
-                    title: 'Balance Changes',
-                    openByDefault: true,
-                    content: balanceChanges.length
-                         ? balanceChanges.flatMap((change, index) =>
-                                change.balances.map((bal, balIdx) => ({
-                                     key: `Change ${index + 1}${change.balances.length > 1 ? `.${balIdx + 1}` : ''}`,
-                                     value: `${bal.value} ${bal.currency}${bal.issuer ? ` (Issuer: <code>${bal.issuer}</code>)` : ''} for <code>${change.account}</code>`,
-                                }))
-                           )
-                         : [{ key: 'Status', value: 'No balance changes recorded' }],
-               });
-
-               // Updated balances
-               const finalXrpBalance = await client.getXrpBalance(wallet.address);
-               // const updatedTokenBalance = await this.xrplService.getOnlyTokenBalance(client, wallet.address, tokenBalance);
-               data.sections.push({
-                    title: 'Updated Balances',
-                    openByDefault: true,
-                    content: [
-                         { key: 'XRP', value: finalXrpBalance.toString() },
-                         // { key: tokenBalance, value: updatedTokenBalance },
-                    ],
-               });
-
-               // Outstanding offers
-               const acctOffers = await this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '');
-               // Helper function to format offer amounts
-               function amt_str(amt: any): string {
-                    if (typeof amt === 'string') {
-                         // Assume XRP in drops
-                         return `${xrpl.dropsToXrp(amt)} XRP`;
-                    } else if (amt && typeof amt === 'object') {
-                         // Assume token object
-                         return `${amt.value} ${amt.currency}${amt.issuer ? ` (Issuer: ${amt.issuer})` : ''}`;
+                         (response.result as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
-                    return String(amt);
-               }
-               if (acctOffers.result.offers && acctOffers.result.offers.length > 0) {
+
+                    // Render result
+                    // this.renderTransactionResult(response);
+
+                    // this.resultField.nativeElement.classList.add('success');
+                    // this.setSuccess(this.result);
+
+                    console.log('');
+                    // let prepared: OfferCreate;
+                    // if (this.ticketSequence) {
+                    //      if (!(await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence)))) {
+                    //           return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                    //      }
+
+                    //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+                    //      if (typeof we_spend1 === 'object') {
+                    //           // Token case
+                    //           prepared = await client.autofill({
+                    //                TransactionType: 'OfferCreate',
+                    //                Account: wallet.classicAddress,
+                    //                TakerGets: we_spend1,
+                    //                TakerPays: we_want1,
+                    //                Flags: flags,
+                    //                Sequence: 0,
+                    //                Fee: fee,
+                    //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    //           });
+                    //      } else {
+                    //           // XRP case
+                    //           prepared = await client.autofill({
+                    //                TransactionType: 'OfferCreate',
+                    //                Account: wallet.classicAddress,
+                    //                TakerGets: we_spend1,
+                    //                TakerPays: we_want1,
+                    //                Flags: flags,
+                    //                Sequence: 0,
+                    //                Fee: fee,
+                    //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    //           });
+                    //      }
+                    // } else {
+                    //      const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+
+                    //      if (typeof we_spend1 === 'object') {
+                    //           // Token case
+                    //           prepared = await client.autofill({
+                    //                TransactionType: 'OfferCreate',
+                    //                Account: wallet.classicAddress,
+                    //                TakerGets: we_spend1,
+                    //                TakerPays: we_want1,
+                    //                Flags: flags,
+                    //                Fee: fee,
+                    //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    //           });
+                    //      } else {
+                    //           // XRP case
+                    //           prepared = await client.autofill({
+                    //                TransactionType: 'OfferCreate',
+                    //                Account: wallet.classicAddress,
+                    //                TakerGets: we_spend1,
+                    //                TakerPays: we_want1,
+                    //                Flags: flags,
+                    //                Fee: fee,
+                    //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+                    //           });
+                    //      }
+                    // }
+
+                    // if (this.memoField) {
+                    //      prepared.Memos = [
+                    //           {
+                    //                Memo: {
+                    //                     MemoData: Buffer.from(this.memoField, 'utf8').toString('hex'),
+                    //                     MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                    //                },
+                    //           },
+                    //      ];
+                    // }
+
+                    // const signed = wallet.sign(prepared);
+                    // console.log(`signed: ${signed}`);
+                    // const tx = await client.submitAndWait(signed.tx_blob);
+
+                    // if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
+                    //      this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+                    //      return;
+                    // }
+
+                    // Balance changes
+
+                    let balanceChanges: { account: string; balances: any[] }[] = [];
+                    if (response.result.meta && typeof response.result.meta !== 'string') {
+                         balanceChanges = xrpl.getBalanceChanges(response.result.meta);
+                    }
                     data.sections.push({
-                         title: `Outstanding Offers (${acctOffers.result.offers.length})`,
-                         openByDefault: false,
-                         subItems: acctOffers.result.offers.map((offer: any, index: number) => ({
-                              key: `Offer ${index + 1}`,
-                              openByDefault: false,
-                              content: [{ key: 'Sequence', value: offer.seq }, { key: 'TakerGets', value: amt_str(offer.taker_gets) }, { key: 'TakerPays', value: amt_str(offer.taker_pays) }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : [])],
-                         })),
+                         title: 'Balance Changes',
+                         openByDefault: true,
+                         content: balanceChanges.length
+                              ? balanceChanges.flatMap((change, index) =>
+                                     change.balances.map((bal, balIdx) => ({
+                                          key: `Change ${index + 1}${change.balances.length > 1 ? `.${balIdx + 1}` : ''}`,
+                                          value: `${bal.value} ${bal.currency}${bal.issuer ? ` (Issuer: <code>${bal.issuer}</code>)` : ''} for <code>${change.account}</code>`,
+                                     }))
+                                )
+                              : [{ key: 'Status', value: 'No balance changes recorded' }],
                     });
+
+                    const [finalXrpBalance, acctOffers] = await Promise.all([client.getXrpBalance(wallet.classicAddress), this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', '')]);
+
+                    data.sections.push({
+                         title: 'Updated Balances',
+                         openByDefault: true,
+                         content: [
+                              { key: 'XRP', value: finalXrpBalance.toString() },
+                              // { key: tokenBalance, value: updatedTokenBalance },
+                         ],
+                    });
+
+                    // Outstanding offers
+                    function amt_str(amt: any): string {
+                         if (typeof amt === 'string') {
+                              // Assume XRP in drops
+                              return `${xrpl.dropsToXrp(amt)} XRP`;
+                         } else if (amt && typeof amt === 'object') {
+                              // Assume token object
+                              return `${amt.value} ${amt.currency}${amt.issuer ? ` (Issuer: ${amt.issuer})` : ''}`;
+                         }
+                         return String(amt);
+                    }
+                    if (acctOffers.result.offers && acctOffers.result.offers.length > 0) {
+                         data.sections.push({
+                              title: `Outstanding Offers (${acctOffers.result.offers.length})`,
+                              openByDefault: false,
+                              subItems: acctOffers.result.offers.map((offer: any, index: number) => ({
+                                   key: `Offer ${index + 1}`,
+                                   openByDefault: false,
+                                   content: [{ key: 'Sequence', value: offer.seq }, { key: 'TakerGets', value: amt_str(offer.taker_gets) }, { key: 'TakerPays', value: amt_str(offer.taker_pays) }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : [])],
+                              })),
+                         });
+                    }
+
+                    // Account Details
+                    data.sections.push({
+                         title: 'Account Details',
+                         openByDefault: true,
+                         content: [
+                              { key: 'Name', value: this.account1.name },
+                              { key: 'Address', value: `<code>${wallet.address}</code>` },
+                              { key: 'Final XRP Balance', value: finalXrpBalance.toString() },
+                         ],
+                    });
+
+                    // Render result
+                    this.renderTransactionResult(response);
+
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
+
+                    // DEFER: Non-critical UI updates — let main render complete first
+                    setTimeout(async () => {
+                         try {
+                              // Update balance — async but non-blocking
+                              this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
+                         } catch (err) {
+                              console.error('Error updating balance after order book render:', err);
+                         }
+                    }, 0);
                }
 
-               // Account Details
-               data.sections.push({
-                    title: 'Account Details',
-                    openByDefault: true,
-                    content: [
-                         { key: 'Name', value: this.account1.name },
-                         { key: 'Address', value: `<code>${wallet.address}</code>` },
-                         { key: 'Final XRP Balance', value: finalXrpBalance.toString() },
-                    ],
-               });
-
-               this.utilsService.renderDetails(data);
-               (response.result as any).clearInnerHtml = false;
-               this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
+               this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1745,7 +1768,283 @@ export class CreateOfferComponent implements AfterViewChecked {
                     this.setSuccess(this.result);
                }
 
-               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
+               this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving cancelOffer in ${this.executionTime}ms`);
+          }
+     }
+
+     async cancelOffer1() {
+          console.log('Entering cancelOffer');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          let inputs: ValidationInputs = {
+               selectedAccount: this.selectedAccount,
+               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               offerSequenceField: this.offerSequenceField,
+               isRegularKeyAddress: this.isRegularKeyAddress,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
+               useMultiSign: this.useMultiSign,
+               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
+               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+          };
+
+          const offerSequenceArray = this.offerSequenceField
+               .split(',')
+               .map(seq => seq.trim())
+               .filter(seq => seq !== '');
+
+          try {
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Preparing Cancel Offer (${mode})...`);
+
+               const environment = this.xrplService.getNet().environment;
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               // PHASE 1: PARALLELIZE — fetch account info + account objects together
+               const [accountInfo, fee] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client)]);
+
+               inputs = {
+                    ...inputs,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'cancelOffer');
+               if (errors.length > 0) {
+                    return this.setError(`ERROR: ${errors.join('; ')}`);
+               }
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`fee:`, fee);
+
+               // let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+               // Define interfaces for rendering
+               interface SectionContent {
+                    key: string;
+                    value: string;
+               }
+
+               interface SectionSubItem {
+                    key: string;
+                    openByDefault: boolean;
+                    content: SectionContent[];
+               }
+
+               interface Section {
+                    title: string;
+                    openByDefault: boolean;
+                    content?: SectionContent[];
+                    subItems?: SectionSubItem[];
+               }
+
+               const data: { sections: Section[] } = {
+                    sections: [],
+               };
+
+               // Collect all transaction results
+               const transactions: { type: string; result: any }[] = [];
+               let hasError = false;
+
+               for (const element of offerSequenceArray) {
+                    const offerSequence = parseInt(element);
+
+                    let response;
+                    const [accountInfo, lastLedgerIndex] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+                    try {
+                         const offerCancelTx = await client.autofill({
+                              TransactionType: 'OfferCancel',
+                              Account: wallet.classicAddress,
+                              Sequence: accountInfo.Sequence,
+                              OfferSequence: offerSequence,
+                              LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
+                              Fee: fee,
+                         });
+
+                         if (this.ticketSequence) {
+                              const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                              if (!ticketExists) {
+                                   return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
+                              }
+                              this.utilsService.setTicketSequence(offerCancelTx, this.ticketSequence, true);
+                         } else {
+                              this.utilsService.setTicketSequence(offerCancelTx, accountInfo.result.account_data.Sequence, false);
+                         }
+
+                         if (this.memoField) {
+                              this.utilsService.setMemoField(offerCancelTx, this.memoField);
+                         }
+
+                         if (this.isSimulateEnabled) {
+                              const simulation = await this.xrplTransactions.simulateTransaction(client, offerCancelTx);
+
+                              const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                              if (!isSuccess) {
+                                   const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
+                                   let userMessage = 'Transaction failed.\n';
+                                   userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                                   (simulation['result'] as any).errorMessage = userMessage;
+                                   console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
+                              }
+
+                              transactions.push({
+                                   type: 'OfferCancel',
+                                   result: simulation,
+                              });
+                         } else {
+                              // PHASE 5: Get regular key wallet
+                              const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
+                              // Sign transaction
+                              let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, offerCancelTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+
+                              if (!signedTx) {
+                                   return this.setError('ERROR: Failed to sign Payment transaction.');
+                              }
+
+                              // PHASE 7: Submit or Simulate
+                              this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Swap via AMM (no changes will be made)...' : 'Submitting to Ledger...');
+
+                              response = await this.xrplTransactions.submitTransaction(client, signedTx);
+
+                              const isSuccess = this.utilsService.isTxSuccessful(response);
+                              if (!isSuccess) {
+                                   const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                                   let userMessage = 'Transaction failed.\n';
+                                   userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                                   (response.result as any).errorMessage = userMessage;
+                                   console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                              }
+
+                              transactions.push({
+                                   type: 'OfferCancel',
+                                   result: response,
+                              });
+                         }
+                    } catch (error: any) {
+                         hasError = true;
+                         transactions.push({
+                              type: 'OfferCancel',
+                              result: {
+                                   error: `Error cancelling offer ${element}: ${error.message || 'Unknown error'}`,
+                                   OfferSequence: element,
+                              },
+                         });
+                    }
+               }
+
+               if (this.isSimulateEnabled) {
+                    // Render result
+                    const allResults = transactions.map(item => item.result).filter(Boolean);
+                    this.renderTransactionResult(allResults);
+
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
+                    return;
+               }
+
+               // Add detailed transaction data to data.sections
+               const transactionDetails: SectionSubItem[] = transactions.map((tx, index) => {
+                    const result = tx.result || {};
+                    const isSuccess = !result.error && result.meta?.TransactionResult === AppConstants.TRANSACTION.TES_SUCCESS;
+                    const content: SectionContent[] = [
+                         { key: 'Transaction Type', value: 'OfferCancel' },
+                         { key: 'Offer Sequence', value: `<code>${result.result.tx_json.OfferSequence || 'N/A'}</code>` },
+                         { key: 'Sequence', value: `<code>${result.result.tx_json.Sequence || 'N/A'}</code>` },
+                         { key: 'Hash', value: result.result.hash ? `<code>${result.result.hash}</code>` : 'N/A' },
+                         { key: 'Result', value: result.error ? `<span class="error-result">${result.error}</span>` : result.meta?.TransactionResult || 'N/A' },
+                         { key: 'Ledger Index', value: result.result.ledger_index || 'N/A' },
+                         { key: 'Validated', value: result.result.validated !== undefined ? result.result.validated.toString() : 'N/A' },
+                         { key: 'Date', value: result.result.close_time_iso ? new Date(result.result.close_time_iso).toLocaleString() : result.result.close_time_iso || 'N/A' },
+                    ];
+
+                    // Add Account if available
+                    if (result.result.tx_json?.Account) {
+                         content.push({ key: 'Account', value: `<code>${result.result.tx_json.Account}</code>` });
+                    }
+
+                    // Add Meta Data if available
+                    if (result.result.meta) {
+                         content.push({ key: 'Transaction Index', value: result.result.meta.TransactionIndex || 'N/A' }, { key: 'Delivered Amount', value: result.result.meta.delivered_amount ? this.utilsService.formatAmount(result.result.meta.delivered_amount) : 'N/A' });
+                    }
+
+                    return {
+                         key: `OfferCancel ${index + 1} (Sequence: ${result.result.tx_json.OfferSequence || result.result.tx_json?.OfferSequence || 'Unknown'})`,
+                         openByDefault: !isSuccess, // Open by default if failed
+                         content,
+                    };
+               });
+
+               data.sections.push({
+                    title: `Offer Cancellation Details (${transactions.length})`,
+                    openByDefault: true,
+                    subItems: transactionDetails,
+               });
+
+               // Add summary section
+               data.sections.push({
+                    title: 'Offer Cancellation Summary',
+                    openByDefault: true,
+                    content: [
+                         {
+                              key: 'Status',
+                              value: hasError ? 'Some offer cancellations failed' : 'All offers cancelled successfully',
+                         },
+                         {
+                              key: 'Total Offers Processed',
+                              value: String(transactions.length),
+                         },
+                         {
+                              key: 'Successful Cancellations',
+                              value: String(transactions.filter(tx => !tx.result.error && tx.result.result.meta?.TransactionResult === AppConstants.TRANSACTION.TES_SUCCESS).length),
+                         },
+                    ],
+               });
+
+               // Render result
+               // this.renderTransactionResult(transactions);
+
+               // this.resultField.nativeElement.classList.add('success');
+               // this.setSuccess(this.result);
+               // Render detailed transaction results
+               this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
+               this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
+
+               // Render summary and details in data.sections
+               this.utilsService.renderDetails(data);
+
+               if (hasError) {
+                    this.setErrorProperties();
+               } else {
+                    this.setSuccess(this.result);
+               }
+
+               // DEFER: Non-critical UI updates — let main render complete first
+               setTimeout(async () => {
+                    try {
+                         // Update balance — async but non-blocking
+                         this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
+                    } catch (err) {
+                         console.error('Error updating balance after order book render:', err);
+                    }
+               }, 0);
+
+               // this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1772,7 +2071,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.utilsService.getWallet(this.account1.seed, environment);
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               // PHASE 1: PARALLELIZE — fetch account info + account objects together
+               const [accountInfo, balance] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`balance:`, balance);
 
                inputs = {
                     ...inputs,
@@ -1783,11 +2088,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
-
-               // Fetch token balances
-               const balance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
-               console.log('balance', balance);
 
                // Prepare data for rendering
                interface SectionContent {
@@ -1868,7 +2168,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                this.setSuccess(this.result);
 
-               this.account1.balance = await this.getXrpBalance(client, accountInfo, wallet);
+               this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
 
                if (this.weWantCurrencyField === 'XRP') {
                     // this.weSpendTokenBalanceField = currencyBalance.toString();
@@ -2214,16 +2514,17 @@ export class CreateOfferComponent implements AfterViewChecked {
           const client = await this.xrplService.getClient();
           const wallet = await this.getWallet();
 
-          const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+          // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
+          const [accountInfo, balanceResponse] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
           try {
                this.spinner = true;
                let balance: string;
                if (this.weWantCurrencyField === 'XRP') {
-                    balance = await this.getXrpBalance(client, accountInfo, wallet);
+                    balance = await this.updateXrpBalance(client, accountInfo, wallet);
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-                    balance = (await this.getCurrencyBalance(wallet.classicAddress, currencyCode, this.weWantIssuerField)) ?? '0';
+                    balance = (await this.getCurrencyBalance(balanceResponse, wallet.classicAddress, currencyCode, this.weWantIssuerField)) ?? '0';
                }
                this.weWantTokenBalanceField = balance !== null ? balance : '0';
                this.phnixBalance = Number(balance).toLocaleString(undefined, {
@@ -2246,7 +2547,6 @@ export class CreateOfferComponent implements AfterViewChecked {
 
      async onWeSpendCurrencyChange() {
           console.log('Entering onWeSpendCurrencyChange');
-          const startTime = Date.now();
           this.setSuccessProperties();
 
           // Set default issuer for the selected currency
@@ -2264,16 +2564,17 @@ export class CreateOfferComponent implements AfterViewChecked {
           const client = await this.xrplService.getClient();
           const wallet = await this.getWallet();
 
-          const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+          // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
+          const [accountInfo, balanceResponse] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
           try {
                this.spinner = true;
                let balance: string;
                if (this.weSpendCurrencyField === 'XRP') {
-                    balance = await this.getXrpBalance(client, accountInfo, wallet);
+                    balance = await this.updateXrpBalance(client, accountInfo, wallet);
                } else {
                     const currencyCode = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
-                    balance = (await this.getCurrencyBalance(wallet.classicAddress, currencyCode, this.weSpendIssuerField)) ?? '0';
+                    balance = (await this.getCurrencyBalance(balanceResponse, wallet.classicAddress, currencyCode, this.weSpendIssuerField)) ?? '0';
                }
                this.weSpendTokenBalanceField = balance !== null ? balance : '0';
                this.phnixExchangeXrp = balance;
@@ -2285,20 +2586,15 @@ export class CreateOfferComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.cdr.detectChanges();
-               // this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving onWeSpendCurrencyChange in ${this.executionTime}ms`);
           }
      }
 
-     async getCurrencyBalance(address: string, currency: string, issuer?: string): Promise<string | null> {
+     async getCurrencyBalance(balanceResponse: xrpl.GatewayBalancesResponse, address: string, currency: string, issuer?: string): Promise<string | null> {
           console.log('Entering getCurrencyBalance');
-          const startTime = Date.now();
           this.setSuccessProperties();
 
           try {
-               const client = await this.xrplService.getClient();
-               const balanceResponse = await this.xrplService.getTokenBalance(client, address, 'validated', '');
-
                let tokenTotal = new BigNumber(0);
                if (balanceResponse.result.assets) {
                     Object.entries(balanceResponse.result.assets).forEach(([assetIssuer, assets]) => {
@@ -2358,7 +2654,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const wallet = await this.getWallet();
 
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
+               const [accountInfo, balanceResponse] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
                if (environment !== AppConstants.NETWORKS.MAINNET.NAME) {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
@@ -2390,10 +2687,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                // Fetch balance for weWant currency
                let balance: string;
                if (this.weWantCurrencyField === 'XRP') {
-                    balance = await this.getXrpBalance(client, accountInfo, wallet);
+                    balance = await this.updateXrpBalance(client, accountInfo, wallet);
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-                    balance = (await this.getCurrencyBalance(wallet.classicAddress, currencyCode, this.weWantIssuerField)) ?? '0';
+                    balance = (await this.getCurrencyBalance(balanceResponse, wallet.classicAddress, currencyCode, this.weWantIssuerField)) ?? '0';
                }
                this.weWantTokenBalanceField = balance !== null ? balance : '0';
                this.phnixBalance = Number(balance).toLocaleString(undefined, {
@@ -2407,30 +2704,31 @@ export class CreateOfferComponent implements AfterViewChecked {
                     const xrpAmount = new BigNumber(this.weSpendAmountField);
 
                     // Check if balance is sufficient (amount + fee)
-                    const spendableXrp = new BigNumber(await this.getXrpBalance(client, this.refreshUiAccountInfo, wallet));
+                    const spendableXrp = new BigNumber(await this.updateXrpBalance(client, accountInfo, wallet));
                     if (xrpAmount.plus(feeInXrp).gt(spendableXrp)) {
                          this.setError('Insufficient XRP balance (including fee)');
                          this.weWantAmountField = '0';
                          return;
                     }
 
-                    // Fetch order book
-                    const orderBook = await client.request({
-                         command: 'book_offers',
-                         ledger_index: 'validated',
-                         taker_gets: weWant,
-                         taker_pays: weSpend,
-                         limit: 400,
-                    });
+                    // PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
+                    const [orderBook, ammPoolData] = await Promise.all([
+                         client.request({
+                              command: 'book_offers',
+                              taker: wallet.address,
+                              ledger_index: 'current',
+                              taker_gets: weWant,
+                              taker_pays: weSpend,
+                              limit: 400,
+                         }),
+                         client.request(this.createAmmRequest(weSpend, weWant)).catch(err => {
+                              console.warn('No AMM pool found for this pair:', err);
+                              return null; // prevent rejection
+                         }) as Promise<AMMInfoResponse | null>,
+                    ]);
 
-                    // Fetch AMM pool (if available)
-                    let ammPoolData = null;
-                    try {
-                         ammPoolData = await client.request(this.createAmmRequest(weSpend, weWant));
-                         console.log('AMM Pool Data:', ammPoolData);
-                    } catch (ammError) {
-                         console.warn('No AMM pool found for this pair:', ammError);
-                    }
+                    console.log('Order Book:', orderBook);
+                    console.log('AMM Pool Data:', ammPoolData); // will be null if not found
 
                     // Combine Order Book and AMM Liquidity
                     let allOffers: CustomBookOffer[] = [...orderBook.result.offers];
@@ -2577,8 +2875,11 @@ export class CreateOfferComponent implements AfterViewChecked {
                return this.setError(`ERROR: ${errors.join('; ')}`);
           }
 
+          const client = await this.xrplService.getClient();
           const wallet = await this.getWallet();
           // const address = this.selectedAccount === 'account1' ? this.account1.address : this.account2.address;
+          // PHASE 1: PARALLELIZE
+          const [accountInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '')]);
 
           try {
                this.spinner = true;
@@ -2591,12 +2892,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                     console.warn('Not connected to Mainnet. Results may differ from XPMarket.');
                }
 
-               // Fetch XRP balance
-               const accountInfo = await client.request({
-                    command: 'account_info',
-                    account: wallet.classicAddress,
-                    ledger_index: 'validated',
-               });
                let xrpBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance).toString();
 
                if (parseFloat(xrpBalance) === 0) {
@@ -2612,27 +2907,27 @@ export class CreateOfferComponent implements AfterViewChecked {
                };
                const weSpend = { currency: 'XRP' };
 
-               // 1. Fetch Order Book Offers
-               const orderBook = await client.request({
-                    command: 'book_offers',
-                    ledger_index: 'validated',
-                    taker_gets: weWant,
-                    taker_pays: weSpend,
-                    limit: 400,
-               });
-
-               // 2. Fetch AMM Pool (if available)
-               let ammPoolData = null;
-               try {
-                    ammPoolData = await client.request({
-                         command: 'amm_info',
-                         asset: { currency: 'XRP' }, // XRP (no issuer)
-                         asset2: weWant,
-                    });
-                    console.log('AMM Pool Data:', ammPoolData);
-               } catch (ammError) {
-                    console.warn('No AMM pool found for this pair:', ammError);
-               }
+               // PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
+               const [orderBook, ammPoolData] = await Promise.all([
+                    client.request({
+                         command: 'book_offers',
+                         taker: wallet.address,
+                         ledger_index: 'current',
+                         taker_gets: weWant,
+                         taker_pays: weSpend,
+                         limit: 400,
+                    }),
+                    client
+                         .request({
+                              command: 'amm_info',
+                              asset: { currency: 'XRP' }, // XRP (no issuer)
+                              asset2: weWant,
+                         })
+                         .catch(err => {
+                              console.warn('No AMM pool found for this pair:', err);
+                              return null; // prevent rejection
+                         }),
+               ]);
 
                // Combine Order Book and AMM Liquidity
                let allOffers = [...orderBook.result.offers];
@@ -2780,6 +3075,15 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
+     private renderTransactionResult(response: any): void {
+          if (this.isSimulateEnabled) {
+               this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
+          } else {
+               console.debug(`Response`, response);
+               this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
+          }
+     }
+
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
           const signerAccounts: string[] = [];
           if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
@@ -2814,34 +3118,14 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
-     async getXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet): Promise<string> {
-          console.log('Entering getXrpBalance');
-          const startTime = Date.now();
-          this.setSuccessProperties();
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
-          try {
-               const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
+          this.ownerCount = ownerCount;
+          this.totalXrpReserves = totalXrpReserves;
 
-               this.ownerCount = ownerCount;
-               this.totalXrpReserves = totalXrpReserves;
-
-               const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-               return balance.toString();
-               // const client = await this.xrplService.getClient();
-               // const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, address);
-               // this.ownerCount = ownerCount;
-               // this.totalXrpReserves = totalXrpReserves;
-               // const balance = (await client.getXrpBalance(address)) - parseFloat(this.totalXrpReserves || '0');
-               // return balance.toString();
-          } catch (error: any) {
-               console.error('Error fetching XRP balance:', error);
-               throw error;
-          } finally {
-               this.spinner = false;
-               this.cdr.detectChanges();
-               // this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving getXrpBalance in ${this.executionTime}ms`);
-          }
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
+          return balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
@@ -3184,9 +3468,15 @@ export class CreateOfferComponent implements AfterViewChecked {
      }
 
      clearFields(clearAllFields: boolean) {
+          if (clearAllFields) {
+               this.weSpendAmountField = '';
+               this.weWantAmountField = '';
+          }
+
+          this.isMemoEnabled = false;
           this.memoField = '';
-          this.ticketSequence = '';
           this.isTicket = false;
+          this.ticketSequence = '';
           this.isMarketOrder = false;
           this.isPassive = false;
           this.isFillOrKill = false;

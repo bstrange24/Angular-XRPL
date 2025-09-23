@@ -439,7 +439,7 @@ export class RenderUiComponentsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.utilsService.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.utilsService.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -887,7 +887,7 @@ export class RenderUiComponentsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.utilsService.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.utilsService.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -1491,7 +1491,7 @@ export class RenderUiComponentsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.utilsService.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.utilsService.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
