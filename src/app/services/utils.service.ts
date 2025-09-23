@@ -3123,7 +3123,7 @@ export class UtilsService {
      async getTokenBalance(client: xrpl.Client, accountInfo: any, address: string, currency: string, hotwallet: string): Promise<{ issuers: string[]; total: number; xrpBalance: number }> {
           try {
                const gatewayBalances = await this.xrplService.getTokenBalance(client, address, 'validated', '');
-               console.log(`gatewayBalances: ${JSON.stringify(gatewayBalances, null, '\t')}`);
+               console.debug(`gatewayBalances:`, gatewayBalances.result);
 
                let tokenTotal = 0;
                const issuers: string[] = [];

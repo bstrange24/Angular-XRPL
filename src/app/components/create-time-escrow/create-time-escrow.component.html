@@ -135,6 +135,14 @@
                                         <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                    </td>
                               </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
+                                   <td>
+                                        <label for="gatewayBalance">Gateway Balance</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
+                                   </td>
+                              </tr>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
@@ -360,7 +368,7 @@
                                    <label for="isMptEnabled"></label>
                               </td>
                          </tr> -->
-                         <tr class="multisignAddressClass" *ngIf="isMptEnabled">
+                         <!-- <tr class="multisignAddressClass" *ngIf="isMptEnabled">
                               <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label for="mptIssuanceIdField"></label>
@@ -369,7 +377,7 @@
                               <td>
                                    <textarea class="memoField" style="width: 300px; height: 100px" id="mptIssuanceIdField" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField"></textarea>
                               </td>
-                         </tr>
+                         </tr> -->
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">

@@ -128,7 +128,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      destinationFields: string = '';
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
-     tokenBalance: string = '';
+     tokenBalance: string = '0';
+     gatewayBalance: string = '0';
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
           XRP: '',
@@ -266,8 +267,11 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          this.issuers = tokenBalanceData.issuers;
                          console.log(`balanceResult ${balanceResult}`);
                          if (balanceResult) {
-                              this.tokenBalance = Math.abs(balanceResult).toString();
+                              // this.tokenBalance = Math.abs(balanceResult).toString();
+                              this.tokenBalance = balanceResult.toString();
+                              this.gatewayBalance = tokenBalanceData.total.toString();
                          }
+
                          if (this.selectedAccount === 'account1') {
                               this.account1.balance = tokenBalanceData.xrpBalance.toString();
                          } else if (this.selectedAccount === 'account2') {
@@ -379,13 +383,20 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info and objects in parallel
-               const [accountInfo, accountObjects, escrowObjects, tokenBalance] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'escrow'), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects, escrowObjects, tokenBalance, mptAccountTokens] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'escrow'),
+                    this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'mptoken'),
+               ]);
 
                // Optional: Only log debug if needed — stringify can be expensive
                console.debug(`accountInfo for ${classicAddress}`, accountInfo.result);
                console.debug(`accountObjects for ${classicAddress}`, accountObjects.result);
                console.debug(`Escrow objects:`, escrowObjects.result);
                console.debug(`tokenBalance:`, tokenBalance.result);
+               console.debug(`mptTokens:`, mptAccountTokens.result);
 
                inputs = {
                     ...inputs,
@@ -532,7 +543,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     data.sections.push(balancesSection);
                }
 
-               const mptokens = accountObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance');
+               const mptokens = mptAccountTokens.result.account_objects;
 
                if (mptokens.length <= 0) {
                     data.sections.push({

@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { StorageService } from '../../services/storage.service';
-import { CheckCreate, CheckCash, CheckCancel, TransactionMetadataBase } from 'xrpl';
+import { CheckCreate, CheckCash, CheckCancel } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
@@ -96,7 +96,8 @@ export class SendChecksComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      issuers: string[] = [];
      selectedIssuer: string = '';
-     tokenBalance: string = '';
+     tokenBalance: string = '0';
+     gatewayBalance: string = '0';
      isSimulateEnabled: boolean = false;
      private knownTrustLinesIssuers: { [key: string]: string } = {
           RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
@@ -229,8 +230,11 @@ export class SendChecksComponent implements AfterViewChecked {
                          this.issuers = tokenBalanceData.issuers;
                          console.log(`balanceResult ${balanceResult}`);
                          if (balanceResult) {
-                              this.tokenBalance = Math.abs(balanceResult).toString();
+                              // this.tokenBalance = Math.abs(balanceResult).toString();
+                              this.tokenBalance = balanceResult.toString();
+                              this.gatewayBalance = tokenBalanceData.total.toString();
                          }
+
                          if (this.selectedAccount === 'account1') {
                               this.account1.balance = tokenBalanceData.xrpBalance.toString();
                          } else if (this.selectedAccount === 'account2') {

@@ -135,6 +135,14 @@
                                         <input type="text" id="tokenBalance" size="44" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                    </td>
                               </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
+                                   <td>
+                                        <label for="gatewayBalance">Gateway Balance</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
+                                   </td>
+                              </tr>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">

@@ -244,12 +244,9 @@ export class MptComponent implements AfterViewChecked {
                const classicAddress = wallet.classicAddress;
 
                // PHASE 1: PARALLELIZE — fetch account info + account objects together
-               const [accountInfo, mptokenObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects, mptokenObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'mptoken')]);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'get');
                if (errors.length > 0) {
@@ -261,10 +258,7 @@ export class MptComponent implements AfterViewChecked {
                console.debug(`MPT Account Objects:`, mptokenObjects.result);
 
                // Filter MPT-related objects
-               const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance');
-
-               // Optional debug (lightweight)
-               // console.debug(`MPT Objects count:`, mptokens.length);
+               const mptokens = mptokenObjects.result.account_objects;
 
                // Prepare data structure
                const data = {
@@ -324,7 +318,7 @@ export class MptComponent implements AfterViewChecked {
                setTimeout(async () => {
                     try {
                          // Use pre-fetched data — no redundant API calls!
-                         this.refreshUiAccountObjects(mptokenObjects, accountInfo, wallet);
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
 
@@ -1593,7 +1587,6 @@ export class MptComponent implements AfterViewChecked {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
-               // this.isRegularKeyAddress = true;
           } else {
                this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
