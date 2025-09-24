@@ -1900,3 +1900,9 @@ mark {
      border-radius: 4px;
      margin-bottom: 6px;
 }
+
+.copy-btn:hover,
+.result-cell a:hover {
+     background-color: #25272c !important;
+     border-color: #999 !important;
+}

@@ -428,7 +428,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                                              openByDefault: false,
                                              content: [
                                                   { key: 'Currency', value: this.utilsService.decodeIfNeeded(currency) },
-                                                  { key: 'Amount', value: String(amount) },
+                                                  { key: 'Amount', value: this.utilsService.formatTokenBalance(amount.toString(), 18) },
                                              ],
                                         })),
                                    };
@@ -1547,10 +1547,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
           if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;

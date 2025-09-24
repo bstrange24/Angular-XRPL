@@ -144,30 +144,32 @@ export class AccountChangesComponent {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-
                if (reset) {
+                    // ➤ Reset UI state
                     this.balanceChanges = [];
                     this.balanceChangesDataSource.data = [];
                     this.marker = undefined;
                     this.hasMoreData = true;
 
-                    type EnvKey = keyof typeof AppConstants.XRPL_WIN_URL; // "MAINNET" | "TESTNET" | "DEVNET"
+                    // ➤ Set environment URL
+                    type EnvKey = keyof typeof AppConstants.XRPL_WIN_URL;
                     const env = this.xrplService.getNet().environment.toUpperCase() as EnvKey;
                     this.url = AppConstants.XRPL_WIN_URL[env] || AppConstants.XRPL_WIN_URL.DEVNET;
 
-                    const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
-                    this.currentBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance); // XRP
+                    // ➤ PARALLELIZE: Fetch account info + trust lines
+                    const [accountInfo, accountLines] = await Promise.all([this.xrplService.getAccountInfo(client, address, 'validated', ''), client.request({ command: 'account_lines', account: address })]);
+
+                    // ➤ Update XRP balance
+                    this.currentBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance);
                     this.currencyBalances.set('XRP', this.currentBalance);
 
-                    // Fetch trust lines for token balances
-                    const accountLines = await client.request({ command: 'account_lines', account: address });
+                    // ➤ Update token balances
                     accountLines.result.lines.forEach((line: any) => {
                          const key = `${line.currency}+${line.account}`;
                          this.currencyBalances.set(key, parseFloat(line.balance));
                     });
 
-                    // Set filter predicate after data source initialization
+                    // ➤ Set filter predicate
                     this.setFilterPredicate();
                }
 
@@ -175,6 +177,7 @@ export class AccountChangesComponent {
 
                this.loadingMore = true;
 
+               // ➤ Fetch transactions
                const txResponse = await this.xrplService.getAccountTransactions(client, address, 20, this.marker);
 
                if (txResponse.result.transactions.length === 0) {
@@ -182,14 +185,25 @@ export class AccountChangesComponent {
                     return;
                }
 
+               // ➤ PROCESS TRANSACTIONS — offload heavy work
                const processedTx = this.processTransactionsForBalanceChanges(txResponse.result.transactions, address);
-               this.balanceChanges.push(...processedTx); // Reverse to append oldest last (since newest-first fetch)
-               this.balanceChangesDataSource.data = this.balanceChanges;
+
+               // ➤ Update UI
+               this.balanceChanges.push(...processedTx);
+               this.balanceChangesDataSource.data = [...this.balanceChanges]; // Force new array reference
 
                this.marker = txResponse.result.marker;
                if (!this.marker) this.hasMoreData = false;
 
-               await this.updateXrpBalance(client, accountInfo, wallet);
+               // ➤ DEFER: Non-critical balance update
+               setTimeout(async () => {
+                    try {
+                         const freshAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+                         await this.updateXrpBalance(client, freshAccountInfo, wallet);
+                    } catch (err) {
+                         console.error('Deferred balance update failed:', err);
+                    }
+               }, 0);
           } catch (error) {
                console.error('Error loading tx:', error);
                this.setError('Failed to load balance changes');
@@ -204,14 +218,15 @@ export class AccountChangesComponent {
      processTransactionsForBalanceChanges(transactions: any[], address: string): any[] {
           console.log('Entering processTransactionsForBalanceChanges');
 
+          // Use array constructor with known length for better performance
           const processed: any[] = [];
 
-          transactions.forEach(txWrapper => {
+          for (const txWrapper of transactions) {
                const tx = txWrapper.tx_json || txWrapper.transaction;
                const meta = txWrapper.meta;
 
                if (typeof meta !== 'object' || !meta.AffectedNodes) {
-                    return; // Skip invalid
+                    continue; // Skip invalid
                }
 
                let type = tx.TransactionType;
@@ -227,12 +242,13 @@ export class AccountChangesComponent {
                }
 
                const changes: { change: number; currency: string; balanceBefore: number; balanceAfter: number }[] = [];
+               const date = new Date((tx.date + 946684800) * 1000);
+               const hash = txWrapper.hash;
 
-               let prevBalanceField = { value: '0' }; // Default previous balance field
-               // Loop over affected nodes for balance changes
-               meta.AffectedNodes.forEach((node: any) => {
+               // Process affected nodes
+               for (const node of meta.AffectedNodes) {
                     const modified = node.ModifiedNode || node.CreatedNode || node.DeletedNode;
-                    if (!modified) return;
+                    if (!modified) continue;
 
                     // ----- XRP balance (AccountRoot) -----
                     if (modified.LedgerEntryType === 'AccountRoot' && modified.FinalFields?.Account === address) {
@@ -241,15 +257,7 @@ export class AccountChangesComponent {
 
                          const prevXrp = xrpl.dropsToXrp(prevBalanceDrops);
                          const finalXrp = xrpl.dropsToXrp(finalBalanceDrops);
-
-                         // delta = net change
-                         let delta = this.utilsService.roundToEightDecimals(finalXrp - prevXrp);
-
-                         // subtract fee if this account was sender
-                         // if (tx.Account === address && tx.Fee) {
-                         //      const feeXrp = this.utilsService.roundToEightDecimals(xrpl.dropsToXrp(tx.Fee));
-                         //      delta = this.utilsService.roundToEightDecimals(delta - feeXrp);
-                         // }
+                         const delta = this.utilsService.roundToEightDecimals(finalXrp - prevXrp);
 
                          changes.push({
                               change: delta,
@@ -258,7 +266,6 @@ export class AccountChangesComponent {
                               balanceAfter: this.utilsService.roundToEightDecimals(finalXrp),
                          });
                     }
-
                     // ----- Token balances (RippleState) -----
                     else if (modified.LedgerEntryType === 'RippleState') {
                          let tokenChange = 0;
@@ -268,50 +275,44 @@ export class AccountChangesComponent {
 
                          if (modified.FinalFields?.Balance) {
                               const balanceField = modified.FinalFields.Balance;
-                              prevBalanceField = modified.PreviousFields?.Balance || {
-                                   value: '0',
-                              };
+                              const prevBalanceField = modified.PreviousFields?.Balance || { value: '0' };
                               tokenChange = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value) - parseFloat(prevBalanceField.value));
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency ?? '';
-                              tokenCurrency = `${curr}`;
+                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                              tokenCurrency = curr;
                          } else if (modified.NewFields?.Balance) {
-                              prevBalanceField = modified.PreviousFields?.Balance || {
-                                   value: '0',
-                              };
                               const balanceField = modified.NewFields.Balance;
+                              const prevBalanceField = modified.PreviousFields?.Balance || { value: '0' };
                               tokenChange = this.utilsService.roundToEightDecimals(parseFloat(balanceField.value));
                               tokenBalanceAfter = tokenChange;
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency ?? '';
-                              tokenCurrency = `${curr}`;
+                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                              tokenCurrency = curr;
                          } else if (node.DeletedNode) {
-                              prevBalanceField = modified.PreviousFields?.Balance || {
-                                   value: '0',
-                              };
-                              const balanceField = modified.FinalFields.Balance;
-                              tokenChange = this.utilsService.roundToEightDecimals(-parseFloat(balanceField.value));
-                              tokenBalanceAfter = 0;
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency ?? '';
-                              tokenCurrency = `${curr}`;
+                              const balanceField = modified.FinalFields?.Balance;
+                              if (balanceField) {
+                                   tokenChange = this.utilsService.roundToEightDecimals(-parseFloat(balanceField.value));
+                                   tokenBalanceAfter = 0;
+                                   const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                                   tokenCurrency = curr;
+                              }
                          }
 
-                         // if (tokenCurrency) {
                          if (tokenCurrency && tokenChange !== 0) {
                               changes.push({
                                    change: tokenChange,
                                    currency: tokenCurrency,
-                                   balanceBefore: this.utilsService.roundToEightDecimals(prevBalanceField.value ? parseFloat(prevBalanceField.value) : 0),
+                                   balanceBefore: this.utilsService.roundToEightDecimals(parseFloat(modified.PreviousFields?.Balance?.value || '0')),
                                    balanceAfter: tokenBalanceAfter,
                               });
                          }
                     }
-               });
+               }
 
                // Push processed changes
-               changes.forEach(changeItem => {
+               for (const changeItem of changes) {
                     processed.push({
-                         date: new Date((tx.date + 946684800) * 1000),
-                         hash: txWrapper.hash,
+                         date,
+                         hash,
                          type,
                          change: changeItem.change,
                          currency: changeItem.currency,
@@ -319,8 +320,8 @@ export class AccountChangesComponent {
                          balanceAfter: changeItem.balanceAfter,
                          counterparty,
                     });
-               });
-          });
+               }
+          }
 
           console.log('Leaving processTransactionsForBalanceChanges');
           return processed;

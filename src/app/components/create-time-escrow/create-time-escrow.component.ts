@@ -386,20 +386,19 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                // Phase 1: Get client and wallet (sequential if needed)
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info and objects in parallel
                const [accountInfo, accountObjects, escrowObjects, tokenBalance, mptAccountTokens] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'escrow'),
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'),
                     this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'mptoken'),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'mptoken'),
                ]);
 
                // Optional: Only log debug if needed — stringify can be expensive
-               console.debug(`accountInfo for ${classicAddress}`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}`, accountObjects.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}`, accountObjects.result);
                console.debug(`Escrow objects:`, escrowObjects.result);
                console.debug(`tokenBalance:`, tokenBalance.result);
                console.debug(`mptTokens:`, mptAccountTokens.result);
@@ -422,7 +421,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'Escrows',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No escrows found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No escrows found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Phase 3: Fetch ALL transaction details in PARALLEL
@@ -517,7 +516,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                               openByDefault: false,
                               content: [
                                    { key: 'Currency', value: this.utilsService.decodeIfNeeded(currency) },
-                                   { key: 'Amount', value: String(amount) },
+                                   { key: 'Amount', value: this.utilsService.formatTokenBalance(amount.toString(), 18) },
                               ],
                          })),
                     };
@@ -555,7 +554,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'MPT Tokens',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Sort by Sequence (oldest first)
@@ -604,7 +603,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                setTimeout(async () => {
                     this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                     this.refreshUiAccountInfo(accountInfo);
-                    this.utilsService.loadSignerList(classicAddress, this.signers);
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                     this.getEscrowOwnerAddress();
 
                     if (this.currencyFieldDropDownValue !== 'XRP') {

@@ -3,6 +3,7 @@ import { UtilsService } from '../utils.service';
 import { XrplService } from '../xrpl.service';
 import { flagNames } from 'flagnames';
 import * as xrpl from 'xrpl';
+import { AppConstants } from '../../core/app.constants';
 
 @Injectable({
      providedIn: 'root',
@@ -474,6 +475,10 @@ export class RenderUiComponentsService {
                container.innerHTML += `<div class="simulate-banner-error">${txArray[0].result.errorMessage}</div>`;
           }
 
+          type EnvKey = keyof typeof AppConstants.XRPL_WIN_URL; // "MAINNET" | "TESTNET" | "DEVNET"
+          const env = this.xrplService.getNet().environment.toUpperCase() as EnvKey;
+          const url = AppConstants.XRPL_WIN_URL[env] || AppConstants.XRPL_WIN_URL.DEVNET;
+
           // Add search bar (if not already present)
           let searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
           if (!searchBar) {
@@ -552,13 +557,14 @@ export class RenderUiComponentsService {
           summary.textContent = txArray.length === 1 && txArray[0].result?.tx_json?.TransactionType ? 'Transactions' : 'Transactions';
           details.appendChild(summary);
 
+          const txDetails = document.createElement('details');
           // Render each transaction
           txArray.forEach((tx, index) => {
                const result = tx.result || {};
                const txType = result.tx_json?.TransactionType || 'Unknown';
                const isSuccess = result.meta?.TransactionResult === 'tesSUCCESS';
 
-               const txDetails = document.createElement('details');
+               // const txDetails = document.createElement('details');
                txDetails.className = `nested-object${isSuccess ? '' : ' error-transaction'}`;
                const txSummary = document.createElement('summary');
                // txSummary.textContent = `${tx.result.tx_json.TransactionType} ${isSuccess ? '' : ' (Failed)'}`; // Indicate failure in summary
@@ -590,7 +596,50 @@ export class RenderUiComponentsService {
 
                const txContent = [
                     { key: 'Transaction Type', value: txType },
-                    { key: 'Hash', value: result.hash ? `<code>${result.hash}</code>` : 'N/A' },
+                    // { key: 'Hash', value: result.hash ? `<code>${result.hash}</code>` : 'N/A' },
+                    {
+                         key: 'Hash',
+                         value: result.hash
+                              ? `<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                   <code>${result.hash}</code>
+                                   <div style="display: flex; align-items: center; gap: 4px;">
+                                        <button class="copy-btn" data-text="${result.hash}" title="Copy hash to clipboard" style="background: none; border: 1px solid #ddd; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; transition: all 0.2s ease;">
+                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                             </svg>
+                                        </button>
+                                        <a href="${url}${result.hash}" target="_blank" rel="noopener noreferrer" title="View transaction on XRPLWin" style="background: none; border: 1px solid #ddd; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; text-decoration: none; color: inherit; transition: all 0.2s ease;">
+                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                             <polyline points="15 3 21 3 21 9"></polyline>
+                                             <line x1="10" y1="14" x2="21" y2="3"></line>
+                                             </svg>
+                                        </a>
+                                   </div>
+                              </div>`
+                              : 'N/A',
+                    },
+                    // {
+                    // key: 'Hash',
+                    //      value: result.hash
+                    //           ? `<div style="display: flex; align-items: center; gap: 1px;"><code>${result.hash}</code>
+                    //                <button class="copy-btn" data-text="${result.hash}" title="Copy hash to clipboard" style="background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center;">
+                    //                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    //                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    //                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    //                     </svg>
+                    //                </button>
+                    //                 <a href="${url}${result.hash}" target="_blank" rel="noopener noreferrer" title="View transaction on XRPLWin" style="background: none; border: none; cursor: pointer; padding: 4px; border-radius: 4px; display: flex; align-items: center; text-decoration: none; color: inherit;">
+                    //                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    //                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    //                          <polyline points="15 3 21 3 21 9"></polyline>
+                    //                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                    //                     </svg>
+                    //                </a>
+                    //           </div>`
+                    //           : 'N/A',
+                    // },
                     { key: 'CTID', value: result.ctid || 'N/A' },
                     { key: 'Date', value: result.close_time_iso ? new Date(result.close_time_iso).toLocaleString() : result.date || 'N/A' },
                     // { key: 'Result', value: result.meta?.TransactionResult ? (isSuccess ? result.meta.TransactionResult : `<span class="error-result">${result.meta.TransactionResult}</span>`) : 'N/A' },
@@ -902,6 +951,59 @@ export class RenderUiComponentsService {
                     (section as HTMLElement).style.display = hasVisibleContent ? '' : 'none';
                     if (hasVisibleContent) section.setAttribute('open', 'open');
                });
+          });
+
+          // Add event listeners for copy buttons
+          txDetails.addEventListener('click', function (e: Event) {
+               // Check if target exists and is an Element
+               if (!e.target || !(e.target instanceof Element)) {
+                    return;
+               }
+
+               // Use optional chaining and type assertion
+               const button = e.target.closest('.copy-btn') as HTMLElement | null;
+
+               if (button && button instanceof HTMLElement) {
+                    const textToCopy = button.getAttribute('data-text');
+
+                    if (!textToCopy) {
+                         return;
+                    }
+
+                    navigator.clipboard
+                         .writeText(textToCopy)
+                         .then(() => {
+                              // Visual feedback
+                              const originalTitle = button.getAttribute('title');
+                              button.setAttribute('title', 'Copied!');
+
+                              // Change icon color to green
+                              const svg = button.querySelector('svg');
+                              if (svg instanceof SVGElement) {
+                                   svg.style.color = 'green';
+                              }
+
+                              setTimeout(() => {
+                                   if (originalTitle) {
+                                        button.setAttribute('title', originalTitle);
+                                   }
+                                   const svg = button.querySelector('svg');
+                                   if (svg instanceof SVGElement) {
+                                        svg.style.color = '';
+                                   }
+                              }, 2000);
+                         })
+                         .catch(err => {
+                              console.error('Failed to copy: ', err);
+                              const svg = button.querySelector('svg');
+                              if (svg instanceof SVGElement) {
+                                   svg.style.color = 'red';
+                                   setTimeout(() => {
+                                        svg.style.color = '';
+                                   }, 2000);
+                              }
+                         });
+               }
           });
      }
 

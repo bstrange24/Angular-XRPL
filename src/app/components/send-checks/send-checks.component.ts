@@ -278,13 +278,14 @@ export class SendChecksComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
-               const [accountInfo, checkObjects, allAccountObjects] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'check'),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), // for refreshUiAccountObjects
+               const [accountInfo, checkObjects, allAccountObjects, tokenBalance, mptAccountTokens] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), // for refreshUiAccountObjects
+                    this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'mptoken'),
                ]);
 
                inputs = {
@@ -301,6 +302,8 @@ export class SendChecksComponent implements AfterViewChecked {
                console.debug(`account info:`, accountInfo.result);
                console.debug(`account objects:`, allAccountObjects.result);
                console.debug(`check objects:`, checkObjects.result);
+               console.debug(`tokenBalance:`, tokenBalance.result);
+               console.debug(`mptTokens:`, mptAccountTokens.result);
 
                const data = {
                     sections: [{}],
@@ -352,6 +355,95 @@ export class SendChecksComponent implements AfterViewChecked {
                     });
                }
 
+               // --- Add Obligations Section ---
+               if (tokenBalance.result.obligations && Object.keys(tokenBalance.result.obligations).length > 0) {
+                    const obligationsSection = {
+                         title: `Obligations (${Object.keys(tokenBalance.result.obligations).length})`,
+                         openByDefault: true,
+                         subItems: Object.entries(tokenBalance.result.obligations).map(([currency, amount], index) => ({
+                              key: `Obligation ${index + 1} (${this.utilsService.decodeIfNeeded(currency)})`,
+                              openByDefault: false,
+                              content: [
+                                   { key: 'Currency', value: this.utilsService.decodeIfNeeded(currency) },
+                                   { key: 'Amount', value: this.utilsService.formatTokenBalance(amount.toString(), 18) },
+                              ],
+                         })),
+                    };
+                    data.sections.push(obligationsSection);
+               }
+
+               // --- Add Balances Section ---
+               if (tokenBalance.result.assets && Object.keys(tokenBalance.result.assets).length > 0) {
+                    const balanceItems = [];
+                    for (const [issuer, currencies] of Object.entries(tokenBalance.result.assets)) {
+                         for (const { currency, value } of currencies) {
+                              const displayCurrency = this.utilsService.formatValueForKey('currency', currency);
+                              balanceItems.push({
+                                   key: `${this.utilsService.formatCurrencyForDisplay(currency)} from ${issuer}`,
+                                   openByDefault: false,
+                                   content: [
+                                        { key: 'Currency', value: displayCurrency },
+                                        { key: 'Issuer', value: `<code>${issuer}</code>` },
+                                        { key: 'Amount', value: value },
+                                   ],
+                              });
+                         }
+                    }
+                    const balancesSection = {
+                         title: `IOU Tokens (${balanceItems.length})`,
+                         openByDefault: true,
+                         subItems: balanceItems,
+                    };
+                    data.sections.push(balancesSection);
+               }
+
+               const mptokens = mptAccountTokens.result.account_objects;
+
+               if (mptokens.length <= 0) {
+                    data.sections.push({
+                         title: 'MPT Tokens',
+                         openByDefault: true,
+                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
+                    });
+               } else {
+                    // Sort by Sequence (oldest first)
+                    const sortedMPT = [...mptokens].sort((a, b) => {
+                         const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+                         const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+                         return seqA - seqB;
+                    });
+
+                    data.sections.push({
+                         title: `MPT Token (${mptokens.length})`,
+                         openByDefault: true,
+                         subItems: sortedMPT.map((mpt, counter) => {
+                              const { LedgerEntryType, PreviousTxnID, index } = mpt;
+                              // TicketSequence and Flags may not exist on all AccountObject types
+                              const ticketSequence = (mpt as any).TicketSequence;
+                              const flags = (mpt as any).Flags;
+                              const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
+                              return {
+                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+                                   openByDefault: false,
+                                   content: [
+                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
+                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
+                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+                                        ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
+                                        ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
+                                        // Optionally display custom fields if present
+                                        ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
+                                        ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
+                                        ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
+                                        ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
+                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
+                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+                                   ],
+                              };
+                         }),
+                    });
+               }
+
                // CRITICAL: Render immediately
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
@@ -362,7 +454,7 @@ export class SendChecksComponent implements AfterViewChecked {
                          // Use pre-fetched allAccountObjects and accountInfo
                          this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                          await this.updateXrpBalance(client, accountInfo, wallet);
                          await this.toggleIssuerField();
