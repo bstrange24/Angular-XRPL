@@ -557,7 +557,7 @@ export class RenderUiComponentsService {
           summary.textContent = txArray.length === 1 && txArray[0].result?.tx_json?.TransactionType ? 'Transactions' : 'Transactions';
           details.appendChild(summary);
 
-          const txDetails = document.createElement('details');
+          let txDetails = document.createElement('details');
           // Render each transaction
           txArray.forEach((tx, index) => {
                const result = tx.result || {};
@@ -565,6 +565,7 @@ export class RenderUiComponentsService {
                const isSuccess = result.meta?.TransactionResult === 'tesSUCCESS';
 
                // const txDetails = document.createElement('details');
+               txDetails = document.createElement('details');
                txDetails.className = `nested-object${isSuccess ? '' : ' error-transaction'}`;
                const txSummary = document.createElement('summary');
                // txSummary.textContent = `${tx.result.tx_json.TransactionType} ${isSuccess ? '' : ' (Failed)'}`; // Indicate failure in summary

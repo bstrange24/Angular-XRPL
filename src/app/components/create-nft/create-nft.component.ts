@@ -609,12 +609,12 @@ export class CreateNftComponent implements AfterViewChecked {
                console.log('Mint NFT tx', tx);
 
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+                    this.renderUiComponentsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                     return;
                }
 
                // Render all successful transactions
-               this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               this.renderUiComponentsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
@@ -854,12 +854,12 @@ export class CreateNftComponent implements AfterViewChecked {
                console.log('Burn NFT tx', tx);
 
                if (tx.result.meta && typeof tx.result.meta !== 'string' && (tx.result.meta as TransactionMetadataBase).TransactionResult !== AppConstants.TRANSACTION.TES_SUCCESS) {
-                    this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+                    this.renderUiComponentsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                     return;
                }
 
                // Render all successful transactions
-               this.utilsService.renderTransactionsResults(tx, this.resultField.nativeElement);
+               this.renderUiComponentsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 

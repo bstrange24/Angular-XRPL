@@ -1252,9 +1252,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                          ],
                     });
 
-                    this.utilsService.renderDetails(data);
+                    this.renderUiComponentsService.renderDetails(data);
                     (response.result as any).clearInnerHtml = false;
-                    this.utilsService.renderTransactionsResults(response, this.resultField.nativeElement);
+                    this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 

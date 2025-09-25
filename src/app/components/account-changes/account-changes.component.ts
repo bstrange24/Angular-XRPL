@@ -6,6 +6,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
@@ -16,11 +19,13 @@ import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { AppConstants } from '../../core/app.constants';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
+import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 
 @Component({
      selector: 'app-account-changes',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule, ScrollingModule, MatProgressSpinnerModule],
+     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule, ScrollingModule, MatProgressSpinnerModule, MatIconModule, MatTooltipModule, MatButtonModule],
      templateUrl: './account-changes.component.html',
      styleUrl: './account-changes.component.css',
 })
@@ -58,7 +63,7 @@ export class AccountChangesComponent {
      filterValue: string = '';
      isExpanded: boolean = false;
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
      ngAfterViewInit() {
           console.log('ngAfterViewInit: Viewport initialized:', this.viewport);
@@ -345,6 +350,21 @@ export class AccountChangesComponent {
 
      trackByHash(index: number, item: any): string {
           return item.hash; // Unique identifier for rows
+     }
+
+     copyToClipboard(text: string): void {
+          navigator.clipboard
+               .writeText(text)
+               .then(() => {
+                    // Optional: Show snackbar/toast notification
+                    console.log('Copied to clipboard:', text);
+
+                    // Optional: You can add a snackbar here for user feedback
+                    // this.snackBar.open('Copied to clipboard!', 'Close', { duration: 2000 });
+               })
+               .catch(err => {
+                    console.error('Failed to copy: ', err);
+               });
      }
 
      private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {

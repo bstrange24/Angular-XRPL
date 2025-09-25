@@ -1756,7 +1756,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                });
 
                // Render detailed transaction results
-               this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
+               this.renderUiComponentsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
 
                // Render summary and details in data.sections
@@ -2022,7 +2022,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                // this.resultField.nativeElement.classList.add('success');
                // this.setSuccess(this.result);
                // Render detailed transaction results
-               this.utilsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
+               this.renderUiComponentsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
 
                // Render summary and details in data.sections
