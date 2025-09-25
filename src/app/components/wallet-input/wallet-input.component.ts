@@ -10,6 +10,8 @@ import { derive, sign } from 'xrpl-accountlib';
 import { encode } from 'ripple-binary-codec';
 import { Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
+import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 
 @Component({
      selector: 'app-wallet-input',
@@ -51,7 +53,7 @@ export class WalletInputComponent {
           secretNumbers: '',
      };
 
-     constructor(private readonly storageService: StorageService, private readonly xrplService: XrplService, private readonly utilsService: UtilsService) {}
+     constructor(private readonly storageService: StorageService, private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
      ngOnInit() {
           // Load saved input values
@@ -287,7 +289,7 @@ export class WalletInputComponent {
                tempDiv.innerHTML += `\nTransaction data retrieved successfully.\n`;
 
                if (txResponse) {
-                    this.utilsService.renderTransactionsResults(txResponse, tempDiv);
+                    this.renderUiComponentsService.renderTransactionsResults(txResponse, tempDiv);
 
                     this.transactionResult.emit({
                          result: tempDiv.innerHTML,

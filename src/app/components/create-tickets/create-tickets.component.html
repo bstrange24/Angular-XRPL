@@ -103,7 +103,7 @@
                               <tr class="multisignAddressClass">
                                    <td>
                                         <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
-                                             <label for="ticketSequence">Ticket Sequence</label>
+                                             <label for="ticketSequence">Cancel Ticket Sequence</label>
                                         </span>
                                    </td>
                                    <td>
@@ -287,6 +287,20 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Add memo to transaction.">
+                                        <label>Memo</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMemoEnabled"></label>
+                              </td>
+                         </tr>
                          <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
                               <td>
                                    <span class="tooltip" tooltip-data="">
@@ -388,7 +402,7 @@
                                    <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
                          </tr>
-                         <tr>
+                         <!-- <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                                         <label>Use Ticket Sequence</label>
@@ -410,6 +424,20 @@
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                              </td>
+                         </tr> -->
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to simulate a send xrp transaction">
+                                        <label>Simulate Transaction</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isSimulateEnabled" [(ngModel)]="isSimulateEnabled" (ngModelChange)="toggleTicketSequence()" name="isSimulateEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isSimulateEnabled"></label>
                               </td>
                          </tr>
                     </table>

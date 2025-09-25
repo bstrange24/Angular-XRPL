@@ -1,7 +1,7 @@
 import { ElementRef, ViewChild } from '@angular/core';
 import { Injectable } from '@angular/core';
 import * as xrpl from 'xrpl';
-import { walletFromSecretNumbers, Wallet, SubmitResponse, TxResponse, SubmittableTransaction } from 'xrpl';
+import { walletFromSecretNumbers, Wallet } from 'xrpl';
 import { flagNames } from 'flagnames';
 import { XrplService } from '../services/xrpl.service';
 import { AppConstants } from '../core/app.constants';
@@ -31,6 +31,16 @@ export class UtilsService {
      spinner: boolean = false;
 
      constructor(private readonly xrplService: XrplService, private readonly storageService: StorageService) {}
+
+     MPT_FLAGS: Record<number, string> = {
+          0x00000001: 'MptLocked',
+          0x00000002: 'CanLock',
+          0x00000004: 'RequireAuth',
+          0x00000008: 'CanEscrow',
+          0x00000010: 'CanTrade',
+          0x00000020: 'CanTransfer',
+          0x00000040: 'CanClawback',
+     };
 
      ledgerEntryTypeFields = {
           AccountRoot: {
@@ -246,7 +256,6 @@ export class UtilsService {
 
      isCurrencyCode(value: string): boolean {
           // Heuristic: XRP-style currency codes are either "XRP" or 3+ chars / 160-bit hex
-          // You can adjust this depending on your needs
           return value !== 'XRP' && value.length > 3;
      }
 
@@ -640,6 +649,9 @@ export class UtilsService {
                          return xlf15d;
                     }
                }
+               if (hex.startsWith('03')) {
+                    return 'LP Token ' + hex;
+               }
                const decodedHex = Buffer.from(hex, 'hex').toString('utf-8').slice(0, maxLength).trim();
                if (decodedHex.match(/[a-zA-Z0-9]{3,}/) && decodedHex.toLowerCase() !== 'xrp') {
                     // ASCII or UTF-8 encoded alphanumeric code, 3+ characters long
@@ -975,13 +987,6 @@ export class UtilsService {
           return obj && typeof obj !== 'string' && 'result' in obj;
      }
 
-     /**
-      * ✅ BULLETPROOF transaction success checker
-      * Handles ALL response types from rippled:
-      * - submit (simulate)
-      * - submitAndWait
-      * - errors, warnings, partial results
-      */
      isTxSuccessful(response: any): boolean {
           // Handle submitAndWait response (real transaction)
           if (response?.result?.meta) {
@@ -1008,9 +1013,6 @@ export class UtilsService {
           return false;
      }
 
-     /**
-      * Optional: Get human-readable result for logging or UI
-      */
      getTransactionResultMessage(response: any): string {
           if (response?.result?.meta?.TransactionResult) {
                return response.result.meta.TransactionResult;
@@ -1026,7 +1028,7 @@ export class UtilsService {
 
      processErrorMessageFromLedger(resultMsg: string): string {
           // =============================
-          // 🚫 LOCAL FAILURE (tef*)
+          // LOCAL FAILURE (tef*)
           // Transaction failed before applying to ledger
           // =============================
           if (resultMsg === 'tefALREADY') return 'Transaction already applied or queued.';
@@ -1045,7 +1047,7 @@ export class UtilsService {
           if (resultMsg === 'tefMASTER_DISABLED') return 'Master key is disabled and no regular key available.';
 
           // =============================
-          // 🚫 CLAIM FAILURE (tec*)
+          // CLAIM FAILURE (tec*)
           // Transaction claimed a fee but failed to apply
           // =============================
           if (resultMsg === 'tecCLAIM') return 'Fee claimed, but transaction failed.';
@@ -1075,7 +1077,7 @@ export class UtilsService {
           if (resultMsg === 'tecTOO_SOON') return 'Too soon to perform this action (e.g., clawback cooldown).';
 
           // =============================
-          // 🚫 FAILURE (ter*)
+          // FAILURE (ter*)
           // Retry might succeed
           // =============================
           if (resultMsg === 'terRETRY') return 'Temporary failure. Please retry transaction.';
@@ -1084,7 +1086,7 @@ export class UtilsService {
           if (resultMsg === 'terLAST') return 'Transaction is last in queue — retry may help.';
 
           // =============================
-          // 🚫 BAD INPUT (tem*)
+          // BAD INPUT (tem*)
           // Malformed transaction
           // =============================
           if (resultMsg === 'temBAD_AMOUNT') return 'Invalid amount specified.';
@@ -1116,12 +1118,12 @@ export class UtilsService {
           if (resultMsg === 'temBAD_SIGNER') return 'Invalid signer or quorum.';
 
           // =============================
-          // 🎯 SUCCESS (tes*)
+          // SUCCESS (tes*)
           // =============================
           if (resultMsg === 'tesSUCCESS') return ''; // No error message needed
 
           // =============================
-          // 🧩 UNKNOWN / UNSPECIFIED
+          // UNKNOWN / UNSPECIFIED
           // =============================
           return ` (Code: ${resultMsg})`;
      }
@@ -1155,7 +1157,7 @@ export class UtilsService {
                throw new Error('One or more signer addresses are not in the SignerList');
           }
 
-          console.log('SignerList:', JSON.stringify(signerList, null, 2));
+          console.log('SignerList:', signerList);
           console.log('Valid Signers:', validSigners);
           console.log('Provided Signers:', signerAddresses);
           console.log('Quorum:', quorum);
@@ -1173,7 +1175,7 @@ export class UtilsService {
           delete preparedTx.Signers;
           delete preparedTx.TxnSignature;
 
-          console.log('PreparedTx before signing:', JSON.stringify(preparedTx, null, 2));
+          console.log('PreparedTx before signing:', preparedTx);
 
           const signerBlobs: string[] = [];
 
@@ -1185,7 +1187,7 @@ export class UtilsService {
                }
 
                const signed = signerWallet.sign(preparedTx, true); // true = multisign
-               console.log('Signed Transaction:', JSON.stringify(signed, null, 2));
+               console.log('Signed Transaction:', signed);
 
                if (signed.tx_blob) {
                     signerBlobs.push(signed.tx_blob);
@@ -1196,8 +1198,8 @@ export class UtilsService {
                throw new Error('No valid signatures collected for multisign transaction');
           }
 
-          console.log('PreparedTx after signing:', JSON.stringify(preparedTx, null, 2));
-          console.log('signerBlobs:', JSON.stringify(signerBlobs, null, 2));
+          console.log('PreparedTx after signing:', preparedTx);
+          console.log('signerBlobs:', signerBlobs);
 
           // Combine all signatures into one final multisigned transaction
           const multisignedTxBlob = xrpl.multisign(signerBlobs);
@@ -1373,6 +1375,20 @@ export class UtilsService {
           return activeFlags;
      }
 
+     getMptFlagsReadable(flags: number): string[] {
+          const readable: string[] = [];
+          for (const [bit, description] of Object.entries(this.MPT_FLAGS)) {
+               if ((flags & Number(bit)) !== 0) {
+                    if (readable.length == 0) {
+                         readable.push(description);
+                    } else {
+                         readable.push(' ' + description);
+                    }
+               }
+          }
+          return readable.length > 0 ? readable : ['No MPT flags set'];
+     }
+
      formatFlags(flags: string[]): string {
           if (flags.length <= 1) return flags[0] || '';
           return flags.slice(0, -1).join(', ') + ' and ' + flags[flags.length - 1];
@@ -1382,7 +1398,7 @@ export class UtilsService {
           return parseFloat(value.toFixed(8));
      }
 
-     async isInsufficientXrpBalance(client: xrpl.Client, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
+     async isInsufficientXrpBalance(client: xrpl.Client, accountInfo: any, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
           try {
                // Validate inputs
                if (!amountXrp || isNaN(parseFloat(amountXrp)) || parseFloat(amountXrp) < 0) {
@@ -1412,8 +1428,6 @@ export class UtilsService {
                }
 
                // Get account info to calculate reserves
-               const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
-               // const accountInfo = await this.getAccountInfo(address);
                const balanceDrops = BigInt(accountInfo.result.account_data.Balance);
 
                // Get server info for reserve requirements
@@ -1441,7 +1455,7 @@ export class UtilsService {
           }
      }
 
-     renderAccountDetails(accountInfo: any, accountObjects: any) {
+     renderAccountDetails(accountInfo: any, accountObjects: xrpl.AccountObjectsResponse) {
           const container = document.getElementById('resultField') as HTMLInputElement;
           if (!container) {
                console.error('Error: #resultField not found');
@@ -2307,7 +2321,7 @@ export class UtilsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -2755,7 +2769,7 @@ export class UtilsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -2921,7 +2935,7 @@ export class UtilsService {
                               const valueCell = row.querySelector('.value');
                               const keyText = keyCell ? this.stripHTMLForSearch(keyCell.innerHTML) : '';
                               const valueText = valueCell ? this.stripHTMLForSearch(valueCell.innerHTML) : '';
-                              console.debug('Row content:', { keyText, valueText, search });
+                              // console.debug('Row content:', { keyText, valueText, search });
                               const isMatch = keyText.includes(search) || valueText.includes(search);
                               (row as HTMLElement).style.display = isMatch ? 'flex' : 'none';
                               if (isMatch) {
@@ -3024,10 +3038,9 @@ export class UtilsService {
           });
      }
 
-     async getAccountReserves(client: xrpl.Client, address: string) {
+     async getAccountReserves(client: xrpl.Client, accountInfo: any, address: string) {
           try {
                // Get the current ledger index from the client
-               const accountInfo = await this.xrplService.getAccountInfo(client, address, 'validated', '');
                const accountData = accountInfo.result.account_data;
                const ownerCount = accountData.OwnerCount;
 
@@ -3035,6 +3048,7 @@ export class UtilsService {
                if (!reserveData) {
                     throw new Error('Failed to fetch XRPL reserve data');
                }
+
                const { reserveBaseXRP, reserveIncrementXRP } = reserveData;
                const totalReserveXRP = reserveBaseXRP + ownerCount * reserveIncrementXRP;
 
@@ -3048,18 +3062,6 @@ export class UtilsService {
 
      async getXrplReserve(client: xrpl.Client) {
           try {
-               // Get the current ledger index from the client
-               const server_info = await this.xrplService.getXrplServerInfo(client, 'current', '');
-               // console.debug(`Server Info ${JSON.stringify(server_info, null, 2)}`);
-
-               if (server_info.result.info && server_info.result.info.validated_ledger) {
-                    console.debug(`Base Fee: ${server_info.result.info.validated_ledger.base_fee_xrp} XRP`);
-                    console.debug(`Base Reserve: ${server_info.result.info.validated_ledger.reserve_base_xrp} XRP`);
-                    console.debug(`Total incremental owner count: ${server_info.result.info.validated_ledger.reserve_inc_xrp} XRP`);
-               } else {
-                    console.warn('validated_ledger is undefined in server_info');
-               }
-
                const ledger_info = await this.xrplService.getXrplServerState(client, 'current', '');
                const ledgerData = ledger_info.result.state.validated_ledger;
                if (!ledgerData) {
@@ -3069,10 +3071,7 @@ export class UtilsService {
                const reserveBaseXRP = ledgerData.reserve_base;
                const reserveIncrementXRP = ledgerData.reserve_inc;
 
-               // console.debug(`baseFee: ${baseFee}`);
-               // console.debug(`reserveBaseXRP: ${xrpl.dropsToXrp(reserveBaseXRP)}`);
-               // console.debug(`Total incremental owner count: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
-               // console.debug(`Total Reserve: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
+               console.debug(`baseFee: ${baseFee} reserveBaseXRP: ${xrpl.dropsToXrp(reserveBaseXRP)} Total incremental owner count: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP Total Reserve: ${xrpl.dropsToXrp(reserveIncrementXRP)} XRP`);
 
                return { reserveBaseXRP, reserveIncrementXRP };
           } catch (error: any) {
@@ -3082,8 +3081,8 @@ export class UtilsService {
           }
      }
 
-     async updateOwnerCountAndReserves(client: xrpl.Client, address: string): Promise<{ ownerCount: string; totalXrpReserves: string }> {
-          const reserves = await this.getAccountReserves(client, address);
+     async updateOwnerCountAndReserves(client: xrpl.Client, accountInfo: any, address: string): Promise<{ ownerCount: string; totalXrpReserves: string }> {
+          const reserves = await this.getAccountReserves(client, accountInfo, address);
           let ownerCount = '0';
           let totalXrpReserves = '0';
           if (reserves) {
@@ -3106,16 +3105,10 @@ export class UtilsService {
           }
      }
 
-     async getTokenBalance(client: xrpl.Client, address: string, currency: string, hotwallet: string): Promise<{ issuers: string[]; total: number; xrpBalance: number }> {
+     async getTokenBalance(client: xrpl.Client, accountInfo: any, address: string, currency: string, hotwallet: string): Promise<{ issuers: string[]; total: number; xrpBalance: number }> {
           try {
-               const gatewayBalances = await client.request({
-                    command: 'gateway_balances',
-                    account: address,
-                    ledger_index: 'validated',
-                    // hotwallet: hotwallet,
-               });
-
-               console.log(`gatewayBalances: ${JSON.stringify(gatewayBalances, null, '\t')}`);
+               const gatewayBalances = await this.xrplService.getTokenBalance(client, address, 'validated', '');
+               console.debug(`gatewayBalances:`, gatewayBalances.result);
 
                let tokenTotal = 0;
                const issuers: string[] = [];
@@ -3143,7 +3136,7 @@ export class UtilsService {
 
                const roundedTotal = Math.round(tokenTotal * 100) / 100;
                const xrpBalance = await client.getXrpBalance(address);
-               await this.updateOwnerCountAndReserves(client, address);
+               await this.updateOwnerCountAndReserves(client, accountInfo, address);
 
                return {
                     issuers,
@@ -3156,27 +3149,11 @@ export class UtilsService {
           }
      }
 
-     async getAccountObjects(address: string) {
+     async getCurrencyBalance(currency: string, accountObjects: xrpl.AccountObjectsResponse) {
           try {
-               const client = await this.xrplService.getClient();
-               const accountObjects = await client.request({
-                    command: 'account_objects',
-                    account: address,
-                    ledger_index: 'validated',
-               });
-               return accountObjects;
-          } catch (error) {
-               console.error('Error fetching account objects:', error);
-               return [];
-          }
-     }
-
-     async getCurrencyBalance(currency: string, accountAddressField: string) {
-          try {
-               const response = await this.getAccountObjects(accountAddressField);
-               let accountObjects: any[] = [];
-               if (response && !Array.isArray(response) && response.result && Array.isArray(response.result.account_objects)) {
-                    accountObjects = response.result.account_objects;
+               let account_objects: any[] = [];
+               if (accountObjects && !Array.isArray(accountObjects) && accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+                    account_objects = accountObjects.result.account_objects;
                }
 
                interface AccountObjectWithBalance {
@@ -3188,7 +3165,7 @@ export class UtilsService {
                     [key: string]: any;
                }
 
-               const matchingObjects: AccountObjectWithBalance[] = accountObjects.filter((obj: any): obj is AccountObjectWithBalance => obj.Balance && obj.Balance.currency === currency.toUpperCase());
+               const matchingObjects: AccountObjectWithBalance[] = account_objects.filter((obj: any): obj is AccountObjectWithBalance => obj.Balance && obj.Balance.currency === currency.toUpperCase());
 
                const total = matchingObjects.reduce((sum, obj) => {
                     return sum + parseFloat(obj.Balance.value);
@@ -3200,102 +3177,6 @@ export class UtilsService {
                return null;
           }
      }
-
-     // async getAccountInfo(address: string): Promise<any> {
-     //      try {
-     //           const client = await this.xrplService.getClient();
-     //           const accountInfo = await client.request({
-     //                command: 'account_info',
-     //                account: address,
-     //           });
-
-     //           return accountInfo;
-     //      } catch (error: any) {
-     //           throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
-     //      }
-     // }
-
-     // async getTrustlines(seed: string, environment: string = 'devnet'): Promise<any> {
-     //      if (!seed) {
-     //           throw new Error('Account seed cannot be empty');
-     //      }
-     //      try {
-     //           const client = await this.xrplService.getClient();
-     //           const wallet = await this.getWallet(seed, environment);
-
-     //           if (!wallet) {
-     //                throw new Error('ERROR: Wallet could not be created or is undefined');
-     //           }
-
-     //           // let wallet;
-     //           // if (seed.split(' ').length > 1) {
-     //           //      wallet = xrpl.Wallet.fromMnemonic(seed, {
-     //           //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-     //           //      });
-     //           // } else {
-     //           //      wallet = xrpl.Wallet.fromSeed(seed, {
-     //           //           algorithm: environment === AppConstants.NETWORKS.MAINNET.NAME ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
-     //           //      });
-     //           // }
-
-     //           const trustLines = await client.request({
-     //                command: 'account_lines',
-     //                account: wallet.classicAddress,
-     //           });
-
-     //           // Filter out trust lines with Limit: 0
-     //           const activeTrustLines = trustLines.result.lines.filter((line: any) => parseFloat(line.limit) > 0);
-     //           console.debug(`Active trust lines for ${wallet.classicAddress}:`, activeTrustLines);
-
-     //           if (activeTrustLines.length === 0) {
-     //                console.log(`No active trust lines found for ${wallet.classicAddress}`);
-     //                return [];
-     //           }
-
-     //           console.debug(`Trust lines for ${wallet.classicAddress}:`, activeTrustLines);
-     //           return activeTrustLines;
-     //      } catch (error: any) {
-     //           throw new Error(`Failed to fetch account info: ${error.message || 'Unknown error'}`);
-     //      }
-     // }
-
-     // refreshUiIAccountMetaData(accountInfo: any) {
-     //      const tickSizeField = document.getElementById('tickSizeField') as HTMLInputElement;
-     //      if (tickSizeField) {
-     //           if (accountInfo.account_data.TickSize && accountInfo.account_data.TickSize != '') {
-     //                tickSizeField.value = accountInfo.account_data.TickSize;
-     //           } else {
-     //                tickSizeField.value = '';
-     //           }
-     //      }
-
-     //      const transferRateField = document.getElementById('transferRateField') as HTMLInputElement;
-     //      if (transferRateField) {
-     //           if (accountInfo.account_data.TransferRate && accountInfo.account_data.TransferRate != '') {
-     //                transferRateField.value = ((accountInfo.account_data.TransferRate / 1_000_000_000 - 1) * 100).toFixed(3);
-     //           } else {
-     //                transferRateField.value = '';
-     //           }
-     //      }
-
-     //      const domainField = document.getElementById('domainField') as HTMLInputElement;
-     //      if (domainField) {
-     //           if (accountInfo.account_data.Domain && accountInfo.account_data.Domain != '') {
-     //                domainField.value = this.decodeHex(accountInfo.account_data.Domain);
-     //           } else {
-     //                domainField.value = '';
-     //           }
-     //      }
-
-     //      const isMessageKeyField = document.getElementById('isMessageKey') as HTMLInputElement;
-     //      if (isMessageKeyField) {
-     //           if (accountInfo.account_data.MessageKey && accountInfo.account_data.MessageKey != '') {
-     //                isMessageKeyField.checked = true;
-     //           } else {
-     //                isMessageKeyField.checked = false;
-     //           }
-     //      }
-     // }
 
      setError(message: string, spinner: { style: { display: string } } | undefined) {
           this.isError = true;
@@ -3373,15 +3254,24 @@ export class UtilsService {
           tx.Issuer = issuerAddressField;
      }
 
-     async applyTicketSequence(tx: any, client: xrpl.Client, account: string, ticketSequence: string) {
+     applyTicketSequence(accountInfo: any, accountObjects: any, tx: any, ticketSequence: string) {
           if (ticketSequence) {
-               if (!(await this.xrplService.checkTicketExists(client, account, Number(ticketSequence)))) {
-                    throw new Error(`Ticket Sequence ${ticketSequence} not found for account ${account}`);
+               if (!this.isTicketExists(accountObjects, Number(ticketSequence))) {
+                    throw new Error(`Ticket Sequence ${ticketSequence} not found for account ${accountObjects.account}`);
                }
                this.setTicketSequence(tx, ticketSequence, true);
           } else {
-               const accountInfo = await this.xrplService.getAccountInfo(client, account, 'validated', '');
                this.setTicketSequence(tx, accountInfo.result.account_data.Sequence, false);
+          }
+     }
+
+     isTicketExists(ticketObject: any, ticketSequence: number): boolean {
+          try {
+               const ticketExists = (ticketObject.result.account_objects || []).some((ticket: any) => ticket.TicketSequence === ticketSequence);
+               return ticketExists;
+          } catch (error: any) {
+               console.error('Error checking ticket: ', error);
+               return false; // Return false if there's an error fetching tickets
           }
      }
 

@@ -80,6 +80,33 @@
      font-size: 0.875rem;
 }
 
+:host ::ng-deep .mat-mdc-cell {
+     background-color: #1a1c21 !important;
+     color: white;
+     padding: 2px 6px;
+     font-size: 0.8rem;
+     line-height: 1.2;
+     text-align: center;
+     vertical-align: middle;
+}
+
+/* :host ::ng-deep .mat-mdc-cell {
+     background-color: #1a1c21 !important;
+     color: white;
+     padding: 2px 6px;
+     font-size: 0.8rem;
+     line-height: 1.2;
+     text-align: center;
+     vertical-align: middle;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+}
+
+:host ::ng-deep .mat-column-hash .mat-mdc-cell {
+     justify-content: center;
+} */
+
 :host ::ng-deep .mat-mdc-table {
      background-color: #1a1c21 !important;
 }
@@ -106,15 +133,7 @@
      padding: 0 6px;
 }
 
-:host ::ng-deep .mat-mdc-cell {
-     background-color: #1a1c21 !important;
-     color: white;
-     padding: 2px 6px;
-     font-size: 0.8rem;
-     line-height: 1.2;
-     text-align: center;
-     vertical-align: middle;
-}
+
 
 :host ::ng-deep .mat-mdc-row:hover {
      background-color: #1a1c21 !important;
@@ -236,19 +255,3 @@ table textarea {
      padding: 4px 0;
      /* optional inner padding */
 }
-
-/* span.tooltip {
-     display: flex;
-     align-items: center;
-     justify-content: space-between;
-     width: 165px;
-     margin-bottom: 5px;
-}
-
-span.tooltip.full-width {
-     width: 100%;
-}
-
-label.switch {
-     margin: 0;
-} */

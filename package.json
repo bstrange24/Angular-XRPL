@@ -45,13 +45,17 @@
     "stream-browserify": "^3.0.0",
     "tslib": "^2.3.0",
     "util": "^0.12.5",
-    "xrpl": "^4.4.0",
+    "xrpl": "^4.4.1",
     "xrpl-accountlib": "^8.4.0",
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "^1.18.0",
     "@angular-devkit/build-angular": "^19.2.15",
+    "@angular-eslint/builder": "^20.3.0",
+    "@angular-eslint/eslint-plugin": "^20.3.0",
+    "@angular-eslint/eslint-plugin-template": "^20.3.0",
+    "@angular-eslint/template-parser": "^20.3.0",
     "@angular/cli": "^19.2.15",
     "@angular/compiler-cli": "^19.2.0",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
