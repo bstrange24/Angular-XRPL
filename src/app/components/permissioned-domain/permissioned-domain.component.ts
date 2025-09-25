@@ -246,10 +246,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                // Phase 2: Fetch account info + credential objects in PARALLEL
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'permissioned_domain')]);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = this.validateInputs(inputs, 'getPermissionedDomainForAccount');
                if (errors.length > 0) {
@@ -320,11 +317,12 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
@@ -334,7 +332,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     }
                }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getPermissionedDomainForAccount:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -473,21 +471,26 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in setPermissionedDomain:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -629,22 +632,26 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
-               await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in deletePermissionedDomain:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -660,6 +667,14 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {

@@ -209,15 +209,20 @@ export class CreateDidComponent implements AfterViewChecked {
           };
 
           try {
-               this.showSpinnerWithDelay('Getting DID...', 200);
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Getting DID (${mode})...`);
 
-               // Phase 1: Get client + wallet
+               // Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
-               // Phase 2: Fetch account info + credential objects in PARALLEL
-               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               // Fetch account info + credential objects in PARALLEL
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`DID objects for ${wallet.classicAddress}:`, accountObjects.result);
 
                inputs = {
                     ...inputs,
@@ -228,10 +233,6 @@ export class CreateDidComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`DID objects for ${classicAddress}:`, accountObjects.result);
 
                type Section = {
                     title: string;
@@ -281,12 +282,13 @@ export class CreateDidComponent implements AfterViewChecked {
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
@@ -295,7 +297,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     }
                }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getDidForAccount:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -332,7 +334,8 @@ export class CreateDidComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
+
+               //  PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -341,6 +344,7 @@ export class CreateDidComponent implements AfterViewChecked {
                console.debug(`currentLedger :`, currentLedger);
 
                inputs = { ...inputs, account_info: accountInfo };
+
                const errors = this.validateInputs(inputs, 'setDid');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
@@ -395,7 +399,10 @@ export class CreateDidComponent implements AfterViewChecked {
                     }
                }
 
-               // PHASE 4: Validate balance
+               // Submit or Simulate
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting DID (no changes will be made)...' : 'Submitting to Ledger...');
+
+               // Validate balance
                if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
@@ -419,7 +426,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // PHASE 5: Get regular key wallet
+                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                     // Sign transaction
@@ -428,9 +435,6 @@ export class CreateDidComponent implements AfterViewChecked {
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -449,21 +453,26 @@ export class CreateDidComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in setDid:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -496,7 +505,8 @@ export class CreateDidComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
+
+               //  PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'did'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -552,6 +562,8 @@ export class CreateDidComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Remove DID (no changes will be made)...' : 'Submitting to Ledger...');
+
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, didDeleteTx);
 
@@ -571,7 +583,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // PHASE 5: Get regular key wallet
+                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                     // Sign transaction
@@ -580,9 +592,6 @@ export class CreateDidComponent implements AfterViewChecked {
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -601,21 +610,26 @@ export class CreateDidComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in removeDid:', error);
                return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -631,6 +645,14 @@ export class CreateDidComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {

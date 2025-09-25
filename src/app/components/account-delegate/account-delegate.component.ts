@@ -192,17 +192,10 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
      onAccountChange() {
           const accountHandlers: Record<string, () => void> = {
-               account1: () => {
-                    void this.displayDataForAccount1();
-               },
-               account2: () => {
-                    void this.displayDataForAccount2();
-               },
-               issuer: () => {
-                    void this.displayDataForAccount3();
-               },
+               account1: () => this.displayDataForAccount1(),
+               account2: () => this.displayDataForAccount2(),
+               issuer: () => this.displayDataForAccount3(),
           };
-
           (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
      }
 
@@ -281,29 +274,27 @@ export class AccountDelegateComponent implements AfterViewChecked {
                // Phase 2: Fetch account info + objects in PARALLEL
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               inputs = { ...inputs, account_info: accountInfo };
+
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
-
                // CRITICAL: Render immediately
                this.utilsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
@@ -341,12 +332,15 @@ export class AccountDelegateComponent implements AfterViewChecked {
           };
 
           try {
-               this.updateSpinnerMessage('Delegate Actions...');
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Getting Delegates (${mode})... Action ${delegate}`);
 
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
+
+               // Fetch account info, fee and current ledger
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -462,18 +456,23 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
           } catch (error: any) {
                console.error('Error:', error);
@@ -492,6 +491,14 @@ export class AccountDelegateComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {

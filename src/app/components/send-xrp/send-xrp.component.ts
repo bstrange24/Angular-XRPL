@@ -240,11 +240,12 @@ export class SendXrpComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderAccountDetails(accountInfo, accountObjects);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
@@ -299,12 +300,12 @@ export class SendXrpComponent implements AfterViewChecked {
                // PHASE 1: Fetch account info + calculate fee + ledger index in PARALLEL
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
-               inputs = { ...inputs, account_info: accountInfo };
-
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'sendXrp');
                if (errors.length > 0) {
@@ -367,7 +368,6 @@ export class SendXrpComponent implements AfterViewChecked {
                     // PHASE 3: Get regular key wallet (if needed)
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // PHASE 4: Sign transaction
                     // Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
@@ -395,18 +395,23 @@ export class SendXrpComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               // DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
           } catch (error: any) {
                console.error('Error in sendXrp:', error);
@@ -416,6 +421,14 @@ export class SendXrpComponent implements AfterViewChecked {
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving sendXrp in ${this.executionTime}ms`);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {

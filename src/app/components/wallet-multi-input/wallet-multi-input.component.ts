@@ -192,6 +192,16 @@ export class WalletMultiInputComponent {
                this.saveInput(`account${account}secretNumbers`, '');
                this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
+
+          const destionations = this.storageService.getKnownIssuers('destinations');
+          let updatedDestionations;
+          if (destionations) {
+               updatedDestionations = this.updateAccountDestination(destionations, Number(account), wallet.address);
+               this.storageService.removeValue('destinations');
+          }
+          if (updatedDestionations) {
+               this.storageService.setKnownIssuers('destinations', updatedDestionations);
+          }
           this.emitChange();
      }
 
@@ -259,6 +269,16 @@ export class WalletMultiInputComponent {
                this.saveInput(`account${account}secretNumbers`, '');
                this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
           }
+
+          const destionations = this.storageService.getKnownIssuers('destinations');
+          let updatedDestionations;
+          if (destionations) {
+               updatedDestionations = this.updateAccountDestination(destionations, Number(account), wallet.address);
+               this.storageService.removeValue('destinations');
+          }
+          if (updatedDestionations) {
+               this.storageService.setKnownIssuers('destinations', updatedDestionations);
+          }
           this.emitChange();
      }
 
@@ -325,6 +345,16 @@ export class WalletMultiInputComponent {
                this.saveInput(`account${account}mnemonic`, '');
                this.saveInput(`account${account}seed`, wallet.secret.familySeed || '');
                this.saveInput(`account${account}encryptionAlgorithm`, wallet.keypair.algorithm || '');
+          }
+
+          const destionations = this.storageService.getKnownIssuers('destinations');
+          let updatedDestionations;
+          if (destionations) {
+               updatedDestionations = this.updateAccountDestination(destionations, Number(account), wallet.address);
+               this.storageService.removeValue('destinations');
+          }
+          if (updatedDestionations) {
+               this.storageService.setKnownIssuers('destinations', updatedDestionations);
           }
           this.emitChange();
      }
