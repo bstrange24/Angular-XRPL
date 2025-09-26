@@ -1507,7 +1507,7 @@ export class UtilsService {
       * @param txObject - XRPL transaction object (Payment, OfferCreate, etc.)
       * @returns true if insufficient balance, false if sufficient
       */
-     isInsufficientIouBalance(accountLines: any, txObject: any): boolean {
+     isInsufficientIouTrustlineBalance(accountLines: any, txObject: any, destination: string): boolean {
           try {
                if (!txObject?.Amount || typeof txObject.Amount === 'string') {
                     // Not an IOU (string means XRP)
@@ -1527,7 +1527,7 @@ export class UtilsService {
                }
 
                // Find the trustline for this issuer/currency
-               const trustline = accountLines.result.lines.find((line: any) => line.currency === currency && (line.account === issuer || line.issuer === issuer));
+               const trustline = accountLines.result.lines.find((line: any) => line.currency === currency && (line.account === destination || line.issuer === issuer || line.account === issuer));
 
                if (!trustline) {
                     // No trustline → can’t send IOU
@@ -1539,7 +1539,7 @@ export class UtilsService {
                const balance = parseFloat(trustline.balance);
 
                // We can only send what we have (positive balance)
-               return balance < amountValue;
+               return Math.abs(balance) < amountValue;
           } catch (error: any) {
                console.error('Error checking IOU balance:', error);
                throw new Error(`Failed to check IOU balance: ${error.message || 'Unknown error'}`);

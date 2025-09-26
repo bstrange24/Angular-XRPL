@@ -1,15 +1,14 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, NgForm } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { WalletInputComponent } from '../wallet-input/wallet-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TransactionMetadataBase, PaymentChannelCreate, PaymentChannelFund, PaymentChannelClaim } from 'xrpl';
+import { PaymentChannelCreate, PaymentChannelFund, PaymentChannelClaim } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
-import { AppConstants } from '../../core/app.constants';
 import { sign, verify } from 'ripple-keypairs';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
@@ -439,6 +438,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          paymentChannelCreateTx.PublicKey = this.publicKeyField;
                     }
 
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
                     if (this.isSimulateEnabled) {
                          const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelCreateTx);
 
@@ -467,9 +468,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
-
-                         // PHASE 7: Submit or Simulate
-                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
                          const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -530,6 +528,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          paymentChannelFundTx.Expiration = newExpiration;
                     }
 
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Funding/Renewing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
                     if (this.isSimulateEnabled) {
                          const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelFundTx);
 
@@ -558,9 +558,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
-
-                         // PHASE 7: Submit or Simulate
-                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Funding/Renewing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
                          const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -636,6 +633,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          this.utilsService.setDestinationTag(paymentChannelClaimTx, this.destinationTagField);
                     }
 
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Claiming Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
                     if (this.isSimulateEnabled) {
                          const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelClaimTx);
 
@@ -664,9 +663,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
-
-                         // PHASE 7: Submit or Simulate
-                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Claiming Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
                          const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -754,6 +750,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          this.utilsService.setDestinationTag(paymentChannelClaimTx, this.destinationTagField);
                     }
 
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Closing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+
                     if (this.isSimulateEnabled) {
                          const simulation = await this.xrplTransactions.simulateTransaction(client, paymentChannelClaimTx);
 
@@ -783,9 +781,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
 
-                         // PHASE 7: Submit or Simulate
-                         this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Closing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
-
                          const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                          const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -806,17 +801,15 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     }
                }
 
+               // PARALLELIZE
+               const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+               this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched allAccountObjects and accountInfo
-                         this.refreshUiAccountObjects(accountObject, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
+                         this.clearFields(false);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-                         this.isMemoEnabled = false;
-                         this.memoField = '';
-
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for payment channels:', err);
@@ -959,6 +952,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {

@@ -697,12 +697,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
-               console.log('Sufficient XRP balance, good to go');
-
-               if (this.utilsService.isInsufficientIouBalance(accountLines, trustSetTx)) {
-                    return this.setError('ERROR: Not enough IOU balance for this transaction');
-               }
-               console.log('Sufficient IOU balance, good to go');
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
@@ -898,12 +892,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
-               console.log('Sufficient XRP balance, good to go');
-
-               if (this.utilsService.isInsufficientIouBalance(trustLines, trustSetTx)) {
-                    return this.setError('ERROR: Not enough IOU balance for this transaction');
-               }
-               console.log('Sufficient IOU balance, good to go');
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Removing Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
@@ -1071,11 +1059,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     }
                     console.log('Sufficient XRP balance, good to go');
 
-                    if (this.utilsService.isInsufficientIouBalance(trustLines, accountSetTx)) {
-                         return this.setError('ERROR: Not enough IOU balance for this transaction');
-                    }
-                    console.log('Sufficient IOU balance, good to go');
-
                     if (this.isSimulateEnabled) {
                          const simulation = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
 
@@ -1176,12 +1159,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, paymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
-               console.log('Sufficient XRP balance, good to go');
 
-               if (this.utilsService.isInsufficientIouBalance(trustLines, paymentTx)) {
+               if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, paymentTx, this.destinationFields)) {
                     return this.setError('ERROR: Not enough IOU balance for this transaction');
                }
-               console.log('Sufficient IOU balance, good to go');
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Currency Issuance (no changes will be made)...' : 'Submitting Currency Issuance to Ledger...');
 
                let response;
                if (this.isSimulateEnabled) {
@@ -1209,9 +1192,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-
-                    // Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Currency Issuance (no changes will be made)...' : 'Submitting Currency Issuance to Ledger...');
 
                     response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -1301,8 +1281,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                          try {
                               this.clearFields(false);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-                              await this.updateCurrencyBalance(wallet, accountObjects);
-                              this.updateGatewayBalance(gatewayBalances);
+                              await this.updateCurrencyBalance(wallet, updatedAccountObjects);
+                              this.updateGatewayBalance(gatewayBalances, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -1377,9 +1357,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
                }
 
-               // PHASE 3: Get regular key wallet
-               const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
                // PHASE 4: Prepare Clawback transaction
                let clawbackTx: xrpl.Clawback = {
                     TransactionType: 'Clawback',
@@ -1413,12 +1390,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, clawbackTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
-               console.log('Sufficient XRP balance, good to go');
 
-               if (this.utilsService.isInsufficientIouBalance(trustLines, clawbackTx)) {
+               if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, clawbackTx, this.destinationFields)) {
                     return this.setError('ERROR: Not enough IOU balance for this transaction');
                }
-               console.log('Sufficient IOU balance, good to go');
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Token Clawback (no tokens will be moved)...' : 'Submitting Clawback to Ledger...');
 
                let response;
                if (this.isSimulateEnabled) {
@@ -1440,15 +1417,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+
                     // PHASE 5: Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, clawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign transaction.');
                     }
-
-                    // PHASE 6: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Token Clawback (no tokens will be moved)...' : 'Submitting Clawback to Ledger...');
 
                     response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -1475,7 +1451,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.clearFields(false);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                               this.updateCurrencyBalance(wallet, updatedAccountObjects);
-                              this.updateGatewayBalance(gatewayBalancePromise);
+                              this.updateGatewayBalance(gatewayBalancePromise, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -1528,9 +1504,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.getTrustlinesForAccount();
                }, 0);
           } catch (error: any) {
-               console.error('Error in onCurrencyChange:', error);
                this.currencyBalanceField = '0';
                this.gatewayBalance = '0';
+               console.error('Error in onCurrencyChange:', error);
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -2069,10 +2045,28 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     private updateGatewayBalance(gatewayBalances: xrpl.GatewayBalancesResponse) {
+     private updateGatewayBalance(gatewayBalances: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
           if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
                const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
                this.gatewayBalance = this.utilsService.formatTokenBalance(gatewayBalances.result.obligations[displayCurrency], 18);
+          } else if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+               const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
+               let foundBalance = null;
+
+               // Iterate through all assets arrays
+               Object.values(gatewayBalances.result.assets).forEach(assetArray => {
+                    assetArray.forEach(asset => {
+                         if (asset.currency === displayCurrency) {
+                              foundBalance = asset.value;
+                         }
+                    });
+               });
+
+               if (foundBalance !== null) {
+                    this.gatewayBalance = this.utilsService.formatTokenBalance(foundBalance, 18);
+               } else {
+                    this.gatewayBalance = '0';
+               }
           }
      }
 
