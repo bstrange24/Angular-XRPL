@@ -100,7 +100,6 @@ export class SendChecksComponent implements AfterViewChecked {
      gatewayBalance: string = '0';
      isSimulateEnabled: boolean = false;
      private knownTrustLinesIssuers: { [key: string]: string } = {
-          RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
           XRP: '',
      };
      private knownDestinations: { [key: string]: string } = {};
@@ -244,12 +243,12 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // PHASE 3: Update destination field
-               this.destinationFields = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
-
-               // // PHASE 4: Defer getTrustlinesForAccount — don't block UI
-               // setTimeout(() => {
-               //      // this.getChecks();
-               // }, 0);
+               if (this.currencyFieldDropDownValue === 'XRP') {
+                    this.destinationFields = this.issuer.address;
+               } else {
+                    this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
+                    this.destinationFields = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || '';
+               }
           } catch (error: any) {
                console.error('Error in onCurrencyChange:', error);
                this.tokenBalance = '0';
@@ -456,20 +455,21 @@ export class SendChecksComponent implements AfterViewChecked {
                          this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
-                         await this.updateXrpBalance(client, accountInfo, wallet);
                          await this.toggleIssuerField();
-                         await this.updateCurrencyBalance(wallet, allAccountObjects);
-                         this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+                         if (this.currencyFieldDropDownValue !== 'XRP') {
+                              await this.updateCurrencyBalance(wallet, allAccountObjects);
+                         }
 
-                         this.memoField = '';
-                         this.isMemoEnabled = false;
+                         this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+                         await this.updateXrpBalance(client, accountInfo, wallet);
+                         this.clearFields(false);
                     } catch (err) {
                          console.error('Error in deferred UI updates for payment channels:', err);
                          // Don't break main render — payment channels are already shown
                     }
                }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getChecks:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -537,7 +537,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, trustLines, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -597,11 +597,23 @@ export class SendChecksComponent implements AfterViewChecked {
                     this.utilsService.setDestinationTag(checkCreateTx, this.destinationTagField);
                }
 
-               // PHASE 4: Validate balance
-               const xrpAmount = this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY ? this.amountField : '0';
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, xrpAmount, wallet.classicAddress, checkCreateTx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    if (this.amountField || this.amountField === '') {
+                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, checkCreateTx, fee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    } else {
+                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, this.amountField, wallet.classicAddress, checkCreateTx, fee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    }
+               } else {
+                    if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, checkCreateTx, this.destinationFields)) {
+                         return this.setError('ERROR: Not enough IOU balance for this transaction');
+                    }
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending Check (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, checkCreateTx);
@@ -632,9 +644,6 @@ export class SendChecksComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending Check (no changes will be made)...' : 'Submitting to Ledger...');
-
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                     const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -652,15 +661,19 @@ export class SendChecksComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(wallet, accountObjects);
+                                   this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+                              }
                               this.clearFields(false);
-                              await this.updateCurrencyBalance(wallet, accountObjects);
-                              this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -704,7 +717,14 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, checkObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, checkObjects, trustLines, fee, currentLedger] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'),
+                    this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+               ]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -764,9 +784,20 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // PHASE 4: Validate balance
-               const xrpAmount = this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY ? this.amountField : '0';
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, xrpAmount, wallet.classicAddress, checkCashTx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    if (this.amountField || this.amountField === '') {
+                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, checkCashTx, fee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    } else {
+                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, this.amountField, wallet.classicAddress, checkCashTx, fee)) {
+                              return this.setError('ERROR: Insufficient XRP to complete transaction');
+                         }
+                    }
+               } else {
+                    if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, checkCashTx, this.destinationFields)) {
+                         return this.setError('ERROR: Not enough IOU balance for this transaction');
+                    }
                }
 
                if (this.isSimulateEnabled) {
@@ -818,15 +849,19 @@ export class SendChecksComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(wallet, accountObjects);
+                                   this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+                              }
                               this.clearFields(false);
-                              await this.updateCurrencyBalance(wallet, accountObjects);
-                              this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -900,8 +935,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // PHASE 4: Validate balance
-               const xrpAmount = this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY ? this.amountField : '0';
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, xrpAmount, wallet.classicAddress, checkCancelTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, checkCancelTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -954,15 +988,19 @@ export class SendChecksComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(wallet, accountObjects);
+                                   this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
+                              }
                               this.clearFields(false);
-                              await this.updateCurrencyBalance(wallet, accountObjects);
-                              this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -986,6 +1024,14 @@ export class SendChecksComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
@@ -1279,6 +1325,24 @@ export class SendChecksComponent implements AfterViewChecked {
           if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
                const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
                this.gatewayBalance = this.utilsService.formatTokenBalance(gatewayBalances.result.obligations[displayCurrency], 18);
+          } else if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+               const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
+               let foundBalance = null;
+
+               // Iterate through all assets arrays
+               Object.values(gatewayBalances.result.assets).forEach(assetArray => {
+                    assetArray.forEach(asset => {
+                         if (asset.currency === displayCurrency) {
+                              foundBalance = asset.value;
+                         }
+                    });
+               });
+
+               if (foundBalance !== null) {
+                    this.gatewayBalance = this.utilsService.formatTokenBalance(foundBalance, 18);
+               } else {
+                    this.gatewayBalance = '0';
+               }
           }
      }
 

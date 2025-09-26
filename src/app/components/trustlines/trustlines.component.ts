@@ -752,17 +752,15 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     //DEFER: Non-critical UI updates (skip for simulation)
-                    if (!this.isSimulateEnabled) {
-                         setTimeout(async () => {
-                              try {
-                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                                   this.clearFields(false);
-                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-                              } catch (err) {
-                                   console.error('Error in post-tx cleanup:', err);
-                              }
-                         }, 0);
-                    }
+                    setTimeout(async () => {
+                         try {
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                              this.clearFields(false);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                         } catch (err) {
+                              console.error('Error in post-tx cleanup:', err);
+                         }
+                    }, 0);
                }
           } catch (error: any) {
                console.error('Error in setTrustLine:', error);
@@ -1279,10 +1277,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                     //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                               await this.updateCurrencyBalance(wallet, updatedAccountObjects);
                               this.updateGatewayBalance(gatewayBalances, wallet);
+                              this.clearFields(false);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -1448,10 +1446,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                     //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                               this.updateCurrencyBalance(wallet, updatedAccountObjects);
                               this.updateGatewayBalance(gatewayBalancePromise, wallet);
+                              this.clearFields(false);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -2070,6 +2068,35 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
+     addToken1() {
+          if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
+               const currency = this.newCurrency.trim();
+               const c = currency.split('.');
+               if (this.knownTrustLinesIssuers[c[0]]) {
+                    this.setError(`Currency ${c[0]} already exists`);
+                    return;
+               }
+               if (!this.utilsService.isValidCurrencyCode(c[0])) {
+                    this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
+                    return;
+               }
+               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+                    this.setError('Invalid issuer address');
+                    return;
+               }
+               this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+               this.updateCurrencies();
+               this.newCurrency = '';
+               this.newIssuer = '';
+               this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+               this.cdr.detectChanges();
+          } else {
+               this.setError('Currency code and issuer address are required');
+          }
+          this.spinner = false;
+     }
+
      addToken() {
           if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
                const currency = this.newCurrency.trim();
@@ -2094,6 +2121,20 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.cdr.detectChanges();
           } else {
                this.setError('Currency code and issuer address are required');
+          }
+          this.spinner = false;
+     }
+
+     removeToken1() {
+          if (this.tokenToRemove) {
+               delete this.knownTrustLinesIssuers[this.tokenToRemove];
+               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+               this.updateCurrencies();
+               this.setSuccess(`Removed ${this.tokenToRemove}`);
+               this.tokenToRemove = '';
+               this.cdr.detectChanges();
+          } else {
+               this.setError('Select a token to remove');
           }
           this.spinner = false;
      }
