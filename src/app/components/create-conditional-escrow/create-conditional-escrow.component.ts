@@ -131,7 +131,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
      private knownTrustLinesIssuers: { [key: string]: string } = {
-          RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
           XRP: '',
      };
      currencies: string[] = [];
@@ -281,16 +280,16 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                }
 
                // PHASE 3: Update destination field
-               this.destinationFields = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
-
-               // PHASE 4: Defer getTrustlinesForAccount — don't block UI
-               // setTimeout(() => {
-               //      this.getTrustlinesForAccount();
-               // }, 0);
+               if (this.currencyFieldDropDownValue === 'XRP') {
+                    this.destinationFields = this.issuer.address;
+               } else {
+                    this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
+                    this.destinationFields = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || '';
+               }
           } catch (error: any) {
-               console.error('Error in onCurrencyChange:', error);
                this.tokenBalance = '0';
                this.gatewayBalance = '0';
+               console.error('Error in onCurrencyChange:', error);
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -605,21 +604,23 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                // DEFERRED: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
-                    this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                    this.refreshUiAccountInfo(accountInfo);
-                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                    this.getEscrowOwnerAddress();
+                    try {
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                         this.getEscrowOwnerAddress();
 
-                    if (this.currencyFieldDropDownValue !== 'XRP') {
-                         await this.updatedTokenBalance(client, accountInfo, accountObjects, wallet);
+                         if (this.currencyFieldDropDownValue !== 'XRP') {
+                              await this.updatedTokenBalance(client, accountInfo, accountObjects, wallet);
+                         }
+
+                         await this.toggleIssuerField();
+                         await this.updateXrpBalance(client, accountInfo, wallet);
+                         this.clearFields(false);
+                    } catch (err) {
+                         console.error('Error in deferred UI updates for payment channels:', err);
+                         // Don't break main render — payment channels are already shown
                     }
-
-                    await this.toggleIssuerField();
-
-                    await this.updateXrpBalance(client, accountInfo, wallet);
-
-                    this.isMemoEnabled = false;
-                    this.memoField = '';
                }, 0);
           } catch (error: any) {
                console.error('Error in getEscrows:', error);
@@ -667,12 +668,14 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, trustLines, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`trustLines :`, trustLines);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -735,15 +738,21 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                // PHASE 4: Validate balance
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
                     if (this.amountField || this.amountField === '') {
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowCreateTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, escrowCreateTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } else {
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, escrowCreateTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, this.amountField, wallet.classicAddress, escrowCreateTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
+               } else {
+                    if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, escrowCreateTx, this.destinationFields)) {
+                         return this.setError('ERROR: Not enough IOU balance for this transaction');
+                    }
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Creating Conditional Escrow (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, escrowCreateTx);
@@ -774,9 +783,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Creating Conditional Escrow (no changes will be made)...' : 'Submitting to Ledger...');
-
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                     const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -794,21 +800,26 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updatedTokenBalance(client, updatedAccountInfo, updatedAccountObjects, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in createConditionalEscrow:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -853,7 +864,15 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, escrowObjects, escrow, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField)), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, escrowObjects, trustLines, escrow, fee, currentLedger, serverInfo] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'),
+                    this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getEscrowBySequence(client, wallet.classicAddress, Number(this.escrowSequenceNumberField)),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
+               ]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -861,6 +880,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                console.debug(`escrow for ${wallet.classicAddress}:`, escrow);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`trustLines :`, trustLines);
+               console.debug(`serverInfo:`, serverInfo);
 
                inputs = {
                     ...inputs,
@@ -923,15 +944,21 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                // PHASE 4: Validate balance
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
                     if (this.amountField || this.amountField === '') {
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowFinishTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, escrowFinishTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } else {
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, escrowFinishTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, this.amountField, wallet.classicAddress, escrowFinishTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
+               } else {
+                    if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, escrowFinishTx, this.destinationFields)) {
+                         return this.setError('ERROR: Not enough IOU balance for this transaction');
+                    }
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Finishing Conditional Escrow (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, escrowFinishTx);
@@ -962,9 +989,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Finishing Conditional Escrow (no changes will be made)...' : 'Submitting to Ledger...');
-
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                     const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -982,21 +1006,26 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updatedTokenBalance(client, updatedAccountInfo, updatedAccountObjects, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in finishConditionalEscrow:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -1108,17 +1137,11 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowCancelTx, this.memoField);
                }
 
-               if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
-                    if (this.amountField || this.amountField === '') {
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
-                         }
-                    } else {
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, escrowCancelTx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
-                         }
-                    }
+               if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Cancelling Conditional Escrow (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, escrowCancelTx);
@@ -1149,9 +1172,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Cancelling Conditional Escrow (no changes will be made)...' : 'Submitting to Ledger...');
-
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                     const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -1169,21 +1189,26 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updatedTokenBalance(client, updatedAccountInfo, updatedAccountObjects, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in cancelEscrow:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -1199,6 +1224,14 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {

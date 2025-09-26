@@ -55,11 +55,6 @@ interface SignerEntry {
      weight: number;
 }
 
-interface RegularKeyEntry {
-     Account: string;
-     RegularKeySeed: string;
-}
-
 interface AccountFlags {
      asfRequireDest: boolean;
      asfRequireAuth: boolean;
@@ -627,10 +622,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Updating Meta Data Update (${mode})...`);
-
                // Get client + wallet
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
