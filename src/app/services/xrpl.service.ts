@@ -1016,7 +1016,7 @@ export class XrplService {
      async getEscrowBySequence(client: xrpl.Client, account: string, sequence: number): Promise<any | null> {
           try {
                const escrowObjects = await this.getAccountObjects(client, account, 'validated', 'escrow');
-               for (const [index, obj] of escrowObjects.result.account_objects.entries()) {
+               for (const [ignore, obj] of escrowObjects.result.account_objects.entries()) {
                     if (obj.PreviousTxnID) {
                          const sequenceTx = await this.getTxData(client, obj.PreviousTxnID);
                          if (sequenceTx.result.tx_json.Sequence === sequence) {

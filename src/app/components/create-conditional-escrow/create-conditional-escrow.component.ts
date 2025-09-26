@@ -1063,13 +1063,14 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, escrowObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, escrowObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`escrowObjects for ${wallet.classicAddress}:`, escrowObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = {
                     ...inputs,
@@ -1085,7 +1086,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                let foundSequenceNumber = false;
                let escrowOwner = this.account1.address;
                let escrow: EscrowObject | undefined = undefined;
-               for (const [index, obj] of escrowObjects.result.account_objects.entries()) {
+               for (const [ignore, obj] of escrowObjects.result.account_objects.entries()) {
                     if (obj.PreviousTxnID) {
                          const sequenceTx = await this.xrplService.getTxData(client, obj.PreviousTxnID);
                          if (sequenceTx.result.tx_json.Sequence === Number(this.escrowSequenceNumberField)) {
@@ -1109,6 +1110,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                // Check if the escrow can be canceled based on the CancelAfter time
                const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
                const escrowStatus = this.utilsService.checkEscrowStatus({ FinishAfter: escrow.FinshAfter ? Number(escrow.FinshAfter) : undefined, CancelAfter: escrow.CancelAfter ? Number(escrow.CancelAfter) : undefined, Condition: this.escrowConditionField, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishEscrow', this.escrowFulfillmentField);
+               console.log(`escrowStatus: `, escrowStatus);
 
                // if (!escrowStatus.canFinish) {
                // return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
@@ -1137,7 +1139,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowCancelTx, this.memoField);
                }
 
-               if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
