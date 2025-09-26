@@ -113,6 +113,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      multiSignSeeds: string = '';
      multiSigningEnabled: boolean = false;
+     depositAuthEnabled: boolean = false;
+     isNFTokenMinterEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
      nfTokenMinterAddress: string = '';
      isUpdateMetaData: boolean = false;
@@ -159,7 +161,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      async ngAfterViewInit() {
           try {
                const wallet = await this.getWallet();
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+               this.loadSignerList(wallet.classicAddress);
           } catch (error: any) {
                console.error(`No wallet could be created or is undefined ${error.message}`);
                return this.setError('ERROR: Wallet could not be created or is undefined');
@@ -215,7 +217,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.utilsService.clearSignerList(this.signers);
                } else {
                     const wallet = await this.getWallet();
-                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                    this.loadSignerList(wallet.classicAddress);
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
@@ -458,7 +460,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     try {
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
-                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                         this.loadSignerList(wallet.classicAddress);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
@@ -584,7 +586,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                         this.loadSignerList(wallet.classicAddress);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                     } catch (err) {
@@ -1919,10 +1921,12 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const preAuthAccounts: string[] = this.utilsService.findDepositPreauthObjects(accountObjects);
           if (preAuthAccounts && preAuthAccounts.length > 0) {
                this.depositAuthAddress = preAuthAccounts.map(account => account + ',\n').join('');
-               this.isdepositAuthAddress = true;
+               this.isdepositAuthAddress = false;
+               this.depositAuthEnabled = true;
           } else {
                this.depositAuthAddress = '';
                this.isdepositAuthAddress = false;
+               this.depositAuthEnabled = false;
           }
      }
 
@@ -1939,9 +1943,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const nftTokenMinter = accountInfo?.result?.account_data?.NFTokenMinter;
           if (nftTokenMinter) {
                this.isAuthorizedNFTokenMinter = true;
+               this.isNFTokenMinterEnabled = true;
                this.nfTokenMinterAddress = nftTokenMinter;
           } else {
                this.isAuthorizedNFTokenMinter = false;
+               this.isNFTokenMinterEnabled = false;
                this.nfTokenMinterAddress = '';
           }
 

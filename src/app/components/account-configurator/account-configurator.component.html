@@ -466,7 +466,7 @@
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to enter a deposit auth address">
-                                        <label>Deposit Auth Address</label>
+                                        <label [ngStyle]="{'color': depositAuthEnabled ? '#4CAF50' : 'white'}">Deposit Auth Address</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -497,7 +497,7 @@
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.">
-                                        <label for="isAuthorizedNFTokenMinter">Auth NFT Minter</label>
+                                        <label [ngStyle]="{'color': isNFTokenMinterEnabled ? '#4CAF50' : 'white'}">Auth NFT Minter</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">

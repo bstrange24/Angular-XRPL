@@ -1408,12 +1408,7 @@ export class UtilsService {
                let amountDrops = 0n;
 
                // Define transaction types that involve sending XRP
-               const xrpTransferTypes = new Set([
-                    'Payment',
-                    'EscrowFinish', // Can deliver XRP
-                    'CheckCash', // Can cash XRP checks
-                    // Add other transaction types that involve XRP transfers as needed
-               ]);
+               const xrpTransferTypes = new Set(['Payment', 'EscrowCreate', 'EscrowFinish', 'EscrowCancel', 'CheckCreate', 'CheckCash', 'CheckCancel', 'PaymentChannelCreate', 'PaymentChannelFund', 'PaymentChannelClaim', 'OfferCreate', 'OfferCancel', 'AMMCreate', 'AMMDeposit', 'AMMWithdraw']);
 
                // Calculate amountDrops only for transactions that involve sending XRP
                if (txObject?.TransactionType && xrpTransferTypes.has(txObject.TransactionType)) {
@@ -1452,6 +1447,102 @@ export class UtilsService {
           } catch (error: any) {
                console.error('Error checking XRP balance:', error);
                throw new Error(`Failed to check balance: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     isInsufficientXrpBalance1(serverInfo: any, accountInfo: any, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): boolean {
+          try {
+               // Validate inputs
+               if (!amountXrp || isNaN(parseFloat(amountXrp)) || parseFloat(amountXrp) < 0) {
+                    throw new Error('Invalid amount: must be a non-negative number');
+               }
+
+               let amountDrops = 0n;
+
+               // Define transaction types that involve sending XRP
+               const xrpTransferTypes = new Set(['Payment', 'EscrowCreate', 'EscrowFinish', 'EscrowCancel', 'CheckCreate', 'CheckCash', 'CheckCancel', 'PaymentChannelCreate', 'PaymentChannelFund', 'PaymentChannelClaim', 'OfferCreate', 'OfferCancel', 'AMMCreate', 'AMMDeposit', 'AMMWithdraw']);
+
+               // Calculate amountDrops only for transactions that involve sending XRP
+               if (txObject?.TransactionType && xrpTransferTypes.has(txObject.TransactionType)) {
+                    if (txObject?.Amount && typeof txObject.Amount === 'string') {
+                         // XRP to XRP
+                         amountDrops = BigInt(txObject.Amount);
+                    } else if (typeof amountXrp === 'string' && !isNaN(Number(amountXrp))) {
+                         amountDrops = BigInt(xrpl.xrpToDrops(amountXrp));
+                    }
+               } else {
+                    amountDrops = 0n; // No XRP transfer for non-payment transactions
+               }
+
+               // Get account info to calculate reserves
+               const balanceDrops = BigInt(accountInfo.result.account_data.Balance);
+
+               // Get server info for reserve requirements
+               const baseReserveDrops = BigInt(xrpl.xrpToDrops(serverInfo.result.info.validated_ledger?.reserve_base_xrp || 10));
+               const incReserveDrops = BigInt(xrpl.xrpToDrops(serverInfo.result.info.validated_ledger?.reserve_inc_xrp || 0.2));
+               const ownerCount = BigInt(accountInfo.result.account_data.OwnerCount || 0);
+
+               // Calculate total reserve (base + incremental)
+               let totalReserveDrops = baseReserveDrops + ownerCount * incReserveDrops;
+
+               if (txObject && this.increasesOwnerCount(txObject)) {
+                    totalReserveDrops += incReserveDrops;
+               }
+
+               // Include transaction fee
+               const fee = BigInt(feeDrops);
+
+               // Check if balance is sufficient
+               const requiredDrops = amountDrops + fee + totalReserveDrops;
+               return balanceDrops < requiredDrops; // Return true if insufficient balance
+          } catch (error: any) {
+               console.error('Error checking XRP balance:', error);
+               throw new Error(`Failed to check balance: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     /**
+      * Checks if the account has insufficient IOU balance for a transaction.
+      * @param accountLines - result of `account_lines` call
+      * @param txObject - XRPL transaction object (Payment, OfferCreate, etc.)
+      * @returns true if insufficient balance, false if sufficient
+      */
+     isInsufficientIouBalance(accountLines: any, txObject: any): boolean {
+          try {
+               if (!txObject?.Amount || typeof txObject.Amount === 'string') {
+                    // Not an IOU (string means XRP)
+                    return false;
+               }
+
+               const iouAmount = txObject.Amount;
+               const { currency, issuer, value } = iouAmount;
+
+               if (!currency || !issuer || !value) {
+                    throw new Error('Invalid IOU Amount structure');
+               }
+
+               const amountValue = parseFloat(value);
+               if (isNaN(amountValue) || amountValue < 0) {
+                    throw new Error('Invalid IOU amount value');
+               }
+
+               // Find the trustline for this issuer/currency
+               const trustline = accountLines.result.lines.find((line: any) => line.currency === currency && (line.account === issuer || line.issuer === issuer));
+
+               if (!trustline) {
+                    // No trustline → can’t send IOU
+                    return true;
+               }
+
+               // Trustline balance is from *our perspective*
+               // Negative balance = we owe IOUs, positive = we hold IOUs
+               const balance = parseFloat(trustline.balance);
+
+               // We can only send what we have (positive balance)
+               return balance < amountValue;
+          } catch (error: any) {
+               console.error('Error checking IOU balance:', error);
+               throw new Error(`Failed to check IOU balance: ${error.message || 'Unknown error'}`);
           }
      }
 
