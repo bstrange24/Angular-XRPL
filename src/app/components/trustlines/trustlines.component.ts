@@ -281,13 +281,15 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.showSpinnerWithDelay('Getting Trustlines...', 100);
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Getting Trustlines (${mode})...`);
 
-               // Phase 1: Get client + wallet
+               // Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Phase 2: Parallelize account info + objects
+               // Fetch account info + credential objects in PARALLEL
                const [accountInfo, accountObjects, accountCurrencies] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountCurrencies(client, wallet.classicAddress, 'validated', '')]);
 
                // Optional: Avoid heavy stringify in logs
@@ -363,7 +365,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          const [currency, counterparty] = key.split(':');
                          return {
                               key: `Total ${currency} Balance (Counterparty: ${counterparty})`,
-                              value: `${balance.toFixed(8)} ${currency}`,
+                              value: `${this.utilsService.formatTokenBalance(balance.toString(), 2)} ${currency}`,
                          };
                     });
 
@@ -384,7 +386,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                               if (isOurWalletHigh) {
                                    if (parseFloat(ourLimit) === 0) {
-                                        balanceStatus = `(Unreceivable: ${ourBalance} ${currency} owed by counterparty)`;
+                                        balanceStatus = `(Unreceivable: ${this.utilsService.formatTokenBalance(ourBalance.toString(), 2)} ${currency} owed by counterparty)`;
                                         ourBalance = 0;
                                    } else {
                                         ourBalance = -ourBalance;
@@ -398,7 +400,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    openByDefault: false,
                                    content: [
                                         { key: 'Currency', value: currency },
-                                        { key: 'Account Balance', value: `${ourBalance} ${currency} ${balanceStatus}` },
+                                        { key: 'Account Balance', value: `${this.utilsService.formatTokenBalance(ourBalance.toString(), 2)} ${currency} ${balanceStatus}` },
                                         { key: 'Account Limit', value: ourLimit },
                                         { key: 'Account Position', value: isOurWalletLow ? 'Low Account' : 'High Account' },
                                         { key: 'Counterparty', value: `<code>${counterparty}</code>` },
@@ -447,7 +449,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                                                   content: [
                                                        { key: 'Currency', value: displayCurrency },
                                                        { key: 'Issuer', value: `<code>${issuer}</code>` },
-                                                       { key: 'Amount', value: value },
+                                                       { key: 'Amount', value: this.utilsService.formatTokenBalance(value, 2) },
                                                   ],
                                              });
                                         }
@@ -625,7 +627,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, accountLines, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -692,10 +694,17 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                // PHASE 4: Validate balance
-               const xrpAmount = this.currencyField === AppConstants.XRP_CURRENCY ? this.amountField : '0';
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, xrpAmount, wallet.classicAddress, trustSetTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
+               console.log('Sufficient XRP balance, good to go');
+
+               if (this.utilsService.isInsufficientIouBalance(accountLines, trustSetTx)) {
+                    return this.setError('ERROR: Not enough IOU balance for this transaction');
+               }
+               console.log('Sufficient IOU balance, good to go');
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
@@ -726,9 +735,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
-
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                     const isSuccess = this.utilsService.isTxSuccessful(response);
@@ -746,18 +752,23 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
+                    }
                }
           } catch (error: any) {
                console.error('Error in setTrustLine:', error);
@@ -798,7 +809,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, serverInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getXrplServerInfo(client, 'current', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -884,6 +895,18 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(trustSetTx, this.memoField);
                }
 
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+               console.log('Sufficient XRP balance, good to go');
+
+               if (this.utilsService.isInsufficientIouBalance(trustLines, trustSetTx)) {
+                    return this.setError('ERROR: Not enough IOU balance for this transaction');
+               }
+               console.log('Sufficient IOU balance, good to go');
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Removing Trustline (no changes will be made)...' : 'Submitting to Ledger...');
+
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
 
@@ -903,11 +926,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // Validate balance (always 0 XRP needed for removal)
-                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
-                         return this.setError('ERROR: Insufficient XRP to complete transaction');
-                    }
-
                     // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -917,9 +935,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign transaction.');
                     }
-
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Removing Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -938,19 +953,21 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               // DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
                     }, 0);
-               } else {
                }
           } catch (error: any) {
                console.error('Error in removeTrustline:', error);
@@ -994,7 +1011,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index + trust lines
-               let [accountInfo, accountObjects, fee, lastLedgerIndex, trustLines] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '')]);
+               let [accountInfo, accountObjects, fee, lastLedgerIndex, trustLines, serverInfo] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+                    this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
+               ]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -1042,6 +1066,16 @@ export class TrustlinesComponent implements AfterViewChecked {
                          this.utilsService.setMemoField(accountSetTx, this.memoField);
                     }
 
+                    if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, accountSetTx, fee)) {
+                         return this.setError('ERROR: Insufficient XRP to complete transaction');
+                    }
+                    console.log('Sufficient XRP balance, good to go');
+
+                    if (this.utilsService.isInsufficientIouBalance(trustLines, accountSetTx)) {
+                         return this.setError('ERROR: Not enough IOU balance for this transaction');
+                    }
+                    console.log('Sufficient IOU balance, good to go');
+
                     if (this.isSimulateEnabled) {
                          const simulation = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
 
@@ -1061,11 +1095,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          this.resultField.nativeElement.classList.add('success');
                          this.setSuccess(this.result);
                     } else {
-                         // Validate balance
-                         if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, accountSetTx, fee)) {
-                              return this.setError('ERROR: Insufficient XRP to complete transaction');
-                         }
-
                          // Sign transaction
                          let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, accountSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
@@ -1144,6 +1173,16 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
                }
 
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, paymentTx, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+               console.log('Sufficient XRP balance, good to go');
+
+               if (this.utilsService.isInsufficientIouBalance(trustLines, paymentTx)) {
+                    return this.setError('ERROR: Not enough IOU balance for this transaction');
+               }
+               console.log('Sufficient IOU balance, good to go');
+
                let response;
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, paymentTx);
@@ -1164,11 +1203,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // Validate balance
-                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, paymentTx, fee)) {
-                         return this.setError('ERROR: Insufficient XRP to complete transaction');
-                    }
-
                     // Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
@@ -1258,22 +1292,21 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 
-                    // DEFER: Non-critical UI updates
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                               await this.updateCurrencyBalance(wallet, accountObjects);
                               this.updateGatewayBalance(gatewayBalances);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
                     }, 0);
-               } else {
-                    if (!this.isSimulateEnabled) {
-                         // Render result
-                         this.renderTransactionResult(response);
-                    }
                }
           } catch (error: any) {
                console.error('Error in issueCurrency:', error);
@@ -1315,12 +1348,21 @@ export class TrustlinesComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, trustLines, serverInfo, fee, currentLedger] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+               ]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo :`, accountInfo.result);
+               console.debug(`accountObjects :`, accountObjects.result);
+               console.debug(`trustLines :`, trustLines.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
 
@@ -1368,6 +1410,16 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(clawbackTx, this.memoField);
                }
 
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, clawbackTx, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+               console.log('Sufficient XRP balance, good to go');
+
+               if (this.utilsService.isInsufficientIouBalance(trustLines, clawbackTx)) {
+                    return this.setError('ERROR: Not enough IOU balance for this transaction');
+               }
+               console.log('Sufficient IOU balance, good to go');
+
                let response;
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, clawbackTx);
@@ -1388,11 +1440,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // Validate balance (always 0 XRP needed for clawback)
-                    if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, clawbackTx, fee)) {
-                         return this.setError('ERROR: Insufficient XRP to complete transaction');
-                    }
-
                     // PHASE 5: Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, clawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
@@ -1417,26 +1464,22 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
-               }
 
-               // Only update balances and UI if not in simulation mode
-               if (!this.isSimulateEnabled) {
-                    // Fetch gateway balance while updating XRP balance
-                    const gatewayBalancePromise = this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects, gatewayBalancePromise] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    // DEFER: Non-critical UI updates
+                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              await this.updateCurrencyBalance(wallet, accountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                              this.updateGatewayBalance(await gatewayBalancePromise);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              this.updateCurrencyBalance(wallet, updatedAccountObjects);
+                              this.updateGatewayBalance(gatewayBalancePromise);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
                     }, 0);
-               } else {
-                    this.renderTransactionResult(response);
                }
           } catch (error: any) {
                console.error('Error in clawbackTokens:', error);
@@ -1503,6 +1546,14 @@ export class TrustlinesComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
@@ -1665,69 +1716,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                console.log('HighFreeze:', !!(flagsNumber & this.ledgerFlagMap['lsfHighFreeze']));
           }
           console.log('-----------------------------------------');
-     }
-
-     private updateTrustLineFlagsInUI2(accountObjects: xrpl.AccountObjectsResponse, wallet: xrpl.Wallet) {
-          const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
-          const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency) as xrpl.LedgerEntry.RippleState | undefined;
-
-          if (rippleState) {
-               const flagsNumber: number = rippleState.Flags ?? 0;
-
-               // Correct way: check whether we are the LowLimit side
-               const isLowAddress = wallet.classicAddress === rippleState.LowLimit.issuer;
-
-               if (isLowAddress) {
-                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & this.ledgerFlagMap['lsfLowAuth']);
-                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & this.ledgerFlagMap['lsfLowNoRipple']);
-                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & this.ledgerFlagMap['lsfLowFreeze']);
-               } else {
-                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & this.ledgerFlagMap['lsfHighAuth']);
-                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & this.ledgerFlagMap['lsfHighNoRipple']);
-                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & this.ledgerFlagMap['lsfHighFreeze']);
-               }
-
-               this.trustlineFlags['tfClearNoRipple'] = !this.trustlineFlags['tfSetNoRipple'];
-               this.trustlineFlags['tfClearFreeze'] = !this.trustlineFlags['tfSetFreeze'];
-
-               // Not applicable for trustlines
-               this.trustlineFlags['tfPartialPayment'] = false;
-               this.trustlineFlags['tfNoDirectRipple'] = false;
-               this.trustlineFlags['tfLimitQuality'] = false;
-
-               this.showTrustlineOptions = true;
-          } else {
-               // No trustline found, reset everything
-               Object.keys(this.trustlineFlags).forEach(key => {
-                    this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-               });
-               this.showTrustlineOptions = false;
-          }
-     }
-
-     private updateTrustLineFlagsInUI1(accountObjects: xrpl.AccountObjectsResponse, wallet: xrpl.Wallet) {
-          const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
-          const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency);
-
-          if (rippleState && 'LedgerEntryType' in rippleState && rippleState.LedgerEntryType === 'RippleState') {
-               const flagsNumber: number = rippleState.Flags ?? 0;
-
-               const isLowAddress = wallet.classicAddress < (rippleState as xrpl.LedgerEntry.RippleState).HighLimit.issuer;
-
-               this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & (isLowAddress ? this.ledgerFlagMap['lsfLowAuth'] : this.ledgerFlagMap['lsfHighAuth']));
-               this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & this.ledgerFlagMap['lsfNoRipple']);
-               this.trustlineFlags['tfClearNoRipple'] = !(flagsNumber & this.ledgerFlagMap['lsfNoRipple']);
-               this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & (isLowAddress ? this.ledgerFlagMap['lsfLowFreeze'] : this.ledgerFlagMap['lsfHighFreeze']));
-               this.trustlineFlags['tfClearFreeze'] = !(flagsNumber & (isLowAddress ? this.ledgerFlagMap['lsfLowFreeze'] : this.ledgerFlagMap['lsfHighFreeze']));
-               this.trustlineFlags['tfPartialPayment'] = false;
-               this.trustlineFlags['tfNoDirectRipple'] = false;
-               this.trustlineFlags['tfLimitQuality'] = false;
-               this.showTrustlineOptions = true;
-          } else {
-               Object.keys(this.trustlineFlags).forEach(key => {
-                    this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-               });
-          }
      }
 
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
