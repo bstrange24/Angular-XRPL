@@ -125,26 +125,13 @@ export class FirewallComponent implements AfterViewChecked {
      ngOnInit() {
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
           if (storedDestinations) {
-               console.log(`storedDestinations: `, storedDestinations)
-               const storedDestinations1 = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress');
-               console.log(`storedDestinations1: `, storedDestinations1)
-               if (storedDestinations1) {
-                    const convertedDestinations = Object.entries(storedDestinations)
-                         .filter(([_, value]) => value && value.trim() !== '') // Remove "XRP": ""
-                         .reduce((acc, [_, value]) => {
-                         acc[value] = value;
-                         return acc;
-                         }, {} as { [key: string]: string });
-
-                         // Merge both objects
-                         const combined = {
-                         ...convertedDestinations,
-                         ...storedDestinations1
-                    };
-
-
-                    console.log(`combinedString: `, combined)
-                    this.knownDestinations = storedDestinations;
+               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress');
+               console.debug(`storedDestinations: `, storedDestinations);
+               console.debug(`knownWhitelistAddress: `, knownWhitelistAddress);
+               if (knownWhitelistAddress) {
+                    const combined = this.comineWhiteListDestiationAddresses(storedDestinations, knownWhitelistAddress);
+                    console.log(`combinedString: `, combined);
+                    this.knownDestinations = combined;
                     this.updateWhitelistAddress();
                }
           }
@@ -1391,8 +1378,8 @@ export class FirewallComponent implements AfterViewChecked {
                     return;
                }
 
-               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress')  || {};
-               knownWhitelistAddress[this.newWhitelistAddress ] = this.newWhitelistAddress ;
+               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
+               knownWhitelistAddress[this.newWhitelistAddress] = this.newWhitelistAddress;
                this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownWhitelistAddress);
 
                this.updateWhitelistAddress();
@@ -1407,7 +1394,7 @@ export class FirewallComponent implements AfterViewChecked {
 
      removeWhitelistAddress() {
           if (this.whitelistAddressToRemove) {
-               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress')  || {};
+               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
 
                if (knownWhitelistAddress && knownWhitelistAddress[this.whitelistAddressToRemove]) {
                     delete knownWhitelistAddress[this.whitelistAddressToRemove];
@@ -1424,8 +1411,28 @@ export class FirewallComponent implements AfterViewChecked {
      }
 
      private updateWhitelistAddress() {
-          const t = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress')  || {};
+          const t = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
           this.whitelistAddresses = t ? Object.keys(t) : [];
+          this.setSuccess(`whitelistAddresses ${this.whitelistAddresses}`);
+
+          // merge whitelist into destinations
+          this.destinations = [...new Set([...Object.values(this.knownDestinations), ...this.whitelistAddresses])];
+     }
+
+     private comineWhiteListDestiationAddresses(storedDestinations: { [key: string]: string }, knownWhitelistAddress: { [key: string]: string }) {
+          const convertedDestinations = Object.entries(storedDestinations)
+               .filter(([_, value]) => value && value.trim() !== '') // Remove "XRP": ""
+               .reduce((acc, [_, value]) => {
+                    acc[value] = value;
+                    return acc;
+               }, {} as { [key: string]: string });
+
+          // Merge both objects
+          const combined = {
+               ...convertedDestinations,
+               ...knownWhitelistAddress,
+          };
+          return combined;
      }
 
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
