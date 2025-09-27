@@ -241,10 +241,9 @@ export class MptComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // PHASE 1: PARALLELIZE — fetch account info + account objects together
-               const [accountInfo, accountObjects, mptokenObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'mptoken')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -255,32 +254,31 @@ export class MptComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
-               console.debug(`MPT Account Objects:`, mptokenObjects.result);
-
-               // Filter MPT-related objects
-               const mptokens = mptokenObjects.result.account_objects;
+               console.debug(`accountObjects:`, accountObjects.result);
 
                // Prepare data structure
                const data = {
                     sections: [{}],
                };
 
-               if (mptokens.length <= 0) {
+               // Filter MPT-related objects
+               const mptObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPTokenIssuance' || obj.LedgerEntryType === 'MPToken');
+               if (mptObjects.length <= 0) {
                     data.sections.push({
                          title: 'MPT Tokens',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Sort by Sequence (oldest first)
-                    const sortedMPT = [...mptokens].sort((a, b) => {
+                    const sortedMPT = [...mptObjects].sort((a, b) => {
                          const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
                          const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
                          return seqA - seqB;
                     });
 
                     data.sections.push({
-                         title: `MPT Token (${mptokens.length})`,
+                         title: `MPT Token (${mptObjects.length})`,
                          openByDefault: true,
                          subItems: sortedMPT.map((mpt, counter) => {
                               const { LedgerEntryType, PreviousTxnID, index } = mpt;
@@ -314,21 +312,16 @@ export class MptComponent implements AfterViewChecked {
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched data — no redundant API calls!
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
-
-                         this.isMemoEnabled = false;
-                         this.memoField = '';
-
+                         this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for MPT:', err);
-                         // Don't break main render — MPT details are already shown
                     }
                }, 0);
           } catch (error: any) {
@@ -341,8 +334,8 @@ export class MptComponent implements AfterViewChecked {
           }
      }
 
-     async generateMpt() {
-          console.log('Entering generateMpt');
+     async createMpt() {
+          console.log('Entering createMpt');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -400,7 +393,7 @@ export class MptComponent implements AfterViewChecked {
                const mPTokenIssuanceCreateTx: MPTokenIssuanceCreate = {
                     TransactionType: 'MPTokenIssuanceCreate',
                     Account: wallet.classicAddress,
-                    AssetClass: 'CTZMPT',
+                    // AssetClass: 'CTZMPT',
                     MaximumAmount: this.tokenCountField,
                     Fee: fee,
                     Flags: v_flags,
@@ -524,7 +517,7 @@ export class MptComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving generateMpt in ${this.executionTime}ms`);
+               console.log(`Leaving createMpt in ${this.executionTime}ms`);
           }
      }
 
@@ -1310,8 +1303,8 @@ export class MptComponent implements AfterViewChecked {
           }
      }
 
-     async deleteMpt() {
-          console.log('Entering deleteMpt');
+     async destroyMpt() {
+          console.log('Entering destroyMpt');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -1460,46 +1453,32 @@ export class MptComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving deleteMpt in ${this.executionTime}ms`);
+               console.log(`Leaving destroyMpt in ${this.executionTime}ms`);
           }
      }
 
      getFlagsValue(flags: AccountFlags): number {
           let v_flags = 0;
           if (flags.isLock) {
-               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanLock; // 2
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanLock; // 2
           }
           if (flags.isRequireAuth) {
-               v_flags += MPTokenIssuanceCreateFlags.tfMPTRequireAuth; // 4;
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTRequireAuth; // 4;
           }
           if (flags.isEscrow) {
-               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanEscrow; // 8;
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanEscrow; // 8;
           }
           if (flags.isTradable) {
-               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanTrade; // 16;
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanTrade; // 16;
           }
           if (flags.isTransferable) {
-               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanTransfer; // 32;
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanTransfer; // 32;
           }
           if (flags.isClawback) {
-               v_flags += MPTokenIssuanceCreateFlags.tfMPTCanClawback; // 64;
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanClawback; // 64;
           }
           return v_flags;
      }
-
-     // getMptFlagsReadable(flags: number): string[] {
-     //      const readable: string[] = [];
-     //      for (const [bit, description] of Object.entries(this.MPT_FLAGS)) {
-     //           if ((flags & Number(bit)) !== 0) {
-     //                if (readable.length == 0) {
-     //                     readable.push(description);
-     //                } else {
-     //                     readable.push(' ' + description);
-     //                }
-     //           }
-     //      }
-     //      return readable.length > 0 ? readable : ['No MPT flags set'];
-     // }
 
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
@@ -1552,10 +1531,10 @@ export class MptComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
           if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
@@ -1574,10 +1553,6 @@ export class MptComponent implements AfterViewChecked {
           } else {
                this.multiSigningEnabled = false;
           }
-
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
      }
 
      private refreshUiAccountInfo(accountInfo: any) {
@@ -1939,25 +1914,32 @@ export class MptComponent implements AfterViewChecked {
      }
 
      clearFields(clearAllFields: boolean) {
+          if (clearAllFields) {
+               this.isRegularKeyAddress = false;
+               this.isMptFlagModeEnabled = false;
+               this.tokenCountField = '';
+               this.assetScaleField = '';
+               this.transferFeeField = '';
+               this.mptIssuanceIdField = '';
+               this.metaDataField = '';
+               this.amountField = '';
+               this.flags.isClawback = false;
+               this.flags.isLock = false;
+               this.flags.isRequireAuth = false;
+               this.flags.isTransferable = false;
+               this.flags.isTradable = false;
+               this.flags.isEscrow = false;
+               this.destinationTagField = '';
+               this.isSimulateEnabled = false;
+          }
+
+          this.isMemoEnabled = false;
           this.memoField = '';
-          this.metaDataField = '';
-          this.assetScaleField = '';
-          this.transferFeeField = '';
-          this.mptIssuanceIdField = '';
-          this.tokenCountField = '';
-          this.amountField = '';
-          this.isTicket = false;
           this.useMultiSign = false;
-          this.multiSignAddress = '';
-          this.flags.isClawback = false;
-          this.flags.isLock = false;
-          this.flags.isRequireAuth = false;
-          this.flags.isTransferable = false;
-          this.flags.isTradable = false;
-          this.flags.isEscrow = false;
-          this.ticketSequence = '';
-          this.signerQuorum = 0;
+
+          this.isTicket = false;
           this.isTicketEnabled = false;
+          this.ticketSequence = '';
           this.cdr.detectChanges();
      }
 

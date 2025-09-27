@@ -202,13 +202,12 @@ export class CreateTicketsComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
                const [accountInfo, ticketObjects, allAccountObjects] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'ticket'),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), // for refreshUiAccountObjects
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket'),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), // for refreshUiAccountObjects
                ]);
 
                inputs = {
@@ -272,7 +271,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                          // Use pre-fetched allAccountObjects and accountInfo
                          this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {

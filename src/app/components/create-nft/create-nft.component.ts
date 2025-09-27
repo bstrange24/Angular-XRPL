@@ -248,10 +248,9 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // PHASE 1: PARALLELIZE all independent API calls
-               const [accountNfts, accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountNFTs(client, classicAddress, 'validated', ''), this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountNfts, accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
@@ -279,7 +278,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'NFTs',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No NFTs found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No NFTs found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Define flags (you can move this to a constant outside the function if reused elsewhere)
@@ -337,7 +336,7 @@ export class CreateNftComponent implements AfterViewChecked {
                          // Use pre-fetched data — no redundant API calls!
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                          this.isMemoEnabled = false;
                          this.memoField = '';
@@ -888,13 +887,12 @@ export class CreateNftComponent implements AfterViewChecked {
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // PHASE 1: PARALLELIZE all independent API calls
                const [accountInfo, accountObjects, nftInfo, sellOffersResponse, buyOffersResponse] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''),
-                    this.xrplService.getAccountNFTs(client, classicAddress, 'validated', '').catch(() => ({ result: { account_nfts: [] } })),
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '').catch(() => ({ result: { account_nfts: [] } })),
                     this.xrplService.getNFTSellOffers(client, this.nftIdField).catch(err => {
                          console.warn('Sell Offers Error:', err.message);
                          return { result: { offers: [] } };
@@ -906,11 +904,11 @@ export class CreateNftComponent implements AfterViewChecked {
                ]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
-               console.debug(`nftInfo for ${classicAddress}:`, nftInfo.result);
-               console.debug(`sellOffersResponse for ${classicAddress}:`, sellOffersResponse.result);
-               console.debug(`buyOffersResponse for ${classicAddress}:`, buyOffersResponse.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`nftInfo for ${wallet.classicAddress}:`, nftInfo.result);
+               console.debug(`sellOffersResponse for ${wallet.classicAddress}:`, sellOffersResponse.result);
+               console.debug(`buyOffersResponse for ${wallet.classicAddress}:`, buyOffersResponse.result);
 
                inputs = {
                     ...inputs,
@@ -933,7 +931,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'NFT Details',
                          openByDefault: true,
-                         content: [{ key: 'NFToken ID', value: `<code>${nft.NFTokenID}</code>` }, { key: 'Issuer', value: `<code>${nft.Issuer || classicAddress}</code>` }, { key: 'Taxon', value: String(nft.NFTokenTaxon) }, ...(nft.URI ? [{ key: 'URI', value: `<code>${nft.URI}</code>` }] : []), { key: 'Serial', value: String(nft.nft_serial || 'N/A') }],
+                         content: [{ key: 'NFToken ID', value: `<code>${nft.NFTokenID}</code>` }, { key: 'Issuer', value: `<code>${nft.Issuer || wallet.classicAddress}</code>` }, { key: 'Taxon', value: String(nft.NFTokenTaxon) }, ...(nft.URI ? [{ key: 'URI', value: `<code>${nft.URI}</code>` }] : []), { key: 'Serial', value: String(nft.nft_serial || 'N/A') }],
                     });
                } else {
                     data.sections.push({
@@ -942,7 +940,7 @@ export class CreateNftComponent implements AfterViewChecked {
                          content: [
                               {
                                    key: 'Status',
-                                   value: `No NFT found for TokenID <code>${this.nftIdField}</code> in account <code>${classicAddress}</code>`,
+                                   value: `No NFT found for TokenID <code>${this.nftIdField}</code> in account <code>${wallet.classicAddress}</code>`,
                               },
                          ],
                     });

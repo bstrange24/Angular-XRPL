@@ -510,10 +510,9 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // PHASE 1: PARALLELIZE — fetch account info + offers + account objects together
-               const [accountInfo, offersResponse, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountOffers(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, offersResponse, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountOffers(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -526,9 +525,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`offers for ${classicAddress}:`, offersResponse.result);
-               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`offers for ${wallet.classicAddress}:`, offersResponse.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
                // Prepare data structure
                const data = {
@@ -541,7 +540,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'Offers',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No offers found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No offers found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     data.sections.push({
@@ -588,7 +587,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          // Use pre-fetched data — no redundant API calls!
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                          this.isMemoEnabled = false;
                          this.memoField = '';
@@ -639,10 +638,9 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // PHASE 1: Fetch account info (needed for validation)
-               const accountInfo = await this.xrplService.getAccountInfo(client, classicAddress, 'validated', '');
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
 
                inputs = {
                     ...inputs,
@@ -684,14 +682,14 @@ export class CreateOfferComponent implements AfterViewChecked {
                const [orderBook, counterOrderBook, ammData] = await Promise.all([
                     client.request({
                          command: 'book_offers',
-                         taker: classicAddress, // ← Use classicAddress, not wallet.address
+                         taker: wallet.classicAddress, // ← Use classicAddress, not wallet.address
                          ledger_index: 'current',
                          taker_gets: we_want,
                          taker_pays: we_spend,
                     }),
                     client.request({
                          command: 'book_offers',
-                         taker: classicAddress,
+                         taker: wallet.classicAddress,
                          ledger_index: 'current',
                          taker_gets: we_spend,
                          taker_pays: we_want,
@@ -703,7 +701,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                ]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`orderBook:`, orderBook.result);
                console.debug(`counterOrderBook:`, counterOrderBook.result);
                console.debug(`ammData: `, ammData ? ammData.result : '');

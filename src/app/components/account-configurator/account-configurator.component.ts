@@ -501,7 +501,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      //           const client = await this.xrplService.getClient();
      //           const wallet = await this.getWallet();
-     //           const classicAddress = wallet.classicAddress;
 
      //           // ➤ PHASE 1: PARALLELIZE — fetch account info + objects + fee + ledger index
      //           let [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
@@ -1571,7 +1570,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
 
           try {
-               const classicAddress = wallet.classicAddress;
                const environment = this.xrplService.getNet().environment;
 
                // Get flag label for UI
@@ -1585,7 +1583,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                // Prepare transaction
                const tx: any = {
                     TransactionType: 'AccountSet',
-                    Account: classicAddress,
+                    Account: wallet.classicAddress,
                     ...flagPayload,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -1593,9 +1591,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                // Handle Ticket Sequence
                if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, classicAddress, Number(this.ticketSequence));
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
                     if (!ticketExists) {
-                         return { success: false, message: `ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${classicAddress}` };
+                         return { success: false, message: `ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}` };
                     }
                     this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
                } else {
@@ -1640,7 +1638,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                // Validate balance
                const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
-               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', classicAddress, tx, tx.Fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, tx, tx.Fee)) {
                     return { success: false, message: 'ERROR: Insufficient XRP to complete transaction' };
                }
 

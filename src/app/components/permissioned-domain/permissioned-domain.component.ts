@@ -241,10 +241,9 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info + credential objects in PARALLEL
-               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -254,8 +253,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                }
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`Permissioned Domain objects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`Permissioned Domain objects for ${wallet.classicAddress}:`, accountObjects.result);
 
                type Section = {
                     title: string;
@@ -276,7 +275,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'Permissioned Domain',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No permissioned domains found for <code>${classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No permissioned domains found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     const permissionedDomainItems = delegateObjects.map((pd: any, index: number) => {
@@ -323,7 +322,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {

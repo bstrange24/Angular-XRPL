@@ -20,6 +20,42 @@ type DidValidationResult = {
 
 type InputType = 'seed' | 'mnemonic' | 'secret_numbers' | 'unknown';
 
+interface EscrowWithTxData {
+     LedgerEntryType: 'Escrow';
+     Account: string;
+     Amount?: string | { currency: string; value: string } | { mpt_issuance_id: string; value: string };
+     Destination: string;
+     PreviousTxnID?: string;
+     Condition?: string;
+     CancelAfter?: number;
+     FinishAfter?: number;
+     DestinationTag?: number;
+     SourceTag?: number;
+     Sequence?: number | null;
+     TicketSequence?: string | number;
+     Memo?: string | null;
+}
+
+interface RippleState {
+     LedgerEntryType: 'RippleState';
+     Balance: { currency: string; value: string };
+     HighLimit: { issuer: string };
+}
+
+interface MPToken {
+     LedgerEntryType: 'MPToken';
+     index: string;
+     mpt_issuance_id?: string;
+     MPTokenIssuanceID?: string;
+     PreviousTxnID: string;
+     Flags?: number;
+     MPTAmount?: string | number;
+     MaximumAmount?: string | number;
+     OutstandingAmount?: string | number;
+     TransferFee?: string | number;
+     MPTokenMetadata?: string;
+}
+
 @Injectable({
      providedIn: 'root',
 })
@@ -690,6 +726,18 @@ export class UtilsService {
           padded.set(codeBytes);
 
           return Buffer.from(padded).toString('hex').toUpperCase(); // 40-char hex string
+     }
+
+     isEscrow(obj: any): obj is EscrowWithTxData {
+          return obj && obj.LedgerEntryType === 'Escrow';
+     }
+
+     isRippleState(obj: any): obj is RippleState {
+          return obj && obj.LedgerEntryType === 'RippleState';
+     }
+
+     isMPT(obj: any): obj is MPToken {
+          return obj && obj.LedgerEntryType === 'MPToken';
      }
 
      decodeNFTFlags(flags: any) {

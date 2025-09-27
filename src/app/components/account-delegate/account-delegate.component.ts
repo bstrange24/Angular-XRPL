@@ -253,16 +253,15 @@ export class AccountDelegateComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info + objects in PARALLEL
-               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
@@ -302,7 +301,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          content: [
                               {
                                    key: 'Status',
-                                   value: `No permissioned domains found between <code>${classicAddress}</code> and <code>${this.destinationFields}</code>`,
+                                   value: `No permissioned domains found between <code>${wallet.classicAddress}</code> and <code>${this.destinationFields}</code>`,
                               },
                          ],
                     });
@@ -358,7 +357,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
