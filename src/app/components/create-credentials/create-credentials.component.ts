@@ -707,7 +707,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     this.setErrorProperties();
                     return;
                }
-               console.debug(`credentialFound for ${wallet.classicAddress} ${JSON.stringify(credentialFound, null, '\t')}`);
+               console.debug(`credentialFound for ${wallet.classicAddress} ${credentialFound}`);
 
                const credentialAcceptTx: CredentialAccept = {
                     TransactionType: 'CredentialAccept',
@@ -902,7 +902,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     ledger_index: 'validated',
                };
                console.info('Looking up credential...');
-               console.info(JSON.stringify(ledgerEntryRequest, null, 2));
+               console.info(`Found: `, ledgerEntryRequest);
 
                let xrplResponse;
                try {
@@ -933,8 +933,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                }
 
                const credential = (xrplResponse.result as any).node;
-               console.info('Found credential:');
-               console.info(JSON.stringify(credential, null, 2));
+               console.info(`Found credential:`, credential);
 
                // Check if the credential has been accepted
                if (!(credential.Flags & AppConstants.LSF_ACCEPTED)) {

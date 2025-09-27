@@ -384,7 +384,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+               console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo);
 
                const permissionedDomainTx: PermissionedDomainSet = {
                     TransactionType: 'PermissionedDomainSet',

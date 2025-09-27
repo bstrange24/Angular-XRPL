@@ -834,9 +834,9 @@ export class CreateNftComponent implements AfterViewChecked {
                     };
 
                     const prepared = await client.autofill(singleTx);
-                    console.log('Single-sign batch:', JSON.stringify(prepared, null, 2));
+                    console.log(`Single-sign batch:`, prepared);
                     tx = await client.submitAndWait(prepared, { wallet });
-                    console.log('tx:', JSON.stringify(tx, null, 2));
+                    console.log(`tx:`, tx);
                } else {
                     // Batch submit if > 1
                     if (this.useMultiSign) {

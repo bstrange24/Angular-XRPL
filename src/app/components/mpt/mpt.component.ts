@@ -1041,7 +1041,7 @@ export class MptComponent implements AfterViewChecked {
                     return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationFields}`);
                }
                const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
-               console.debug(`Destination MPT Tokens: ${JSON.stringify(mptTokens, null, '\t')}`);
+               console.debug(`Destination MPT Tokens:`, mptTokens);
                console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
 
                const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
@@ -1199,9 +1199,9 @@ export class MptComponent implements AfterViewChecked {
                }
 
                // const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               console.debug(`MPT Account Objects: ${JSON.stringify(mptokenObjects, null, '\t')}`);
+               console.debug(`MPT Account Objects: `, mptokenObjects);
                const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance' || o.LedgerEntryType === 'MPToken');
-               console.debug(`MPT Objects: ${JSON.stringify(mptokens, null, '\t')}`);
+               console.debug(`MPT Objects: `, mptokens);
                console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
 
                const accountIssuerToken = mptokens.some((obj: any) => obj.mpt_issuance_id === this.mptIssuanceIdField);

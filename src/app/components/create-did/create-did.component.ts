@@ -377,7 +377,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                if (this.didDetails.document) {
                     const didDocument = { didData: this.didDetails.document };
-                    console.debug('DID Document:', JSON.stringify(didDocument, null, 2));
+                    console.debug(`DID Document:`, didDocument);
                     const didDocumentHex = this.utilsService.jsonToHex(didDocument);
                     console.log(didDocumentHex);
                     didSetTx.DIDDocument = didDocumentHex;
@@ -385,7 +385,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                if (this.didDetails.uri) {
                     const didURI = { uri: this.didDetails.uri };
-                    console.debug('DID URI:', JSON.stringify(didURI, null, 2));
+                    console.debug(`DID URI:`, didURI);
                     const didURIHex = this.utilsService.jsonToHex(didURI);
                     console.log(didURIHex);
                     didSetTx.URI = didURIHex;

@@ -1104,7 +1104,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                };
 
                const participation = await this.checkAmmParticipation(client, wallet.classicAddress);
-               console.info(`participation ${JSON.stringify(participation, null, '\t')}`);
+               console.info(`participation:`, participation);
 
                const ammIssuer = participation.lpTokens[0].issuer;
                const ammCurrency = participation.lpTokens[0].currency;
@@ -1721,7 +1721,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
                const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
 
-               console.debug(`refreshUiAccountObjects: ${JSON.stringify(signerEntries, null, 2)}`);
+               console.debug(`refreshUiAccountObjects:`, signerEntries);
 
                this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
                this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');

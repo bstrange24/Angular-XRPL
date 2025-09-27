@@ -1599,7 +1599,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-               console.debug(`accountInfo for ${wallet.classicAddress} ${JSON.stringify(accountInfo.result, null, '\t')}`);
+               console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo);
 
                let { useRegularKeyWalletSignTx, regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -1661,7 +1661,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          }
 
                          const preparedTx = await client.autofill(offerCancelTx);
-                         console.log(`preparedTx: ${JSON.stringify(preparedTx, null, '\t')}`);
+                         console.log(`preparedTx:`, preparedTx);
                          signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
 
                          if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, offerCancelTx, fee)) {
@@ -1671,11 +1671,11 @@ export class CreateOfferComponent implements AfterViewChecked {
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign transaction.');
                          }
-                         console.log('signed:', JSON.stringify(signedTx, null, '\t'));
+                         console.log(`signed:`, signedTx);
 
                          this.updateSpinnerMessage('Submitting transaction to the Ledger...');
                          const response = await client.submitAndWait(signedTx.tx_blob);
-                         console.log('Response:', JSON.stringify(response, null, '\t'));
+                         console.log(`Response:`, response);
 
                          transactions.push({
                               type: 'OfferCancel',
