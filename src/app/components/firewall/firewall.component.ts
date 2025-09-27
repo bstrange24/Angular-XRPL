@@ -6,7 +6,7 @@ import { UtilsService } from '../../services/utils.service';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { MPTokenIssuanceCreate, MPTokenIssuanceCreateFlags } from 'xrpl';
+import { MPTokenIssuanceCreate } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -125,10 +125,27 @@ export class FirewallComponent implements AfterViewChecked {
      ngOnInit() {
           const storedDestinations = this.storageService.getKnownIssuers('destinations');
           if (storedDestinations) {
-               this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', storedDestinations);
+               console.log(`storedDestinations: `, storedDestinations)
                const storedDestinations1 = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress');
+               console.log(`storedDestinations1: `, storedDestinations1)
                if (storedDestinations1) {
-                    this.knownDestinations = storedDestinations1;
+                    const convertedDestinations = Object.entries(storedDestinations)
+                         .filter(([_, value]) => value && value.trim() !== '') // Remove "XRP": ""
+                         .reduce((acc, [_, value]) => {
+                         acc[value] = value;
+                         return acc;
+                         }, {} as { [key: string]: string });
+
+                         // Merge both objects
+                         const combined = {
+                         ...convertedDestinations,
+                         ...storedDestinations1
+                    };
+
+
+                    console.log(`combinedString: `, combined)
+                    this.knownDestinations = storedDestinations;
+                    this.updateWhitelistAddress();
                }
           }
           this.onAccountChange();
@@ -1358,9 +1375,7 @@ export class FirewallComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          const knownDestinationsTemp = this.utilsService.populateKnownWhitelistAddresses(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
           this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
-          this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownDestinationsTemp);
           this.destinationFields = this.issuer.address;
      }
 
@@ -1370,15 +1385,19 @@ export class FirewallComponent implements AfterViewChecked {
                     this.setError(`Whitelist Address ${this.newWhitelistAddress} already exists`);
                     return;
                }
+
                if (!xrpl.isValidAddress(this.newWhitelistAddress.trim())) {
                     this.setError('Invalid issuer address');
                     return;
                }
-               this.whitelistAddress[this.newWhitelistAddress] = this.newWhitelistAddress;
-               this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', this.whitelistAddress);
+
+               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress')  || {};
+               knownWhitelistAddress[this.newWhitelistAddress ] = this.newWhitelistAddress ;
+               this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownWhitelistAddress);
+
                this.updateWhitelistAddress();
+               this.setSuccess(`Added ${this.newWhitelistAddress} to Whitelist accounts`);
                this.newWhitelistAddress = '';
-               this.setSuccess(`Added ${this.whitelistAddress[this.newWhitelistAddress]}`);
                this.cdr.detectChanges();
           } else {
                this.setError('Currency code and issuer address are required');
@@ -1388,20 +1407,25 @@ export class FirewallComponent implements AfterViewChecked {
 
      removeWhitelistAddress() {
           if (this.whitelistAddressToRemove) {
-               delete this.whitelistAddress[this.whitelistAddressToRemove];
-               this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', this.whitelistAddress);
-               this.updateWhitelistAddress();
+               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress')  || {};
+
+               if (knownWhitelistAddress && knownWhitelistAddress[this.whitelistAddressToRemove]) {
+                    delete knownWhitelistAddress[this.whitelistAddressToRemove];
+                    this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownWhitelistAddress);
+               }
                this.setSuccess(`Removed ${this.whitelistAddressToRemove} from the Whitelist accounts`);
+               this.updateWhitelistAddress();
                this.whitelistAddressToRemove = '';
                this.cdr.detectChanges();
           } else {
-               this.setError('Select a token to remove');
+               this.setError('Select a whitelist address to remove');
           }
           this.spinner = false;
      }
 
      private updateWhitelistAddress() {
-          this.whitelistAddresses = [...Object.keys(this.whitelistAddress)];
+          const t = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress')  || {};
+          this.whitelistAddresses = t ? Object.keys(t) : [];
      }
 
      private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
