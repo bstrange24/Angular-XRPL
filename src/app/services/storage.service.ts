@@ -102,6 +102,17 @@ export class StorageService {
           return value ? JSON.parse(value) : null;
      }
 
+     // Store knownIssuers object
+     setKnownWhitelistAddress(key: string, knownWhitelistAddress: { [key: string]: string }): void {
+          localStorage.setItem(key, JSON.stringify(knownWhitelistAddress));
+     }
+
+     // Retrieve knownIssuers object
+     getKnownWhitelistAddress(key: string): { [key: string]: string } | null {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : null;
+     }
+
      setInputValue(id: string, value: string) {
           if (AppConstants.INPUT_IDS.includes(id)) {
                localStorage.setItem(id, value);

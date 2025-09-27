@@ -596,6 +596,14 @@ export class UtilsService {
           });
      }
 
+     populateKnownWhitelistAddresses(knownDestinations: any, account1: string, account2: string, issuer: string) {
+          return (knownDestinations = {
+               Account1: account1,
+               Account2: account2,
+               Account3: issuer,
+          });
+     }
+
      formatTokenBalance(field: string, roundTo: number): string {
           Number(field).toLocaleString();
           return Number(field).toLocaleString(undefined, {

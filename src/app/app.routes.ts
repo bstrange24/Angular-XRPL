@@ -17,6 +17,7 @@ import { AccountChangesComponent } from './components/account-changes/account-ch
 import { MptComponent } from './components/mpt/mpt.component';
 import { PermissionedDomainComponent } from './components/permissioned-domain/permissioned-domain.component';
 import { AccountDelegateComponent } from './components/account-delegate/account-delegate.component';
+import { FirewallComponent } from './components/firewall/firewall.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -28,6 +29,7 @@ export const routes: Routes = [
      { path: 'create-did', component: CreateDidComponent, data: { title: 'Account DID' } },
      { path: 'permissioned-domain', component: PermissionedDomainComponent, data: { title: 'Permissioned Domain' } },
      { path: 'account-delegate', component: AccountDelegateComponent, data: { title: 'Account Delegate' } },
+     { path: 'firewall', component: FirewallComponent, data: { title: 'Firewall' } },
 
      { path: 'send-xrp', component: SendXrpComponent, data: { title: 'Send XRP' } },
      { path: 'create-payment-channel', component: CreatePaymentChannelComponent, data: { title: 'Payment Channel' } },
