@@ -51,21 +51,21 @@ interface SignerEntry {
      weight: number;
 }
 
-interface AccountFlags {
-     asfRequireDest: boolean;
-     asfRequireAuth: boolean;
-     asfDisallowXRP: boolean;
-     asfDisableMaster: boolean;
-     asfNoFreeze: boolean;
-     asfGlobalFreeze: boolean;
-     asfDefaultRipple: boolean;
-     asfDepositAuth: boolean;
-     asfAllowTrustLineClawback: boolean;
-     asfDisallowIncomingNFTokenOffer: boolean;
-     asfDisallowIncomingCheck: boolean;
-     asfDisallowIncomingPayChan: boolean;
-     asfDisallowIncomingTrustline: boolean;
-     asfAllowTrustLineLocking: boolean;
+interface XRPLPermissionEntry {
+     Permission: {
+          PermissionValue: string;
+     };
+}
+
+interface XRPLDelegate {
+     LedgerEntryType: 'Delegate';
+     Account: string;
+     Authorize?: string;
+     Flags: number;
+     PreviousTxnID: string;
+     PreviousTxnLgrSeq: number;
+     index: string;
+     Permissions: XRPLPermissionEntry[];
 }
 
 interface DelegateAction {
@@ -123,22 +123,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
      isSimulateEnabled: boolean = false;
      memoField: string = '';
      spinnerMessage: string = '';
-     flags: AccountFlags = {
-          asfRequireDest: false,
-          asfRequireAuth: false,
-          asfDisallowXRP: false,
-          asfDisableMaster: false,
-          asfNoFreeze: false,
-          asfGlobalFreeze: false,
-          asfDefaultRipple: false,
-          asfDepositAuth: false,
-          asfAllowTrustLineClawback: false,
-          asfDisallowIncomingNFTokenOffer: false,
-          asfDisallowIncomingCheck: false,
-          asfDisallowIncomingPayChan: false,
-          asfDisallowIncomingTrustline: false,
-          asfAllowTrustLineLocking: false,
-     };
      spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
@@ -217,7 +201,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
@@ -285,8 +269,87 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
+               this.leftActions = this.actions.slice(0, Math.ceil(this.actions.length / 2));
+               this.rightActions = this.actions.slice(Math.ceil(this.actions.length / 2));
+
+               const selectedActions = this.getSelectedActions();
+               console.log(`Selected Actions: `, selectedActions);
+
+               type Section = {
+                    title: string;
+                    openByDefault: boolean;
+                    content?: { key: string; value: string }[];
+                    subItems?: {
+                         key: string;
+                         openByDefault: boolean;
+                         content: { key: string; value: string }[];
+                    }[];
+               };
+               const data: { sections: Section[] } = {
+                    sections: [],
+               };
+
+               // Filter delegates once
+               const delegateObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'Delegate' && obj.Authorize === this.destinationFields);
+               if (!delegateObjects || delegateObjects.length === 0) {
+                    // No delegates found → show "no permissioned domains"
+                    // Clear all selected sliders when no delegates
+                    this.selected.clear();
+
+                    data.sections.push({
+                         title: 'Permissioned Domain',
+                         openByDefault: true,
+                         content: [
+                              {
+                                   key: 'Status',
+                                   value: `No permissioned domains found between <code>${classicAddress}</code> and <code>${this.destinationFields}</code>`,
+                              },
+                         ],
+                    });
+               } else {
+                    this.selected.clear();
+
+                    delegateObjects.forEach((delegate: any) => {
+                         (delegate.Permissions as XRPLPermissionEntry[])?.forEach((p: XRPLPermissionEntry) => {
+                              const matchingAction = this.actions.find(a => a.key === p.Permission?.PermissionValue);
+                              if (matchingAction) {
+                                   this.selected.add(matchingAction.id);
+                              }
+                         });
+                    });
+
+                    this.leftActions = this.actions.slice(0, Math.ceil(this.actions.length / 2));
+                    this.rightActions = this.actions.slice(Math.ceil(this.actions.length / 2));
+
+                    this.cdr.detectChanges();
+
+                    // Build delegate items
+                    const delegateItems = delegateObjects.map((delegate: any, index: number) => {
+                         return {
+                              key: `Delegate ${index + 1}`,
+                              openByDefault: index === 0,
+                              content: [
+                                   { key: 'Owner', value: delegate.Account || 'N/A' },
+                                   { key: 'Authorized', value: delegate.Authorize || 'N/A' },
+                                   ...delegate.Permissions.flatMap((p: any, pIndex: number) => [
+                                        {
+                                             key: `Permission ${pIndex + 1}`,
+                                             value: p.Permission?.PermissionValue || 'N/A',
+                                        },
+                                   ]),
+                              ],
+                         };
+                    });
+
+                    data.sections.push({
+                         title: `Permissioned Domain (${delegateObjects.length})`,
+                         openByDefault: true,
+                         subItems: delegateItems,
+                    });
+               }
+
                // CRITICAL: Render immediately
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -299,8 +362,8 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
-                         console.error('Error in deferred UI updates:', err);
-                         // Don't break main flow — account details are already rendered
+                         console.error('Error in deferred UI updates for credentials:', err);
+                         // Don't break main render — credentials are already shown
                     }
                }, 0);
           } catch (error: any) {
@@ -334,14 +397,14 @@ export class AccountDelegateComponent implements AfterViewChecked {
           try {
                this.resultField.nativeElement.innerHTML = '';
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Getting Delegates (${mode})... Action ${delegate}`);
+               this.updateSpinnerMessage(`Delegate (${mode})... Action ${delegate}`);
 
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                // Fetch account info, fee and current ledger
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -360,7 +423,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     console.log(`Clearing all delegate objects`);
                } else {
                     const selectedActions = this.getSelectedActions();
-                    console.log(`Selected Actions ${JSON.stringify(selectedActions, null, '\t')}`);
+                    console.log(`Selected Actions: `, selectedActions);
 
                     if (selectedActions.length == 0) {
                          return this.setError(`Select a delegate objects to set.`);
@@ -375,7 +438,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                               PermissionValue: a.key,
                          },
                     }));
-                    console.log(`permissions ${JSON.stringify(permissions, null, '\t')}`);
+                    console.log(`permissions: `, permissions);
                }
 
                const delegateSetTx: xrpl.DelegateSet = {
@@ -403,9 +466,11 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(delegateSetTx, this.memoField);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, delegateSetTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, delegateSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Delegate Action (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, delegateSetTx);
@@ -426,18 +491,13 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
 
-                    // Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, delegateSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 

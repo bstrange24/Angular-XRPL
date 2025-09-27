@@ -171,6 +171,10 @@ export class CreateDidComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     toggleTicketSequence() {
+          this.cdr.detectChanges();
+     }
+
      async toggleMultiSign() {
           try {
                if (!this.useMultiSign) {
@@ -181,7 +185,7 @@ export class CreateDidComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
@@ -191,10 +195,6 @@ export class CreateDidComponent implements AfterViewChecked {
           if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
                this.multiSignSeeds = '';
           }
-          this.cdr.detectChanges();
-     }
-
-     toggleTicketSequence() {
           this.cdr.detectChanges();
      }
 
@@ -336,12 +336,13 @@ export class CreateDidComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                //  PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -403,7 +404,7 @@ export class CreateDidComponent implements AfterViewChecked {
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting DID (no changes will be made)...' : 'Submitting to Ledger...');
 
                // Validate balance
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didSetTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, didSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -507,13 +508,14 @@ export class CreateDidComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                //  PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'did'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'did'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -558,7 +560,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(didDeleteTx, this.memoField);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, didDeleteTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, didDeleteTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 

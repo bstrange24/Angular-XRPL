@@ -208,7 +208,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
@@ -244,7 +244,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info + credential objects in PARALLEL
-               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'permissioned_domain')]);
+               const [accountInfo, pDomainObjects, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'permissioned_domain'), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -255,7 +255,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`Permissioned Domain objects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`Permissioned Domain objects for ${classicAddress}:`, pDomainObjects.result);
 
                type Section = {
                     title: string;
@@ -272,14 +272,14 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                };
 
                // Add credentials section
-               if (!accountObjects.result.account_objects || accountObjects.result.account_objects.length <= 0) {
+               if (!pDomainObjects.result.account_objects || pDomainObjects.result.account_objects.length <= 0) {
                     data.sections.push({
                          title: 'Permissioned Domain',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No permissioned domains found for <code>${classicAddress}</code>` }],
                     });
                } else {
-                    const permissionedDomainItems = accountObjects.result.account_objects.map((pd: any, index: number) => {
+                    const permissionedDomainItems = pDomainObjects.result.account_objects.map((pd: any, index: number) => {
                          const domain = pd as PermissionedDomainInfo;
                          return {
                               key: `Permissioned Domain ${index + 1}`,
@@ -307,7 +307,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     });
 
                     data.sections.push({
-                         title: `Permissioned Domain (${accountObjects.result.account_objects.length})`,
+                         title: `Permissioned Domain (${pDomainObjects.result.account_objects.length})`,
                          openByDefault: true,
                          subItems: permissionedDomainItems,
                     });
@@ -370,13 +370,13 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -418,9 +418,11 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(permissionedDomainTx, this.memoField);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, permissionedDomainTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, permissionedDomainTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Permissioned Domain (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, permissionedDomainTx);
@@ -450,9 +452,6 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -527,13 +526,14 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'permissioned_domain'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'permissioned_domain'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -579,9 +579,11 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(permissionedDomainDeleteTx, this.memoField);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, permissionedDomainDeleteTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, permissionedDomainDeleteTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
+
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Deleting Permissioned Domain (no changes will be made)...' : 'Submitting to Ledger...');
 
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, permissionedDomainDeleteTx);
@@ -611,9 +613,6 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
-
-                    // PHASE 7: Submit or Simulate
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
@@ -803,7 +802,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
           const isValidSeed = (value: string | undefined): string | null => {
                if (value) {
-                    const { type, value: detectedValue } = this.utilsService.detectXrpInputType(value);
+                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
                     if (detectedValue === 'unknown') {
                          return 'Account seed is invalid';
                     }
