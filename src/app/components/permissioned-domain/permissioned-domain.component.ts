@@ -244,7 +244,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info + credential objects in PARALLEL
-               const [accountInfo, pDomainObjects, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', 'permissioned_domain'), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -255,7 +255,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`Permissioned Domain objects for ${classicAddress}:`, pDomainObjects.result);
+               console.debug(`Permissioned Domain objects for ${classicAddress}:`, accountObjects.result);
 
                type Section = {
                     title: string;
@@ -271,15 +271,15 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     sections: [],
                };
 
-               // Add credentials section
-               if (!pDomainObjects.result.account_objects || pDomainObjects.result.account_objects.length <= 0) {
+               const delegateObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'PermissionedDomain');
+               if (!delegateObjects || delegateObjects.length <= 0) {
                     data.sections.push({
                          title: 'Permissioned Domain',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No permissioned domains found for <code>${classicAddress}</code>` }],
                     });
                } else {
-                    const permissionedDomainItems = pDomainObjects.result.account_objects.map((pd: any, index: number) => {
+                    const permissionedDomainItems = delegateObjects.map((pd: any, index: number) => {
                          const domain = pd as PermissionedDomainInfo;
                          return {
                               key: `Permissioned Domain ${index + 1}`,
@@ -307,7 +307,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     });
 
                     data.sections.push({
-                         title: `Permissioned Domain (${pDomainObjects.result.account_objects.length})`,
+                         title: `Permissioned Domain (${delegateObjects.length})`,
                          openByDefault: true,
                          subItems: permissionedDomainItems,
                     });

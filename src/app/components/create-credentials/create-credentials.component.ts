@@ -232,11 +232,11 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // Fetch account info + credential objects in PARALLEL
-               const [accountInfo, credentials, accountObjects1] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential'), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`credentials for ${wallet.classicAddress}:`, credentials.result);
+               console.debug(`credentials for ${wallet.classicAddress}:`, accountObjects.result);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -258,15 +258,15 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                const data: { sections: Section[] } = { sections: [] };
 
-               // Add credentials section
-               if (!credentials.result.account_objects || credentials.result.account_objects.length <= 0) {
+               const credentialObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'Credential');
+               if (!credentialObjects || credentialObjects.length <= 0) {
                     data.sections.push({
                          title: 'Credentials',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No credentials found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
-                    const credentialItems = credentials.result.account_objects.map((credential: any, index: number) => {
+                    const credentialItems = credentialObjects.map((credential: any, index: number) => {
                          // Helper: safely decode hex strings
                          const decodeHex = (hex: string | undefined): string => {
                               if (!hex) return 'N/A';
@@ -287,7 +287,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                                    { key: 'Index', value: credential.index || 'N/A' },
                                    { key: 'Expiration', value: credential.Expiration ? this.utilsService.fromRippleTime(credential.Expiration).est : 'N/A' },
                                    { key: 'Credential Flags', value: this.utilsService.getCredentialStatus(credential.Flags) },
-                                   { key: 'Account Flags', value: flagNames(accountInfo.result.account_data.LedgerEntryType, accountInfo.result.account_data.Flags) },
+                                   { key: 'Account Flags', value: this.utilsService.formatFlags(this.utilsService.decodeAccountFlags(accountInfo)) },
                                    { key: 'URI', value: decodeHex(credential.URI) },
                                    { key: 'PreviousTxnLgrSeq', value: credential.PreviousTxnLgrSeq?.toString() || 'N/A' },
                                    { key: 'PreviousTxnID', value: credential.PreviousTxnID || 'N/A' },
@@ -296,7 +296,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     });
 
                     data.sections.push({
-                         title: `Credentials (${credentials.result.account_objects.length})`,
+                         title: `Credentials (${credentialObjects.length})`,
                          openByDefault: true,
                          subItems: credentialItems,
                     });
@@ -306,7 +306,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.utilsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               this.refreshUiAccountObjects(accountObjects1, accountInfo, wallet);
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                this.refreshUiAccountInfo(accountInfo);
 
                // DEFER: Non-critical UI updates — let main render complete first

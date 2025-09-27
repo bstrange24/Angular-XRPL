@@ -249,14 +249,15 @@ export class CreateDidComponent implements AfterViewChecked {
                };
 
                // Add Did section
-               if (!accountObjects.result.account_objects || accountObjects.result.account_objects.length <= 0) {
+               const didObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'DID');
+               if (!didObjects || didObjects.length <= 0) {
                     data.sections.push({
                          title: 'DID',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No DID found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
-                    const didItems = accountObjects.result.account_objects.map((did: any, index: number) => ({
+                    const didItems = didObjects.map((did: any, index: number) => ({
                          key: `DID (${did.Account || 'Unknown Type'})`,
                          openByDefault: index === 0, // Open the first credential by default
                          content: [
@@ -272,7 +273,7 @@ export class CreateDidComponent implements AfterViewChecked {
                     }));
 
                     data.sections.push({
-                         title: `DID (${accountObjects.result.account_objects.length})`,
+                         title: `DID (${didObjects.length})`,
                          openByDefault: true,
                          subItems: didItems,
                     });
