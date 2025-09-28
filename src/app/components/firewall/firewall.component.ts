@@ -240,7 +240,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                inputs = { ...inputs, account_info: accountInfo };
 
-               const errors = await this.validateInputs(inputs, 'get');
+               const errors = await this.validateInputs(inputs, 'getFirewallDetails');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -388,7 +388,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                inputs = { ...inputs, account_info: accountInfo };
 
-               const errors = await this.validateInputs(inputs, 'generate');
+               const errors = await this.validateInputs(inputs, 'createFirewall');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -546,7 +546,7 @@ export class FirewallComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'authorize');
+               const errors = await this.validateInputs(inputs, 'updateFirewall');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -702,7 +702,7 @@ export class FirewallComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'send');
+               const errors = await this.validateInputs(inputs, 'authorizeFirewall');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -875,7 +875,7 @@ export class FirewallComponent implements AfterViewChecked {
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'delete');
+               const errors = await this.validateInputs(inputs, 'deleteFirewall');
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
@@ -1207,12 +1207,12 @@ export class FirewallComponent implements AfterViewChecked {
                     asyncValidators?: (() => Promise<string | null>)[];
                }
           > = {
-               get: {
+               getFirewallDetails: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                     asyncValidators: [],
                },
-               generate: {
+               createFirewall: {
                     required: ['selectedAccount', 'seed'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1232,7 +1232,7 @@ export class FirewallComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               authorize: {
+               updateFirewall: {
                     required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1250,7 +1250,7 @@ export class FirewallComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [],
                },
-               send: {
+               authorizeFirewall: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1272,25 +1272,7 @@ export class FirewallComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               delete: {
-                    required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
-                    customValidators: [
-                         () => isValidSeed(inputs.seed),
-                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
-                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                    ],
-                    asyncValidators: [],
-               },
-               setMptLocked: {
+               deleteFirewall: {
                     required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1368,7 +1350,8 @@ export class FirewallComponent implements AfterViewChecked {
 
      addWhitelistAddress() {
           if (this.newWhitelistAddress && this.newWhitelistAddress.trim()) {
-               if (this.whitelistAddress[this.newWhitelistAddress]) {
+               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
+               if (knownWhitelistAddress[this.newWhitelistAddress]) {
                     this.setError(`Whitelist Address ${this.newWhitelistAddress} already exists`);
                     return;
                }
@@ -1378,7 +1361,6 @@ export class FirewallComponent implements AfterViewChecked {
                     return;
                }
 
-               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
                knownWhitelistAddress[this.newWhitelistAddress] = this.newWhitelistAddress;
                this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownWhitelistAddress);
 
