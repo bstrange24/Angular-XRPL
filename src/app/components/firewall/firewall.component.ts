@@ -393,6 +393,19 @@ export class FirewallComponent implements AfterViewChecked {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
 
+               const timePeriod = this.utilsService.addTime(this.timePeriodField, this.timePeriodUnit as 'seconds' | 'minutes' | 'hours' | 'days');
+               const timePeriodStart = this.utilsService.addTime(this.timePeriodStartField, this.timePeriodStartUnit as 'seconds' | 'minutes' | 'hours' | 'days');
+               console.log(`timePeriodUnit: ${this.timePeriodUnit} timePeriodStartUnit: ${this.timePeriodStartUnit}`);
+               console.log(`timePeriod: ${this.utilsService.convertXRPLTime(timePeriod)} timePeriodStart: ${this.utilsService.convertXRPLTime(timePeriodStart)}`);
+               console.log(`Total Out: `, this.totalOutField);
+               console.log(`Amount: `, this.amountField);
+               console.log(`Backup account: `, this.backupAccountField);
+               console.log(`Wallet pubkey: `, wallet.publicKey);
+
+               if (1 == 1) {
+                    return this.setError('Poopy');
+               }
+
                let v_flags = 0;
 
                const mPTokenIssuanceCreateTx: MPTokenIssuanceCreate = {
@@ -732,19 +745,22 @@ export class FirewallComponent implements AfterViewChecked {
                     Fee: fee,
                };
 
-               // const firewallWhitelistSetAuthorizeTx: FirewallWhitelistSet = {
-               //      TransactionType: 'FirewallWhitelistSet',
-               //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-               //      Authorize: '',
-               //      Signature: '',
-               // };
-
-               // const firewallWhitelistSetUnauthorizeTx: FirewallWhitelistSet = {
-               //      TransactionType: 'FirewallWhitelistSet',
-               //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-               //      Unauthorize: '',
-               //      Signature: '',
-               // };
+               // let firewallWhitelistSetAuthorizeTx:FirewallWhitelistSet;
+               if (authorizeFlag === 'Y') {
+                    // firewallWhitelistSetAuthorizeTx = {
+                    //      TransactionType: 'FirewallWhitelistSet',
+                    //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
+                    //      Authorize: '',
+                    //      Signature: '',
+                    // };
+               } else {
+                    // firewallWhitelistSetAuthorizeTx = {
+                    //      TransactionType: 'FirewallWhitelistSet',
+                    //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
+                    //      Unauthorize: '',
+                    //      Signature: '',
+                    // };
+               }
 
                if (this.ticketSequence) {
                     const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
@@ -879,21 +895,6 @@ export class FirewallComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(`ERROR: ${errors.join('; ')}`);
                }
-
-               // Check if destination can hold the MPT
-               // const destObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               // if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
-               //      return this.setError(`ERROR: Unable to fetch account objects for ${wallet.classicAddress}`);
-               // }
-               // const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
-               // console.debug('MPT Tokens:', mptTokens);
-               // console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
-
-               // const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
-
-               // if (!authorized) {
-               //      return this.setError(`ERROR: Destination ${wallet.classicAddress} is not authorized to delete this MPT (issuance ID ${this.mptIssuanceIdField}).`);
-               // }
 
                const mPTokenIssuanceDestroyTx: xrpl.MPTokenIssuanceDestroy = {
                     TransactionType: 'MPTokenIssuanceDestroy',
