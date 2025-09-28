@@ -889,6 +889,13 @@ export class CreateNftComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE all independent API calls
+               // const { accountInfo, accountObjects, nftInfo, sellOffersResponse, buyOffersResponse } = await this.getNftOfferDetails(client, wallet);
+               // console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               // console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               // console.debug(`nftInfo for ${wallet.classicAddress}:`, nftInfo.result);
+               // console.debug(`sellOffersResponse for ${wallet.classicAddress}:`, sellOffersResponse.result);
+               // console.debug(`buyOffersResponse for ${wallet.classicAddress}:`, buyOffersResponse.result);
+
                const [accountInfo, accountObjects, nftInfo, sellOffersResponse, buyOffersResponse] = await Promise.all([
                     this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
@@ -1747,6 +1754,114 @@ export class CreateNftComponent implements AfterViewChecked {
                }
           }
           return active;
+     }
+
+     async getNftOfferDetails1(client: any, wallet: any) {
+          const account = wallet.classicAddress;
+
+          // Fetch all NFTs with pagination
+          const accountNfts: any[] = [];
+          let marker: string | undefined = undefined;
+          do {
+               const resp: any = await client.request({
+                    command: 'account_nfts',
+                    account,
+                    marker,
+                    limit: 400,
+               });
+
+               accountNfts.push(...resp.result.account_nfts);
+               marker = resp.result.marker;
+          } while (marker);
+
+          // If no NFTs → bail early
+          if (accountNfts.length === 0) {
+               return {
+                    accountInfo: await client.request({ command: 'account_info', account }),
+                    accountObjects: await client.request({ command: 'account_objects', account }),
+                    nftInfo: { result: { account_nfts: [] } },
+                    sellOffersResponse: { result: { offers: [] } },
+                    buyOffersResponse: { result: { offers: [] } },
+               };
+          }
+
+          // Take the NFT user typed, or default to first
+          const nftId = this.nftIdField || accountNfts[0].NFTokenID;
+
+          // Fetch offers for that NFT
+          const sellOffersResponse = await client
+               .request({
+                    command: 'nft_sell_offers',
+                    nft_id: nftId,
+               })
+               .catch(() => ({ result: { offers: [] } }));
+
+          const buyOffersResponse = await client
+               .request({
+                    command: 'nft_buy_offers',
+                    nft_id: nftId,
+               })
+               .catch(() => ({ result: { offers: [] } }));
+
+          // Return the bundle back to your UI method
+          return {
+               accountInfo: await client.request({ command: 'account_info', account }),
+               accountObjects: await client.request({ command: 'account_objects', account }),
+               nftInfo: { result: { account_nfts: accountNfts } },
+               sellOffersResponse,
+               buyOffersResponse,
+          };
+     }
+
+     async getNftOfferDetails(client: any, wallet: any) {
+          if (this.nftIdField) {
+               // User provided an NFT ID
+               const [accountInfo, accountObjects, nftInfo, sellOffersResponse, buyOffersResponse] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '').catch(() => ({ result: { account_nfts: [] } })),
+                    this.xrplService.getNFTSellOffers(client, this.nftIdField).catch(err => {
+                         console.warn('Sell Offers Error:', err.message);
+                         return { result: { offers: [] } };
+                    }),
+                    this.xrplService.getNFTBuyOffers(client, this.nftIdField).catch(err => {
+                         console.warn('Buy Offers Error:', err.message);
+                         return { result: { offers: [] } };
+                    }),
+               ]);
+
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`nftInfo for ${wallet.classicAddress}:`, nftInfo.result);
+               console.debug(`sellOffersResponse:`, sellOffersResponse.result);
+               console.debug(`buyOffersResponse:`, buyOffersResponse.result);
+
+               return { accountInfo, accountObjects, nftInfo, sellOffersResponse, buyOffersResponse };
+          } else {
+               // No NFT ID → fetch ALL NFTs & offers
+               const [accountInfo, accountObjects, nftInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', '').catch(() => ({ result: { account_nfts: [] } }))]);
+
+               const results: any[] = [];
+               const buyOffers: any[] = [];
+               const sellOffers: any[] = [];
+               for (const nft of nftInfo.result.account_nfts) {
+                    const nftId = nft.NFTokenID;
+                    const [buyOffers, sellOffers] = await Promise.all([this.xrplService.fetchAllOffersSafe(client, 'nft_buy_offers', nftId), this.xrplService.fetchAllOffersSafe(client, 'nft_sell_offers', nftId)]);
+                    results.push({ nftId, buyOffers, sellOffers });
+                    buyOffers.push({ nftId, buyOffers });
+                    sellOffers.push({ nftId, sellOffers });
+               }
+
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`nftInfo for ${wallet.classicAddress}:`, nftInfo.result);
+               console.debug(`offers for NFTs:`, results);
+               console.debug(`buyOffers for NFTs:`, buyOffers);
+               console.debug(`sellOffers for NFTs:`, sellOffers);
+
+               // return { accountInfo, accountObjects, nftInfo, offersByNFT: results };
+               return { accountInfo, accountObjects, nftInfo, buyOffers, sellOffers };
+          }
      }
 
      setNftFlags() {

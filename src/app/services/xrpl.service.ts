@@ -755,6 +755,30 @@ export class XrplService {
           }
      }
 
+     async fetchAllOffersSafe(client: any, method: string, nftId: string): Promise<any[]> {
+          let marker: string | undefined = undefined;
+          const offers: any[] = [];
+
+          try {
+               do {
+                    const req: any = { command: method, nft_id: nftId, limit: 200 };
+                    if (marker) req.marker = marker;
+
+                    const resp = await client.request(req);
+                    if (resp.result.offers) offers.push(...resp.result.offers);
+
+                    marker = resp.result.marker;
+               } while (marker);
+          } catch (err: any) {
+               if (err.data && err.data.error === 'objectNotFound') {
+                    return []; // no offers exist
+               }
+               throw err;
+          }
+
+          return offers;
+     }
+
      async getNFTHistory(client: Client, ledgerIndex: xrpl.LedgerIndex, nft_id: string) {
           try {
                const response = await client.request({
