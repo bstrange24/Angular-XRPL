@@ -3462,6 +3462,10 @@ export class UtilsService {
           tx.TransferRate = this.getTransferRate(transferRate);
      }
 
+     setTransferFee(tx: any, transferFee: string) {
+          tx.TransferFee = parseInt(transferFee, 10);
+     }
+
      setTickSize(tx: any, tickSize: number) {
           tx.TickSize = tickSize;
      }

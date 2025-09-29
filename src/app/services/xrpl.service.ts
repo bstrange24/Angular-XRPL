@@ -742,6 +742,22 @@ export class XrplService {
           }
      }
 
+     async getNFTBuyOffers(client: Client, nftId: string): Promise<any> {
+          try {
+               const response = await client.request({
+                    command: 'nft_buy_offers',
+                    nft_id: nftId,
+               });
+               return response;
+          } catch (error: any) {
+               if (error.data && error.data.error === 'objectNotFound') {
+                    return []; // no offers exist
+               }
+               throw error;
+               // throw new Error(`Failed to fetch nft buy offers: ${error.message || 'Unknown error'}`);
+          }
+     }
+
      async getNFTSellOffers(client: Client, nftId: string): Promise<any> {
           try {
                const response = await client.request({
@@ -750,8 +766,11 @@ export class XrplService {
                });
                return response;
           } catch (error: any) {
-               console.error('Error fetching nft sell offers:', error);
-               throw new Error(`Failed to fetch nft sell offers: ${error.message || 'Unknown error'}`);
+               if (error.data && error.data.error === 'objectNotFound') {
+                    return []; // no offers exist
+               }
+               throw error;
+               // throw new Error(`Failed to fetch nft sell offers: ${error.message || 'Unknown error'}`);
           }
      }
 
@@ -838,19 +857,6 @@ export class XrplService {
           } catch (error: any) {
                console.error('Error verifying channel:', error);
                throw new Error(`Failed to verifying channel: ${error.message || 'Unknown error'}`);
-          }
-     }
-
-     async getNFTBuyOffers(client: Client, nftId: string): Promise<any> {
-          try {
-               const response = await client.request({
-                    command: 'nft_buy_offers',
-                    nft_id: nftId,
-               });
-               return response;
-          } catch (error: any) {
-               console.error('Error fetching nft buy offers:', error);
-               throw new Error(`Failed to fetch nft buy offers: ${error.message || 'Unknown error'}`);
           }
      }
 

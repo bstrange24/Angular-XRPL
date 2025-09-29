@@ -210,8 +210,3 @@ label.switch {
      justify-content: space-between;
      /* pushes label left, slider right */
 }
-
-.burn-check .sell-check {
-     background-color: #3a3c41;
-     color: aqua;
-}

@@ -120,11 +120,11 @@ export const AppConstants = {
      },
 
      NFT_FLAGS: {
-          tfBurnable: 1,
-          tfOnlyXRP: 2,
-          tfTrustLine: 4,
-          tfTransferable: 8,
-          tfMutable: 16,
+          Burnable: 1,
+          OnlyXRP: 2,
+          TrustLine: 4,
+          Transferable: 8,
+          Mutable: 16,
      },
 
      TF_INNER_BATCH_TXN: {

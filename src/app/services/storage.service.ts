@@ -141,6 +141,10 @@ export class StorageService {
           return localStorage.getItem('activeEscrowLink') || '';
      }
 
+     getActiveNftLink(): string {
+          return localStorage.getItem('activeNftLink') || '';
+     }
+
      setActiveEscrowLink(link: string) {
           localStorage.setItem('activeEscrowLink', link);
           localStorage.removeItem('activeNavLink');

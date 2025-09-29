@@ -981,6 +981,19 @@ input:focus+.slider {
      /* Soft red for error text */
 }
 
+.burn-checkbox {
+     display: inline-flex;
+     align-items: center;
+     gap: 6px;
+     padding-left: 10px;
+     background-color: #2a2c31;
+     color: white;
+}
+
+.burn-checkbox:hover:not(.result-header) {
+     background: #3a3c41;
+}
+
 .error-transaction {
      border-left: 3px solid #e57373;
      /* Red border for failed transaction section */

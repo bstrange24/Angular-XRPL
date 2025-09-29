@@ -69,13 +69,13 @@ interface SignerEntry {
 }
 
 @Component({
-     selector: 'app-create-nft',
+     selector: 'app-nft-offers',
      standalone: true,
      imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
-     templateUrl: './create-nft.component.html',
-     styleUrl: './create-nft.component.css',
+     templateUrl: './nft-offers.component.html',
+     styleUrl: './nft-offers.component.css',
 })
-export class CreateNftComponent implements AfterViewChecked {
+export class NftOffersComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
