@@ -232,7 +232,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -578,7 +578,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                // CRITICAL: Render immediately
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates — let main render complete first
@@ -842,7 +842,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                // CRITICAL: Render immediately
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
@@ -1758,7 +1758,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
 
                // Render summary and details in data.sections
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
 
                if (hasError) {
                     this.setErrorProperties();
@@ -2024,7 +2024,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add(hasError ? 'error' : 'success');
 
                // Render summary and details in data.sections
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
 
                if (hasError) {
                     this.setErrorProperties();
@@ -2162,7 +2162,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
 
                this.setSuccess(this.result);
 

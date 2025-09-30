@@ -128,7 +128,8 @@ export class CreateNftComponent implements AfterViewChecked {
      minterAddressField: string = '';
      issuerAddressField: string = '';
      expirationField: string = '';
-     uriField: string = 'https://ipfs.io/ipfs/bafybeigjro2d2tc43bgv7e4sxqg7f5jga7kjizbk7nnmmyhmq35dtz6deq';
+     // uriField: string = 'https://ipfs.io/ipfs/bafybeigjro2d2tc43bgv7e4sxqg7f5jga7kjizbk7nnmmyhmq35dtz6deq';
+     uriField: string = 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjhubGpubms0bXl5ZzM0cWE4azE5aTlyOHRyNmVhd2prcDc1am43ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NxwglXLqMeOuRF3FHv/giphy.gif';
      nftIdField: string = '';
      nftIndexField: string = '';
      nftCountField: string = '';
@@ -187,7 +188,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -1110,7 +1111,7 @@ export class CreateNftComponent implements AfterViewChecked {
                }
 
                // CRITICAL: Render immediately
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates

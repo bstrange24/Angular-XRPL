@@ -117,7 +117,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -215,8 +215,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
-               // CRITICAL: Render immediately
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               // CRITICAL: Sort based on Ledger Entry Type and render immediately
+               const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
+               this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);

@@ -147,7 +147,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -303,7 +303,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                }
 
                // CRITICAL: Render immediately
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -885,7 +885,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          openByDefault: true,
                          content: [{ key: 'Status', value: `Credential type must be 128 characters as hexadecimal.` }],
                     });
-                    this.utilsService.renderDetails(data);
+                    this.renderUiComponentsService.renderDetails(data);
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
                     return;
@@ -915,7 +915,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Credential not found.` }],
                          });
-                         this.utilsService.renderDetails(data);
+                         this.renderUiComponentsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -925,7 +925,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Failed to check credential: ${error.message || 'Unknown error'}` }],
                          });
-                         this.utilsService.renderDetails(data);
+                         this.renderUiComponentsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -944,7 +944,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     });
                     console.info('Credential is not accepted.');
                     this.resultField.nativeElement.classList.add('error');
-                    this.utilsService.renderDetails(data);
+                    this.renderUiComponentsService.renderDetails(data);
                     this.setErrorProperties();
                     return;
                }
@@ -967,7 +967,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Failed to check credential: ${error.message || 'Unknown error'}` }],
                          });
-                         this.utilsService.renderDetails(data);
+                         this.renderUiComponentsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -983,7 +983,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               openByDefault: true,
                               content: [{ key: 'Status', value: `Credential is expired.` }],
                          });
-                         this.utilsService.renderDetails(data);
+                         this.renderUiComponentsService.renderDetails(data);
                          this.resultField.nativeElement.classList.add('error');
                          this.setErrorProperties();
                          return;
@@ -1011,7 +1011,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                // Credential has passed all checks
                console.info('Credential is valid.');
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                return true;
           } catch (error: any) {
                console.error('Error:', error);

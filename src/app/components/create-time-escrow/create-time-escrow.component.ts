@@ -217,7 +217,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -481,9 +481,9 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                               if (typeof amount === 'string') {
                                    // Ensure we're passing a string to dropsToXrp
-                                   displayAmount = xrpl.dropsToXrp(amount);
+                                   displayAmount = xrpl.dropsToXrp(amount) + ' XRP';
                               } else if (amount && typeof amount === 'object' && 'currency' in amount) {
-                                   displayAmount = `${amount.value} ${amount.currency}`;
+                                   displayAmount = `${amount.value} ${this.utilsService.decodeIfNeeded(amount.currency)}`;
                               } else if (amount && typeof amount === 'object' && 'mpt_issuance_id' in amount) {
                                    displayAmount = `${amount.value} [MPT: ${amount.mpt_issuance_id}]`;
                               } else {
@@ -566,7 +566,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     });
                }
 
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
                // Deferred UI updates

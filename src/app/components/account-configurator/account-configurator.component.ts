@@ -167,7 +167,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -426,7 +426,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               // console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
                inputs = {
                     ...inputs,
@@ -446,8 +446,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                });
 
-               // CRITICAL: Render immediately
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               // CRITICAL: Sort based on Ledger Entry Type and render immediately
+               const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
+               console.debug(`sortedResult for ${wallet.classicAddress}:`, sortedResult.result);
+               this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates — let main render complete first

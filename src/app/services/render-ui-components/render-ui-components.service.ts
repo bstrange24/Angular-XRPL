@@ -1053,22 +1053,24 @@ export class RenderUiComponentsService {
 
           // Convert grouped objects to subSections
           const subSections = Object.values(objectsByType)
-               .sort((a, b) => {
-                    // Prioritize RippleState, then maintain original order
-                    if (a.type === 'RippleState' && b.type !== 'RippleState') return -1;
-                    if (a.type !== 'RippleState' && b.type === 'RippleState') return 1;
-                    return a.order - b.order;
-               })
+               // .sort((a, b) => {
+               //      // Prioritize RippleState, then maintain original order
+               //      if (a.type === 'RippleState' && b.type !== 'RippleState') return -1;
+               //      if (a.type !== 'RippleState' && b.type === 'RippleState') return 1;
+               //      return a.order - b.order;
+               // })
                .map((group: any) => {
                     const typeMap: { [key: string]: string[] } = {
                          RippleState: ['Balance', 'HighLimit', 'LowLimit', 'Flags'],
                          Offer: ['TakerPays', 'TakerGets'],
                          SignerList: ['SignerEntries'],
-                         Check: ['Amount', 'DestinationTag', 'SourceTag'],
-                         Escrow: ['Amount', 'Condition', 'DestinationTag', 'SourceTag'],
-                         PayChannel: ['Amount', 'Balance', 'PublicKey', 'DestinationTag', 'SourceTag'],
+                         Check: ['Amount'],
+                         Escrow: ['Amount', 'Condition'],
+                         PayChannel: ['Amount', 'Balance'],
                          NFTokenPage: ['NFTokens'],
                          Ticket: [],
+                         Delegate: ['Permissions'],
+                         PermissionedDomain: ['AcceptedCredentials'],
                          DepositPreauth: [],
                          AMMBid: ['BidMin', 'BidMax', 'AuthAccounts'],
                          AMM: ['LPTokenBalance', 'TradingFee', 'Asset', 'Asset2'],
@@ -1112,19 +1114,35 @@ export class RenderUiComponentsService {
                                    } else if (field === 'NFTokens') {
                                         content = obj[field].map((nft: any, i: number) => ({
                                              key: `NFT ${i + 1}`,
-                                             value: `<code>${nft.NFToken.NFTokenID}</code> \nURI: ${this.utilsService.decodeHex(nft.NFToken.URI)}`,
+                                             value: `NFT ID: <code>${nft.NFToken.NFTokenID}</code></br>URI: ${this.utilsService.decodeHex(nft.NFToken.URI)}</br><img id="nftImage" src="${this.utilsService.decodeHex(nft.NFToken.URI)}" width="150" height="150">`,
                                         }));
                                    } else if (field === 'AuthAccounts') {
                                         content = obj[field].map((acc: any, i: number) => ({
                                              key: `Account ${i + 1}`,
                                              value: `<code>${acc.AuthAccount.Account}</code>`,
                                         }));
+                                   } else if (field === 'Permissions') {
+                                        content = obj[field].map((acc: any, i: number) => ({
+                                             key: `Permission ${i + 1}`,
+                                             value: `<code>${acc.Permission.PermissionValue}</code>`,
+                                        }));
+                                   } else if (field === 'AcceptedCredentials') {
+                                        content = obj[field].map((acc: any, i: number) => ({
+                                             key: `Credential ${i + 1}`,
+                                             value: `Credential Type: <code>${Buffer.from(acc.Credential.CredentialType, 'hex').toString('utf8')}</code></br>Issuer: <code>${acc.Credential.Issuer}</code>`,
+                                        }));
+                                   } else if (field === 'Amount' && typeof obj['Amount'] === 'string') {
+                                        content = [{ key: field, value: xrpl.dropsToXrp(obj['Amount']) + ' XRP' }];
+                                   } else if (field === 'Balance' && typeof obj['Balance'] === 'string') {
+                                        content = [{ key: field, value: xrpl.dropsToXrp(obj['Balance']) + ' XRP' }];
+                                   } else if (field === 'TakerGets' && typeof obj['TakerGets'] === 'string') {
+                                        content = [{ key: field, value: xrpl.dropsToXrp(obj['TakerGets']) + ' XRP' }];
+                                   } else if (field === 'TakerPays' && typeof obj['TakerPays'] === 'string') {
+                                        content = [{ key: field, value: xrpl.dropsToXrp(obj['TakerPays']) + ' XRP' }];
                                    } else if (typeof obj[field] === 'object') {
                                         content = Object.entries(obj[field]).map(([k, v]) => ({
                                              key: k,
                                              value: this.utilsService.formatValueForKey(k, v),
-                                             // value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : k === 'currency' ? this.decodeIfNeeded(String(v)) : String(v),
-                                             // value: k === 'issuer' || k === 'index' || k === 'Account' ? `<code>${String(v)}</code>` : this.decodeIfNeeded(String(v)),
                                         }));
                                    } else if (nestedFields.includes('HighLimit') && field === 'Flags') {
                                         content = [{ key: field, value: this.utilsService.getFlagName(obj[field]) }];
@@ -1607,6 +1625,91 @@ export class RenderUiComponentsService {
                     });
 
                     (section as HTMLElement).style.display = hasVisibleContent ? '' : 'none';
+                    if (hasVisibleContent) section.setAttribute('open', 'open');
+               });
+          });
+     }
+
+     attachSearchListener(container: HTMLElement): void {
+          const searchBar = container.querySelector('#resultSearch') as HTMLInputElement;
+          if (!searchBar) {
+               // console.error('Error: #resultSearch not found');
+               return;
+          }
+
+          searchBar.addEventListener('input', e => {
+               const target = e.target as HTMLInputElement;
+               const search = target.value.toLowerCase().trim();
+               const sections = container.querySelectorAll('.result-section') as NodeListOf<HTMLElement>;
+
+               if (!search) {
+                    sections.forEach(section => {
+                         section.style.display = '';
+                         section.querySelectorAll('.result-row').forEach((row: Element) => ((row as HTMLElement).style.display = 'flex'));
+                         section.querySelectorAll('.nested-object').forEach(nested => {
+                              (nested as HTMLElement).style.display = '';
+                              nested.querySelectorAll('.result-row').forEach((row: Element) => ((row as HTMLElement).style.display = 'flex'));
+                         });
+                         const summaryElement = section.querySelector('summary');
+                         const title = summaryElement ? summaryElement.textContent : null;
+                         if (title === 'Transactions' || title?.includes('Transaction')) {
+                              section.setAttribute('open', 'open');
+                         } else {
+                              section.removeAttribute('open');
+                         }
+                    });
+                    return;
+               }
+
+               sections.forEach(section => {
+                    let hasVisibleContent = false;
+                    const directRows = section.querySelectorAll(':scope > .result-table > .result-row:not(.result-header)') as NodeListOf<HTMLElement>;
+                    directRows.forEach(row => {
+                         const keyCell = row.querySelector('.key') as HTMLElement;
+                         const valueCell = row.querySelector('.value') as HTMLElement;
+                         const keyText = keyCell ? this.utilsService.stripHTMLForSearch(keyCell.innerHTML).toLowerCase() : '';
+                         const valueText = valueCell ? this.utilsService.stripHTMLForSearch(valueCell.innerHTML).toLowerCase() : '';
+                         const isMatch = keyText.includes(search) || valueText.includes(search);
+                         row.style.display = isMatch ? 'flex' : 'none';
+                         if (isMatch) hasVisibleContent = true;
+                    });
+
+                    const nestedDetails = section.querySelectorAll('.nested-object') as NodeListOf<HTMLElement>;
+                    nestedDetails.forEach(nested => {
+                         let nestedHasVisibleContent = false;
+                         const tableRows = nested.querySelectorAll('.result-table > .result-row:not(.result-header)') as NodeListOf<HTMLElement>;
+                         tableRows.forEach(row => {
+                              const keyCell = row.querySelector('.key') as HTMLElement;
+                              const valueCell = row.querySelector('.value') as HTMLElement;
+                              const keyText = keyCell ? this.utilsService.stripHTMLForSearch(keyCell.innerHTML).toLowerCase() : '';
+                              const valueText = valueCell ? this.utilsService.stripHTMLForSearch(valueCell.innerHTML).toLowerCase() : '';
+                              const isMatch = keyText.includes(search) || valueText.includes(search);
+                              row.style.display = isMatch ? 'flex' : 'none';
+                              if (isMatch) nestedHasVisibleContent = true;
+                         });
+
+                         const deeperDetails = nested.querySelectorAll('.nested-object') as NodeListOf<HTMLElement>;
+                         deeperDetails.forEach(deeper => {
+                              let deeperHasVisibleContent = false;
+                              const deeperRows = deeper.querySelectorAll('.result-table > .result-row:not(.result-header)') as NodeListOf<HTMLElement>;
+                              deeperRows.forEach(row => {
+                                   const keyCell = row.querySelector('.key') as HTMLElement;
+                                   const valueCell = row.querySelector('.value') as HTMLElement;
+                                   const keyText = keyCell ? this.utilsService.stripHTMLForSearch(keyCell.innerHTML).toLowerCase() : '';
+                                   const valueText = valueCell ? this.utilsService.stripHTMLForSearch(valueCell.innerHTML).toLowerCase() : '';
+                                   const isMatch = keyText.includes(search) || valueText.includes(search);
+                                   row.style.display = isMatch ? 'flex' : 'none';
+                                   if (isMatch) deeperHasVisibleContent = true;
+                              });
+                              deeper.style.display = deeperHasVisibleContent ? '' : 'none';
+                              if (deeperHasVisibleContent) nestedHasVisibleContent = true;
+                         });
+
+                         nested.style.display = nestedHasVisibleContent ? '' : 'none';
+                         if (nestedHasVisibleContent) hasVisibleContent = true;
+                    });
+
+                    section.style.display = hasVisibleContent ? '' : 'none';
                     if (hasVisibleContent) section.setAttribute('open', 'open');
                });
           });

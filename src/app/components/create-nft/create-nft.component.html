@@ -203,10 +203,9 @@
                                         <button type="button" (click)="mintBatchNFT()">Mint Batch NFTs</button>
                                         <button type="button" (click)="burnNFT()">Burn NFTs</button>
                                         <button type="button" (click)="burnBatchNFT()">Burn Batch NFTs</button>
-                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
-                              <!-- <tr>
+                              <tr>
                                    <td colspan="2">
                                         <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
                                         <button type="button" (click)="buyNFT()">Create Buy Offer NFT</button>
@@ -215,7 +214,7 @@
                                         <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
-                              </tr> -->
+                              </tr>
                               <tr>
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
