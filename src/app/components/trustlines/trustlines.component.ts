@@ -197,7 +197,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -412,7 +412,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
 
                     // Render trust lines immediately
-                    this.utilsService.renderDetails(data);
+                    this.renderUiComponentsService.renderDetails(data);
                     this.setSuccess(this.result);
 
                     // DEFER: Non-critical UI updates. Fetch token balance and then re-render FULL data with all sections
@@ -489,7 +489,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               }
 
                               // RENDER FULL DATA — Trust Lines + Obligations + Balances
-                              this.utilsService.renderDetails(data);
+                              this.renderUiComponentsService.renderDetails(data);
 
                               // --- Final UI Updates ---
                               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -520,7 +520,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.gatewayBalance = '';
 
                     // Render immediately
-                    this.utilsService.renderDetails(data);
+                    this.renderUiComponentsService.renderDetails(data);
                     this.setSuccess(this.result);
 
                     // Still fetch token balances and re-render with them
@@ -571,7 +571,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               }
 
                               // Re-render with all sections
-                              this.utilsService.renderDetails(data);
+                              this.renderUiComponentsService.renderDetails(data);
 
                               // Final UI updates
                               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);

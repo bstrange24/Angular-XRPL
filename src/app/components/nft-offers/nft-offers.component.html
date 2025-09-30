@@ -50,11 +50,11 @@
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                                             <label for="xrpBalance1Field">Spendable XRP Balance</label>
+                                             <label for="xrpBalanceField">Spendable XRP Balance</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="xrpBalance1Field" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
+                                        <input type="text" id="xrpBalanceField" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
                                    </td>
                               </tr>
                               <tr>
@@ -92,133 +92,97 @@
                          <table id="flags">
                               <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Currency code for the check.">
-                                             <label for="currencyFieldDropDownValue">Currency Code</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amount of currency to send.">
+                                        <span class="tooltip" tooltip-data="Amount of XRP to send.">
                                              <label for="amountField">Amount</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" />
                                    </td>
                               </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+                              <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
-                                             <label for="issuerField">Issuer</label>
+                                        <span class="tooltip" tooltip-data="">
+                                             <label for="taxonField">Taxon</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
-                                             <option value="" disabled selected>Select an issuer</option>
-                                             <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
+                                        <input type="text" id="taxonField" [(ngModel)]="taxonField" name="taxonField" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="">
+                                             <label for="transferFeeField">Transfer Fee</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="transferFeeField" [(ngModel)]="transferFeeField" name="transferFeeField" />
+                                   </td>
+                              </tr>
+
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="The NFT offer will expire after the expiration date. This is in hours.">
+                                             <label for="expirationField">Offer Expiration Date (Hours)</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="expirationField" [(ngModel)]="expirationField" name="expirationField" />
+                                   </td>
+                              </tr>
+                              <!-- <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="NFT index used to cancel sell offers.">
+                                             <label for="nftIndexField">Nft Index</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="nftIndexField" [(ngModel)]="nftIndexField" name="nftIndexField" />
+                                   </td>
+                              </tr> -->
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Number of NFT's to mint at 1 time.">
+                                             <label for="nftCountField">Batch Nft Count</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="nftCountField" [(ngModel)]="nftCountField" name="nftCountField" />
+                                   </td>
+                              </tr>
+                              <tr class="multisignAddressClass">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="NFT Id to use for transactions.">
+                                             <label for="memoField">Nft Token Id</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="Add Nft Token Id." [(ngModel)]="nftIdField" name="nftIdField"></textarea>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Address authorized mint NFT's">
+                                             <label for="issuerAddressField">Issuer Addresses</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="issuerAddressField" [(ngModel)]="issuerAddressField" name="issuerAddressField" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <label for="destinationFields">Destination</label>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="destinationFields" [(ngModel)]="destinationFields" name="destinationFields">
+                                             <option *ngFor="let dest of destinations" [value]="dest">{{ dest }}</option>
                                         </select>
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
-                                             <label for="tokenBalance">Currency Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
-                                   <td>
-                                        <label for="gatewayBalance">Gateway Balance</label>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
-                                             <label for="destinationFields">Destination</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
-                                             <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
-                                             <label for="destinationTagField">Destination Tag</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Escrow cancel time.">
-                                             <label for="escrowCancelTimeField">Escrow Cancel Time</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowCancelTimeField" placeholder="Enter time" [(ngModel)]="escrowCancelTimeField" name="escrowCancelTimeField" />
-                                        <select class="timeUnit" style="width: 100px" id="escrowCancelTimeUnit" [(ngModel)]="escrowCancelTimeUnit" name="escrowCancelTimeUnit">
-                                             <option value="seconds">Seconds</option>
-                                             <option value="minutes">Minutes</option>
-                                             <option value="hours">Hours</option>
-                                             <option value="days">Days</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Escrow sequence number, used when finishing the escrow.">
-                                             <label for="escrowSequenceNumberField">Escrow Sequence Number</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowSequenceNumberField" [(ngModel)]="escrowSequenceNumberField" (blur)="getEscrowOwnerAddress()" (keyup.enter)="getEscrowOwnerAddress()" name="escrowSequenceNumberField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Condition code used to begin the escrow transaction.">
-                                             <label for="escrowConditionField">Escrow Condition</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowConditionField" [(ngModel)]="escrowConditionField" name="escrowConditionField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Fullfillment code to complete the escrow transaction.">
-                                             <label for="escrowFulfillmentField">Escrow Fulfillment</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowFulfillmentField" [(ngModel)]="escrowFulfillmentField" name="escrowFulfillmentField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
-                                             <label for="escrowOwnerField">Escrow Owner</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowOwnerField" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
+                                        <br />
+                                        <!-- Manual input field -->
+                                        <input type="text" placeholder="Enter new destination" [(ngModel)]="newDestination" name="newDestination" />
+                                        <button type="button" (click)="addDestination()">Add</button>
                                    </td>
                               </tr>
                          </table>
@@ -234,14 +198,24 @@
                               <th></th>
                               <tr>
                                    <td colspan="2">
-                                        <button type="button" (click)="getEscrows()">Get Escrows</button>
-                                        <button type="button" (click)="createConditionalEscrow()">Create Condition-based Escrow</button>
-                                        <button type="button" (click)="finishConditionalEscrow()">Finish Condition-based Escrow</button>
-                                        <button type="button" (click)="cancelEscrow()">Cancel Escrow</button>
-                                        <button type="button" (click)="getCondition()">Get Condition</button>
+                                        <button type="button" (click)="getNFT()">Get NFTs</button>
+                                        <button type="button" (click)="mintNFT()">Mint NFT</button>
+                                        <button type="button" (click)="mintBatchNFT()">Mint Batch NFTs</button>
+                                        <button type="button" (click)="burnNFT()">Burn NFTs</button>
+                                        <button type="button" (click)="burnBatchNFT()">Burn Batch NFTs</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
+                              <!-- <tr>
+                                   <td colspan="2">
+                                        <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
+                                        <button type="button" (click)="buyNFT()">Create Buy Offer NFT</button>
+                                        <button type="button" (click)="cancelBuyOffer()">Cancel Buy Offer NFT</button>
+                                        <button type="button" (click)="sellNFT()">Create Sell Offer NFT</button>
+                                        <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
+                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
+                                   </td>
+                              </tr> -->
                               <tr>
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
@@ -249,88 +223,44 @@
                               </tr>
                          </table>
 
-                         <details class="escrow-info">
-                              <summary>Escrow Info</summary>
-                              <fieldset class="escrow-fieldset">
-                                   <details class="escrow-subdetails">
-                                        <summary>Escrow Constraints</summary>
-                                        <div class="escrow-table">
-                                             <div class="escrow-row escrow-header">
-                                                  <div class="escrow-cell">Escrow Constraints</div>
-                                                  <div class="escrow-cell">Description</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell"><code>FinishAfter</code> (Required)</div>
-                                                  <div class="escrow-cell">The earliest time (in Ripple Epoch seconds) that the escrow can be finished. Must be in the future.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell"><code>CancelAfter</code> (Optional but common)</div>
-                                                  <div class="escrow-cell">The time after which the escrow can be **canceled** if not yet finished. Must be **after** `FinishAfter`.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell"><code>Condition</code> (Required for conditional)</div>
-                                                  <div class="escrow-cell">A cryptographic condition (usually a hash of a preimage). The escrow can only be finished by submitting the matching `Fulfillment`.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell"><code>Fulfillment</code> (Required to finish)</div>
-                                                  <div class="escrow-cell">The preimage that satisfies the `Condition`. Submitted with the `EscrowFinish` transaction.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell"><code>EscrowFinish</code> rules</div>
-                                                  <div class="escrow-cell">Must include both `Condition` and `Fulfillment` to succeed. Cannot be submitted before `FinishAfter`.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">**Only recipient can finish**</div>
-                                                  <div class="escrow-cell">The **Destination** of the escrow (recipient) must finish the escrow with the correct `Fulfillment`, and only after `FinishAfter`.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">**Only sender can cancel**</div>
-                                                  <div class="escrow-cell">The original escrow sender can cancel the escrow, but only **after `CancelAfter`**, and only if it hasn’t already been finished.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">Ledger time vs system time</div>
-                                                  <div class="escrow-cell">Times are in **Ripple Epoch**, not UNIX. Use XRPL server time for accurate conversions.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">Immutable once created</div>
-                                                  <div class="escrow-cell">You cannot modify `FinishAfter`, `CancelAfter`, `Condition`, or `Amount` after creation.</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">XRP-only</div>
-                                                  <div class="escrow-cell">Escrow transactions only support **XRP**, not IOUs or issued currencies.</div>
-                                             </div>
+                         <details class="account-flag-info">
+                              <summary>NFT Flag Info</summary>
+                              <fieldset class="flag-fieldset">
+                                   <div class="flag-table">
+                                        <!-- Header Row -->
+                                        <div class="flag-row flag-header">
+                                             <div class="flag-cell">Flag Name</div>
+                                             <div class="flag-cell">Hex Value</div>
+                                             <div class="flag-cell">Decimal Value</div>
+                                             <div class="flag-cell">Description</div>
                                         </div>
-                                   </details>
-
-                                   <details class="escrow-subdetails">
-                                        <summary>Escrow Fields</summary>
-                                        <div class="escrow-table">
-                                             <div class="escrow-row escrow-header">
-                                                  <div class="escrow-cell">Time Condition</div>
-                                                  <div class="escrow-cell">Can Finish?</div>
-                                                  <div class="escrow-cell">Can Cancel?</div>
-                                                  <div class="escrow-cell">Who Can Do It?</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">Before <code>Escrow Finish Time</code></div>
-                                                  <div class="escrow-cell">No</div>
-                                                  <div class="escrow-cell">No</div>
-                                                  <div class="escrow-cell">Anyone</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">Between <code>Escrow Finish Time</code> and <code>Escrow Cancel Time</code></div>
-                                                  <div class="escrow-cell">Yes</div>
-                                                  <div class="escrow-cell">No</div>
-                                                  <div class="escrow-cell">Anyone</div>
-                                             </div>
-                                             <div class="escrow-row">
-                                                  <div class="escrow-cell">After <code>Escrow Cancel Time</code></div>
-                                                  <div class="escrow-cell">No</div>
-                                                  <div class="escrow-cell">Yes</div>
-                                                  <div class="escrow-cell">Only escrow creator</div>
-                                             </div>
+                                        <!-- Data Rows -->
+                                        <div class="flag-row">
+                                             <div class="flag-cell">tfBurnable</div>
+                                             <div class="flag-cell">0x00000001</div>
+                                             <div class="flag-cell">1</div>
+                                             <div class="flag-cell">Allows anyone to burn the NFT if they hold it.</div>
                                         </div>
-                                   </details>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">tfOnlyXRP</div>
+                                             <div class="flag-cell">0x00000002</div>
+                                             <div class="flag-cell">2</div>
+                                             <div class="flag-cell">NFT can only be bought/sold using XRP (no issued tokens).</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">tfTransferable</div>
+                                             <div class="flag-cell">0x00000008</div>
+                                             <div class="flag-cell">8</div>
+                                             <div class="flag-cell">Allows the NFT to be transferred to others.</div>
+                                        </div>
+                                        <div class="flag-row">
+                                             <div class="flag-cell">tfMutable</div>
+                                             <div class="flag-cell">0x00000010</div>
+                                             <div class="flag-cell">16</div>
+                                             <div class="flag-cell">The URI field of the minted NFToken can be updated using the NFTokenModify transaction.</div>
+                                        </div>
+                                   </div>
+                                   <p class="nft-note">Note: Each NFT offer reserves 0.2 XRP on your account until accepted or canceled.</p>
                               </fieldset>
                          </details>
                     </div>
@@ -340,26 +270,151 @@
                     <table id="meta">
                          <tr>
                               <td>
-                                   <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
-                                        <label>MPT Issuance ID</label>
+                                   <span class="tooltip" tooltip-data="Set NFT Flags.">
+                                        <label>NFT Flags</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
-                                        <input type="checkbox" id="isMptEnabled" [(ngModel)]="isMptEnabled" name="isMptEnabled" />
+                                        <input type="checkbox" id="isNftFlagModeEnabled" [(ngModel)]="isNftFlagModeEnabled" name="isNftFlagModeEnabled" />
                                         <span class="slider round"></span>
                                    </label>
-                                   <label for="isMptEnabled"></label>
+                                   <label for="isNftFlagModeEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" *ngIf="isMptEnabled">
+                         <tr class="multisignAddressClass" *ngIf="isNftFlagModeEnabled">
                               <td>
-                                   <span class="tooltip" tooltip-data="">
-                                        <label for="mptIssuanceIdField"></label>
+                                   <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it">
+                                        <label for="burnableNft">Burnable</label>
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="mptIssuanceIdField" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField"></textarea>
+                                   <label class="switch">
+                                        <input type="checkbox" id="burnableNft" class="nftCheckboxes" [(ngModel)]="burnableNft" (ngModelChange)="toggleFlags()" name="burnableNft" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="NFT can only be bought/sold using XRP (no issued tokens)">
+                                        <label for="onlyXrpNft">Only XRP</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="onlyXrpNft" class="nftCheckboxes" [(ngModel)]="onlyXrpNft" (ngModelChange)="toggleFlags()" name="onlyXrpNft" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Allows the NFT to be transferred to others">
+                                        <label for="transferableNft">Transferable</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="transferableNft" class="nftCheckboxes" [(ngModel)]="transferableNft" (ngModelChange)="toggleFlags()" name="transferableNft" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="The URI field of the minted NFToken can be updated using the NFTokenModify transaction">
+                                        <label for="mutableNft">Mutable</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="mutableNft" class="nftCheckboxes" [(ngModel)]="mutableNft" (ngModelChange)="toggleFlags()" name="mutableNft" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Update Batch Mode to interact with NFTs.">
+                                        <label>Batch Mode</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isBatchModeEnabled" [(ngModel)]="isBatchModeEnabled" name="isBatchModeEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isBatchModeEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="All transactions must succeed or else the whole batch fails.">
+                                        <label for="batchAllOrNothing">All or Nothing</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="batchAllOrNothing" class="nftCheckboxes" [checked]="batchMode === 'allOrNothing'" (change)="setBatchMode('allOrNothing')" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Only the first successful transaction is applied. All transactions afterward fail or are skipped.">
+                                        <label for="batchOnlyOne">Only One</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="batchOnlyOne" class="nftCheckboxes" [checked]="batchMode === 'onlyOne'" (change)="setBatchMode('onlyOne')" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+
+                              <td>
+                                   <span class="tooltip" tooltip-data="All transactions will be applied, regardless of failure.">
+                                        <label for="batchIndependent">Independent</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="batchIndependent" class="nftCheckboxes" [checked]="batchMode === 'independent'" (change)="setBatchMode('independent')" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                              <td>
+                                   <span class="tooltip" tooltip-data="All transactions are applied until the first failure; subsequent transactions are skipped.">
+                                        <label for="batchUntilFailure">Until Failure</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <label class="switch">
+                                        <input type="checkbox" id="batchUntilFailure" class="nftCheckboxes" [checked]="batchMode === 'untilFailure'" (change)="setBatchMode('untilFailure')" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                         </tr>
+                    </table>
+                    <table id="meta">
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Update NFT Meta Data.">
+                                        <label>Update NFT Meta Data</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isUpdateNFTMetaData" [(ngModel)]="isUpdateNFTMetaData" name="isUpdateNFTMetaData" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isUpdateNFTMetaData"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isUpdateNFTMetaData">
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="memoField">URI Field</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input style="width: auto" type="text" id="uriField" size="72" [(ngModel)]="uriField" name="uriField" />
+                                   <br />
+                                   <button type="button" (click)="updateNFTMetadata()">Update NFT Metadata</button>
                               </td>
                          </tr>
                          <tr>
@@ -464,7 +519,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAddress" size="44" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
+                                   <input type="text" id="regularKeyAddress" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
                               </td>
                          </tr>
                          <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
@@ -474,7 +529,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeySeed" size="44" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
+                                   <input type="text" id="regularKeySeed" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
                          </tr>
                          <tr>
@@ -498,7 +553,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="44" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <input type="text" id="ticketSequence" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
                               </td>
                          </tr>
                          <tr>

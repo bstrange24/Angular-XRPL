@@ -742,6 +742,22 @@ export class XrplService {
           }
      }
 
+     async getNFTBuyOffers(client: Client, nftId: string): Promise<any> {
+          try {
+               const response = await client.request({
+                    command: 'nft_buy_offers',
+                    nft_id: nftId,
+               });
+               return response;
+          } catch (error: any) {
+               if (error.data && error.data.error === 'objectNotFound') {
+                    return []; // no offers exist
+               }
+               throw error;
+               // throw new Error(`Failed to fetch nft buy offers: ${error.message || 'Unknown error'}`);
+          }
+     }
+
      async getNFTSellOffers(client: Client, nftId: string): Promise<any> {
           try {
                const response = await client.request({
@@ -750,9 +766,36 @@ export class XrplService {
                });
                return response;
           } catch (error: any) {
-               console.error('Error fetching nft sell offers:', error);
-               throw new Error(`Failed to fetch nft sell offers: ${error.message || 'Unknown error'}`);
+               if (error.data && error.data.error === 'objectNotFound') {
+                    return []; // no offers exist
+               }
+               throw error;
+               // throw new Error(`Failed to fetch nft sell offers: ${error.message || 'Unknown error'}`);
           }
+     }
+
+     async fetchAllOffersSafe(client: any, method: string, nftId: string): Promise<any[]> {
+          let marker: string | undefined = undefined;
+          const offers: any[] = [];
+
+          try {
+               do {
+                    const req: any = { command: method, nft_id: nftId, limit: 200 };
+                    if (marker) req.marker = marker;
+
+                    const resp = await client.request(req);
+                    if (resp.result.offers) offers.push(...resp.result.offers);
+
+                    marker = resp.result.marker;
+               } while (marker);
+          } catch (err: any) {
+               if (err.data && err.data.error === 'objectNotFound') {
+                    return []; // no offers exist
+               }
+               throw err;
+          }
+
+          return offers;
      }
 
      async getNFTHistory(client: Client, ledgerIndex: xrpl.LedgerIndex, nft_id: string) {
@@ -814,19 +857,6 @@ export class XrplService {
           } catch (error: any) {
                console.error('Error verifying channel:', error);
                throw new Error(`Failed to verifying channel: ${error.message || 'Unknown error'}`);
-          }
-     }
-
-     async getNFTBuyOffers(client: Client, nftId: string): Promise<any> {
-          try {
-               const response = await client.request({
-                    command: 'nft_buy_offers',
-                    nft_id: nftId,
-               });
-               return response;
-          } catch (error: any) {
-               console.error('Error fetching nft buy offers:', error);
-               throw new Error(`Failed to fetch nft buy offers: ${error.message || 'Unknown error'}`);
           }
      }
 
@@ -1016,7 +1046,7 @@ export class XrplService {
      async getEscrowBySequence(client: xrpl.Client, account: string, sequence: number): Promise<any | null> {
           try {
                const escrowObjects = await this.getAccountObjects(client, account, 'validated', 'escrow');
-               for (const [index, obj] of escrowObjects.result.account_objects.entries()) {
+               for (const [ignore, obj] of escrowObjects.result.account_objects.entries()) {
                     if (obj.PreviousTxnID) {
                          const sequenceTx = await this.getTxData(client, obj.PreviousTxnID);
                          if (sequenceTx.result.tx_json.Sequence === sequence) {

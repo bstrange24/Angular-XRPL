@@ -69,13 +69,13 @@ interface SignerEntry {
 }
 
 @Component({
-     selector: 'app-create-nft',
+     selector: 'app-nft-offers',
      standalone: true,
      imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
-     templateUrl: './create-nft.component.html',
-     styleUrl: './create-nft.component.css',
+     templateUrl: './nft-offers.component.html',
+     styleUrl: './nft-offers.component.css',
 })
-export class CreateNftComponent implements AfterViewChecked {
+export class NftOffersComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
@@ -128,8 +128,7 @@ export class CreateNftComponent implements AfterViewChecked {
      minterAddressField: string = '';
      issuerAddressField: string = '';
      expirationField: string = '';
-     // uriField: string = 'https://ipfs.io/ipfs/bafybeigjro2d2tc43bgv7e4sxqg7f5jga7kjizbk7nnmmyhmq35dtz6deq';
-     uriField: string = 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjhubGpubms0bXl5ZzM0cWE4azE5aTlyOHRyNmVhd2prcDc1am43ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NxwglXLqMeOuRF3FHv/giphy.gif';
+     uriField: string = 'https://ipfs.io/ipfs/bafybeigjro2d2tc43bgv7e4sxqg7f5jga7kjizbk7nnmmyhmq35dtz6deq';
      nftIdField: string = '';
      nftIndexField: string = '';
      nftCountField: string = '';

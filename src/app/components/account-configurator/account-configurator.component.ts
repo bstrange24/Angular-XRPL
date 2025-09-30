@@ -159,7 +159,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.loadSignerList(wallet.classicAddress);
           } catch (error: any) {
                console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
@@ -167,7 +167,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -426,7 +426,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               // console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
                inputs = {
                     ...inputs,
@@ -446,8 +446,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                });
 
-               // CRITICAL: Render immediately
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               // CRITICAL: Sort based on Ledger Entry Type and render immediately
+               const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
+               console.debug(`sortedResult for ${wallet.classicAddress}:`, sortedResult.result);
+               this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates — let main render complete first
@@ -471,6 +473,167 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                console.log(`Leaving getAccountDetails in ${this.executionTime}ms`);
           }
      }
+
+     // async updateFlags1() {
+     //      console.log('Entering updateFlags');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+
+     //      let inputs: ValidationInputs = {
+     //           selectedAccount: this.selectedAccount,
+     //           seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+     //           isRegularKeyAddress: this.isSetRegularKey,
+     //           isMultiSign: this.useMultiSign,
+     //           regularKeyAddress: this.regularKeyAccount || undefined,
+     //           regularKeySeed: this.regularKeyAccountSeed || undefined,
+     //           multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
+     //           multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+     //           isTicket: this.isTicket,
+     //           ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+     //           signers: this.signers || undefined,
+     //           signerQuorum: this.signerQuorum || undefined,
+     //      };
+
+     //      this.clearUiIAccountMetaData();
+
+     //      try {
+     //           this.resultField.nativeElement.innerHTML = '';
+     //           const mode = this.isSimulateEnabled ? 'simulating' : 'updating';
+     //           this.updateSpinnerMessage(`Preparing Account Flags ${mode}...`);
+
+     //           const client = await this.xrplService.getClient();
+     //           const wallet = await this.getWallet();
+
+     //           // ➤ PHASE 1: PARALLELIZE — fetch account info + objects + fee + ledger index
+     //           let [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+
+     //           inputs = { ...inputs, account_info: accountInfo };
+
+     //           const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
+     //           inputs = { ...inputs, flags: accountInfo.result.account_flags, setFlags, clearFlags };
+
+     //           const errors = await this.validateInputs(inputs, 'updateFlags');
+     //           if (errors.length > 0) {
+     //                return this.setError(`ERROR: ${errors.join('; ')}`);
+     //           }
+
+     //           // ➤ EARLY EXIT: No changes needed
+     //           if (setFlags.length === 0 && clearFlags.length === 0) {
+     //                this.resultField.nativeElement.innerHTML = 'No flag changes needed.';
+     //                this.resultField.nativeElement.classList.add('success');
+     //                this.setSuccess('No changes required');
+     //                return;
+     //           }
+
+     //           // ➤ PHASE 2: Build SINGLE transaction with all flag changes
+     //           const flagTx: xrpl.AccountSet = {
+     //                TransactionType: 'AccountSet',
+     //                Account: classicAddress,
+     //                Fee: fee,
+     //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+     //           };
+
+     //           // Add SetFlag(s) - only the highest value is needed, but we'll add all for clarity
+     //           if (setFlags.length > 0) {
+     //                // XRPL only accepts one SetFlag per transaction, so use the first one
+     //                // But actually, you can only set one flag at a time in AccountSet
+     //                // So we need to handle this differently...
+     //           }
+
+     //           // Wait - actually, let's check the XRPL docs...
+     //           // ❗ **CORRECTION**: AccountSet only accepts ONE SetFlag or ClearFlag per transaction
+     //           // So we cannot batch them. We must submit sequentially.
+     //           // But we can still optimize the sequential processing!
+
+     //           // ➤ PHASE 3: Process flags SEQUENTIALLY (required by XRPL) but OPTIMIZED
+     //           const transactions = [];
+     //           let hasError = false;
+
+     //           // Combine all flags to process
+     //           const allFlagActions = [...setFlags.map(flag => ({ type: 'SetFlag', value: parseInt(flag) })), ...clearFlags.map(flag => ({ type: 'ClearFlag', value: parseInt(flag) }))];
+
+     //           // Get regular key wallet ONCE
+     //           const environment = this.xrplService.getNet().environment;
+     //           const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
+
+     //           // Process each flag
+     //           for (const flagAction of allFlagActions) {
+     //                const flagName = this.utilsService.getFlagName(flagAction.value.toString());
+     //                const action = flagAction.type === 'SetFlag' ? 'setting' : 'clearing';
+
+     //                this.updateSpinnerMessage(`Submitting ${flagName} (${action})...`);
+
+     //                const response = await this.submitFlagTransaction(
+     //                     client,
+     //                     wallet,
+     //                     { [flagAction.type]: flagAction.value },
+     //                     this.memoField,
+     //                     fee, // ✅ Pass pre-calculated fee
+     //                     currentLedger, // ✅ Pass pre-fetched ledger index
+     //                     accountInfo, // ✅ Pass pre-fetched account info
+     //                     useRegularKeyWalletSignTx,
+     //                     regularKeyWalletSignTx
+     //                );
+
+     //                if (!this.isValidResponse(response)) {
+     //                     this.setError('ERROR: Invalid response from submitFlagTransaction');
+     //                     hasError = true;
+     //                     continue;
+     //                }
+
+     //                transactions.push({
+     //                     type: flagAction.type,
+     //                     flag: flagName,
+     //                     result: typeof response.message === 'object' && 'result' in response.message ? response.message.result : response.message,
+     //                });
+
+     //                if (!response.success) {
+     //                     hasError = true;
+     //                }
+
+     //                // Update ledger index for next transaction
+     //                if (response.success && typeof response.message !== 'string' && response.message?.result?.ledger_index) {
+     //                     currentLedger = response.message.result.ledger_index;
+     //                }
+     //           }
+
+     //           // ➤ PHASE 4: Render results
+     //           this.renderUiComponentsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
+
+     //           if (hasError) {
+     //                this.resultField.nativeElement.classList.add('error');
+     //                this.setErrorProperties();
+     //           } else {
+     //                this.resultField.nativeElement.classList.add('success');
+     //                this.setSuccess(this.result);
+     //           }
+
+     //           // ➤ ONLY refresh account data after REAL transactions
+     //           if (!this.isSimulateEnabled) {
+     //                const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+
+     //                this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+     //                // ➤ DEFER non-critical cleanup
+     //                setTimeout(async () => {
+     //                     try {
+     //                          this.loadSignerList(classicAddress);
+     //                          this.clearFields(false);
+     //                          await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+     //                     } catch (err) {
+     //                          console.error('Error in deferred UI updates:', err);
+     //                     }
+     //                }, 0);
+     //           }
+     //      } catch (error: any) {
+     //           console.error('Error in updateFlags:', error);
+     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving updateFlags in ${this.executionTime}ms`);
+     //      }
+     // }
 
      async updateFlags() {
           console.log('Entering updateFlags');
@@ -514,13 +677,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-                    flags: accountInfo.result.account_flags,
-                    setFlags: setFlags,
-                    clearFlags: clearFlags,
-               };
+               inputs = { ...inputs, account_info: accountInfo, flags: accountInfo.result.account_flags, setFlags: setFlags, clearFlags: clearFlags };
 
                const errors = await this.validateInputs(inputs, 'updateFlags');
                if (errors.length > 0) {
@@ -628,13 +785,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // Fetch account info, account objects, fee and current ledger in PARALLEL
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -693,7 +851,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                updates.forEach(update => update());
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, accountSetTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, accountSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -812,13 +970,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // Fetch account info, account objects, fee and current ledger in PARALLEL
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -959,12 +1118,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // Fetch account info, fee and current ledger in PARALLEL
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -1012,7 +1172,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     signerListTx.SignerQuorum = Number(this.signerQuorum);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, signerListTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, signerListTx, fee)) {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
@@ -1127,12 +1287,13 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // Fetch account info, fee and current ledger in PARALLEL
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -1166,7 +1327,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(setRegularKeyTx, this.memoField);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, setRegularKeyTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, setRegularKeyTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -1288,7 +1449,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // Fetch account info, fee and current ledger in PARALLEL
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -1406,6 +1567,107 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
+     private async submitFlagTransaction1(client: xrpl.Client, wallet: xrpl.Wallet, flagPayload: any, memoField: any, fee: string, currentLedger: number, accountInfo: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any) {
+          console.log('Entering submitFlagTransaction');
+          const startTime = Date.now();
+
+          try {
+               const environment = this.xrplService.getNet().environment;
+
+               // Get flag label for UI
+               const flagKey = flagPayload.SetFlag ? 'SetFlag' : 'ClearFlag';
+               const flagValue = flagPayload[flagKey];
+               const flagToUpdate = Array.from(AppConstants.FLAGS.values()).find((flag: any) => flag.value === flagValue);
+               const flagLabel = flagToUpdate ? flagToUpdate.label : 'Flag';
+
+               this.updateSpinnerMessage(`Submitting ${flagLabel} (${flagKey === 'SetFlag' ? 'set' : 'clear'})...`);
+
+               // Prepare transaction
+               const tx: any = {
+                    TransactionType: 'AccountSet',
+                    Account: wallet.classicAddress,
+                    ...flagPayload,
+                    Fee: fee,
+                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
+               };
+
+               // Handle Ticket Sequence
+               if (this.ticketSequence) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+                    if (!ticketExists) {
+                         return { success: false, message: `ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}` };
+                    }
+                    this.utilsService.setTicketSequence(tx, this.ticketSequence, true);
+               } else {
+                    this.utilsService.setTicketSequence(tx, accountInfo.result.account_data.Sequence, false);
+               }
+
+               // Add memo if provided
+               if (this.memoField) {
+                    this.utilsService.setMemoField(tx, this.memoField);
+               }
+
+               // Sign transaction
+               let signedTx: { tx_blob: string; hash: string } | null = null;
+
+               if (this.useMultiSign) {
+                    const signerAddresses = this.utilsService.getMultiSignAddress(this.multiSignAddress);
+                    const signerSeeds = this.utilsService.getMultiSignSeeds(this.multiSignSeeds);
+
+                    if (signerAddresses.length === 0) {
+                         return { success: false, message: 'ERROR: No signer addresses provided for multi-signing' };
+                    }
+                    if (signerSeeds.length === 0) {
+                         return { success: false, message: 'ERROR: No signer seeds provided for multi-signing' };
+                    }
+
+                    try {
+                         const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx, signerAddresses, signerSeeds, fee });
+
+                         signedTx = result.signedTx;
+                         tx.Signers = result.signers;
+
+                         // Recalculate fee for multisign
+                         const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
+                         tx.Fee = multiSignFee;
+                    } catch (err: any) {
+                         return { success: false, message: `ERROR: ${err.message}` };
+                    }
+               } else {
+                    const preparedTx = await client.autofill(tx);
+                    signedTx = useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
+               }
+
+               // Validate balance
+               const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, tx, tx.Fee)) {
+                    return { success: false, message: 'ERROR: Insufficient XRP to complete transaction' };
+               }
+
+               if (!signedTx) {
+                    return { success: false, message: 'ERROR: Failed to sign transaction.' };
+               }
+
+               // Submit or Simulate
+               let response: any;
+               if (this.isSimulateEnabled) {
+                    // ✅ TRUE SIMULATION — use UNSIGNED tx_json
+                    response = await client.request({
+                         command: 'simulate',
+                         tx_json: tx,
+                    });
+                    return { success: true, message: response };
+               } else {
+                    response = await client.submitAndWait(signedTx.tx_blob);
+                    return { success: true, message: response };
+               }
+          } catch (error: any) {
+               return { success: false, message: `ERROR submitting flag: ${error.message}` };
+          } finally {
+               console.log(`Leaving submitFlagTransaction in ${Date.now() - startTime}ms`);
+          }
+     }
+
      private async submitFlagTransaction(client: xrpl.Client, wallet: xrpl.Wallet, flagPayload: any, memoField: any) {
           console.log('Entering submitFlagTransaction');
           const startTime = Date.now();
@@ -1435,6 +1697,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const fee = await this.xrplService.calculateTransactionFee(client);
                const currentLedger = await this.xrplService.getLastLedgerIndex(client);
+               const serverInfo = await this.xrplService.getXrplServerInfo(client, 'current', '');
 
                const tx = {
                     TransactionType: 'AccountSet',
@@ -1509,7 +1772,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     }
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, tx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, tx, fee)) {
                     return { success: false, message: 'ERROR: Insufficient XRP to complete transaction' };
                }
 

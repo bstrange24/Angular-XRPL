@@ -89,116 +89,47 @@
                               </tr>
                          </table>
 
-                         <!-- <table id="flags">
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Requires a destination tag for incoming payments">
-                                             <label for="isClawback">Can Clawback</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="isClawback" [(ngModel)]="flags.isClawback" name="isClawback" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Requires authorization">
-                                             <label for="isLock">Can Lock</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="isLock" [(ngModel)]="flags.isLock" name="isLock" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Discourages incoming XRP payments (not enforced)">
-                                             <label for="isRequireAuth">Require Auth</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="isRequireAuth" [(ngModel)]="flags.isRequireAuth" name="isRequireAuth" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Disables the master key pair">
-                                             <label for="isTransferable">Can Transfer</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="isTransferable" [(ngModel)]="flags.isTransferable" name="isTransferable" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Prevents freezing trust lines">
-                                             <label for="isTradable">Can Trade</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="isTradable" [(ngModel)]="flags.isTradable" name="isTradable" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Freezes all trust lines">
-                                             <label for="isEscrow">Can Escrow</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" id="isEscrow" [(ngModel)]="flags.isEscrow" name="isEscrow" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                         </table> -->
-
                          <table id="flags">
-                              <tr class="metaData">
+                              <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Asset Scale for MPT token.">
-                                             <label for="assetScaleField">Asset Scale</label>
+                                        <span class="tooltip" tooltip-data="Escrow finish time.">
+                                             <label for="timePeriodField">Time Period</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="assetScaleField" size="41" placeholder="Value must be between 1 and 15" [(ngModel)]="assetScaleField" name="assetScaleField" />
+                                        <input type="text" id="timePeriodField" placeholder="Enter time" [(ngModel)]="timePeriodField" name="timePeriodField" />
+                                        <select class="timeUnit" style="width: 100px" id="timePeriodUnit" [(ngModel)]="timePeriodUnit" name="timePeriodUnit">
+                                             <option value="seconds">Seconds</option>
+                                             <option value="minutes">Minutes</option>
+                                             <option value="hours">Hours</option>
+                                             <option value="days">Days</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Escrow finish time.">
+                                             <label for="timePeriodStartField">Time Period Start</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="timePeriodStartField" placeholder="Enter time" [(ngModel)]="timePeriodStartField" name="timePeriodStartField" />
+                                        <select class="timeUnit" style="width: 100px" id="timePeriodStartUnit" [(ngModel)]="timePeriodStartUnit" name="timePeriodStartUnit">
+                                             <option value="seconds">Seconds</option>
+                                             <option value="minutes">Minutes</option>
+                                             <option value="hours">Hours</option>
+                                             <option value="days">Days</option>
+                                        </select>
                                    </td>
                               </tr>
                               <tr class="metaData">
                                    <td>
-                                        <span class="tooltip" tooltip-data="Number of MPT tokens to issue.">
-                                             <label for="tokenCountField">Maximum Tokens</label>
+                                        <span class="tooltip" tooltip-data="">
+                                             <label for="totalOutField">Total Out</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="tokenCountField" size="41" [(ngModel)]="tokenCountField" name="tokenCountField" />
-                                   </td>
-                              </tr>
-                              <tr class="metaData">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Web identity.">
-                                             <label for="transferFeeField">Transfer Fee</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="transferFeeField" size="41" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
+                                        <input type="text" id="totalOutField" size="41" placeholder="" [(ngModel)]="totalOutField" name="totalOutField" />
                                    </td>
                               </tr>
                               <tr>
@@ -213,8 +144,16 @@
                               </tr>
                               <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
-                                             <label for="destinationFields">Destination</label>
+                                        <label for="backupAccountField">Backup Account</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="backupAccountField" [(ngModel)]="backupAccountField" name="backupAccountField" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="">
+                                             <label for="destinationFields">Whitelist Addresses</label>
                                         </span>
                                    </td>
                                    <td>
@@ -231,16 +170,6 @@
                                         <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
                                    </td>
                               </tr>
-                              <tr>
-                                   <td style="text-align: left">
-                                        <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
-                                             <label for="metaDataField">Token Meta Data</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <textarea style="width: 300px; height: 200px" class="memoField" id="metaDataField" placeholder="Token Meta Data" [(ngModel)]="metaDataField" name="metaDataField"></textarea>
-                                   </td>
-                              </tr>
                          </table>
                     </div>
 
@@ -251,17 +180,32 @@
 
                     <div class="button-container">
                          <table style="text-align: left; width: 100%">
+                              <fieldset>
+                                   <legend style="color: white">Manage Whitelist Address</legend>
+                                   <div style="margin-bottom: 10px">
+                                        <label>Add Whitelist Address: </label>
+                                        <input type="text" [(ngModel)]="newWhitelistAddress" placeholder="Whitelist Address" name="newWhitelistAddress" style="width: 300px; margin-right: 10px" />
+                                        <button type="button" (click)="addWhitelistAddress()">Add</button>
+                                   </div>
+                                   <div>
+                                        <label>Remove Whitelist Address: </label>
+                                        <select [(ngModel)]="whitelistAddressToRemove" name="whitelistAddressToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                                             <option value="">Select a whitelist address</option>
+                                             <option *ngFor="let address of whitelistAddresses" [value]="address">{{address}}</option>
+                                        </select>
+                                        <button type="button" (click)="removeWhitelistAddress()">Remove</button>
+                                   </div>
+                              </fieldset>
+                              <th></th>
                               <th></th>
                               <tr style="vertical-align: top">
                                    <td colspan="2">
-                                        <button type="button" (click)="getMptDetails()">Get MPT Info</button>
-                                        <button type="button" (click)="createMpt()">Create MPT</button>
-                                        <!-- <button type="button" (click)="mintMpt()">Mint MPT</button> -->
-                                        <button type="button" (click)="authorizeMpt()">Authorize MPT</button>
-                                        <!-- <button type="button" (click)="transferMpt()">Transfer MPT</button> -->
-                                        <button type="button" (click)="sendMpt()">Send MPT</button>
-                                        <button type="button" (click)="setMptLocked()">Set MPT Lock</button>
-                                        <button type="button" (click)="destroyMpt()">Destroy MPT</button>
+                                        <button type="button" (click)="getFirewallDetails()">Get Firewall Info</button>
+                                        <button type="button" (click)="createFirewall()">Create Firewall</button>
+                                        <button type="button" (click)="updateFirewall()">Update Firewall</button>
+                                        <button type="button" (click)="authorizeFirewall('Y')">Authorize Firewall</button>
+                                        <button type="button" (click)="authorizeFirewall('N')">Unauthorize Firewall</button>
+                                        <button type="button" (click)="deleteFirewall()">Delete Firewall</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
@@ -396,103 +340,6 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <tr>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Set MPT Flags.">
-                                        <label>MPT Flags</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="isMptFlagModeEnabled" [(ngModel)]="isMptFlagModeEnabled" name="isMptFlagModeEnabled" />
-                                        <span class="slider round"></span>
-                                   </label>
-                                   <label for="isMptFlagModeEnabled"></label>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isMptFlagModeEnabled">
-                              <td>
-                                   <span class="tooltip" tooltip-data="Requires a destination tag for incoming payments">
-                                        <label for="isClawback">Can Clawback</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <label class="switch">
-                                        <input type="checkbox" id="isClawback" [(ngModel)]="flags.isClawback" name="isClawback" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Requires authorization">
-                                        <label for="isLock">Can Lock</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <label class="switch">
-                                        <input type="checkbox" id="isLock" [(ngModel)]="flags.isLock" name="isLock" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Discourages incoming XRP payments (not enforced)">
-                                        <label for="isRequireAuth">Require Auth</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <label class="switch">
-                                        <input type="checkbox" id="isRequireAuth" [(ngModel)]="flags.isRequireAuth" name="isRequireAuth" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isMptFlagModeEnabled">
-                              <td>
-                                   <span class="tooltip" tooltip-data="Disables the master key pair">
-                                        <label for="isTransferable">Can Transfer</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <label class="switch">
-                                        <input type="checkbox" id="isTransferable" [(ngModel)]="flags.isTransferable" name="isTransferable" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Prevents freezing trust lines">
-                                        <label for="isTradable">Can Trade</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <label class="switch">
-                                        <input type="checkbox" id="isTradable" [(ngModel)]="flags.isTradable" name="isTradable" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Freezes all trust lines">
-                                        <label for="isEscrow">Can Escrow</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <label class="switch">
-                                        <input type="checkbox" id="isEscrow" [(ngModel)]="flags.isEscrow" name="isEscrow" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                         </tr>
-                    </table>
-                    <br />
-                    <table id="meta">
-                         <tr>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
-                                        <label for="mptIssuanceIdField">MPT Issuance ID</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="mptIssuanceIdField" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField"></textarea>
-                              </td>
-                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">

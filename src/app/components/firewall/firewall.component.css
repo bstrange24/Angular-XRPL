@@ -5,7 +5,6 @@
      align-items: start;
 }
 
-
 /* .transaction-layout {
      display: grid;
      grid-template-columns: 2fr 1fr;
@@ -164,54 +163,7 @@ label.switch {
 
 #meta input[type="text"],
 #meta select {
-     /* width: 100px; */
+     width: 300px;
      /* consistent input/dropdown width */
      height: 28px;
-}
-
-/* 
-.nft-options-row {
-     display: flex;
-     justify-content: space-between;
-     margin-bottom: 8px;
-}
-
-.nft-option {
-     display: flex;
-     align-items: center;
-     gap: 8px;
-}
-
-.nft-option.left {
-     margin-right: auto;
-} */
-
-/* .nft-option label {
-     white-space: nowrap;
-} */
-
-/* .nft-options-grid {
-     display: grid;
-     grid-template-columns: repeat(2, 1fr);
-     gap: 12px 20px;
-     margin-top: 1px;
-} */
-
-.nft-options-grid {
-     display: grid;
-     grid-template-columns: 1.0fr 1.0fr 1.0fr 1.0fr;
-     gap: 12px 20px;
-     margin-top: 1px;
-}
-
-.nft-option {
-     display: flex;
-     align-items: center;
-     justify-content: space-between;
-     /* pushes label left, slider right */
-}
-
-.burn-check .sell-check {
-     background-color: #3a3c41;
-     color: aqua;
 }

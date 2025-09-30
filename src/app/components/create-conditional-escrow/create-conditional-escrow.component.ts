@@ -58,6 +58,42 @@ interface EscrowObject {
      TicketSequence: number | null | undefined;
 }
 
+interface EscrowWithTxData {
+     LedgerEntryType: 'Escrow';
+     Account: string;
+     Amount?: string | { currency: string; value: string } | { mpt_issuance_id: string; value: string };
+     Destination: string;
+     PreviousTxnID?: string;
+     Condition?: string;
+     CancelAfter?: number;
+     FinishAfter?: number;
+     DestinationTag?: number;
+     SourceTag?: number;
+     Sequence?: number | null;
+     TicketSequence?: string | number;
+     Memo?: string | null;
+}
+
+interface RippleState {
+     LedgerEntryType: 'RippleState';
+     Balance: { currency: string; value: string };
+     HighLimit: { issuer: string };
+}
+
+interface MPToken {
+     LedgerEntryType: 'MPToken';
+     index: string;
+     mpt_issuance_id?: string;
+     MPTokenIssuanceID?: string;
+     PreviousTxnID: string;
+     Flags?: number;
+     MPTAmount?: string | number;
+     MaximumAmount?: string | number;
+     OutstandingAmount?: string | number;
+     TransferFee?: string | number;
+     MPTokenMetadata?: string;
+}
+
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -185,7 +221,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -386,223 +422,158 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           try {
                this.showSpinnerWithDelay('Getting Escrows ...', 250);
 
-               // Phase 1: Get client and wallet (sequential if needed)
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Phase 2: Fetch account info and objects in parallel
-               const [accountInfo, accountObjects, escrowObjects, tokenBalance, mptAccountTokens] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'),
-                    this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'mptoken'),
-               ]);
+               // Fetch account info and all objects in parallel
+               const [accountInfo, accountObjects, escrowObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow')]);
 
-               // Optional: Only log debug if needed — stringify can be expensive
                console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}`, accountObjects.result);
                console.debug(`Escrow objects:`, escrowObjects.result);
-               console.debug(`tokenBalance:`, tokenBalance.result);
-               console.debug(`mptTokens:`, mptAccountTokens.result);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'get');
-               if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
-               }
+               if (errors.length > 0) return this.setError(`ERROR: ${errors.join('; ')}`);
 
-               const data = {
-                    sections: [{}],
-               };
+               const data: any = { sections: [{}] };
 
-               if (escrowObjects.result.account_objects.length <= 0) {
+               // --- Escrows ---
+               const escrowList = escrowObjects.result.account_objects.filter(this.utilsService.isEscrow) as unknown as EscrowWithTxData[];
+
+               if (escrowList.length === 0) {
                     data.sections.push({
                          title: 'Escrows',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No escrows found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
-                    // Phase 3: Fetch ALL transaction details in PARALLEL
-                    const txPromises = escrowObjects.result.account_objects.map(escrow => {
+                    const txPromises = escrowList.map(escrow => {
                          const previousTxnID = escrow.PreviousTxnID;
-                         if (typeof previousTxnID !== 'string') {
-                              return Promise.resolve({
-                                   Sequence: null,
-                                   TicketSequence: 'N/A',
-                                   Memo: null,
-                              });
-                         }
+                         if (!previousTxnID) return Promise.resolve({ Sequence: null, TicketSequence: 'N/A', Memo: null });
+
                          return this.xrplService
                               .getTxData(client, previousTxnID)
                               .then(sequenceTx => {
                                    const txJson = sequenceTx.result.tx_json;
-                                   const offerSequence = txJson.Sequence;
-                                   const ticketSequence = txJson.TicketSequence;
-                                   const memoData = txJson.Memos?.[0]?.Memo?.MemoData || null;
-
                                    return {
-                                        Sequence: offerSequence ?? null,
-                                        TicketSequence: ticketSequence ?? 'N/A',
-                                        Memo: memoData,
+                                        Sequence: txJson.Sequence ?? null,
+                                        TicketSequence: txJson.TicketSequence ?? 'N/A',
+                                        Memo: txJson.Memos?.[0]?.Memo?.MemoData ?? null,
                                    };
                               })
                               .catch(err => {
                                    console.error(`Failed to fetch tx ${previousTxnID}:`, err.message || err);
-                                   return {
-                                        Sequence: null,
-                                        TicketSequence: 'N/A',
-                                        Memo: null,
-                                   };
+                                   return { Sequence: null, TicketSequence: 'N/A', Memo: null };
                               });
                     });
 
                     const txResults = await Promise.all(txPromises);
 
-                    // Merge results back into escrow objects
-                    const escrows = escrowObjects.result.account_objects.map((escrow, index) => ({
+                    const escrows: EscrowWithTxData[] = escrowList.map((escrow, idx) => ({
                          ...escrow,
-                         ...txResults[index],
+                         ...txResults[idx],
                     }));
 
                     data.sections.push({
                          title: `Escrows (${escrows.length})`,
                          openByDefault: true,
                          subItems: escrows.map((escrow, index) => {
-                              const Owner = (escrow as any).Account || 'N/A';
-                              const Amount = (escrow as any).Amount;
-                              console.log(`Amount`, Amount);
-                              console.log(`Amount this.displayAmount`, this.displayAmount(Amount));
-                              const Destination = (escrow as any).Destination || 'N/A';
-                              const Condition = (escrow as any).Condition;
-                              const CancelAfter = (escrow as any).CancelAfter;
-                              const FinishAfter = (escrow as any).FinishAfter;
-                              const DestinationTag = (escrow as any).DestinationTag;
-                              const PreviousTxnID = (escrow as any).PreviousTxnID;
-                              const Sequence = (escrow as any).Sequence;
-                              const TicketSequence = (escrow as any).TicketSequence;
-                              const Memo = (escrow as any).Memo;
+                              let amount = escrow.Amount;
+                              let displayAmount: any;
+
+                              if (typeof amount === 'string') {
+                                   // Ensure we're passing a string to dropsToXrp
+                                   displayAmount = xrpl.dropsToXrp(amount);
+                              } else if (amount && typeof amount === 'object' && 'currency' in amount) {
+                                   displayAmount = `${amount.value} ${amount.currency}`;
+                              } else if (amount && typeof amount === 'object' && 'mpt_issuance_id' in amount) {
+                                   displayAmount = `${amount.value} [MPT: ${amount.mpt_issuance_id}]`;
+                              } else {
+                                   displayAmount = 'Unknown';
+                              }
 
                               return {
-                                   key: `Escrow ${index + 1} (ID: ${PreviousTxnID ? PreviousTxnID.slice(0, 8) : 'N/A'}...)`,
+                                   key: `Escrow ${index + 1} (ID: ${escrow.PreviousTxnID?.slice(0, 8) ?? 'N/A'}...)`,
                                    openByDefault: false,
                                    content: [
-                                        { key: 'Owner', value: `<code>${Owner}</code>` },
-                                        { key: 'Sequence', value: Sequence != null ? String(Sequence) : 'N/A' },
-                                        { key: 'Amount', value: Amount != null ? `${this.displayAmount(Amount)}` : 'N/A' },
-                                        { key: 'Destination', value: `<code>${Destination}</code>` },
-                                        ...(Condition ? [{ key: 'Condition', value: `<code>${Condition}</code>` }] : []),
-                                        ...(CancelAfter ? [{ key: 'Cancel After', value: this.utilsService.convertXRPLTime(CancelAfter) }] : []),
-                                        ...(FinishAfter ? [{ key: 'Finish After', value: this.utilsService.convertXRPLTime(FinishAfter) }] : []),
-                                        ...(DestinationTag ? [{ key: 'Destination Tag', value: String(DestinationTag) }] : []),
-                                        ...(Memo ? [{ key: 'Memo', value: this.utilsService.decodeHex(Memo) }] : []),
-                                        { key: 'Ticket Sequence', value: TicketSequence != null ? String(TicketSequence) : 'N/A' },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID || 'N/A'}</code>` },
-                                        ...(escrow && (escrow as any).SourceTag ? [{ key: 'Source Tag', value: String((escrow as any).SourceTag) }] : []),
+                                        { key: 'Owner', value: `<code>${escrow.Account}</code>` },
+                                        { key: 'Sequence', value: escrow.Sequence != null ? String(escrow.Sequence) : 'N/A' },
+                                        { key: 'Amount', value: displayAmount },
+                                        { key: 'Destination', value: `<code>${escrow.Destination}</code>` },
+                                        ...(escrow.Condition ? [{ key: 'Condition', value: `<code>${escrow.Condition}</code>` }] : []),
+                                        ...(escrow.CancelAfter ? [{ key: 'Cancel After', value: this.utilsService.convertXRPLTime(escrow.CancelAfter) }] : []),
+                                        ...(escrow.FinishAfter ? [{ key: 'Finish After', value: this.utilsService.convertXRPLTime(escrow.FinishAfter) }] : []),
+                                        ...(escrow.DestinationTag ? [{ key: 'Destination Tag', value: String(escrow.DestinationTag) }] : []),
+                                        ...(escrow.Memo ? [{ key: 'Memo', value: this.utilsService.decodeHex(escrow.Memo) }] : []),
+                                        { key: 'Ticket Sequence', value: escrow.TicketSequence?.toString() ?? 'N/A' },
+                                        { key: 'Previous Txn ID', value: `<code>${escrow.PreviousTxnID ?? 'N/A'}</code>` },
+                                        ...(escrow.SourceTag ? [{ key: 'Source Tag', value: String(escrow.SourceTag) }] : []),
                                    ],
                               };
                          }),
                     });
                }
 
-               // --- Add Obligations Section ---
-               if (tokenBalance.result.obligations && Object.keys(tokenBalance.result.obligations).length > 0) {
-                    const obligationsSection = {
-                         title: `Obligations (${Object.keys(tokenBalance.result.obligations).length})`,
-                         openByDefault: true,
-                         subItems: Object.entries(tokenBalance.result.obligations).map(([currency, amount], index) => ({
-                              key: `Obligation ${index + 1} (${this.utilsService.decodeIfNeeded(currency)})`,
-                              openByDefault: false,
-                              content: [
-                                   { key: 'Currency', value: this.utilsService.decodeIfNeeded(currency) },
-                                   { key: 'Amount', value: this.utilsService.formatTokenBalance(amount.toString(), 18) },
-                              ],
-                         })),
-                    };
-                    data.sections.push(obligationsSection);
-               }
+               // --- IOUs ---
+               const iouObjects = accountObjects.result.account_objects.filter(this.utilsService.isRippleState) as unknown as RippleState[];
+               if (iouObjects.length > 0) {
+                    const balanceItems = iouObjects.map((iou, idx) => ({
+                         // key: `${iou.Balance.value} ${iou.Balance.currency} from ${iou.HighLimit.issuer}`,
+                         key: `${this.utilsService.formatCurrencyForDisplay(iou.Balance.currency)} from ${iou.HighLimit.issuer}`,
+                         openByDefault: false,
+                         content: [
+                              { key: 'Currency', value: this.utilsService.formatCurrencyForDisplay(iou.Balance.currency) },
+                              { key: 'Issuer', value: `<code>${iou.HighLimit.issuer}</code>` },
+                              { key: 'Amount', value: this.utilsService.formatTokenBalance(iou.Balance.value, 2) },
+                         ],
+                    }));
 
-               // --- Add Balances Section ---
-               if (tokenBalance.result.assets && Object.keys(tokenBalance.result.assets).length > 0) {
-                    const balanceItems = [];
-                    for (const [issuer, currencies] of Object.entries(tokenBalance.result.assets)) {
-                         for (const { currency, value } of currencies) {
-                              const displayCurrency = this.utilsService.formatValueForKey('currency', currency);
-                              balanceItems.push({
-                                   key: `${this.utilsService.formatCurrencyForDisplay(currency)} from ${issuer}`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'Currency', value: displayCurrency },
-                                        { key: 'Issuer', value: `<code>${issuer}</code>` },
-                                        { key: 'Amount', value: value },
-                                   ],
-                              });
-                         }
-                    }
-                    const balancesSection = {
+                    data.sections.push({
                          title: `IOU Tokens (${balanceItems.length})`,
                          openByDefault: true,
                          subItems: balanceItems,
-                    };
-                    data.sections.push(balancesSection);
+                    });
                }
 
-               const mptokens = mptAccountTokens.result.account_objects;
-
-               if (mptokens.length <= 0) {
+               // --- MPTs ---
+               const mptObjects = accountObjects.result.account_objects.filter(this.utilsService.isMPT) as unknown as MPToken[];
+               if (mptObjects.length === 0) {
                     data.sections.push({
                          title: 'MPT Tokens',
                          openByDefault: true,
                          content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
-                    // Sort by Sequence (oldest first)
-                    const sortedMPT = [...mptokens].sort((a, b) => {
-                         const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
-                         const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
-                         return seqA - seqB;
-                    });
-
                     data.sections.push({
-                         title: `MPT Token (${mptokens.length})`,
+                         title: `MPT Tokens (${mptObjects.length})`,
                          openByDefault: true,
-                         subItems: sortedMPT.map((mpt, counter) => {
-                              const { LedgerEntryType, PreviousTxnID, index } = mpt;
-                              // TicketSequence and Flags may not exist on all AccountObject types
-                              const ticketSequence = (mpt as any).TicketSequence;
-                              const flags = (mpt as any).Flags;
-                              const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
+                         subItems: mptObjects.map((mpt, idx) => {
+                              const mptIssuanceId = mpt.mpt_issuance_id || mpt.MPTokenIssuanceID;
                               return {
-                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+                                   key: `MPT ${idx + 1} (ID: ${mpt.index.slice(0, 8)}...)`,
                                    openByDefault: false,
                                    content: [
                                         { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
-                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
-                                        ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
-                                        ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
-                                        // Optionally display custom fields if present
-                                        ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
-                                        ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
-                                        ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
-                                        ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
-                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
-                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+                                        { key: 'Ledger Entry Type', value: mpt.LedgerEntryType },
+                                        { key: 'Previous Txn ID', value: `<code>${mpt.PreviousTxnID}</code>` },
+                                        ...(mpt.Flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(mpt.Flags)) }] : []),
+                                        ...(mpt.MPTAmount ? [{ key: 'MPTAmount', value: String(mpt.MPTAmount) }] : []),
+                                        ...(mpt.MaximumAmount ? [{ key: 'MaximumAmount', value: String(mpt.MaximumAmount) }] : []),
+                                        ...(mpt.OutstandingAmount ? [{ key: 'OutstandingAmount', value: String(mpt.OutstandingAmount) }] : []),
+                                        ...(mpt.TransferFee ? [{ key: 'TransferFee', value: String(mpt.TransferFee) }] : []),
+                                        ...(mpt.MPTokenMetadata ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString(mpt.MPTokenMetadata) }] : []),
                                    ],
                               };
                          }),
                     });
                }
 
-               // CRITICAL: Render immediately
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               // DEFERRED: Non-critical UI updates — let main render complete first
+               // Deferred UI updates
                setTimeout(async () => {
                     try {
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -610,16 +581,10 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.getEscrowOwnerAddress();
 
-                         if (this.currencyFieldDropDownValue !== 'XRP') {
-                              await this.updatedTokenBalance(client, accountInfo, accountObjects, wallet);
-                         }
-
-                         await this.toggleIssuerField();
                          await this.updateXrpBalance(client, accountInfo, wallet);
                          this.clearFields(false);
                     } catch (err) {
-                         console.error('Error in deferred UI updates for payment channels:', err);
-                         // Don't break main render — payment channels are already shown
+                         console.error('Error in deferred UI updates:', err);
                     }
                }, 0);
           } catch (error: any) {
@@ -1063,13 +1028,14 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, escrowObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, escrowObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`escrowObjects for ${wallet.classicAddress}:`, escrowObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = {
                     ...inputs,
@@ -1085,7 +1051,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                let foundSequenceNumber = false;
                let escrowOwner = this.account1.address;
                let escrow: EscrowObject | undefined = undefined;
-               for (const [index, obj] of escrowObjects.result.account_objects.entries()) {
+               for (const [ignore, obj] of escrowObjects.result.account_objects.entries()) {
                     if (obj.PreviousTxnID) {
                          const sequenceTx = await this.xrplService.getTxData(client, obj.PreviousTxnID);
                          if (sequenceTx.result.tx_json.Sequence === Number(this.escrowSequenceNumberField)) {
@@ -1109,6 +1075,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                // Check if the escrow can be canceled based on the CancelAfter time
                const currentRippleTime = await this.xrplService.getCurrentRippleTime(client);
                const escrowStatus = this.utilsService.checkEscrowStatus({ FinishAfter: escrow.FinshAfter ? Number(escrow.FinshAfter) : undefined, CancelAfter: escrow.CancelAfter ? Number(escrow.CancelAfter) : undefined, Condition: this.escrowConditionField, owner: escrowOwner }, currentRippleTime, wallet.classicAddress, 'finishEscrow', this.escrowFulfillmentField);
+               console.log(`escrowStatus: `, escrowStatus);
 
                // if (!escrowStatus.canFinish) {
                // return this.setError(`ERROR: ${escrowStatus.reasonFinish}`);
@@ -1137,7 +1104,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(escrowCancelTx, this.memoField);
                }
 
-               if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, escrowCancelTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 

@@ -148,7 +148,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -444,7 +444,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // CRITICAL: Render immediately
-               this.utilsService.renderDetails(data);
+               this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
                // DEFER: Non-critical UI updates — let main render complete first
@@ -537,7 +537,14 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, trustLines, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, trustLines, fee, currentLedger, serverInfo] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
+               ]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
@@ -599,11 +606,11 @@ export class SendChecksComponent implements AfterViewChecked {
 
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
                     if (this.amountField || this.amountField === '') {
-                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, checkCreateTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, checkCreateTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } else {
-                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, this.amountField, wallet.classicAddress, checkCreateTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, this.amountField, wallet.classicAddress, checkCreateTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
@@ -717,13 +724,14 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, checkObjects, trustLines, fee, currentLedger] = await Promise.all([
+               const [accountInfo, accountObjects, checkObjects, trustLines, fee, currentLedger, serverInfo] = await Promise.all([
                     this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'),
                     this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.calculateTransactionFee(client),
                     this.xrplService.getLastLedgerIndex(client),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
                ]);
 
                // Optional: Avoid heavy stringify in logs
@@ -786,11 +794,11 @@ export class SendChecksComponent implements AfterViewChecked {
                // PHASE 4: Validate balance
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
                     if (this.amountField || this.amountField === '') {
-                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, checkCashTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, checkCashTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     } else {
-                         if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, this.amountField, wallet.classicAddress, checkCashTx, fee)) {
+                         if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, this.amountField, wallet.classicAddress, checkCashTx, fee)) {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
@@ -895,12 +903,13 @@ export class SendChecksComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = {
                     ...inputs,
@@ -935,7 +944,7 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // PHASE 4: Validate balance
-               if (this.utilsService.isInsufficientXrpBalance1(client, accountInfo, '0', wallet.classicAddress, checkCancelTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, checkCancelTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 

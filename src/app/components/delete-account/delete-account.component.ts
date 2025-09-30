@@ -117,7 +117,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
-               this.utilsService.attachSearchListener(this.resultField.nativeElement);
+               this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
                this.cdr.detectChanges();
           }
@@ -197,10 +197,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
                // Phase 2: Fetch account info + objects in PARALLEL
-               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = {
                     ...inputs,
@@ -213,11 +212,12 @@ export class DeleteAccountComponent implements AfterViewChecked {
                }
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${classicAddress}:`, accountObjects.result);
+               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
 
-               // CRITICAL: Render immediately
-               this.utilsService.renderAccountDetails(accountInfo, accountObjects);
+               // CRITICAL: Sort based on Ledger Entry Type and render immediately
+               const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
+               this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -226,7 +226,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.utilsService.loadSignerList(classicAddress, this.signers);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
@@ -272,13 +272,14 @@ export class DeleteAccountComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.checkAccountObjectsForDeletion(client, wallet.classicAddress), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.checkAccountObjectsForDeletion(client, wallet.classicAddress), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo, accountObjects: accountObjects };
 
@@ -303,7 +304,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     this.utilsService.setMemoField(accountDeleteTx, this.memoField);
                }
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, accountDeleteTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, accountDeleteTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -674,7 +675,6 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      private updateDestinations() {
-          // this.destinations = [...Object.values(this.knownDestinations)];
           this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
           this.storageService.setKnownIssuers('destinations', this.knownDestinations);
      }
@@ -761,16 +761,15 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     private updateSpinnerMessage(message: string) {
+          this.spinnerMessage = message;
+          this.cdr.detectChanges();
+     }
+
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
           await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
-     }
-
-     private updateSpinnerMessage(message: string) {
-          this.spinnerMessage = message;
-          this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
      }
 
      private setErrorProperties() {

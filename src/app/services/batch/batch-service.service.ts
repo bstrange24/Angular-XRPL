@@ -62,12 +62,12 @@ export class BatchService {
                const multiSignFee = String((signerAddresses.length + 1) * Number(await this.xrplService.calculateTransactionFee(client)));
                preparedTx.Fee = multiSignFee;
 
-               console.log('Prepared multisign batch:', JSON.stringify(preparedTx, null, 2));
+               console.log(`Prepared multisign batch:`, preparedTx);
                console.log('Signed batch tx:', signedTx);
           } else {
                // Single signer (wallet or regular key)
                const preparedTx = await client.autofill(batchTx);
-               console.log('Prepared single-sign batch:', JSON.stringify(preparedTx, null, 2));
+               console.log(`Prepared single-sign batch:`, preparedTx);
                signedTx = options?.useRegularKeyWalletSignTx ? options.useRegularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
                console.log('Signed batch tx:', signedTx);
           }

@@ -7,6 +7,7 @@ import { SendChecksComponent } from './components/send-checks/send-checks.compon
 import { CreateTicketsComponent } from './components/create-tickets/create-tickets.component';
 import { CreateOfferComponent } from './components/create-offer/create-offer.component';
 import { CreateNftComponent } from './components/create-nft/create-nft.component';
+
 import { CreateAmmComponent } from './components/create-amm/create-amm.component';
 import { TrustlinesComponent } from './components/trustlines/trustlines.component';
 import { DeleteAccountComponent } from './components/delete-account/delete-account.component';
@@ -17,6 +18,8 @@ import { AccountChangesComponent } from './components/account-changes/account-ch
 import { MptComponent } from './components/mpt/mpt.component';
 import { PermissionedDomainComponent } from './components/permissioned-domain/permissioned-domain.component';
 import { AccountDelegateComponent } from './components/account-delegate/account-delegate.component';
+import { FirewallComponent } from './components/firewall/firewall.component';
+import { NftOffersComponent } from './components/nft-offers/nft-offers.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -28,6 +31,7 @@ export const routes: Routes = [
      { path: 'create-did', component: CreateDidComponent, data: { title: 'Account DID' } },
      { path: 'permissioned-domain', component: PermissionedDomainComponent, data: { title: 'Permissioned Domain' } },
      { path: 'account-delegate', component: AccountDelegateComponent, data: { title: 'Account Delegate' } },
+     { path: 'firewall', component: FirewallComponent, data: { title: 'Firewall' } },
 
      { path: 'send-xrp', component: SendXrpComponent, data: { title: 'Send XRP' } },
      { path: 'create-payment-channel', component: CreatePaymentChannelComponent, data: { title: 'Payment Channel' } },
@@ -37,6 +41,8 @@ export const routes: Routes = [
      { path: 'create-tickets', component: CreateTicketsComponent, data: { title: 'Tickets' } },
      { path: 'create-offer', component: CreateOfferComponent, data: { title: 'Create Offers' } },
      { path: 'create-nft', component: CreateNftComponent, data: { title: 'NFT' } },
+     { path: 'nft-offers', component: NftOffersComponent, data: { title: 'NFT Offers' } },
+
      { path: 'create-amm', component: CreateAmmComponent, data: { title: 'AMM' } },
      { path: 'trustlines', component: TrustlinesComponent, data: { title: 'Trustlines' } },
      { path: 'mpt', component: MptComponent, data: { title: 'MPT' } },
