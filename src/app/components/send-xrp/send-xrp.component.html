@@ -211,20 +211,17 @@
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
                                         <input type="checkbox" id="isMemoEnabled" [(ngModel)]="isMemoEnabled" name="isMemoEnabled" />
-                                        <!-- <input type="checkbox" id="isMemoEnabled" [(ngModel)]="state.isMemoEnabled" name="isMemoEnabled" /> -->
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
-                         <!-- <tr class="multisignAddressClass" *ngIf="state.isMemoEnabled"> -->
                          <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
                               <td>
                                    <label for="memoField"></label>
                               </td>
                               <td>
                                    <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
-                                   <!-- <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="state.memoField" name="memoField"></textarea> -->
                               </td>
                          </tr>
                          <tr>
@@ -327,13 +324,11 @@
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
                                         <input type="checkbox" id="isTicketEnabled" [(ngModel)]="isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" />
-                                        <!-- <input type="checkbox" id="isTicketEnabled" [(ngModel)]="state.isTicket" (ngModelChange)="toggleTicketSequence()" name="isTicketEnabled" /> -->
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
-                         <!-- <tr class="multisignAddressClass" *ngIf="state.isTicket"> -->
                          <tr class="multisignAddressClass" *ngIf="isTicket">
                               <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
@@ -342,7 +337,6 @@
                               </td>
                               <td>
                                    <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
-                                   <!-- <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="state.ticketSequence" name="ticketSequence" /> -->
                               </td>
                          </tr>
                          <tr>
@@ -367,7 +361,7 @@
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
-                                        <input type="checkbox" id="isOnlySignTransactionEnabled" [(ngModel)]="isOnlySignTransactionEnabled" name="isOnlySignTransactionEnabled" readonly />
+                                        <input type="checkbox" id="isOnlySignTransactionEnabled" [(ngModel)]="isOnlySignTransactionEnabled" (ngModelChange)="toggleTicketSequence()" name="isOnlySignTransactionEnabled" readonly />
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isOnlySignTransactionEnabled"></label>
@@ -380,7 +374,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 500px; height: 200px" id="memoField" placeholder="" [(ngModel)]="signedTransactionField" name="isOnlySignTransactionEnabled"></textarea>
+                                   <textarea class="memoField" style="width: 500px; height: 200px" id="memoField" placeholder="" [(ngModel)]="signedTransactionField" name="signedTransactionField"></textarea>
                                    <br />
                                    <button type="button" (click)="sendXrp()">Sign Transaction</button>
                               </td>
@@ -406,7 +400,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 500px; height: 200px" id="memoField" placeholder="" [(ngModel)]="submittedTxField" name="isSubmitSignedTransactionEnabled" (blur)="formatSignedTx()"></textarea>
+                                   <textarea class="memoField" style="width: 500px; height: 200px" id="memoField" placeholder="" [(ngModel)]="submittedTxField" name="submittedTxField" (blur)="formatSignedTx()"></textarea>
                                    <br />
                                    <button type="button" (click)="submitSignedTransaction()">Submit Transaction</button>
                               </td>
