@@ -359,6 +359,58 @@
                                    <label for="isSimulateEnabled"></label>
                               </td>
                          </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label>Only Sign Transaction</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isOnlySignTransactionEnabled" [(ngModel)]="isOnlySignTransactionEnabled" name="isOnlySignTransactionEnabled" readonly />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isOnlySignTransactionEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isOnlySignTransactionEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="memoField"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 500px; height: 200px" id="memoField" placeholder="" [(ngModel)]="signedTransactionField" name="isOnlySignTransactionEnabled"></textarea>
+                                   <br />
+                                   <button type="button" (click)="sendXrp()">Sign Transaction</button>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label>Submit Signed Transaction</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isSubmitSignedTransactionEnabled" [(ngModel)]="isSubmitSignedTransactionEnabled" (ngModelChange)="toggleTicketSequence()" name="isSubmitSignedTransactionEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isSubmitSignedTransactionEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isSubmitSignedTransactionEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="memoField"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 500px; height: 200px" id="memoField" placeholder="" [(ngModel)]="submittedTxField" name="isSubmitSignedTransactionEnabled" (blur)="formatSignedTx()"></textarea>
+                                   <br />
+                                   <button type="button" (click)="submitSignedTransaction()">Submit Transaction</button>
+                              </td>
+                         </tr>
                     </table>
                </div>
           </div>

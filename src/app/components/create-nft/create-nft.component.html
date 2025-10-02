@@ -92,12 +92,55 @@
                          <table id="flags">
                               <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Amount of XRP to send.">
+                                        <span class="tooltip" tooltip-data="Currency code for the check.">
+                                             <label for="currencyFieldDropDownValue">Currency Code</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amount of currency to send.">
                                              <label for="amountField">Amount</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" />
+                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
+                                             <label for="issuerField">Issuer</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                             <option value="" disabled selected>Select an issuer</option>
+                                             <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
+                                             <label for="tokenBalance">Currency Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
+                                   <td>
+                                        <label for="gatewayBalance">Gateway Balance</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
                                    </td>
                               </tr>
                               <tr>
@@ -120,7 +163,6 @@
                                         <input type="text" id="transferFeeField" [(ngModel)]="transferFeeField" name="transferFeeField" />
                                    </td>
                               </tr>
-
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="The NFT offer will expire after the expiration date. This is in hours.">
@@ -143,7 +185,7 @@
                               </tr> -->
                               <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Number of NFT's to mint at 1 time.">
+                                        <span class="tooltip" tooltip-data="Number of NFT's to mint at one time.">
                                              <label for="nftCountField">Batch Nft Count</label>
                                         </span>
                                    </td>
@@ -158,20 +200,20 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="Add Nft Token Id." [(ngModel)]="nftIdField" name="nftIdField"></textarea>
+                                        <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIdField" name="nftIdField"></textarea>
                                    </td>
                               </tr>
-                              <tr>
+                              <!-- <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Address authorized mint NFT's">
-                                             <label for="issuerAddressField">Issuer Addresses</label>
+                                             <label for="issuerAddressField">NFT Issuer</label>
                                         </span>
                                    </td>
                                    <td>
                                         <input type="text" id="issuerAddressField" [(ngModel)]="issuerAddressField" name="issuerAddressField" />
                                    </td>
-                              </tr>
-                              <tr>
+                              </tr> -->
+                              <!-- <tr>
                                    <td>
                                         <label for="destinationFields">Destination</label>
                                    </td>
@@ -180,11 +222,10 @@
                                              <option *ngFor="let dest of destinations" [value]="dest">{{ dest }}</option>
                                         </select>
                                         <br />
-                                        <!-- Manual input field -->
                                         <input type="text" placeholder="Enter new destination" [(ngModel)]="newDestination" name="newDestination" />
                                         <button type="button" (click)="addDestination()">Add</button>
                                    </td>
-                              </tr>
+                              </tr> -->
                          </table>
                     </div>
 
@@ -203,9 +244,10 @@
                                         <button type="button" (click)="mintBatchNFT()">Mint Batch NFTs</button>
                                         <button type="button" (click)="burnNFT()">Burn NFTs</button>
                                         <button type="button" (click)="burnBatchNFT()">Burn Batch NFTs</button>
+                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
-                              <tr>
+                              <!-- <tr>
                                    <td colspan="2">
                                         <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
                                         <button type="button" (click)="buyNFT()">Create Buy Offer NFT</button>
@@ -214,7 +256,7 @@
                                         <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
-                              </tr>
+                              </tr> -->
                               <tr>
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
@@ -390,6 +432,60 @@
                          </tr>
                     </table>
                     <table id="meta">
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.">
+                                        <label [ngStyle]="{'color': isNFTokenMinterEnabled ? '#4CAF50' : 'white'}">Auth NFT Minter</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isAuthorizedNFTokenMinter" [(ngModel)]="isAuthorizedNFTokenMinter" (ngModelChange)="onAuthorizedNFTokenMinter()" name="isAuthorizedNFTokenMinter" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isAuthorizedNFTokenMinter"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isAuthorizedNFTokenMinter">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Enter NFT Minter addresses">
+                                        <label for="nfTokenMinterAddress"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <!-- <textarea class="memoField" style="width: 300px; height: 100px" id="nfTokenMinterAddress" placeholder="Comma seperated list of address for authorized NFT minters." [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress"></textarea> -->
+                                   <input type="text" id="nfTokenMinterAddress" id="nfTokenMinterAddress" placeholder="" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress" />
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label>Destination</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isDestinationEnabled" [(ngModel)]="isDestinationEnabled" (ngModelChange)="onAuthorizedNFTokenMinter()" name="isDestinationEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isDestinationEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isDestinationEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="destinationFields"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <select class="timeUnit" id="destinationFields" [(ngModel)]="destinationFields" name="destinationFields">
+                                        <option *ngFor="let dest of destinations" [value]="dest">{{ dest }}</option>
+                                   </select>
+                                   <br />
+                                   <input type="text" placeholder="Enter new destination" [(ngModel)]="newDestination" name="newDestination" />
+                                   <button type="button" (click)="addDestination()">Add</button>
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Update NFT Meta Data.">

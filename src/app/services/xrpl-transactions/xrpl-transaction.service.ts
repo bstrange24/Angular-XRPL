@@ -38,6 +38,35 @@ export class XrplTransactionService {
           }
      }
 
+     async signTransactionNoAutofill(client: any, wallet: xrpl.Wallet, environment: string, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string, useMultiSign: boolean, multiSignAddress: any, multiSignSeeds: any, noAutofill: boolean = false): Promise<{ tx_blob: string; hash: string } | null> {
+          if (useMultiSign) {
+               const signerAddresses = this.utilsService.getMultiSignAddress(multiSignAddress);
+               const signerSeeds = this.utilsService.getMultiSignSeeds(multiSignSeeds);
+
+               if (signerAddresses.length === 0) {
+                    throw new Error('No signer addresses provided for multi-signing');
+               }
+               if (signerSeeds.length === 0) {
+                    throw new Error('No signer seeds provided for multi-signing');
+               }
+
+               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
+
+               tx.Signers = result.signers;
+
+               // Recalculate fee for multisign
+               const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
+               tx.Fee = multiSignFee;
+
+               console.debug(`tx`, tx);
+               return result.signedTx;
+          } else {
+               console.debug(`tx`, tx);
+               const txToSign = noAutofill ? tx : await client.autofill(tx);
+               return useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(txToSign) : wallet.sign(txToSign);
+          }
+     }
+
      // HELPER: Submit or simulate transaction
      async submitTransaction(client: any, signedTx: { tx_blob: string; hash: string }): Promise<any> {
           console.log(`[REAL] Submitting transaction ${signedTx.hash} to network`);

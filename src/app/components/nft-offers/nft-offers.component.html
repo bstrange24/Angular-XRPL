@@ -92,12 +92,55 @@
                          <table id="flags">
                               <tr>
                                    <td>
-                                        <span class="tooltip" tooltip-data="Amount of XRP to send.">
+                                        <span class="tooltip" tooltip-data="Currency code for the check.">
+                                             <label for="currencyFieldDropDownValue">Currency Code</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amount of currency to send.">
                                              <label for="amountField">Amount</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" />
+                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
+                                             <label for="issuerField">Issuer</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                             <option value="" disabled selected>Select an issuer</option>
+                                             <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
+                                        </select>
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
+                                   <td>
+                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
+                                             <label for="tokenBalance">Currency Balance</label>
+                                        </span>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
+                                   </td>
+                              </tr>
+                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
+                                   <td>
+                                        <label for="gatewayBalance">Gateway Balance</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
                                    </td>
                               </tr>
                               <tr>
@@ -131,17 +174,18 @@
                                         <input type="text" id="expirationField" [(ngModel)]="expirationField" name="expirationField" />
                                    </td>
                               </tr>
-                              <!-- <tr>
+                              <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="NFT index used to cancel sell offers.">
                                              <label for="nftIndexField">Nft Index</label>
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="nftIndexField" [(ngModel)]="nftIndexField" name="nftIndexField" />
+                                        <!-- <input type="text" id="nftIndexField" [(ngModel)]="nftIndexField" name="nftIndexField" /> -->
+                                        <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIndexField" name="nftIndexField"></textarea>
                                    </td>
-                              </tr> -->
-                              <tr>
+                              </tr>
+                              <!-- <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Number of NFT's to mint at 1 time.">
                                              <label for="nftCountField">Batch Nft Count</label>
@@ -150,7 +194,7 @@
                                    <td>
                                         <input type="text" id="nftCountField" [(ngModel)]="nftCountField" name="nftCountField" />
                                    </td>
-                              </tr>
+                              </tr> -->
                               <tr class="multisignAddressClass">
                                    <td>
                                         <span class="tooltip" tooltip-data="NFT Id to use for transactions.">
@@ -158,13 +202,13 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="Add Nft Token Id." [(ngModel)]="nftIdField" name="nftIdField"></textarea>
+                                        <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIdField" name="nftIdField"></textarea>
                                    </td>
                               </tr>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Address authorized mint NFT's">
-                                             <label for="issuerAddressField">Issuer Addresses</label>
+                                             <label for="issuerAddressField">NFT Issuer</label>
                                         </span>
                                    </td>
                                    <td>
@@ -196,26 +240,27 @@
                     <div class="button-container">
                          <table style="text-align: left; width: 100%">
                               <th></th>
-                              <tr>
+                              <!-- <tr>
                                    <td colspan="2">
                                         <button type="button" (click)="getNFT()">Get NFTs</button>
                                         <button type="button" (click)="mintNFT()">Mint NFT</button>
                                         <button type="button" (click)="mintBatchNFT()">Mint Batch NFTs</button>
                                         <button type="button" (click)="burnNFT()">Burn NFTs</button>
                                         <button type="button" (click)="burnBatchNFT()">Burn Batch NFTs</button>
+                                   </td>
+                              </tr> -->
+                              <tr>
+                                   <td colspan="2">
+                                        <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
+                                        <button type="button" (click)="buyNFT()">Buy NFT</button>
+                                        <button type="button" (click)="createOffer('Buy')">Create NFT Buy Offer</button>
+                                        <button type="button" (click)="cancelOffer()">Cancel NFT Buy Offer</button>
+                                        <button type="button" (click)="sellNFT()">Sell NFT</button>
+                                        <button type="button" (click)="createOffer('Sell')">Create NFT Sell Offer</button>
+                                        <button type="button" (click)="cancelOffer()">Cancel NFT Buy Offer</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
-                              <!-- <tr>
-                                   <td colspan="2">
-                                        <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
-                                        <button type="button" (click)="buyNFT()">Create Buy Offer NFT</button>
-                                        <button type="button" (click)="cancelBuyOffer()">Cancel Buy Offer NFT</button>
-                                        <button type="button" (click)="sellNFT()">Create Sell Offer NFT</button>
-                                        <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
-                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
-                                   </td>
-                              </tr> -->
                               <tr>
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
@@ -268,21 +313,21 @@
 
                <div class="right-column">
                     <table id="meta">
-                         <tr>
+                         <!-- <tr>
                               <td>
-                                   <span class="tooltip" tooltip-data="Set NFT Flags.">
-                                        <label>NFT Flags</label>
+                                   <span class="tooltip" tooltip-data="SellNFToken Flag">
+                                        <label>SellNFToken Flag</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
-                                        <input type="checkbox" id="isNftFlagModeEnabled" [(ngModel)]="isNftFlagModeEnabled" name="isNftFlagModeEnabled" />
+                                        <input type="checkbox" id="isSellNFTokenEnabled" [(ngModel)]="isSellNFTokenEnabled" name="isSellNFTokenEnabled" />
                                         <span class="slider round"></span>
                                    </label>
-                                   <label for="isNftFlagModeEnabled"></label>
+                                   <label for="isSellNFTokenEnabled"></label>
                               </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isNftFlagModeEnabled">
+                         </tr> -->
+                         <!-- <tr class="multisignAddressClass" *ngIf="isNftFlagModeEnabled">
                               <td>
                                    <span class="tooltip" tooltip-data="Allows anyone to burn the NFT if they hold it">
                                         <label for="burnableNft">Burnable</label>
@@ -327,8 +372,8 @@
                                         <span class="slider round"></span>
                                    </label>
                               </td>
-                         </tr>
-                         <tr>
+                         </tr> -->
+                         <!-- <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Update Batch Mode to interact with NFTs.">
                                         <label>Batch Mode</label>
@@ -388,10 +433,10 @@
                                         <span class="slider round"></span>
                                    </label>
                               </td>
-                         </tr>
+                         </tr> -->
                     </table>
                     <table id="meta">
-                         <tr>
+                         <!-- <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Update NFT Meta Data.">
                                         <label>Update NFT Meta Data</label>
@@ -416,7 +461,7 @@
                                    <br />
                                    <button type="button" (click)="updateNFTMetadata()">Update NFT Metadata</button>
                               </td>
-                         </tr>
+                         </tr> -->
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">

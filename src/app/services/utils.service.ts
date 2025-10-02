@@ -1351,6 +1351,23 @@ export class UtilsService {
           return JSON.stringify(value);
      }
 
+     formatIOUXrpAmountUI(amount: any): string {
+          if (!amount) return 'Unknown';
+
+          if (typeof amount === 'string') {
+               // XRP in drops
+               return `${xrpl.dropsToXrp(amount)} XRP`;
+          }
+
+          if (typeof amount === 'object') {
+               // Issued currency
+               const { currency, issuer, value } = amount;
+               return `${value} ${currency} (issuer: ${issuer})`;
+          }
+
+          return 'Unknown';
+     }
+
      formatValue(key: string, value: any, nestedFields: string[] = []): string {
           if (key === 'Account' || key.includes('PubKey') || key.includes('Signature') || key.includes('index')) {
                return `<code>${value}</code>`;
@@ -1836,6 +1853,10 @@ export class UtilsService {
           tx.Issuer = issuerAddressField;
      }
 
+     setDestination(tx: any, destinationAddressField: string) {
+          tx.Destination = destinationAddressField;
+     }
+
      applyTicketSequence(accountInfo: any, accountObjects: any, tx: any, ticketSequence: string) {
           if (ticketSequence) {
                if (!this.isTicketExists(accountObjects, Number(ticketSequence))) {
@@ -1907,5 +1928,21 @@ export class UtilsService {
 
      setExpiration(tx: any, expiration: number) {
           tx.Expiration = expiration;
+     }
+
+     setAmount(tx: any, amount: any) {
+          tx.Amount = this.determineAmountType(amount);
+     }
+
+     determineAmountType(amount: any) {
+          if (typeof amount === 'string') {
+               // XRP
+               return xrpl.xrpToDrops(amount);
+          }
+
+          if (typeof amount === 'object') {
+               // Issued currency
+               return amount.value;
+          }
      }
 }
