@@ -2196,7 +2196,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      refreshUiAccountInfo(accountInfo: any) {
           const nftTokenMinter = accountInfo?.result?.account_data?.NFTokenMinter;
           if (nftTokenMinter) {
-               this.isAuthorizedNFTokenMinter = true;
+               this.isAuthorizedNFTokenMinter = false;
                this.isNFTokenMinterEnabled = true;
                this.nfTokenMinterAddress = nftTokenMinter;
           } else {

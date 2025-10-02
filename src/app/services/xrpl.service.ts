@@ -742,6 +742,21 @@ export class XrplService {
           }
      }
 
+     async getAccountNFTOffers(client: Client, address: string, ledgerIndex: string, type: string): Promise<any> {
+          try {
+               const response = await client.request({
+                    command: 'account_objects',
+                    account: address,
+                    ledger_index: 'validated',
+                    type: 'nft_offer',
+               });
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching account nft info:', error);
+               throw new Error(`Failed to fetch account nft info: ${error.message || 'Unknown error'}`);
+          }
+     }
+
      async getNFTBuyOffers(client: Client, nftId: string): Promise<any> {
           try {
                const response = await client.request({

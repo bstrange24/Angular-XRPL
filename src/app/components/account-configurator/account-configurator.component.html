@@ -485,11 +485,7 @@
                               </td>
                               <td>
                                    <textarea class="memoField" style="width: 300px; height: 100px" id="depositAuthAddress" placeholder="Comma seperated list of address for deposit authorization." [(ngModel)]="depositAuthAddress" name="depositAuthAddress"></textarea>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isdepositAuthAddress">
-                              <td></td>
-                              <td>
+                                   <br />
                                    <button type="button" (click)="setDepositAuthAccounts('Y')">Set Deposit Auth</button>
                                    <button type="button" (click)="setDepositAuthAccounts('N')">Unauthorize Deposit Auth</button>
                               </td>
@@ -515,12 +511,8 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="nfTokenMinterAddress" placeholder="Comma seperated list of address for authorized NFT minters." [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress"></textarea>
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isAuthorizedNFTokenMinter">
-                              <td></td>
-                              <td>
+                                   <input type="text" id="nfTokenMinterAddress" id="nfTokenMinterAddress" placeholder="" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress" />
+                                   <br />
                                    <button type="button" (click)="setNftMinterAddress('Y')">Set NFT Minter</button>
                               </td>
                          </tr>
@@ -590,11 +582,7 @@
                               </td>
                               <td>
                                    <input type="text" id="urlField" size="40" [(ngModel)]="avatarUrl" name="urlField" />
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isUpdateMetaData">
-                              <td></td>
-                              <td>
+                                   <br />
                                    <button type="button" (click)="updateMetaData()">Update Meta Data</button>
                               </td>
                          </tr>
@@ -742,11 +730,7 @@
                               </td>
                               <td>
                                    <input type="text" id="regularKeySeed" size="40" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeyAccountSeed" name="regularKeySeed" />
-                              </td>
-                         </tr>
-                         <tr class="multisignAddressClass" *ngIf="isSetRegularKey">
-                              <td></td>
-                              <td>
+                                   <br />
                                    <button type="button" (click)="setRegularKey('Y')">Set Regular Key</button>
                                    <button type="button" (click)="setRegularKey('N')">Remove Regular Key</button>
                               </td>
