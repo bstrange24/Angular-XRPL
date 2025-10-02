@@ -1,0 +1,331 @@
+/* send-xrp Info Section */
+.send-xrp-info {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.send-xrp-info summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+.send-xrp-info summary:hover {
+     background: #3a3c41;
+}
+
+.send-xrp-info summary::marker {
+     content: '▶ ';
+}
+
+.send-xrp-info[open] summary::marker {
+     content: '▼ ';
+}
+
+.send-xrp-fieldset {
+     border: 1px solid #1a1c21;
+     border-radius: 10px;
+     padding: 20px;
+     background: #1a1c21;
+     margin: 0;
+}
+
+.send-xrp-fieldset legend {
+     color: white;
+     font-size: 14px;
+     padding: 0 10px;
+     font-weight: bold;
+}
+
+.send-xrp-table {
+     display: flex;
+     flex-direction: column;
+     gap: 0;
+     /* Remove gap between rows if not needed */
+     background: #2a2c31;
+     border-radius: 8px;
+     overflow: hidden;
+     margin-bottom: 20px;
+}
+
+.send-xrp-row {
+     display: flex;
+     width: 100%;
+     transition: background 0.3s ease;
+}
+
+.send-xrp-row:hover:not(.send-xrp-header) {
+     background: #3a3c41;
+}
+
+.send-xrp-header {
+     font-weight: bold;
+     background: #1a1c21;
+     color: #4caf50;
+}
+
+.send-xrp-cell {
+     flex: 1;
+     padding: 12px;
+     /* Reduced from 12px to decrease spacing */
+     color: white;
+     font-size: 13px;
+     text-align: left;
+     border-bottom: 1px solid #686868;
+}
+
+.send-xrp-header .send-xrp-cell {
+     border-bottom: 2px solid #4caf50;
+}
+
+/* Style code tags for emphasis */
+.send-xrp-cell code {
+     background: #3a3c41;
+     padding: 2px 4px;
+     border-radius: 4px;
+     font-family: monospace;
+     color: #4caf50;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+     .send-xrp-table {
+          display: block;
+     }
+
+     .send-xrp-row {
+          flex-direction: column;
+          border-bottom: 1px solid #686868;
+          margin-bottom: 10px;
+     }
+
+     .send-xrp-cell {
+          flex: none;
+          padding: 8px;
+          border-bottom: none;
+     }
+
+     .send-xrp-header .send-xrp-cell {
+          border-bottom: none;
+     }
+
+     .send-xrp-cell::before {
+          content: attr(data-label);
+          font-weight: bold;
+          display: inline-block;
+          width: 120px;
+          color: #4caf50;
+     }
+}
+
+.send-xrp-subdetails {
+     margin: 20px 0;
+     border-radius: 10px;
+     overflow: hidden;
+}
+
+.send-xrp-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+}
+
+/* .send-xrp-subdetails summary {
+     color: white;
+     font-weight: bold;
+     font-size: 14px;
+     padding: 10px;
+     cursor: pointer;
+     transition: background 0.3s ease;
+} */
+
+summary::marker {
+     color: white;
+}
+
+.send-xrp-subdetails[open] summary::marker {
+     content: '▼ ';
+     color: white;
+}
+
+.transaction-layout {
+     display: grid;
+     grid-template-columns: 2fr 1fr;
+     gap: 20px;
+     align-items: start;
+}
+
+.left-column {
+     display: flex;
+     flex-direction: column;
+     gap: 15px;
+}
+
+.right-column {
+     justify-self: start;
+     width: 100%;
+}
+
+.flags-layout {
+     display: grid;
+     grid-template-columns: 4fr 0.1fr 1fr;
+     gap: 20px;
+     align-items: start;
+}
+
+.flags-layout table {
+     flex: 1;
+}
+
+.button-container {
+     width: 100%;
+}
+
+table textarea {
+     resize: vertical;
+     height: 60px;
+}
+
+#flags,
+#meta td:first-child {
+     white-space: nowrap;
+     width: 150px;
+     padding-right: 10px;
+     text-align: right;
+     vertical-align: middle;
+}
+
+#flags,
+#meta td:last-child {
+     width: auto;
+}
+
+/* send-xrp.component.css */
+.custom-destination {
+     width: 100%;
+     /* max-width: 400px; */
+     /* border: 1px solid #fff; */
+     /* border-radius: 4px; */
+     /* padding: 8px; */
+}
+
+.mdc-text-field--outlined .mat-mdc-form-field-infix,
+.mdc-text-field--no-label .mat-mdc-form-field-infix {
+     padding: 0px;
+}
+
+.mdc-text-field--filled:not(.mdc-text-field--disabled) {
+     background-color: #1a1c21;
+     color: red;
+}
+
+.mdc-text-field--no-label:not(.mdc-text-field--textarea) .mat-mdc-form-field-input-control.mdc-text-field__input,
+.mat-mdc-text-field-wrapper .mat-mdc-form-field-input-control {
+     color: #4CAF50;
+}
+
+.custom-destination input {
+     width: 100%;
+     font-size: 14px;
+     color: red;
+     padding: 8px;
+     border: none;
+     outline: none;
+}
+
+.custom-destination input:focus {
+     border-bottom: 2px solid #1a1c21;
+}
+
+#flags {
+     border-collapse: collapse;
+}
+
+#flags td:first-child {
+     width: 180px;
+     /* consistent width for label cells */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     vertical-align: top;
+     /* keeps labels aligned to top if multiple controls in same row */
+}
+
+#flags .form-row-td {
+     width: 150px;
+     /* consistent label cell width */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     /* space between label and input */
+}
+
+#flags input[type="text"],
+#flags select {
+     width: 300px;
+     /* consistent input/dropdown width */
+     height: 28px;
+}
+
+/* .form-row {
+     display: flex;
+     align-items: center;
+     margin-bottom: 10px;
+}
+
+.form-row td {
+     text-align: right
+}
+
+.form-row label {
+     width: 150px;
+     text-align: right;
+     margin-right: 10px;
+}
+
+.form-row input,
+.form-row select {
+     flex: 1;
+} */
+
+#meta {
+     border-collapse: collapse;
+}
+
+/* #meta .tooltip {
+     display: inline-block;
+     text-align: right;
+} */
+
+#meta td:first-child {
+     width: 180px;
+     /* consistent width for label cells */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     vertical-align: top;
+     /* keeps labels aligned to top if multiple controls in same row */
+}
+
+#meta .form-row-td {
+     width: 150px;
+     /* consistent label cell width */
+     text-align: right;
+     /* align label text to the right */
+     padding-right: 10px;
+     /* space between label and input */
+}
+
+#meta input[type="text"],
+#meta select {
+     width: 300px;
+     /* consistent input/dropdown width */
+     height: 28px;
+}
