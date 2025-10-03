@@ -112,10 +112,64 @@ input:read-only {
      border: 1px solid white;
 }
 
-#resultField.error {
+#resultFieldError.error {
      color: red;
      background-color: #1a1c21;
 }
+
+#resultFieldError.success {
+     color: #62bb8b;
+     background-color: #1a1c21;
+}
+
+#resultFieldError {
+     /* width: 60%; */
+     resize: none;
+     font-size: 12px;
+     /* padding: 15px; */
+     /* color: #62bb8b; */
+     background-color: #1a1c21;
+     /* box-sizing: border-box; */
+     /* border-radius: 10px; */
+     /* border: 1px solid white; */
+     font-family: monospace;
+     white-space: pre-wrap;
+     word-break: break-word;
+     line-height: 1.5;
+     margin: 10px 0;
+}
+
+#hashField.error {
+     color: red;
+     background-color: #1a1c21;
+}
+
+#hashField.success {
+     color: #62bb8b;
+     background-color: #1a1c21;
+}
+
+#hashField {
+     /* width: 60%; */
+     resize: none;
+     font-size: 12px;
+     padding: 15px;
+     color: #62bb8b;
+     background-color: #1a1c21;
+     box-sizing: border-box;
+     border-radius: 10px;
+     border: 1px solid white;
+     font-family: monospace;
+     white-space: pre-wrap;
+     word-break: break-word;
+     line-height: 1.5;
+     margin: 10px 0;
+}
+
+/* #resultField.error {
+     color: red;
+     background-color: #1a1c21;
+} */
 
 #resultField.success {
      color: #62bb8b;

@@ -45,7 +45,6 @@
      display: flex;
      flex-direction: column;
      gap: 0;
-     /* Remove gap between rows if not needed */
      background: #2a2c31;
      border-radius: 8px;
      overflow: hidden;
@@ -137,14 +136,6 @@
      transition: background 0.3s ease;
 }
 
-/* .send-xrp-subdetails summary {
-     color: white;
-     font-weight: bold;
-     font-size: 14px;
-     padding: 10px;
-     cursor: pointer;
-     transition: background 0.3s ease;
-} */
 
 summary::marker {
      color: white;
@@ -175,7 +166,7 @@ summary::marker {
 
 .flags-layout {
      display: grid;
-     grid-template-columns: 4fr 0.1fr 1fr;
+     grid-template-columns: 4fr 0.4fr 3fr;
      gap: 20px;
      align-items: start;
 }
@@ -207,13 +198,8 @@ table textarea {
      width: auto;
 }
 
-/* send-xrp.component.css */
 .custom-destination {
      width: 100%;
-     /* max-width: 400px; */
-     /* border: 1px solid #fff; */
-     /* border-radius: 4px; */
-     /* padding: 8px; */
 }
 
 .mdc-text-field--outlined .mat-mdc-form-field-infix,
@@ -250,82 +236,120 @@ table textarea {
 
 #flags td:first-child {
      width: 180px;
-     /* consistent width for label cells */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
      vertical-align: top;
-     /* keeps labels aligned to top if multiple controls in same row */
 }
 
 #flags .form-row-td {
      width: 150px;
-     /* consistent label cell width */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
-     /* space between label and input */
 }
 
 #flags input[type="text"],
 #flags select {
      width: 300px;
-     /* consistent input/dropdown width */
      height: 28px;
 }
-
-/* .form-row {
-     display: flex;
-     align-items: center;
-     margin-bottom: 10px;
-}
-
-.form-row td {
-     text-align: right
-}
-
-.form-row label {
-     width: 150px;
-     text-align: right;
-     margin-right: 10px;
-}
-
-.form-row input,
-.form-row select {
-     flex: 1;
-} */
 
 #meta {
      border-collapse: collapse;
 }
 
-/* #meta .tooltip {
-     display: inline-block;
-     text-align: right;
-} */
-
 #meta td:first-child {
      width: 180px;
-     /* consistent width for label cells */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
      vertical-align: top;
-     /* keeps labels aligned to top if multiple controls in same row */
 }
 
 #meta .form-row-td {
      width: 150px;
-     /* consistent label cell width */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
-     /* space between label and input */
 }
 
 #meta input[type="text"],
 #meta select {
      width: 300px;
-     /* consistent input/dropdown width */
      height: 28px;
+}
+
+.result-container {
+     font-family: monospace;
+     white-space: pre;
+}
+
+.result-container .key {
+     color: #1e90ff;
+}
+
+.result-container .string {
+     color: #32cd32;
+}
+
+.result-container .number {
+     color: #ffa500;
+}
+
+.result-container .boolean {
+     color: #ff4500;
+}
+
+.result-container .null {
+     color: #808080;
+}
+
+.result-container-row {
+     display: flex;
+     gap: 10px;
+}
+
+.result-container {
+     flex: 1;
+     min-width: 0;
+     /* prevents overflow */
+}
+
+.tx-grid {
+     display: grid;
+     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+     gap: 20px;
+     margin-top: 20px;
+}
+
+.tx-card {
+     border: 2px solid #e0e0e0;
+     border-radius: 12px;
+     padding: 16px;
+     text-align: center;
+     background: #fff;
+     cursor: pointer;
+     transition: all 0.2s ease-in-out;
+     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.tx-card:hover {
+     border-color: #4cafef;
+     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+     transform: translateY(-3px);
+}
+
+.tx-card.active {
+     border-color: #1976d2;
+     background: #e3f2fd;
+}
+
+.tx-icon {
+     font-size: 32px;
+     margin-bottom: 8px;
+}
+
+.error-message {
+     color: red;
+     font-weight: bold;
+     margin-bottom: 8px;
+     white-space: pre-wrap;
+     /* keeps long errors readable */
 }

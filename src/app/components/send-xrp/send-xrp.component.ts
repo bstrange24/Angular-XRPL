@@ -92,10 +92,6 @@ export class SendXrpComponent implements AfterViewChecked {
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
-     isOnlySignTransactionEnabled: boolean = false;
-     isSubmitSignedTransactionEnabled: boolean = false;
-     signedTransactionField: string = '';
-     submittedTxField: string = '';
      spinner: boolean = false;
      useMultiSign: boolean = false;
      multiSigningEnabled: boolean = false;
@@ -375,55 +371,46 @@ export class SendXrpComponent implements AfterViewChecked {
                     // PHASE 3: Get regular key wallet (if needed)
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    let signOnly = false;
-                    if (this.isOnlySignTransactionEnabled && !this.isSubmitSignedTransactionEnabled) {
-                         signOnly = true;
-                    }
-
                     // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransactionNoAutofill(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds, signOnly);
+                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    if (this.isOnlySignTransactionEnabled) {
-                         this.populateSignedTxField(signedTx);
-                    } else {
-                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
-                         const isSuccess = this.utilsService.isTxSuccessful(response);
-                         if (!isSuccess) {
-                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+                    const isSuccess = this.utilsService.isTxSuccessful(response);
+                    if (!isSuccess) {
+                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                         let userMessage = 'Transaction failed.\n';
+                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                              (response.result as any).errorMessage = userMessage;
-                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                         }
+                         (response.result as any).errorMessage = userMessage;
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    }
 
-                         // Render result
-                         this.renderTransactionResult(response);
+                    // Render result
+                    this.renderTransactionResult(response);
 
-                         this.resultField.nativeElement.classList.add('success');
-                         this.setSuccess(this.result);
+                    this.resultField.nativeElement.classList.add('success');
+                    this.setSuccess(this.result);
 
-                         // PARALLELIZE
-                         const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-                         this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+                    // PARALLELIZE
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                         //DEFER: Non-critical UI updates (skip for simulation)
-                         if (!this.isSimulateEnabled) {
-                              setTimeout(async () => {
-                                   try {
-                                        this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                                        this.clearFields(false);
-                                        await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-                                   } catch (err) {
-                                        console.error('Error in post-tx cleanup:', err);
-                                   }
-                              }, 0);
-                         }
+                    //DEFER: Non-critical UI updates (skip for simulation)
+                    if (!this.isSimulateEnabled) {
+                         setTimeout(async () => {
+                              try {
+                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                                   this.clearFields(false);
+                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              } catch (err) {
+                                   console.error('Error in post-tx cleanup:', err);
+                              }
+                         }, 0);
                     }
                }
           } catch (error: any) {
@@ -433,109 +420,6 @@ export class SendXrpComponent implements AfterViewChecked {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving sendXrp in ${this.executionTime}ms`);
-          }
-     }
-
-     populateSignedTxField(signedTx: { tx_blob: string; hash: string }) {
-          this.signedTransactionField = '';
-          this.signedTransactionField += signedTx.tx_blob;
-
-          this.submittedTxField = this.signedTransactionField;
-          this.formatSignedTx();
-     }
-
-     formatSignedTx() {
-          try {
-               const txBlob = this.submittedTxField.trim();
-
-               if (txBlob === '') {
-                    return;
-               }
-
-               const hexRegex = /^[0-9A-Fa-f]+$/;
-               if (!hexRegex.test(txBlob) || txBlob.length % 2 !== 0) {
-                    this.submittedTxField = 'Invalid input: must be a hex string of even length';
-                    return;
-               }
-
-               // Decode the signed transaction
-               const decoded = xrpl.decode(txBlob);
-
-               if (!decoded['TransactionType']) {
-                    this.submittedTxField = 'Not a valid XRPL transaction';
-                    return;
-               }
-
-               // Build the pretty output
-               this.submittedTxField = 'Signed Tx\n';
-               this.submittedTxField += txBlob + '\n\n';
-               this.submittedTxField += JSON.stringify(decoded, null, '\t');
-          } catch (err) {
-               console.error('Invalid signed transaction:', err);
-               this.submittedTxField = 'Invalid signed transaction blob';
-          }
-     }
-
-     async submitSignedTransaction() {
-          console.log('Entering submitSignedTransaction');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          try {
-               this.resultField.nativeElement.innerHTML = '';
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
-               const signedTxFromUi = this.submittedTxField.split('\n')[1];
-               console.log(signedTxFromUi);
-               const signedTx = {
-                    tx_blob: signedTxFromUi,
-                    hash: '',
-               };
-
-               this.updateSpinnerMessage('Submitting to Ledger...');
-
-               const response = await this.xrplTransactions.submitTransaction(client, signedTx);
-
-               const isSuccess = this.utilsService.isTxSuccessful(response);
-               if (!isSuccess) {
-                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                    let userMessage = 'Transaction failed.\n';
-                    userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                    response.result.errorMessage = userMessage;
-                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-               }
-
-               // Render result
-               this.renderTransactionResult(response);
-
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               // PARALLELIZE
-               const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-               this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
-               //DEFER: Non-critical UI updates (skip for simulation)
-               if (!this.isSimulateEnabled) {
-                    setTimeout(async () => {
-                         try {
-                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                              this.clearFields(false);
-                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
-               }
-          } catch (error: any) {
-               console.error('Error in submitSignedTransaction:', error);
-               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving submitSignedTransaction in ${this.executionTime}ms`);
           }
      }
 
