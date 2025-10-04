@@ -892,6 +892,11 @@ input:focus+.slider {
      }
 }
 
+#resultField.error {
+     color: red;
+     background-color: #1a1c21;
+}
+
 .result-container {
      width: 100%;
      min-height: 80px;
@@ -1973,4 +1978,28 @@ mark {
 .result-cell a:hover {
      background-color: #25272c !important;
      border-color: #999 !important;
+}
+
+.ticket-selection {
+     display: flex;
+     flex-direction: column;
+     gap: 8px;
+}
+
+.ticket-option {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+}
+
+select[multiple] {
+     height: 220px;
+     min-height: 180px;
+     overflow-y: auto;
+}
+
+.timeUnit[multiple] {
+     height: 220px;
+     min-height: 180px;
+     overflow-y: auto;
 }
