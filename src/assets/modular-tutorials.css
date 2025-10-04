@@ -1464,7 +1464,7 @@ mark {
      color: black;
      padding: 10px 20px;
      border-radius: 10px;
-     margin-left: 100px;
+     /* margin-left: 100px; */
      /* margin: 0 auto; */
 }
 

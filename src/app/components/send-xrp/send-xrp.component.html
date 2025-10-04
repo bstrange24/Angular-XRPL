@@ -11,6 +11,7 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -90,12 +91,12 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <label for="amountField">XRP Amount</label>
                                    </td>
                                    <td>
-                                        <!-- <input type="text" id="amountField" [(ngModel)]="state.amountField" name="amountField" /> -->
                                         <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" />
                                    </td>
                               </tr>
@@ -114,7 +115,6 @@
                                         <label for="destinationTagField">Destination Tag</label>
                                    </td>
                                    <td>
-                                        <!-- <input type="text" id="destinationTagField" [(ngModel)]="state.destinationTagField" name="destinationTagField" /> -->
                                         <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
                                    </td>
                               </tr>
@@ -124,7 +124,6 @@
                                    </td>
                                    <td>
                                         <input type="text" id="sourceTagField" [(ngModel)]="sourceTagField" name="sourceTagField" />
-                                        <!-- <input type="text" id="sourceTagField" [(ngModel)]="state.sourceTagField" name="sourceTagField" /> -->
                                    </td>
                               </tr>
                               <tr>
@@ -133,7 +132,6 @@
                                    </td>
                                    <td>
                                         <input type="text" id="invoiceIdField" [(ngModel)]="invoiceIdField" name="invoiceIdField" />
-                                        <!-- <input type="text" id="invoiceIdField" [(ngModel)]="state.invoiceIdField" name="invoiceIdField" /> -->
                                    </td>
                               </tr>
                          </table>
@@ -202,6 +200,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
@@ -227,13 +226,13 @@
                          <tr>
                               <td></td>
                               <td *ngIf="masterKeyDisabled">
-                                   <label style="color: red">Master Key is disabled. Use multi-sign or regular key to sign transactions.</label>
+                                   <span [style.color]="'red'">Master Key is disabled. Use multi-sign or regular key to sign transactions.</span>
                               </td>
                          </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                        <label [ngStyle]="{'color': multiSigningEnabled ? '#4CAF50' : 'white'}">Use Multi-Sign Address</label>
+                                        <span [ngStyle]="{'color': multiSigningEnabled ? '#4CAF50' : 'white'}">Use Multi-Sign Address</span>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">

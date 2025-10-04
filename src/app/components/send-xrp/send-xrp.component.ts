@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
+import { OnInit, AfterViewInit, Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
 import { MatSortModule } from '@angular/material/sort';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatInputModule } from '@angular/material/input';
@@ -61,7 +61,7 @@ interface SignerEntry {
      styleUrl: './send-xrp.component.css',
      encapsulation: ViewEncapsulation.None,
 })
-export class SendXrpComponent implements AfterViewChecked {
+export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit, AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
@@ -96,17 +96,15 @@ export class SendXrpComponent implements AfterViewChecked {
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
      isTicket: boolean = false;
-
-     spinnerMessage: string = '';
-     masterKeyDisabled: boolean = false;
-     isSimulateEnabled: boolean = false;
-     destinationFields: string = '';
-
      ticketArray: string[] = [];
      selectedTickets: string[] = []; // For multiple selection
      selectedSingleTicket: string = ''; // For single selection
      multiSelectMode: boolean = false; // Toggle between modes
      selectedTicket: string = ''; // The currently selected ticket
+     spinnerMessage: string = '';
+     masterKeyDisabled: boolean = false;
+     isSimulateEnabled: boolean = false;
+     destinationFields: string = '';
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
@@ -120,17 +118,19 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
-     async ngAfterViewInit() {
-          try {
-               const wallet = await this.getWallet();
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-               this.updateDestinations();
-          } catch (error: any) {
-               console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
-          }
+     ngAfterViewInit() {
+          (async () => {
+               try {
+                    const wallet = await this.getWallet();
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                    this.updateDestinations();
+               } catch (error: any) {
+                    console.error(`No wallet could be created or is undefined ${error.message}`);
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+               } finally {
+                    this.cdr.detectChanges();
+               }
+          })();
      }
 
      ngAfterViewChecked() {
@@ -221,7 +221,7 @@ export class SendXrpComponent implements AfterViewChecked {
           };
 
           try {
-               this.showSpinnerWithDelay('Getting Account Details ...', 100);
+               this.updateSpinnerMessage('Getting Account Details ...');
 
                // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
@@ -335,33 +335,8 @@ export class SendXrpComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Handle Ticket Sequence
-               if (this.selectedSingleTicket) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(paymentTx, this.selectedSingleTicket, true);
-               } else {
-                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                         console.log('Setting multiple tickets:', this.selectedTickets);
-                         this.utilsService.setTicketSequence(paymentTx, accountInfo.result.account_data.Sequence, false);
-                    }
-               }
-
                // Optional fields
-               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
-               }
-               if (this.memoField) {
-                    this.utilsService.setMemoField(paymentTx, this.memoField);
-               }
-               if (this.invoiceIdField) {
-                    await this.utilsService.setInvoiceIdField(paymentTx, this.invoiceIdField);
-               }
-               if (this.sourceTagField) {
-                    this.utilsService.setSourceTagField(paymentTx, this.sourceTagField);
-               }
+               await this.setTxOptionalFields(paymentTx);
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending XRP (no funds will be moved)...' : 'Submitting to Ledger...');
 
@@ -374,7 +349,7 @@ export class SendXrpComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -402,7 +377,7 @@ export class SendXrpComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -440,6 +415,21 @@ export class SendXrpComponent implements AfterViewChecked {
           }
      }
 
+     private async setTxOptionalFields(paymentTx: xrpl.Payment) {
+          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+               this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
+          }
+          if (this.memoField) {
+               this.utilsService.setMemoField(paymentTx, this.memoField);
+          }
+          if (this.invoiceIdField) {
+               await this.utilsService.setInvoiceIdField(paymentTx, this.invoiceIdField);
+          }
+          if (this.sourceTagField) {
+               this.utilsService.setSourceTagField(paymentTx, this.sourceTagField);
+          }
+     }
+
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
           console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
           console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
@@ -454,8 +444,9 @@ export class SendXrpComponent implements AfterViewChecked {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                              if (entry.SignerEntry?.Account) {
+                                   const weight = entry.SignerEntry.SignerWeight ?? '';
+                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
                          });
@@ -854,6 +845,9 @@ export class SendXrpComponent implements AfterViewChecked {
 
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
+               this.isSimulateEnabled = false;
+               this.useMultiSign = false;
+               this.isRegularKeyAddress = false;
                this.amountField = '';
                this.invoiceIdField = '';
                this.destinationTagField = '';
@@ -861,7 +855,7 @@ export class SendXrpComponent implements AfterViewChecked {
           }
 
           this.selectedTicket = '';
-          // this.isTicket = false;
+          this.isTicket = false;
           this.memoField = '';
           this.isMemoEnabled = false;
           this.cdr.detectChanges();
