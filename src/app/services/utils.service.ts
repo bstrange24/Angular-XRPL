@@ -1833,6 +1833,16 @@ export class UtilsService {
                .filter((addr: string) => addr !== '');
      }
 
+     formatMemos(memos: any[]): string {
+  return memos.map(m => {
+    const data = Buffer.from(m.Memo.MemoData, 'hex').toString('utf8');
+    const type = m.Memo.MemoType
+      ? Buffer.from(m.Memo.MemoType, 'hex').toString('utf8')
+      : 'text/plain'; // Default if missing
+    return `${data} (${type})`;
+  }).join('\n');
+}
+
      async setInvoiceIdField(tx: any, invoiceIdField: string) {
           const validInvoiceID = await this.getValidInvoiceID(invoiceIdField);
           if (validInvoiceID) {
@@ -1888,14 +1898,24 @@ export class UtilsService {
      }
 
      setMemoField(tx: any, memoField: string) {
-          tx.Memos = [
-               {
+          const memos = (memoField || '').split(',').map(s => s.trim()).filter(Boolean);
+          if (memos.length > 0) {
+               tx.Memos = memos.map(memo => ({
                     Memo: {
-                         MemoData: Buffer.from(memoField, 'utf8').toString('hex'),
+                         MemoData: Buffer.from(memo, 'utf8').toString('hex'),
                          MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                    }
+               }));
+          } else {
+               tx.Memos = [
+                    {
+                         Memo: {
+                              MemoData: Buffer.from(memoField, 'utf8').toString('hex'),
+                              MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
+                         },
                     },
-               },
-          ];
+               ];
+          }
      }
 
      setDestinationTag(tx: any, destinationTagField: string) {

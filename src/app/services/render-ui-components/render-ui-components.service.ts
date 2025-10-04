@@ -207,6 +207,8 @@ export class RenderUiComponentsService {
                          }
                          if ((item.key == 'Asset' || item.key == 'Asset2') && item.value.includes('undefined')) {
                               displayValue = item.value.split(' ')[1];
+                         } else if(item.key == 'Memos' && tx.result.tx_json.Memos.length>0) {
+                              displayValue = `${this.utilsService.formatMemos(tx.result.tx_json.Memos)}`;
                          }
                     }
 
@@ -704,6 +706,8 @@ export class RenderUiComponentsService {
                          }
                          if ((item.key == 'Asset' || item.key == 'Asset2') && item.value.includes('undefined')) {
                               displayValue = item.value.split(' ')[1];
+                         } else if(item.key == 'Memos' && tx.result.tx_json.Memos.length>0) {
+                              displayValue = `${this.utilsService.formatMemos(tx.result.tx_json.Memos)}`;
                          }
                     }
 

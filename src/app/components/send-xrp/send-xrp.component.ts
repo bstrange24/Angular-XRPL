@@ -335,22 +335,9 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Handle Ticket Sequence
-               if (this.selectedSingleTicket) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(paymentTx, this.selectedSingleTicket, true);
-               } else {
-                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                         console.log('Setting multiple tickets:', this.selectedTickets);
-                         this.utilsService.setTicketSequence(paymentTx, accountInfo.result.account_data.Sequence, false);
-                    }
-               }
 
                // Optional fields
-               await this.setTxOptionalFields(paymentTx);
+               await this.setTxOptionalFields(client, paymentTx, wallet, accountInfo);
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending XRP (no funds will be moved)...' : 'Submitting to Ledger...');
 
@@ -429,7 +416,20 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           }
      }
 
-     private async setTxOptionalFields(paymentTx: xrpl.Payment) {
+     private async setTxOptionalFields(client: xrpl.Client, paymentTx: xrpl.Payment, wallet: xrpl.Wallet, accountInfo: any) {
+          if (this.selectedSingleTicket) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+                    if (!ticketExists) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(paymentTx, this.selectedSingleTicket, true);
+               } else {
+                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         this.utilsService.setTicketSequence(paymentTx, accountInfo.result.account_data.Sequence, false);
+                    }
+               }
+
           if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
                this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
           }

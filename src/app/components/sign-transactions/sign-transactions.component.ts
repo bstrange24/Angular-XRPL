@@ -263,6 +263,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           if (checked) {
                this.selectedTransaction = type;
                this.txJson = '';
+               this.hashField.nativeElement.innerText = '';
                this.isError = false;
                this.errorMessage = null;
                this.enableTransaction();
