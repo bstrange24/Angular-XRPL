@@ -182,8 +182,8 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
           } catch (error: any) {
-               console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
+               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
+               return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
@@ -335,7 +335,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-
                // Optional fields
                await this.setTxOptionalFields(client, paymentTx, wallet, accountInfo);
 
@@ -393,18 +392,16 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     //DEFER: Non-critical UI updates (skip for simulation)
-                    if (!this.isSimulateEnabled) {
-                         setTimeout(async () => {
-                              try {
-                                   this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                                   this.clearFields(false);
-                                   this.updateTickets(updatedAccountObjects);
-                                   await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-                              } catch (err) {
-                                   console.error('Error in post-tx cleanup:', err);
-                              }
-                         }, 0);
-                    }
+                    setTimeout(async () => {
+                         try {
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                              this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                         } catch (err) {
+                              console.error('Error in post-tx cleanup:', err);
+                         }
+                    }, 0);
                }
           } catch (error: any) {
                console.error('Error in sendXrp:', error);
@@ -418,17 +415,17 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
 
      private async setTxOptionalFields(client: xrpl.Client, paymentTx: xrpl.Payment, wallet: xrpl.Wallet, accountInfo: any) {
           if (this.selectedSingleTicket) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(paymentTx, this.selectedSingleTicket, true);
-               } else {
-                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                         console.log('Setting multiple tickets:', this.selectedTickets);
-                         this.utilsService.setTicketSequence(paymentTx, accountInfo.result.account_data.Sequence, false);
-                    }
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+               if (!ticketExists) {
+                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
                }
+               this.utilsService.setTicketSequence(paymentTx, this.selectedSingleTicket, true);
+          } else {
+               if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                    console.log('Setting multiple tickets:', this.selectedTickets);
+                    this.utilsService.setTicketSequence(paymentTx, accountInfo.result.account_data.Sequence, false);
+               }
+          }
 
           if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
                this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);

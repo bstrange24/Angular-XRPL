@@ -754,35 +754,28 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyAccountSetRequest: any = {
-  TransactionType: 'AccountSet',
-  Account: wallet.classicAddress,
-  [this.selectedTransaction === 'accountFlagSet' ? 'SetFlag' : 'ClearFlag']: '0',  // Assuming you have a selected flag value
-  Fee: '10',
-  Flags: 0,
-  LastLedgerSequence: currentLedger,
-  Sequence: accountInfo.result.account_data.Sequence,
-  Memos: [
-    {
-      Memo: {
-        MemoData: '',
-        MemoType: '',
-      },
-    },
-    {
-      Memo: {
-        MemoData: '',
-        MemoType: '',
-      },
-    },
-  ],
-};
-
-
-          // if (this.selectedTransaction === 'accountFlagSet') {
-          //      modifyAccountSetRequest.SetFlag = 0;
-          // } else {
-          //      modifyAccountSetRequest.ClearFlag = 1;
-          // }
+               TransactionType: 'AccountSet',
+               Account: wallet.classicAddress,
+               [this.selectedTransaction === 'accountFlagSet' ? 'SetFlag' : 'ClearFlag']: '0',
+               Fee: '10',
+               Flags: 0,
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
 
           if (this.isTicketEnabled && this.ticketSequence) {
                // If using a Ticket
@@ -860,8 +853,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const txString = JSON.stringify(modifyTrustlineRequest, null, 2);
           this.txJson = txString; // Set property instead of DOM
      }
-
-     
 
      cleanTx(editedJson: any) {
           const defaults: Record<string, any[]> = {

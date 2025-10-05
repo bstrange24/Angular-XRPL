@@ -11,6 +11,7 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <label for="accountName1Field">Name</label>
@@ -76,6 +77,7 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <label for="currencyField">Currency Code</label>
@@ -333,6 +335,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <tr>
                               <td>
                                    <label>TrustLine Options</label>
@@ -361,7 +364,9 @@
                          </tr>
                          <tr>
                               <td>
-                                   <label>Memo</label>
+                                   <span class="tooltip" tooltip-data="Add memo to transaction.">
+                                        <label>Memo</label>
+                                   </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
@@ -376,7 +381,7 @@
                                    <label for="memoField"></label>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Seperate multiple memos by a comma." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
                          <tr>
@@ -462,7 +467,9 @@
                          </tr>
                          <tr>
                               <td>
-                                   <label>Use Ticket Sequence</label>
+                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                                        <label>Use Ticket Sequence</label>
+                                   </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
                                    <label class="switch">
@@ -474,10 +481,30 @@
                          </tr>
                          <tr class="multisignAddressClass" *ngIf="isTicket">
                               <td>
-                                   <label for="ticketSequence"></label>
+                                   <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
+                                        <label for="ticketSequence"></label>
+                                   </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <!-- <div class="selection-mode">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
+                                             Multiple Selection
+                                        </label>
+                                   </div> -->
+
+                                   <div *ngIf="multiSelectMode; else singleSelect">
+                                        <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </div>
+
+                                   <ng-template #singleSelect>
+                                        <select class="timeUnit" [(ngModel)]="selectedSingleTicket" [ngModelOptions]="{standalone: true}">
+                                             <option value="" disabled>Select a ticket</option>
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </ng-template>
                               </td>
                          </tr>
                          <tr>
