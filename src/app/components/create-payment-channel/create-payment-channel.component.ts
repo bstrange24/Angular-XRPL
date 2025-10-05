@@ -16,8 +16,8 @@ import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-tr
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | null;
      senderAddress?: string;
-     seed?: string;
      account_info?: any;
+     seed?: string;
      amount?: string;
      destination?: string;
      settleDelay?: string;
@@ -32,7 +32,8 @@ interface ValidationInputs {
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
-     ticketSequence?: string;
+     selectedSingleTicket?: string;
+     selectedTicket?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
 }
@@ -78,6 +79,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
+     ticketArray: string[] = [];
+     selectedTickets: string[] = []; // For multiple selection
+     selectedSingleTicket: string = ''; // For single selection
+     multiSelectMode: boolean = false; // Toggle between modes
+     selectedTicket: string = ''; // The currently selected ticket
      account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      paymentChannelCancelAfterTimeField: string = '';
@@ -126,16 +132,18 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      ngOnInit() {}
 
-     async ngAfterViewInit() {
-          try {
-               const wallet = await this.getWallet();
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-          } catch (error: any) {
-               console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
-          }
+     ngAfterViewInit() {
+          (async () => {
+               try {
+                    const wallet = await this.getWallet();
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+               } catch (error: any) {
+                    console.error(`No wallet could be created or is undefined ${error.message}`);
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+               } finally {
+                    this.cdr.detectChanges();
+               }
+          })();
      }
 
      ngAfterViewChecked() {
@@ -202,6 +210,16 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     onTicketToggle(event: any, ticket: string) {
+          if (event.target.checked) {
+               // Add to selection
+               this.selectedTickets = [...this.selectedTickets, ticket];
+          } else {
+               // Remove from selection
+               this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
+          }
+     }
+
      toggleTicketSequence() {
           this.cdr.detectChanges();
      }
@@ -253,7 +271,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getPaymentChannels');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    if (errors.length === 1) {
+                         return this.setError(`Error:\n${errors.join('\n')}`);
+                    } else {
+                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
+                    }
                }
 
                type PaymentChannelObject = any; // Replace with actual type if available
@@ -316,10 +338,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-                         this.isMemoEnabled = false;
-                         this.memoField = '';
-
+                         this.clearFields(false);
+                         this.updateTickets(allAccountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for payment channels:', err);
@@ -359,7 +379,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -383,7 +404,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, this.channelAction);
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    if (errors.length === 1) {
+                         return this.setError(`Error:\n${errors.join('\n')}`);
+                    } else {
+                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
+                    }
                }
 
                const action = this.channelAction;
@@ -403,40 +428,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
-                    // Handle Ticket Sequence
-                    if (this.ticketSequence) {
-                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                         if (!ticketExists) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-                         this.utilsService.setTicketSequence(paymentChannelCreateTx, this.ticketSequence, true);
-                    } else {
-                         // Use pre-fetched sequence — no redundant call!
-                         this.utilsService.setTicketSequence(paymentChannelCreateTx, accountInfo.result.account_data.Sequence, false);
-                    }
-
-                    if (this.memoField) {
-                         this.utilsService.setMemoField(paymentChannelCreateTx, this.memoField);
-                    }
-
-                    if (this.destinationTagField) {
-                         this.utilsService.setDestinationTag(paymentChannelCreateTx, this.destinationTagField);
-                    }
-
-                    if (this.paymentChannelCancelAfterTimeField) {
-                         const cancelAfterTime = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
-                         console.log(`cancelTime: ${this.paymentChannelCancelAfterTimeField} cancelUnit: ${this.paymentChannelCancelAfterTimeUnit}`);
-                         console.log(`cancelTime: ${this.utilsService.convertXRPLTime(cancelAfterTime)}`);
-                         const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client); // Implement this in xrplService
-                         if (cancelAfterTime <= currentLedgerTime) {
-                              return this.setError('ERROR: Cancel After time must be in the future');
-                         }
-                         paymentChannelCreateTx.CancelAfter = cancelAfterTime;
-                    }
-
-                    if (this.publicKeyField) {
-                         paymentChannelCreateTx.PublicKey = this.publicKeyField;
-                    }
+                    // Optional fields
+                    await this.setTxOptionalFields(client, paymentChannelCreateTx, wallet, accountInfo);
 
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
@@ -459,7 +452,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          this.resultField.nativeElement.classList.add('success');
                          this.setSuccess(this.result);
                     } else {
-                         // PHASE 5: Get regular key wallet
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                          // Sign transaction
@@ -499,34 +491,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Amount: xrpl.xrpToDrops(this.amountField),
                     };
 
-                    // Handle Ticket Sequence
-                    if (this.ticketSequence) {
-                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                         if (!ticketExists) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-                         this.utilsService.setTicketSequence(paymentChannelFundTx, this.ticketSequence, true);
-                    } else {
-                         // Use pre-fetched sequence — no redundant call!
-                         this.utilsService.setTicketSequence(paymentChannelFundTx, accountInfo.result.account_data.Sequence, false);
-                    }
-
-                    if (this.memoField) {
-                         this.utilsService.setMemoField(paymentChannelFundTx, this.memoField);
-                    }
-
-                    if (this.destinationTagField) {
-                         this.utilsService.setDestinationTag(paymentChannelFundTx, this.destinationTagField);
-                    }
-
-                    if (this.paymentChannelCancelAfterTimeField) {
-                         const newExpiration = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
-                         const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client);
-                         if (newExpiration <= currentLedgerTime) {
-                              return this.setError('ERROR: New expiration time must be in the future');
-                         }
-                         paymentChannelFundTx.Expiration = newExpiration;
-                    }
+                    // Optional fields
+                    await this.setTxOptionalFields(client, paymentChannelFundTx, wallet, accountInfo);
 
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Funding/Renewing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
@@ -613,25 +579,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
-                    // Handle Ticket Sequence
-                    if (this.ticketSequence) {
-                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                         if (!ticketExists) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-                         this.utilsService.setTicketSequence(paymentChannelClaimTx, this.ticketSequence, true);
-                    } else {
-                         // Use pre-fetched sequence — no redundant call!
-                         this.utilsService.setTicketSequence(paymentChannelClaimTx, accountInfo.result.account_data.Sequence, false);
-                    }
-
-                    if (this.memoField) {
-                         this.utilsService.setMemoField(paymentChannelClaimTx, this.memoField);
-                    }
-
-                    if (this.destinationTagField) {
-                         this.utilsService.setDestinationTag(paymentChannelClaimTx, this.destinationTagField);
-                    }
+                    // Optional fields
+                    await this.setTxOptionalFields(client, paymentChannelClaimTx, wallet, accountInfo);
 
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Claiming Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
@@ -730,25 +679,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          Fee: fee,
                     };
 
-                    // Handle Ticket Sequence
-                    if (this.ticketSequence) {
-                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                         if (!ticketExists) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-                         this.utilsService.setTicketSequence(paymentChannelClaimTx, this.ticketSequence, true);
-                    } else {
-                         // Use pre-fetched sequence — no redundant call!
-                         this.utilsService.setTicketSequence(paymentChannelClaimTx, accountInfo.result.account_data.Sequence, false);
-                    }
-
-                    if (this.memoField) {
-                         this.utilsService.setMemoField(paymentChannelClaimTx, this.memoField);
-                    }
-
-                    if (this.destinationTagField) {
-                         this.utilsService.setDestinationTag(paymentChannelClaimTx, this.destinationTagField);
-                    }
+                    // Optional fields
+                    await this.setTxOptionalFields(client, paymentChannelClaimTx, wallet, accountInfo);
 
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Closing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
 
@@ -810,7 +742,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     try {
                          this.clearFields(false);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                         await this.updateXrpBalance(client, accountInfo, wallet);
+                         this.updateTickets(updatedAccountObjects);
+                         await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for payment channels:', err);
                          // Don't break main render — payment channels are already shown
@@ -873,7 +806,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'generateCreatorClaimSignature');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    if (errors.length === 1) {
+                         return this.setError(`Error:\n${errors.join('\n')}`);
+                    } else {
+                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
+                    }
                }
 
                this.publicKeyField = wallet.publicKey;
@@ -954,6 +891,51 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
+     private async setTxOptionalFields(client: xrpl.Client, paymentChannelTx: any, wallet: xrpl.Wallet, accountInfo: any) {
+          if (this.selectedSingleTicket) {
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+               if (!ticketExists) {
+                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+               }
+               this.utilsService.setTicketSequence(paymentChannelTx, this.selectedSingleTicket, true);
+          } else {
+               if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                    console.log('Setting multiple tickets:', this.selectedTickets);
+                    this.utilsService.setTicketSequence(paymentChannelTx, accountInfo.result.account_data.Sequence, false);
+               }
+          }
+
+          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+               this.utilsService.setDestinationTag(paymentChannelTx, this.destinationTagField);
+          }
+          if (this.memoField) {
+               this.utilsService.setMemoField(paymentChannelTx, this.memoField);
+          }
+          if (this.publicKeyField) {
+               this.utilsService.setPublicKey(paymentChannelTx, this.publicKeyField);
+          }
+
+          if (this.paymentChannelCancelAfterTimeField) {
+               const cancelAfterTime = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
+               console.log(`cancelTime: ${this.paymentChannelCancelAfterTimeField} cancelUnit: ${this.paymentChannelCancelAfterTimeUnit}`);
+               console.log(`cancelTime: ${this.utilsService.convertXRPLTime(cancelAfterTime)}`);
+               const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client); // Implement this in xrplService
+               if (cancelAfterTime <= currentLedgerTime) {
+                    return this.setError('ERROR: Cancel After time must be in the future');
+               }
+               this.utilsService.setCancelAfter(paymentChannelTx, cancelAfterTime);
+          }
+
+          if (this.paymentChannelCancelAfterTimeField && (this.channelAction === 'fund' || this.channelAction === 'renew')) {
+               const newExpiration = this.utilsService.addTime(this.paymentChannelCancelAfterTimeField, this.paymentChannelCancelAfterTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
+               const currentLedgerTime = await this.xrplService.getLedgerCloseTime(client);
+               if (newExpiration <= currentLedgerTime) {
+                    return this.setError('ERROR: New expiration time must be in the future');
+               }
+               this.utilsService.setExpiration(paymentChannelTx, newExpiration);
+          }
+     }
+
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
           console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
           console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
@@ -979,7 +961,42 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          const getAccountTickets: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'Ticket') {
+                         getAccountTickets.push(obj.TicketSequence.toString());
+                    }
+               });
+          }
+          return getAccountTickets;
+     }
+
+     private cleanUpSingleSelection() {
+          // Check if selected ticket still exists in available tickets
+          if (this.selectedSingleTicket && !this.ticketArray.includes(this.selectedSingleTicket)) {
+               this.selectedSingleTicket = ''; // Reset to "Select a ticket"
+          }
+     }
+
+     private cleanUpMultiSelection() {
+          // Filter out any selected tickets that no longer exist
+          this.selectedTickets = this.selectedTickets.filter(ticket => this.ticketArray.includes(ticket));
+     }
+
+     updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+
+          // Clean up selections based on current mode
+          if (this.multiSelectMode) {
+               this.cleanUpMultiSelection();
+          } else {
+               this.cleanUpSingleSelection();
+          }
+     }
+
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
@@ -989,7 +1006,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
+     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+          if (this.ticketArray.length > 0) {
+               this.selectedTicket = this.ticketArray[0];
+          }
+
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1004,10 +1026,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
           if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
@@ -1015,11 +1037,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-               this.useMultiSign = true; // Force to true if master key is disabled
-          } else {
-               this.useMultiSign = false;
-          }
+          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          //      this.useMultiSign = true; // Force to true if master key is disabled
+          // } else {
+          //      this.useMultiSign = false;
+          // }
 
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
@@ -1030,7 +1052,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: any) {
+     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
           if (regularKey) {
                this.regularKeyAddress = regularKey;
@@ -1049,11 +1071,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          } else {
-               this.isRegularKeyAddress = false;
-          }
+          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          // } else {
+          //      this.isRegularKeyAddress = false;
+          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;
@@ -1065,7 +1087,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
-          // Common validators as functions
+          // --- Shared skip helper ---
+          const shouldSkipNumericValidation = (value: string | undefined): boolean => {
+               return value === undefined || value === null || value.trim() === '';
+          };
+
+          // --- Common validators ---
           const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
                if (value == null || !this.utilsService.validateInput(value)) {
                     return `${fieldName} cannot be empty`;
@@ -1095,8 +1122,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           };
 
           const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
-               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
-               const num = parseFloat(value);
+               // Skip number validation if value is empty — required() will handle it
+               if (shouldSkipNumericValidation(value) || (allowEmpty && value === '')) return null;
+
+               // ✅ Type-safe parse
+               const num = parseFloat(value as string);
+
                if (isNaN(num) || !isFinite(num)) {
                     return `${fieldName} must be a valid number`;
                }
@@ -1146,7 +1177,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                try {
                     const client = await this.xrplService.getClient();
                     const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
-
                     if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
                          return `ERROR: Receiver requires a Destination Tag for payment`;
                     }
@@ -1181,8 +1211,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1200,8 +1230,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1218,12 +1248,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidChannelId(inputs.channelID),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1243,8 +1271,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1260,8 +1286,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidChannelId(inputs.channelID),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1278,8 +1302,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1292,7 +1314,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
           const config = actionConfig[action] || actionConfig['default'];
 
-          // Check required fields
+          // --- Run required checks ---
           config.required.forEach((field: keyof ValidationInputs) => {
                const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
                if (err) errors.push(err);
@@ -1321,6 +1343,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
+
+          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
 
           // Selected account check (common to most)
           if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
@@ -1391,11 +1417,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     async displayDataForAccount1() {
+     private displayDataForAccount1() {
           this.displayDataForAccount('account1');
      }
 
-     async displayDataForAccount2() {
+     private displayDataForAccount2() {
           this.displayDataForAccount('account2');
      }
 
@@ -1409,7 +1435,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.settleDelayField = '';
                this.paymentChannelCancelAfterTimeField = '';
           }
-
+          this.isMemoEnabled = false;
           this.memoField = '';
           this.ticketSequence = '';
           this.isTicket = false;
@@ -1417,13 +1443,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     updateSpinnerMessage(message: string) {
+     private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
      }
 
-     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
           await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner

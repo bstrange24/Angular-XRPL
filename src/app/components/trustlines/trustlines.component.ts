@@ -98,7 +98,6 @@ export class TrustlinesComponent implements AfterViewChecked {
      destinationTagField: string = '';
      useMultiSign: boolean = false;
      multiSignAddress: string = '';
-     isUpdateMetaData = false;
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
      multiSigningEnabled: boolean = false;
@@ -108,7 +107,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      isRegularKeyAddress = false;
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
-     spinner = false;
+     spinner: boolean = false;
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
@@ -921,7 +920,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // PHASE 6: Sign transaction
+                         // Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -1805,6 +1804,10 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
                return null;
           };
 
@@ -2219,5 +2222,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 }

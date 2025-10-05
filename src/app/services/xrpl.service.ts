@@ -862,11 +862,11 @@ export class XrplService {
           try {
                const channelAuthorize = await client.request({
                     id: 'channel_authorize_example_id1',
-                    command: 'channel_authorize' as any, // Use type assertion
-                    channel_id: channelId, // Use the parameter instead of hardcoded value
-                    seed: wallet.seed, // Consider making this configurable
-                    key_type: 'secp256k1',
-                    amount: xrpl.xrpToDrops(amount), // Use the parameter
+                    command: 'channel_authorize' as any,
+                    channel_id: channelId,
+                    seed: wallet.seed,
+                    key_type: this.storageService.getInputValue('encryptionType') ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    amount: xrpl.xrpToDrops(amount),
                });
                return channelAuthorize;
           } catch (error: any) {

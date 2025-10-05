@@ -1834,14 +1834,14 @@ export class UtilsService {
      }
 
      formatMemos(memos: any[]): string {
-  return memos.map(m => {
-    const data = Buffer.from(m.Memo.MemoData, 'hex').toString('utf8');
-    const type = m.Memo.MemoType
-      ? Buffer.from(m.Memo.MemoType, 'hex').toString('utf8')
-      : 'text/plain'; // Default if missing
-    return `${data} (${type})`;
-  }).join('\n');
-}
+          return memos
+               .map(m => {
+                    const data = Buffer.from(m.Memo.MemoData, 'hex').toString('utf8');
+                    const type = m.Memo.MemoType ? Buffer.from(m.Memo.MemoType, 'hex').toString('utf8') : 'text/plain'; // Default if missing
+                    return `${data} (${type})`;
+               })
+               .join('\n');
+     }
 
      async setInvoiceIdField(tx: any, invoiceIdField: string) {
           const validInvoiceID = await this.getValidInvoiceID(invoiceIdField);
@@ -1898,13 +1898,16 @@ export class UtilsService {
      }
 
      setMemoField(tx: any, memoField: string) {
-          const memos = (memoField || '').split(',').map(s => s.trim()).filter(Boolean);
+          const memos = (memoField || '')
+               .split(',')
+               .map(s => s.trim())
+               .filter(Boolean);
           if (memos.length > 0) {
                tx.Memos = memos.map(memo => ({
                     Memo: {
                          MemoData: Buffer.from(memo, 'utf8').toString('hex'),
                          MemoType: Buffer.from('text/plain', 'utf8').toString('hex'),
-                    }
+                    },
                }));
           } else {
                tx.Memos = [
@@ -1952,6 +1955,14 @@ export class UtilsService {
 
      setAmount(tx: any, amount: any) {
           tx.Amount = this.determineAmountType(amount);
+     }
+
+     setPublicKey(tx: any, publicKeyField: string) {
+          tx.PublicKey = publicKeyField;
+     }
+
+     setCancelAfter(tx: any, cancelAfter: any) {
+          tx.CancelAfter = cancelAfter;
      }
 
      determineAmountType(amount: any) {
