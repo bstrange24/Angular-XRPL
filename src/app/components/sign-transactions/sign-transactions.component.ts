@@ -360,6 +360,22 @@ export class SignTransactionsComponent implements AfterViewChecked {
                case 'accountFlagClear':
                     await this.modifyAccountFlagsRequestText(client, wallet);
                     break;
+               case 'createTimeEscrow':
+                    await this.createEscrowRequestText(client, wallet);
+                    break;
+               case 'finishTimeEscrow':
+                    await this.createEscrowRequestText(client, wallet);
+                    break;
+               case 'createConditionEscrow':
+                    await this.createEscrowRequestText(client, wallet);
+                    break;
+               case 'finishConditionEscrow':
+                    await this.createEscrowRequestText(client, wallet);
+                    break;
+               case 'cancelEscrow':
+                    await this.createEscrowRequestText(client, wallet);
+                    break;
+
                // add others as needed
                default:
                     console.warn(`Unknown transaction type: ${this.selectedTransaction}`);
@@ -784,6 +800,68 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const txString = JSON.stringify(modifyAccountSetRequest, null, 2);
           this.txJson = txString; // Set property instead of DOM
      }
+
+     async createEscrowRequestText(client: xrpl.Client, wallet: xrpl.Wallet) {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let modifyTrustlineRequest: any = {
+               TransactionType: 'EscrowCreate',
+               Account: wallet.classicAddress,
+               Destination: 'rB59o63jhXxHU9RHDMUq2bypc8pW4m5f6s',
+               Amount: '0',
+               Fee: '10',
+               FinishAfter: '0',
+               CancelAfter: '0',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (this.selectedTransaction === 'setTrustline') {
+               modifyTrustlineRequest.LimitAmount = {
+                    currency: 'CTZ',
+                    issuer: 'rsP3mgGb2tcYUrxiLFiHJiQXhsziegtwBc',
+                    value: '100',
+               };
+          } else {
+               modifyTrustlineRequest.LimitAmount = {
+                    currency: 'CTZ',
+                    issuer: 'rsP3mgGb2tcYUrxiLFiHJiQXhsziegtwBc',
+                    value: '0',
+               };
+          }
+
+          if (this.isTicketEnabled && this.ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
+
+               if (!ticketExists) {
+                    return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`, null);
+               }
+
+               // Overwrite fields for ticketed tx
+               modifyTrustlineRequest.TicketSequence = Number(this.ticketSequence);
+               modifyTrustlineRequest.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(modifyTrustlineRequest, null, 2);
+          this.txJson = txString; // Set property instead of DOM
+     }
+
+     
 
      cleanTx(editedJson: any) {
           const defaults: Record<string, any[]> = {
