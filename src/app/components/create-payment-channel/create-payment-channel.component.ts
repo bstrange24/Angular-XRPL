@@ -253,12 +253,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      getSelectionWidth(): string {
-          return `${100 / this.actions.length}%`; // Each option takes equal width
+          return `${101 / this.actions.length}%`; // Each option takes equal width
      }
 
      getSelectionLeft(): string {
           const index = this.actions.findIndex(action => action.value === this.channelAction);
-          return `${(index * 100) / this.actions.length}%`; // Position the highlight based on selected index
+          return `${(index * 101) / this.actions.length}%`; // Position the highlight based on selected index
      }
 
      async getPaymentChannels() {
