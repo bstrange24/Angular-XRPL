@@ -3,18 +3,19 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
-import { WalletInputComponent } from '../wallet-input/wallet-input.component';
+import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
 import { PaymentChannelCreate, PaymentChannelFund, PaymentChannelClaim } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { sign, verify } from 'ripple-keypairs';
+import { AppConstants } from '../../core/app.constants';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 
 interface ValidationInputs {
-     selectedAccount?: 'account1' | 'account2' | null;
+     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      account_info?: any;
      seed?: string;
@@ -65,14 +66,14 @@ interface SignerEntry {
 @Component({
      selector: 'app-account',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './create-payment-channel.component.html',
      styleUrl: './create-payment-channel.component.css',
 })
 export class CreatePaymentChannelComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      // @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = 'account1';
+     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
      private lastResult: string = '';
      transactionInput: string = '';
      result: string = '';
@@ -86,6 +87,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      selectedTicket: string = ''; // The currently selected ticket
      account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      paymentChannelCancelAfterTimeField: string = '';
      paymentChannelCancelAfterTimeUnit: string = 'seconds';
      channelIDField: string = '';
@@ -116,9 +118,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      multiSigningEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
+     issuers: string[] = [];
+     destinationFields: string = '';
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
+     private knownDestinations: { [key: string]: string } = {};
+     private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
+     destinations: string[] = [];
      actions = [
           { value: 'create', label: 'Create' },
           { value: 'fund', label: 'Fund' },
@@ -130,16 +137,33 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
-     ngOnInit() {}
+     async ngOnInit(): Promise<void> {
+          const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          if (storedDestinations) {
+               this.knownDestinations = storedDestinations;
+          }
+          const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
+          if (storedIssuers) {
+               this.knownTrustLinesIssuers = storedIssuers;
+          }
+     }
 
      ngAfterViewInit() {
           (async () => {
                try {
                     const wallet = await this.getWallet();
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                    let storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
+                    if (storedIssuers) {
+                         this.storageService.removeValue('knownIssuers');
+                         this.knownTrustLinesIssuers = this.utilsService.normalizeAccounts(storedIssuers, this.issuer.address);
+                         this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+                    }
+                    this.updateDestinations();
+                    this.destinationFields = this.issuer.address;
                } catch (error: any) {
                     console.error(`No wallet could be created or is undefined ${error.message}`);
-                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
                } finally {
                     this.cdr.detectChanges();
                }
@@ -154,9 +178,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any }) {
+     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
           this.account1 = { ...event.account1, balance: '0' };
           this.account2 = { ...event.account2, balance: '0' };
+          this.issuer = { ...event.issuer, balance: '0' };
           this.onAccountChange();
      }
 
@@ -169,14 +194,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
-          if (!this.selectedAccount) return;
-
-          const accountHandlers: Record<'account1' | 'account2', () => void> = {
+          const accountHandlers: Record<string, () => void> = {
                account1: () => this.displayDataForAccount1(),
                account2: () => this.displayDataForAccount2(),
+               issuer: () => this.displayDataForAccount3(),
           };
-
-          accountHandlers[this.selectedAccount]?.();
+          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
      }
 
      validateQuorum() {
@@ -365,7 +388,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
                senderAddress: this.utilsService.getSelectedAddressWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
-               destination: this.destinationField,
+               destination: this.destinationFields,
                amount: this.amountField,
                settleDelay: this.settleDelayField,
                channelID: this.channelIDField,
@@ -422,7 +445,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          TransactionType: 'PaymentChannelCreate',
                          Account: wallet.classicAddress,
                          Amount: xrpl.xrpToDrops(this.amountField),
-                         Destination: this.destinationField,
+                         Destination: this.destinationFields,
                          SettleDelay: parseInt(this.settleDelayField),
                          PublicKey: wallet.publicKey,
                          Fee: fee,
@@ -787,7 +810,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2),
-               destination: this.destinationField,
+               destination: this.destinationFields,
                amount: this.amountField,
                channelID: this.channelIDField,
           };
@@ -950,8 +973,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                              if (entry.SignerEntry?.Account) {
+                                   const weight = entry.SignerEntry.SignerWeight ?? '';
+                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
                          });
@@ -1168,6 +1192,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
                return null;
           };
 
@@ -1356,9 +1384,17 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           return errors;
      }
 
-     async getWallet() {
+     private updateDestinations() {
+          const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
+          // this.destinations = [...Object.values(knownDestinationsTemp)];
+          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
+          this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
+          this.destinationFields = this.issuer.address;
+     }
+
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithOutIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2);
+          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
@@ -1366,54 +1402,52 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           return wallet;
      }
 
-     private displayDataForAccount(accountKey: 'account1' | 'account2') {
-          const isAccount1 = accountKey === 'account1';
-          const prefix = accountKey;
-          const otherPrefix = isAccount1 ? 'account2' : 'account1';
+     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
+          const isIssuer = accountKey === 'issuer';
+          const prefix = isIssuer ? 'issuer' : accountKey;
+
+          // Define casing differences in keys
+          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
 
           // Fetch stored values
-          const data = {
-               name: this.storageService.getInputValue(`${prefix}name`) || '',
-               address: this.storageService.getInputValue(`${prefix}address`) || '',
-               seed: this.storageService.getInputValue(`${prefix}seed`) || '',
-               mnemonic: this.storageService.getInputValue(`${prefix}mnemonic`) || '',
-               secretNumbers: this.storageService.getInputValue(`${prefix}secretNumbers`) || '',
-               otherAddress: this.storageService.getInputValue(`${otherPrefix}address`) || '',
-          };
+          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
+          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
+          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
 
-          // DOM element mapping (only for account1 since UI fields seem fixed)
-          const domMap: Record<string, string> = {
+          // Update account object
+          const accountMap = {
+               account1: this.account1,
+               account2: this.account2,
+               issuer: this.issuer,
+          };
+          const account = accountMap[accountKey];
+          account.name = name;
+          account.address = address;
+          account.seed = seed;
+
+          // DOM manipulation (map field IDs instead of repeating)
+          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
                name: 'accountName1Field',
                address: 'accountAddress1Field',
                seed: 'accountSeed1Field',
           };
 
-          // Select account reference
-          const account = isAccount1 ? this.account1 : this.account2;
-
-          // Assign values
-          account.name = data.name;
-          account.address = data.address;
-          account.seed = data.seed || data.mnemonic || data.secretNumbers;
-          this.destinationField = data.otherAddress;
-
-          // Update DOM fields (if they exist)
-          (Object.keys(domMap) as (keyof typeof domMap)[]).forEach(key => {
-               const field = document.getElementById(domMap[key]) as HTMLInputElement | null;
-               if (field) {
-                    field.value = account[key as keyof typeof account] ?? '';
-               }
+          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
+               const el = document.getElementById(id) as HTMLInputElement | null;
+               if (el) el.value = account[key];
           });
 
-          this.cdr.detectChanges();
+          this.cdr.detectChanges(); // sync with ngModel
 
-          // Address validation
-          if (account.address) {
-               if (xrpl.isValidAddress(account.address)) {
+          // Fetch account details
+          try {
+               if (address && xrpl.isValidAddress(address)) {
                     this.getPaymentChannels();
-               } else {
+               } else if (address) {
                     this.setError('Invalid XRP address');
                }
+          } catch (error: any) {
+               this.setError(`Error fetching account details: ${error.message}`);
           }
      }
 
@@ -1423,6 +1457,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      private displayDataForAccount2() {
           this.displayDataForAccount('account2');
+     }
+
+     private displayDataForAccount3() {
+          this.displayDataForAccount('issuer');
      }
 
      clearFields(clearAllFields: boolean) {
@@ -1483,5 +1521,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 }
