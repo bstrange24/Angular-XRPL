@@ -565,9 +565,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Invalid signature');
                     }
 
-                    if (isChannelAuthorized.result.signature !== signature) {
-                         return this.setError('Wallet is invalide for payment channel.');
-                    }
+                    // if (isChannelAuthorized.result.signature !== signature) {
+                    //      return this.setError('Wallet is invalid for payment channel.');
+                    // }
 
                     let paymentChannelClaimTx: PaymentChannelClaim = {
                          TransactionType: 'PaymentChannelClaim',

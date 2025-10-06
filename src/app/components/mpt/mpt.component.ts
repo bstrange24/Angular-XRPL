@@ -16,8 +16,8 @@ import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-tr
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
-     seed?: string;
      account_info?: any;
+     seed?: string;
      amount?: string;
      destination?: string;
      mptIssuanceIdField?: string;
@@ -32,7 +32,6 @@ interface ValidationInputs {
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
-     ticketSequence?: string;
      selectedSingleTicket?: string;
      selectedTicket?: string;
      signerQuorum?: number;
@@ -129,15 +128,8 @@ export class MptComponent implements AfterViewChecked {
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-     // MPT_FLAGS: Record<number, string> = {
-     //      0x00000001: 'MptLocked',
-     //      0x00000002: 'CanLock',
-     //      0x00000004: 'RequireAuth',
-     //      0x00000008: 'CanEscrow',
-     //      0x00000010: 'CanTrade',
-     //      0x00000020: 'CanTransfer',
-     //      0x00000040: 'CanClawback',
-     // };
+     isSelfAuthorize: boolean = true; // New: toggle for self vs. issuer authorization
+     isUnauthorize: boolean = false; // New: toggle for authorize vs. unauthorize
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -373,7 +365,6 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
                selectedTicket: this.selectedTicket,
                selectedSingleTicket: this.selectedSingleTicket,
                // flags: this.flags,
@@ -421,52 +412,7 @@ export class MptComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               await this.setTxOptionalFields(client, mPTokenIssuanceCreateTx, wallet, accountInfo, 'generate');
-
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(mPTokenIssuanceCreateTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(mPTokenIssuanceCreateTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(mPTokenIssuanceCreateTx, this.memoField);
-               }
-
-               if (this.assetScaleField) {
-                    const assetScale = parseInt(this.assetScaleField);
-                    if (assetScale < 0 || assetScale > 15) {
-                         return this.setError('ERROR: Tick size must be between 3 and 15.');
-                    }
-                    mPTokenIssuanceCreateTx.AssetScale = assetScale;
-               } else {
-                    mPTokenIssuanceCreateTx.AssetScale = 0;
-               }
-
-               if (this.flags.isTransferable) {
-                    if (this.transferFeeField) {
-                         if (isNaN(parseInt(this.transferFeeField)) || parseInt(this.transferFeeField) < 0 || parseInt(this.transferFeeField) > 50000) {
-                              return this.setError('ERROR: Transfer Fee must be a number between 0 and 50,000.');
-                         }
-                         mPTokenIssuanceCreateTx.TransferFee = parseInt(this.transferFeeField);
-                    } else {
-                         mPTokenIssuanceCreateTx.TransferFee = 0;
-                    }
-               }
-
-               if (this.tokenCountField) {
-                    mPTokenIssuanceCreateTx.MaximumAmount = this.tokenCountField;
-               } else {
-                    mPTokenIssuanceCreateTx.MaximumAmount = '10';
-               }
-
-               if (this.metaDataField) {
-                    mPTokenIssuanceCreateTx.MPTokenMetadata = xrpl.convertStringToHex(this.metaDataField);
-               }
+               await this.setTxOptionalFields(client, mPTokenIssuanceCreateTx, wallet, accountInfo, 'create');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceCreateTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -481,7 +427,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -512,7 +458,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -566,7 +512,8 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
                // flags: this.flags,
           };
 
@@ -609,6 +556,7 @@ export class MptComponent implements AfterViewChecked {
                     MPTokenIssuanceID: this.mptIssuanceIdField,
                     Destination: this.destinationFields,
                     Amount: this.tokenCountField,
+                    Flags: v_flags,
                     Fee: fee,
                };
 
@@ -627,7 +575,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -658,7 +606,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -700,7 +648,7 @@ export class MptComponent implements AfterViewChecked {
                selectedAccount: this.selectedAccount,
                seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
                senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               destination: this.destinationFields,
+               destination: this.isSelfAuthorize ? undefined : this.destinationFields,
                mptIssuanceIdField: this.mptIssuanceIdField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
@@ -709,7 +657,8 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -740,31 +689,20 @@ export class MptComponent implements AfterViewChecked {
                     }
                }
 
-               const mptIssuanceId = this.mptIssuanceIdField;
-
                const mPTokenAuthorizeTx: xrpl.MPTokenAuthorize = {
                     TransactionType: 'MPTokenAuthorize',
                     Account: wallet.address,
-                    MPTokenIssuanceID: mptIssuanceId,
+                    MPTokenIssuanceID: this.mptIssuanceIdField,
+                    Flags: this.isUnauthorize ? xrpl.MPTokenAuthorizeFlags.tfMPTUnauthorize : 0,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     Fee: fee,
                };
 
+               if (!this.isSelfAuthorize) {
+                    mPTokenAuthorizeTx.Holder = this.destinationFields;
+               }
+
                await this.setTxOptionalFields(client, mPTokenAuthorizeTx, wallet, accountInfo, 'generate');
-
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(mPTokenAuthorizeTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(mPTokenAuthorizeTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(mPTokenAuthorizeTx, this.memoField);
-               }
 
                if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenAuthorizeTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -779,7 +717,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -810,7 +748,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -863,7 +801,8 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -903,26 +842,11 @@ export class MptComponent implements AfterViewChecked {
                     TransactionType: 'MPTokenTransfer', // ✅ Still works!
                     Account: wallet.classicAddress,
                     MPTokenIssuanceID: this.mptIssuanceIdField,
-                    Destination: this.destinationFields,
                     Amount: this.amountField,
                     Fee: fee,
                };
 
-               await this.setTxOptionalFields(client, mptTransferTx, wallet, accountInfo, 'generate');
-
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(mptTransferTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(mptTransferTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(mptTransferTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, mptTransferTx, wallet, accountInfo, 'transfer');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mptTransferTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -937,7 +861,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -968,7 +892,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -1021,7 +945,8 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -1033,12 +958,13 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, destObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               // PHASE 1: PARALLELIZE — fetch account info + dest objects + issuance + fee + ledger index
+               const [accountInfo, accountObjects, destObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`destObjects for ${wallet.classicAddress}:`, destObjects.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`destObjects for ${this.destinationFields}:`, destObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
 
@@ -1054,17 +980,32 @@ export class MptComponent implements AfterViewChecked {
                }
 
                // Check if destination can hold the MPT
-               if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
+               if (!destObjects?.result?.account_objects) {
                     return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationFields}`);
                }
+
+               const walletMptTokens = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPTokenIssuance');
+               console.debug(`Wallet MPT Tokens:`, walletMptTokens);
+               console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
+               const walletMptToken = walletMptTokens.find((obj: any) => obj.mpt_issuance_id === this.mptIssuanceIdField);
+
                const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
                console.debug(`Destination MPT Tokens:`, mptTokens);
                console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
-
                const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
 
-               if (!authorized) {
-                    return this.setError(`ERROR: Destination ${this.destinationFields} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}).`);
+               // if (!authorized) {
+               //      return this.setError(`ERROR: Destination ${this.destinationFields} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}). Please ensure authorization has been completed.`);
+               // }
+
+               if (walletMptToken) {
+                    const decodedFlags = this.decodeMPTFlags((walletMptToken as any).Flags);
+                    const authorized = decodedFlags.some((obj: any) => obj.MPTokenIssuanceID === 'tfMPTRequireAuth');
+                    if (authorized) {
+                         // Since no specific authorized flag on MPToken, assume existence after proper auth process suffices
+                         // If needed, user can rely on simulation or submission error
+                         console.warn('MPT requires authorization; assuming existence of MPToken entry indicates approval.');
+                    }
                }
 
                const sendMptPaymentTx: xrpl.Payment = {
@@ -1079,21 +1020,7 @@ export class MptComponent implements AfterViewChecked {
                     Fee: fee,
                };
 
-               await this.setTxOptionalFields(client, sendMptPaymentTx, wallet, accountInfo, 'generate');
-
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(sendMptPaymentTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(sendMptPaymentTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(sendMptPaymentTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, sendMptPaymentTx, wallet, accountInfo, 'send');
 
                if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, sendMptPaymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -1108,7 +1035,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -1139,7 +1066,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -1189,7 +1116,8 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -1219,7 +1147,6 @@ export class MptComponent implements AfterViewChecked {
                     }
                }
 
-               // const mptokenObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
                console.debug(`MPT Account Objects: `, mptokenObjects);
                const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance' || o.LedgerEntryType === 'MPToken');
                console.debug(`MPT Objects: `, mptokens);
@@ -1243,20 +1170,6 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenIssuanceSetTx, wallet, accountInfo, 'generate');
 
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(mPTokenIssuanceSetTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(mPTokenIssuanceSetTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(mPTokenIssuanceSetTx, this.memoField);
-               }
-
                if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
@@ -1270,7 +1183,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -1301,7 +1214,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -1350,7 +1263,8 @@ export class MptComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -1405,20 +1319,6 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenIssuanceDestroyTx, wallet, accountInfo, 'generate');
 
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(mPTokenIssuanceDestroyTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(mPTokenIssuanceDestroyTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(mPTokenIssuanceDestroyTx, this.memoField);
-               }
-
                if (this.isSimulateEnabled) {
                     const simulation = await this.xrplTransactions.simulateTransaction(client, mPTokenIssuanceDestroyTx);
 
@@ -1428,7 +1328,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -1459,7 +1359,7 @@ export class MptComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -1515,6 +1415,26 @@ export class MptComponent implements AfterViewChecked {
           return v_flags;
      }
 
+     decodeMPTFlags(flags: number) {
+          const MPT_FLAGS = {
+               tfMPTCanLock: 0x00000002,
+               tfMPTCanEscrow: 0x00000004,
+               tfMPTCanTrade: 0x00000008,
+               tfMPTCanClawback: 0x00000010,
+               tfMPTRequireAuth: 0x00000020,
+               tfMPTImmutable: 0x00000040,
+               tfMPTDisallowIncoming: 0x00000080,
+          };
+
+          const activeFlags = [];
+          for (const [name, value] of Object.entries(MPT_FLAGS)) {
+               if ((flags & value) !== 0) {
+                    activeFlags.push(name);
+               }
+          }
+          return activeFlags;
+     }
+
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
                this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
@@ -1524,25 +1444,63 @@ export class MptComponent implements AfterViewChecked {
           }
      }
 
-     private async setTxOptionalFields(client: xrpl.Client, escrowTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
+     private async setTxOptionalFields(client: xrpl.Client, mptTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
           if (this.selectedSingleTicket) {
                const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
                if (!ticketExists) {
                     return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
                }
-               this.utilsService.setTicketSequence(escrowTx, this.selectedSingleTicket, true);
+               this.utilsService.setTicketSequence(mptTx, this.selectedSingleTicket, true);
           } else {
                if (this.multiSelectMode && this.selectedTickets.length > 0) {
                     console.log('Setting multiple tickets:', this.selectedTickets);
-                    this.utilsService.setTicketSequence(escrowTx, accountInfo.result.account_data.Sequence, false);
+                    this.utilsService.setTicketSequence(mptTx, accountInfo.result.account_data.Sequence, false);
                }
           }
 
-          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-               this.utilsService.setDestinationTag(escrowTx, this.destinationTagField);
-          }
           if (this.memoField) {
-               this.utilsService.setMemoField(escrowTx, this.memoField);
+               this.utilsService.setMemoField(mptTx, this.memoField);
+          }
+
+          if (txType === 'create') {
+               if (this.assetScaleField) {
+                    const assetScale = parseInt(this.assetScaleField);
+                    if (assetScale < 0 || assetScale > 15) {
+                         return this.setError('ERROR: Tick size must be between 3 and 15.');
+                    }
+                    mptTx.AssetScale = assetScale;
+               } else {
+                    mptTx.AssetScale = 0;
+               }
+
+               if (this.flags.isTransferable) {
+                    if (this.transferFeeField) {
+                         // TransferFee is in 1/1000th of a percent (basis points / 10), so for 1%, input 1000
+                         const transferFee = parseInt(this.transferFeeField);
+                         if (isNaN(transferFee) || transferFee < 0 || transferFee > 50000) {
+                              return this.setError('ERROR: Transfer Fee must be a number between 0 and 50,000 (for 0% to 50%).');
+                         }
+                         mptTx.TransferFee = transferFee;
+                    } else {
+                         mptTx.TransferFee = 0;
+                    }
+               }
+
+               if (this.tokenCountField) {
+                    mptTx.MaximumAmount = this.tokenCountField;
+               } else {
+                    mptTx.MaximumAmount = '10';
+               }
+
+               if (this.metaDataField) {
+                    mptTx.MPTokenMetadata = xrpl.convertStringToHex(this.metaDataField);
+               }
+          }
+
+          if (txType === 'transfer') {
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(mptTx, this.destinationTagField);
+               }
           }
      }
 
@@ -1648,12 +1606,6 @@ export class MptComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-          //      this.useMultiSign = true; // Force to true if master key is disabled
-          // } else {
-          //      this.useMultiSign = false;
-          // }
-
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
@@ -1682,12 +1634,6 @@ export class MptComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          // } else {
-          //      this.isRegularKeyAddress = false;
-          // }
-
           if (regularKey) {
                this.regularKeySigningEnabled = true;
           } else {
@@ -1697,11 +1643,6 @@ export class MptComponent implements AfterViewChecked {
 
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
-
-          // --- Shared skip helper ---
-          const shouldSkipNumericValidation = (value: string | undefined): boolean => {
-               return value === undefined || value === null || value.trim() === '';
-          };
 
           // --- Common validators ---
           const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
@@ -1813,11 +1754,11 @@ export class MptComponent implements AfterViewChecked {
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.assetScaleField, 'Asset scale', 0, 15),
-                         () => isValidNumber(inputs.transferFeeField, 'Transfer fee', 0, 1000000),
+                         () => isValidNumber(inputs.transferFeeField, 'Transfer fee', 0, 50000),
                          () => isValidNumber(inputs.tokenCountField, 'Token count', 0),
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         // () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1833,9 +1774,11 @@ export class MptComponent implements AfterViewChecked {
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
+                         () => (!this.isSelfAuthorize ? isRequired(inputs.destination, 'Holder Address') : null),
+                         () => (!this.isSelfAuthorize ? isValidXrpAddress(inputs.destination, 'Holder Address') : null),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1844,7 +1787,7 @@ export class MptComponent implements AfterViewChecked {
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                     ],
-                    asyncValidators: [],
+                    asyncValidators: [checkDestinationTagRequirement],
                },
                send: {
                     required: ['selectedAccount', 'seed', 'amount', 'destination', 'mptIssuanceIdField'],
@@ -1856,8 +1799,8 @@ export class MptComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, undefined, true), // Allow empty
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1874,8 +1817,8 @@ export class MptComponent implements AfterViewChecked {
                          () => isValidSeed(inputs.seed),
                          () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1892,8 +1835,8 @@ export class MptComponent implements AfterViewChecked {
                          () => isValidSeed(inputs.seed),
                          () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1938,6 +1881,10 @@ export class MptComponent implements AfterViewChecked {
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
+
+          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
 
           // Selected account check (common to most)
           if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {

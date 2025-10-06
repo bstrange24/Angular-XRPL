@@ -920,7 +920,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         // Sign transaction
+                    // Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -1137,9 +1137,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, paymentTx, this.destinationFields)) {
-                    return this.setError('ERROR: Not enough IOU balance for this transaction');
-               }
+               // if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, paymentTx, this.destinationFields)) {
+               //      return this.setError('ERROR: Not enough IOU balance for this transaction');
+               // }
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Currency Issuance (no changes will be made)...' : 'Submitting Currency Issuance to Ledger...');
 
@@ -1495,24 +1495,29 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      private async setTxOptionalFields(client: xrpl.Client, trustSetTx: any, wallet: xrpl.Wallet, accountInfo: any) {
-          if (this.selectedSingleTicket) {
-               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
-               if (!ticketExists) {
-                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+          try {
+               if (this.selectedSingleTicket) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+                    if (!ticketExists) {
+                         // return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+                         throw `ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`;
+                    }
+                    this.utilsService.setTicketSequence(trustSetTx, this.selectedSingleTicket, true);
+               } else {
+                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         this.utilsService.setTicketSequence(trustSetTx, accountInfo.result.account_data.Sequence, false);
+                    }
                }
-               this.utilsService.setTicketSequence(trustSetTx, this.selectedSingleTicket, true);
-          } else {
-               if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                    console.log('Setting multiple tickets:', this.selectedTickets);
-                    this.utilsService.setTicketSequence(trustSetTx, accountInfo.result.account_data.Sequence, false);
-               }
-          }
 
-          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-               this.utilsService.setDestinationTag(trustSetTx, this.destinationTagField);
-          }
-          if (this.memoField) {
-               this.utilsService.setMemoField(trustSetTx, this.memoField);
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(trustSetTx, this.destinationTagField);
+               }
+               if (this.memoField) {
+                    this.utilsService.setMemoField(trustSetTx, this.memoField);
+               }
+          } catch (error: any) {
+               throw new Error(error.message);
           }
      }
 

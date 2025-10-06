@@ -207,7 +207,7 @@ export class RenderUiComponentsService {
                          }
                          if ((item.key == 'Asset' || item.key == 'Asset2') && item.value.includes('undefined')) {
                               displayValue = item.value.split(' ')[1];
-                         } else if(item.key == 'Memos' && tx.result.tx_json.Memos.length>0) {
+                         } else if (item.key == 'Memos' && tx.result.tx_json.Memos.length > 0) {
                               displayValue = `${this.utilsService.formatMemos(tx.result.tx_json.Memos)}`;
                          }
                     }
@@ -706,7 +706,7 @@ export class RenderUiComponentsService {
                          }
                          if ((item.key == 'Asset' || item.key == 'Asset2') && item.value.includes('undefined')) {
                               displayValue = item.value.split(' ')[1];
-                         } else if(item.key == 'Memos' && tx.result.tx_json.Memos.length>0) {
+                         } else if (item.key == 'Memos' && tx.result.tx_json.Memos.length > 0) {
                               displayValue = `${this.utilsService.formatMemos(tx.result.tx_json.Memos)}`;
                          }
                     }
@@ -1146,7 +1146,7 @@ export class RenderUiComponentsService {
                                    } else if (typeof obj[field] === 'object') {
                                         content = Object.entries(obj[field]).map(([k, v]) => ({
                                              key: k,
-                                             value: this.utilsService.formatValueForKey(k, v),
+                                             value: k === 'value' ? this.utilsService.formatTokenBalance((v as string).toString(), 2) : this.utilsService.formatValueForKey(k, v),
                                         }));
                                    } else if (nestedFields.includes('HighLimit') && field === 'Flags') {
                                         content = [{ key: field, value: this.utilsService.getFlagName(obj[field]) }];
