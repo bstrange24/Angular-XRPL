@@ -373,11 +373,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getEscrowOwnerAddress');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Simplify debug log — avoid expensive stringify
@@ -456,11 +452,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'get');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const data: any = { sections: [{}] };
@@ -678,11 +670,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'create');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const finishAfterTime = this.utilsService.addTime(this.escrowFinishTimeField, this.escrowFinishTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -857,11 +845,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'finish');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
                const escrowOwner = escrow.Account;
 
@@ -1022,11 +1006,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancel');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let foundSequenceNumber = false;

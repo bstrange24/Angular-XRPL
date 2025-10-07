@@ -387,7 +387,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'toggleMetaData');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
                console.debug(`accountInfo for`, accountInfo.result);
 
@@ -435,7 +435,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                AppConstants.FLAGS.forEach(flag => {
@@ -514,7 +514,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      //           const errors = await this.validateInputs(inputs, 'updateFlags');
      //           if (errors.length > 0) {
-     //                return this.setError(`ERROR: ${errors.join('; ')}`);
+     //                return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
      //           }
 
      //           // ➤ EARLY EXIT: No changes needed
@@ -681,7 +681,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'updateFlags');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const transactions = [];
@@ -798,7 +798,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'updateMetaData');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const accountSetTx: AccountSet = await client.autofill({
@@ -983,7 +983,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'setDepositAuthAccounts');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Validate each address
@@ -1130,7 +1130,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'setMultiSign');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Create array of signer accounts and their weights
@@ -1299,7 +1299,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'setRegularKey');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                if (this.regularKeyAccount === '' || this.regularKeyAccount === 'No RegularKey configured for account' || this.regularKeyAccountSeed === '') {
@@ -1460,7 +1460,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'setNftMinterAddress');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Validate ALL addresses in PARALLEL (fail fast)

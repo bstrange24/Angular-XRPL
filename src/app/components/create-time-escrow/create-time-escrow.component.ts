@@ -368,11 +368,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getEscrowOwnerAddress');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Simplify debug log — avoid expensive stringify
@@ -451,11 +447,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'get');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const data: any = { sections: [{}] };
@@ -673,11 +665,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'create');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const finishAfterTime = this.utilsService.addTime(this.escrowFinishTimeField, this.escrowFinishTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -735,7 +723,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                     // Sign transaction
@@ -763,7 +750,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 
-                    // PARALLELIZE
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
@@ -845,11 +831,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'finish');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Check if the escrow can be canceled based on the CancelAfter time
@@ -940,7 +922,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 
-                    // PARALLELIZE
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
@@ -1011,11 +992,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancel');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let foundSequenceNumber = false;

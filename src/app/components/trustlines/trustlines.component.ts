@@ -318,11 +318,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getTrustlinesForAccount');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const trustLinesFromObjects = accountObjects.result.account_objects.filter(obj => obj.LedgerEntryType === 'RippleState');
@@ -663,11 +659,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'setTrustLine');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Validate flags + currency
@@ -828,11 +820,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'removeTrustline');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Validate flags
@@ -1023,11 +1011,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'issueCurrency');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Get regular key wallet
@@ -1328,11 +1312,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'clawbackTokens');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Validate currency

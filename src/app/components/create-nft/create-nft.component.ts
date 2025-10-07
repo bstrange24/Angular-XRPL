@@ -334,11 +334,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'getNFTs');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Prepare data structure
@@ -521,11 +517,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'mintNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenMintTx: NFTokenMint = {
@@ -667,11 +659,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'batchNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
@@ -775,11 +763,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'burnNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const validNFTs = this.utilsService.parseAndValidateNFTokenIDs(this.nftIdField);
@@ -925,11 +909,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'batchBurnNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let { regularKeyWalletSignTx }: { useRegularKeyWalletSignTx: boolean; regularKeyWalletSignTx: any } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
@@ -1025,11 +1005,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'getNFTOffers');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Prepare data structure
@@ -1220,11 +1196,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'buyNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const [sellOffersResponse, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getNFTSellOffers(client, this.nftIdField), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
@@ -1404,11 +1376,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'sellNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenCreateOfferTx: NFTokenCreateOffer = {
@@ -1541,11 +1509,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'sellNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenCreateOfferTx: NFTokenCreateOffer = {
@@ -1678,11 +1642,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'sellNFT');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenCreateOfferTx: NFTokenCreateOffer = {
@@ -1811,11 +1771,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'cancelBuy');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenCancelOfferTx: NFTokenCancelOffer = {
@@ -1945,11 +1901,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'cancelSell');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenCancelOfferTx: NFTokenCancelOffer = {
@@ -2080,11 +2032,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'updateMetadata');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const nFTokenModifyTx: NFTokenModify = {

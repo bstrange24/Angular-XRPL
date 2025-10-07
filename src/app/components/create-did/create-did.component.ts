@@ -231,7 +231,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'getDidForAccount');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                type Section = {
@@ -349,7 +349,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'setDid');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let didSetTx: DIDSet = {
@@ -522,7 +522,7 @@ export class CreateDidComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'removeDid');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Find the specific trustline to the issuer (destinationField)

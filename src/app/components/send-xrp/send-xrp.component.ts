@@ -237,7 +237,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -319,11 +319,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
 
                const errors = await this.validateInputs(inputs, 'sendXrp');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let paymentTx: xrpl.Payment = {

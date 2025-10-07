@@ -308,11 +308,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getChecks');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -578,11 +574,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'sendCheck');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Build SendMax amount
@@ -753,11 +745,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cashCheck');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                if (this.currencyFieldDropDownValue !== AppConstants.XRP_CURRENCY) {
@@ -914,11 +902,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancelCheck');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                let checkCancelTx: CheckCancel = await client.autofill({

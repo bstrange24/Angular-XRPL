@@ -302,7 +302,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`, null);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`, null);
                }
 
                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
@@ -1668,7 +1668,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
 //                const errors = await this.validateInputs(inputs, 'getAccountDetails');
 //                if (errors.length > 0) {
-//                     return this.setError(`ERROR: ${errors.join('; ')}`, null);
+//                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`, null);
 //                }
 
 //                this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);

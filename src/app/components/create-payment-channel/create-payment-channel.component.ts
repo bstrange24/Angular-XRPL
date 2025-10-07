@@ -294,11 +294,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getPaymentChannels');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                type PaymentChannelObject = any; // Replace with actual type if available
@@ -427,11 +423,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, this.channelAction);
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const action = this.channelAction;
@@ -829,11 +821,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'generateCreatorClaimSignature');
                if (errors.length > 0) {
-                    if (errors.length === 1) {
-                         return this.setError(`Error:\n${errors.join('\n')}`);
-                    } else {
-                         return this.setError(`Multiple Error's:\n${errors.join('\n')}`);
-                    }
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                this.publicKeyField = wallet.publicKey;

@@ -359,7 +359,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const errors = await this.validateInputs(inputs, 'fetchXrpPrice');
           if (errors.length > 0) {
                this.xrpPrice = 'Error';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           try {
@@ -521,7 +521,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getOffers');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -649,7 +649,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getOrderBook');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Prepare currency objects
@@ -914,7 +914,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'createOffer');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                interface SpendObject {
@@ -1595,7 +1595,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancelOffer');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo);
 
@@ -1820,7 +1820,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancelOffer');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -2084,7 +2084,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getTokenBalance');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Prepare data for rendering
@@ -2503,7 +2503,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const errors = await this.validateInputs(inputs, 'onWeWantCurrencyChange');
           if (errors.length > 0) {
                this.weWantTokenBalanceField = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           // Set default issuer for the selected currency
@@ -2556,7 +2556,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const errors = await this.validateInputs(inputs, 'onWeSpendCurrencyChange');
           if (errors.length > 0) {
                this.weSpendTokenBalanceField = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           const client = await this.xrplService.getClient();
@@ -2642,7 +2642,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.phnixBalance = '0';
                this.phnixExchangeXrp = '0';
                this.weWantAmountField = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           try {
@@ -2870,7 +2870,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           if (errors.length > 0) {
                this.phnixBalance = '0';
                this.phnixExchangeXrp = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           const client = await this.xrplService.getClient();
