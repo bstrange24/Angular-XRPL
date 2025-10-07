@@ -11,7 +11,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 
 type FlagResult = Record<string, boolean> | string | null;
-
+type CurrencyAmount = string | xrpl.IssuedCurrencyAmount;
 type DidValidationResult = {
      success: boolean;
      hexData?: string;
@@ -1487,6 +1487,88 @@ export class UtilsService {
                     }),
                },
           };
+     }
+
+     // In utilsService.ts
+     validateAmmDepositBalances(xrpBalance: string, accountObjects: any[], we_want: CurrencyAmount, we_spend: CurrencyAmount): string | null {
+          // Check XRP balance for we_spend
+          if (typeof we_spend === 'string') {
+               if (BigInt(xrpBalance) < BigInt(we_spend)) {
+                    return 'Insufficient XRP balance';
+               }
+          }
+
+          // Check XRP balance for we_want
+          if (typeof we_want === 'string') {
+               if (BigInt(xrpBalance) < BigInt(we_want)) {
+                    return 'Insufficient XRP balance';
+               }
+          }
+
+          // Check token balances from trust lines
+          const trustLines = accountObjects.filter(obj => obj.LedgerEntryType === 'RippleState');
+
+          // Check we_spend if it's an issued currency
+          if (typeof we_spend !== 'string') {
+               const trustLine = trustLines.find((line: any) => line.Balance.currency === we_spend.currency && (line.LowLimit.issuer === we_spend.issuer || line.HighLimit.issuer === we_spend.issuer));
+               const availableBalance = trustLine ? Math.abs(parseFloat(trustLine.Balance.value)) : 0;
+               if (availableBalance < parseFloat(we_spend.value)) {
+                    return `Insufficient ${we_spend.currency} balance`;
+               }
+          }
+
+          // Check we_want if it's an issued currency
+          if (typeof we_want !== 'string') {
+               const trustLine = trustLines.find((line: any) => line.Balance.currency === we_want.currency && (line.LowLimit.issuer === we_want.issuer || line.HighLimit.issuer === we_want.issuer));
+               const availableBalance = trustLine ? Math.abs(parseFloat(trustLine.Balance.value)) : 0;
+               if (availableBalance < parseFloat(we_want.value)) {
+                    return `Insufficient ${we_want.currency} balance`;
+               }
+          }
+
+          return null; // Sufficient balances
+     }
+
+     // In utilsService.ts
+     validateAmmWithdrawBalances(xrpBalance: string, accountObjects: any[], lpTokenAmount: string, participation: any): string | null {
+          // Validate LP token balance
+          if (participation?.lpTokens?.[0]) {
+               const availableLpBalance = parseFloat(participation.lpTokens[0].balance);
+               const requestedLpAmount = parseFloat(lpTokenAmount);
+
+               if (requestedLpAmount > availableLpBalance) {
+                    return `Insufficient LP token balance. Available: ${availableLpBalance}`;
+               }
+          }
+
+          return null; // Sufficient balances
+     }
+
+     // In utilsService.ts
+     validateAmmCreateBalances(xrpBalance: string, accountObjects: any[], we_want: CurrencyAmount, we_spend: CurrencyAmount): string | null {
+          // Check XRP balance (for Amount field)
+          if (typeof we_spend === 'string') {
+               // we_spend is XRP (string in drops)
+               if (BigInt(xrpBalance) < BigInt(we_spend)) {
+                    const xrpAmount = xrpl.dropsToXrp(we_spend);
+                    return `Insufficient XRP balance. Required: ${xrpAmount} XRP`;
+               }
+          }
+
+          // Check token balance (for Amount2 field)
+          if (typeof we_want !== 'string') {
+               // we_want is token (IssuedCurrencyAmount object)
+               const trustLines = accountObjects.filter(obj => obj.LedgerEntryType === 'RippleState');
+
+               const trustLine = trustLines.find(line => line.Balance.currency === we_want.currency && (line.LowLimit.issuer === we_want.issuer || line.HighLimit.issuer === we_want.issuer));
+
+               const availableBalance = trustLine ? Math.abs(parseFloat(trustLine.Balance.value)) : 0;
+               if (availableBalance < parseFloat(we_want.value)) {
+                    return `Insufficient ${we_want.currency} balance. Required: ${we_want.value}`;
+               }
+          }
+
+          return null; // Sufficient balances
      }
 
      async isInsufficientXrpBalance(client: xrpl.Client, accountInfo: any, amountXrp: string, address: string, txObject: any, feeDrops: string = '10'): Promise<boolean> {
