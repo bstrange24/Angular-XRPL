@@ -308,15 +308,12 @@ export class CreateOfferComponent implements AfterViewChecked {
 
      onTicketToggle(event: any, ticket: string) {
           if (event.target.checked) {
-               // Add to selection
                this.selectedTickets = [...this.selectedTickets, ticket];
           } else {
-               // Remove from selection
                this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
      ngOnDestroy() {
-          // Clean up interval to prevent memory leaks
           if (this.priceRefreshInterval) {
                clearInterval(this.priceRefreshInterval);
           }
@@ -599,18 +596,12 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched data — no redundant API calls!
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-                         this.isMemoEnabled = false;
-                         this.memoField = '';
-
-                         // Update balance — this is async but non-blocking
+                         this.clearFields(false);
                          this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for offers:', err);
@@ -692,9 +683,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                // Decode currencies for display
                const displayWeWantCurrency = we_want.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_want.currency) : we_want.currency;
-
                const displayWeSpendCurrency = we_spend.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_spend.currency) : we_spend.currency;
-
                const offerType = we_spend.currency === AppConstants.XRP_CURRENCY ? 'buy' : 'sell';
 
                // PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
@@ -865,10 +854,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Update balance — async but non-blocking
                          this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error updating balance after order book render:', err);
@@ -1564,8 +1551,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                          }
                     }, 0);
                }
-
-               this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -2189,13 +2174,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                this.renderUiComponentsService.renderDetails(data);
-
                this.setSuccess(this.result);
-
                this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
 
                if (this.weWantCurrencyField === 'XRP') {
-                    // this.weSpendTokenBalanceField = currencyBalance.toString();
                     this.weSpendTokenBalanceField = currencyBalance
                          ? Number(currencyBalance).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
@@ -2204,7 +2186,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                            })
                          : '0';
                } else {
-                    // this.weWantTokenBalanceField = currencyBalance.toString();
                     this.weWantTokenBalanceField = currencyBalance
                          ? Number(currencyBalance).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
