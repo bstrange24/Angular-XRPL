@@ -592,7 +592,7 @@ export class XrplService {
                });
                return response;
           } catch (error: any) {
-               if (error.data && error.data.error === 'actNotFound') {
+               if (error.data && error.data?.error === 'actNotFound') {
                     return []; // no AMM created
                }
                console.error('Error fetching amm info:', error);

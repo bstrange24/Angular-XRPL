@@ -9,12 +9,9 @@ import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { MatTableDataSource } from '@angular/material/table';
-import { MatPaginator } from '@angular/material/paginator';
-import { MatSort } from '@angular/material/sort';
-import { MatTableModule } from '@angular/material/table';
-import { MatSortModule } from '@angular/material/sort';
-import { MatPaginatorModule } from '@angular/material/paginator';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
+import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
@@ -183,7 +180,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      newIssuer: string = '';
      tokenToRemove: string = '';
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-     private priceRefreshInterval: any; // For polling
+     private readonly priceRefreshInterval: any; // For polling
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -294,6 +291,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
+
      ngOnDestroy() {
           // Clean up interval to prevent memory leaks
           if (this.priceRefreshInterval) {
@@ -328,22 +326,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                console.info(`asset:`, asset);
                console.info(`asset2:`, asset2);
 
-               const [accountInfo, accountObjects, ammResponse, participation] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAMMInfo(client, asset, asset2, wallet.classicAddress, 'validated').catch(err => {
-                         if (err.name === 'RippledError' && err.data?.error === 'actNotFound') {
-                              console.warn('No AMM pool exists yet for this asset pair.');
-                              return null; // Graceful fallback
-                         }
-                         console.error('Error fetching AMM info:', err);
-                         throw err; // Re-throw if not handled
-                    }),
-                    this.checkAmmParticipation(client, wallet.classicAddress, asset, asset2, true).catch(err => {
-                         console.error('Error checking AMM participation:', err);
-                         return null;
-                    }),
-               ]);
+               const [accountInfo, accountObjects, ammResponse, participation] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAMMInfo(client, asset, asset2, wallet.classicAddress, 'validated'), this.checkAmmParticipation(client, wallet.classicAddress, asset, asset2, true)]);
 
                // Optional: Log lightweight version
                console.info(`accountInfo:`, accountInfo.result);
@@ -610,7 +593,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`AMM Creation ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    (response.result as any).errorMessage = userMessage;
+                    response.result.errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -643,231 +626,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error in createAMM:', error);
-               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving createAMM in ${this.executionTime}ms`);
-          }
-     }
-
-     async createAMM1() {
-          console.log('Entering createAMM');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               weWantAmountField: this.weWantAmountField,
-               weSpendAmountField: this.weSpendAmountField,
-               weWantCurrencyField: this.weWantCurrencyField,
-               weSpendCurrencyField: this.weSpendCurrencyField,
-               weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
-               weSpendIssuerField: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : undefined,
-               tradingFeeField: this.tradingFeeField,
-               isRegularKeyAddress: this.isRegularKeyAddress,
-               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
-               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               useMultiSign: this.useMultiSign,
-               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
-               isTicket: this.isTicket,
-               selectedTicket: this.selectedTicket,
-               selectedSingleTicket: this.selectedSingleTicket,
-          };
-
-          try {
-               this.resultField.nativeElement.innerHTML = '';
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing AMM Create (${mode})...`);
-
-               const environment = this.xrplService.getNet().environment;
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
-               const [accountInfo, fee, currentLedger, initialXrpBalance, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), client.getXrpBalance(wallet.classicAddress), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               inputs = { ...inputs, account_info: accountInfo };
-
-               const errors = await this.validateInputs(inputs, 'create');
-               if (errors.length > 0) {
-                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-               }
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`account info:`, accountInfo.result);
-               console.debug(`fee:`, fee);
-               console.debug(`currentLedger:`, currentLedger);
-               console.log(`Initial XRP Balance ${initialXrpBalance} (drops): ${xrpl.xrpToDrops(initialXrpBalance)}`);
-
-               const data: { sections: Section[] } = {
-                    sections: [],
-               };
-
-               // Trust line setup
-               let issuerAddr, issuerCur;
-               if (this.weWantIssuerField === AppConstants.XRP_CURRENCY || this.weWantIssuerField === '') {
-                    issuerAddr = this.weSpendIssuerField;
-                    issuerCur = this.weSpendCurrencyField;
-               } else {
-                    issuerAddr = this.weWantIssuerField;
-                    issuerCur = this.weWantCurrencyField;
-               }
-
-               console.debug(`issuerAddr:`, issuerAddr);
-               console.debug(`issuerCur:`, issuerCur);
-
-               const tokenBalance = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? this.weWantCurrencyField : this.weSpendCurrencyField;
-               let initialTokenBalance;
-               if (this.weWantTokenBalanceField != '') {
-                    initialTokenBalance = this.weWantTokenBalanceField;
-               } else {
-                    initialTokenBalance = await this.xrplService.getOnlyTokenBalance(client, wallet.address, tokenBalance);
-               }
-               console.log(`TokenBalance ${tokenBalance} InitialTokenBalance: ${initialTokenBalance}`);
-
-               data.sections.push({
-                    title: 'Initial Balances',
-                    openByDefault: true,
-                    content: [{ key: 'XRP', value: `${initialXrpBalance} (${xrpl.xrpToDrops(initialXrpBalance)} drops)` }],
-               });
-
-               // Build currency objects
-               let we_want = this.weWantCurrencyField === AppConstants.XRP_CURRENCY ? { currency: AppConstants.XRP_CURRENCY, value: this.weWantAmountField } : { currency: this.weWantCurrencyField, issuer: this.weWantIssuerField, value: this.weWantAmountField };
-               let we_spend = this.weSpendCurrencyField === AppConstants.XRP_CURRENCY ? { amount: this.weSpendAmountField } : { currency: this.weSpendCurrencyField, issuer: this.weSpendIssuerField, value: this.weSpendAmountField };
-
-               if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY) {
-                    if (!this.weSpendAmountField) {
-                         throw new Error('weSpendAmountField is required for XRP');
-                    }
-                    we_spend = { amount: this.weSpendAmountField };
-               } else {
-                    if (!this.weSpendAmountField || !this.weSpendIssuerField) {
-                         throw new Error('weSpendAmountField and weSpendIssuerField are required for token');
-                    }
-                    we_spend = {
-                         currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
-                         value: this.weSpendAmountField,
-                         issuer: this.weSpendIssuerField,
-                    };
-               }
-
-               // Validate balances
-               if (this.weSpendCurrencyField === AppConstants.XRP_CURRENCY && Number(xrpl.xrpToDrops(initialXrpBalance)) < Number(this.weSpendAmountField)) {
-                    this.setError('Insufficient XRP balance');
-                    return;
-               } else if (this.weSpendCurrencyField !== AppConstants.XRP_CURRENCY && Number(initialTokenBalance) < Number(this.weSpendAmountField)) {
-                    this.setError(`Insufficient ${this.weSpendCurrencyField} balance`);
-                    return;
-               }
-
-               if (we_want.currency && we_want.currency.length > 3) {
-                    we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
-               }
-               if (we_spend.currency && we_spend.currency.length > 3) {
-                    we_spend.currency = this.utilsService.encodeCurrencyCode(we_spend.currency);
-               }
-
-               if (we_spend.amount === undefined) {
-                    throw new Error('Amount is undefined');
-               }
-
-               if (!we_want.issuer) {
-                    throw new Error('Issuer is undefined');
-               }
-               const ammCreateTx: xrpl.AMMCreate = {
-                    TransactionType: 'AMMCreate',
-                    Account: wallet.classicAddress, // the funding account
-                    Amount: xrpl.xrpToDrops(we_spend.amount.toString()), // e.g., 10 XRP (in drops)
-                    Amount2: {
-                         currency: we_want.currency,
-                         issuer: we_want.issuer,
-                         value: we_want.value,
-                    },
-                    TradingFee: Number(this.tradingFeeField), // 500, // 0.5%
-                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               };
-
-               // Optional fields
-               await this.setTxOptionalFields(client, ammCreateTx, wallet, accountInfo, 'createAmm');
-
-               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, ammCreateTx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
-               }
-
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create AMM (no changes will be made)...' : 'Submitting to Ledger...');
-
-               if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, ammCreateTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-               } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign Payment transaction.');
-                    }
-
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(response);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
-                    const assetDef: xrpl.Currency = {
-                         currency: 'XRP',
-                    };
-                    const asset2Def: xrpl.Currency = {
-                         currency: we_want.currency,
-                         issuer: this.isTokenAmount(we_want) ? we_want.issuer ?? '' : '', // fallback empty string if undefined
-                    };
-
-                    const [updatedAccountInfo, updatedAccountObjects, balance, participation] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.updateXrpBalance(client, accountInfo, wallet), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true)]);
-                    console.log(`participation:`, participation);
-                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
-                    setTimeout(async () => {
-                         try {
-                              this.clearFields(false);
-                              this.updateTickets(updatedAccountObjects);
-                              this.account1.balance = balance;
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
-               }
-          } catch (error: any) {
-               console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -1026,7 +784,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`AMM Deposit ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    (response.result as any).errorMessage = userMessage;
+                    response.result.errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -1250,7 +1008,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`AMM Withdrawal ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    (response.result as any).errorMessage = userMessage;
+                    response.result.errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -1260,13 +1018,13 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                //  ONLY refresh after REAL transaction
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.checkAmmParticipation(client, classicAddress, assetDef, asset2Def, true)]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     //  DEFER non-critical updates
                     setTimeout(async () => {
                          try {
-                              await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange(), this.checkAmmParticipation(client, classicAddress, assetDef, asset2Def, true)]);
+                              // await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange()]);
                               this.utilsService.loadSignerList(classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
@@ -1274,7 +1032,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
-                    }, 0);
+                    }, 3);
                }
           } catch (error: any) {
                console.error('Error in withdrawlTokenFromAMM:', error);
@@ -1323,7 +1081,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
                const classicAddress = wallet.classicAddress;
 
-               // ➤ PHASE 1: PARALLELIZE — fetch all needed data at once
+               // PARALLELIZE — fetch all needed data at once
                const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                inputs = { ...inputs, account_info: accountInfo };
@@ -1333,7 +1091,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // ➤ PHASE 2: Build AMM pool assets correctly
+               // Build AMM pool assets correctly
                const assetDef: xrpl.Currency = {
                     currency: this.weSpendCurrencyField === 'XRP' ? 'XRP' : this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField),
                     issuer: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : '',
@@ -1344,7 +1102,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     issuer: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : '',
                };
 
-               // ➤ PHASE 3: Get AMM participation to validate LP token balance
+               // Get AMM participation to validate LP token balance
                const participation = await this.checkAmmParticipation(client, classicAddress, assetDef, asset2Def);
 
                if (!participation?.lpTokens?.[0]) {
@@ -1359,7 +1117,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     return this.setError(`Insufficient LP token balance. Available: ${availableLpBalance}`);
                }
 
-               // ➤ PHASE 4: Build AMM Clawback transaction
+               // Build AMM Clawback transaction
                // LP tokens use the actual LP token currency/issuer, NOT 'AMM'
                const lpTokenAmount: xrpl.IssuedCurrencyAmount = {
                     currency: lpTokenInfo.currency,
@@ -1380,7 +1138,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, ammClawbackTx, wallet, accountInfo, 'clawbackFromAmm');
 
-               // ➤ PHASE 5: Submit or Simulate
+               // Submit or Simulate
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating AMM Clawback (no funds will be moved)...' : 'Submitting AMM Clawback to Ledger...');
 
                let response: any;
@@ -1391,7 +1149,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                          tx_json: ammClawbackTx,
                     });
                } else {
-                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                     // Sign transaction
@@ -1404,27 +1161,27 @@ export class CreateAmmComponent implements AfterViewChecked {
                     response = await client.submitAndWait(signedTx.tx_blob);
                }
 
-               // ➤ Handle result
+               // Handle result
                const isSuccess = this.utilsService.isTxSuccessful(response);
                if (!isSuccess) {
                     const resultMsg = this.utilsService.getTransactionResultMessage(response);
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`AMM Clawback ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    (response.result as any).errorMessage = userMessage;
+                    response.result.errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               // ➤ ONLY refresh after REAL transaction
+               // ONLY refresh after REAL transaction
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
 
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    // ➤ DEFER non-critical updates
+                    // DEFER non-critical updates
                     setTimeout(async () => {
                          try {
                               this.utilsService.loadSignerList(classicAddress, this.signers);
@@ -1561,7 +1318,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -1696,7 +1453,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -1756,14 +1513,14 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (this.weWantCurrencyField === 'XRP') {
                     const client = await this.xrplService.getClient();
                     balance = await this.updateXrpBalance(client, accountInfo, wallet);
-                    this.weWantTokenBalanceField = balance !== null ? balance : '0';
+                    this.weWantTokenBalanceField = balance ?? '0';
                     this.weWantIssuerField = '';
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
                     this.weWantIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
 
                     balance = (await this.getCurrencyBalance(balanceResponse, wallet.classicAddress, currencyCode)) ?? '0';
-                    this.weWantTokenBalanceField = balance !== null ? balance : '0';
+                    this.weWantTokenBalanceField = balance ?? '0';
                }
 
                if (this.weWantTokenBalanceField !== '0') {
@@ -1814,7 +1571,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
 
                if (this.weSpendTokenBalanceField !== '0') {
-                    this.weSpendTokenBalanceField = this.utilsService.formatTokenBalance(this.weSpendTokenBalanceField, 18);
+                    this.weSpendTokenBalanceField = this.weSpendTokenBalanceField;
                }
           } catch (error: any) {
                console.error('Error fetching weSpend balance:', error);
@@ -1928,7 +1685,8 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          return balance.toString();
+          return this.utilsService.formatTokenBalance(balance.toString(), 18);
+          // return balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
@@ -2425,15 +2183,15 @@ export class CreateAmmComponent implements AfterViewChecked {
           await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
      }
 
-     createAmmRequest(we_spend: CurrencyAmount, we_want: CurrencyAmount, account: string): AMMInfoRequest {
-          return {
-               command: 'amm_info',
-               asset: this.isTokenAmount(we_spend) ? { currency: we_spend.currency, issuer: we_spend.issuer } : { currency: 'XRP' },
-               asset2: this.isTokenAmount(we_want) ? { currency: we_want.currency, issuer: we_want.issuer } : { currency: 'XRP' },
-               // account: this.selectedAccount ? this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer) : '',
-               account: account,
-          };
-     }
+     // createAmmRequest(we_spend: CurrencyAmount, we_want: CurrencyAmount, account: string): AMMInfoRequest {
+     //      return {
+     //           command: 'amm_info',
+     //           asset: this.isTokenAmount(we_spend) ? { currency: we_spend.currency, issuer: we_spend.issuer } : { currency: 'XRP' },
+     //           asset2: this.isTokenAmount(we_want) ? { currency: we_want.currency, issuer: we_want.issuer } : { currency: 'XRP' },
+     //           // account: this.selectedAccount ? this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer) : '',
+     //           account: account,
+     //      };
+     // }
 
      isTokenAmount(amount: CurrencyAmount): amount is CurrencyAmountToken {
           return amount.currency !== 'XRP';
@@ -2550,9 +2308,10 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               const ammResponse = await client.request({
-                    ...this.createAmmRequest(asset, asset2, account),
-               });
+               const ammResponse = await this.xrplService.getAMMInfo(client, asset, asset2, account, 'validated');
+               // const ammResponse = await client.request({
+               // ...this.createAmmRequest(asset, asset2, account),
+               // });
 
                if (ammResponse.result && ammResponse.result.amm) {
                     console.log('checkAmmParticipation:', ammResponse.result.amm);
