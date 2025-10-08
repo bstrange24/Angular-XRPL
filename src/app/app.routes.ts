@@ -20,6 +20,7 @@ import { PermissionedDomainComponent } from './components/permissioned-domain/pe
 import { AccountDelegateComponent } from './components/account-delegate/account-delegate.component';
 import { FirewallComponent } from './components/firewall/firewall.component';
 import { NftOffersComponent } from './components/nft-offers/nft-offers.component';
+import { SignTransactionsComponent } from './components/sign-transactions/sign-transactions.component';
 // import { FiatOnOffRampComponent } from './components/fiat-on-off-ramp/fiat-on-off-ramp.component';
 
 export const routes: Routes = [
@@ -32,6 +33,7 @@ export const routes: Routes = [
      { path: 'permissioned-domain', component: PermissionedDomainComponent, data: { title: 'Permissioned Domain' } },
      { path: 'account-delegate', component: AccountDelegateComponent, data: { title: 'Account Delegate' } },
      { path: 'firewall', component: FirewallComponent, data: { title: 'Firewall' } },
+     { path: 'sign-transactions', component: SignTransactionsComponent, data: { title: 'Sign Transactions' } },
 
      { path: 'send-xrp', component: SendXrpComponent, data: { title: 'Send XRP' } },
      { path: 'create-payment-channel', component: CreatePaymentChannelComponent, data: { title: 'Payment Channel' } },

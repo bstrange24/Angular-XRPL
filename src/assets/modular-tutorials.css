@@ -112,10 +112,64 @@ input:read-only {
      border: 1px solid white;
 }
 
-#resultField.error {
+#resultFieldError.error {
      color: red;
      background-color: #1a1c21;
 }
+
+#resultFieldError.success {
+     color: #62bb8b;
+     background-color: #1a1c21;
+}
+
+#resultFieldError {
+     /* width: 60%; */
+     resize: none;
+     font-size: 12px;
+     /* padding: 15px; */
+     /* color: #62bb8b; */
+     background-color: #1a1c21;
+     /* box-sizing: border-box; */
+     /* border-radius: 10px; */
+     /* border: 1px solid white; */
+     font-family: monospace;
+     white-space: pre-wrap;
+     word-break: break-word;
+     line-height: 1.5;
+     margin: 10px 0;
+}
+
+#hashField.error {
+     color: red;
+     background-color: #1a1c21;
+}
+
+#hashField.success {
+     color: #62bb8b;
+     background-color: #1a1c21;
+}
+
+#hashField {
+     /* width: 60%; */
+     resize: none;
+     font-size: 12px;
+     padding: 15px;
+     color: #62bb8b;
+     background-color: #1a1c21;
+     box-sizing: border-box;
+     border-radius: 10px;
+     border: 1px solid white;
+     font-family: monospace;
+     white-space: pre-wrap;
+     word-break: break-word;
+     line-height: 1.5;
+     margin: 10px 0;
+}
+
+/* #resultField.error {
+     color: red;
+     background-color: #1a1c21;
+} */
 
 #resultField.success {
      color: #62bb8b;
@@ -838,6 +892,11 @@ input:focus+.slider {
      }
 }
 
+#resultField.error {
+     color: red;
+     background-color: #1a1c21;
+}
+
 .result-container {
      width: 100%;
      min-height: 80px;
@@ -1405,7 +1464,7 @@ mark {
      color: black;
      padding: 10px 20px;
      border-radius: 10px;
-     margin-left: 100px;
+     /* margin-left: 100px; */
      /* margin: 0 auto; */
 }
 
@@ -1919,4 +1978,28 @@ mark {
 .result-cell a:hover {
      background-color: #25272c !important;
      border-color: #999 !important;
+}
+
+.ticket-selection {
+     display: flex;
+     flex-direction: column;
+     gap: 8px;
+}
+
+.ticket-option {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+}
+
+select[multiple] {
+     height: 220px;
+     min-height: 180px;
+     overflow-y: auto;
+}
+
+.timeUnit[multiple] {
+     height: 220px;
+     min-height: 180px;
+     overflow-y: auto;
 }

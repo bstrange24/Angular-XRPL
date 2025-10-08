@@ -242,7 +242,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getFirewallDetails');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -390,7 +390,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'createFirewall');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const timePeriod = this.utilsService.addTime(this.timePeriodField, this.timePeriodUnit as 'seconds' | 'minutes' | 'hours' | 'days');
@@ -561,7 +561,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'updateFirewall');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const mPTokenAuthorizeTx: xrpl.MPTokenAuthorize = {
@@ -717,7 +717,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'authorizeFirewall');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Check if destination can hold the MPT
@@ -893,7 +893,7 @@ export class FirewallComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'deleteFirewall');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const mPTokenIssuanceDestroyTx: xrpl.MPTokenIssuanceDestroy = {

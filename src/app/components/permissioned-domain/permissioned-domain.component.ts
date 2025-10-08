@@ -249,7 +249,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'getPermissionedDomainForAccount');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -381,7 +381,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'setPermissionedDomain');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo);
 
@@ -538,7 +538,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'deletePermissionedDomain');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const permissionDomainFound = accountObjects.result.account_objects.find((line: any) => {

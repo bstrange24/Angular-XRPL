@@ -1,9 +1,9 @@
-import { Injectable, Inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { StorageService } from './storage.service';
 import { Client } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { AppConstants } from '../core/app.constants';
-import { BehaviorSubject, Observable, of, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { TokenCacheService } from './token-cache/token-cache.service';
 
@@ -25,16 +25,16 @@ interface Token {
 })
 export class XrplService {
      private client: Client | null = null;
-     private tokensSubject = new BehaviorSubject<Token[]>([]);
+     private readonly tokensSubject = new BehaviorSubject<Token[]>([]);
      tokens$ = this.tokensSubject.asObservable();
-     private tokenCreationDates: Map<string, Date> = new Map(); // Track earliest TrustSet date by currency+issuer
-     private tokenCache = new Map<string, { createdAt: Date; checkedAt: number }>();
-     private proxyServer = 'http://localhost:3000';
+     private readonly tokenCreationDates: Map<string, Date> = new Map(); // Track earliest TrustSet date by currency+issuer
+     private readonly tokenCache = new Map<string, { createdAt: Date; checkedAt: number }>();
+     private readonly proxyServer = 'http://localhost:3000';
 
      constructor(private readonly storageService: StorageService, private readonly http: HttpClient, private readonly tokenCacheService: TokenCacheService) {}
 
      async getClient(): Promise<xrpl.Client> {
-          if (!this.client || !this.client.isConnected()) {
+          if (!this.client?.isConnected()) {
                const { net } = this.getNet();
                this.client = new xrpl.Client(net);
 
@@ -71,7 +71,7 @@ export class XrplService {
           return this.storageService.getNet();
      }
 
-     decodeCurrencyCode(hexCode: String) {
+     decodeCurrencyCode(hexCode: string) {
           const buffer = Buffer.from(hexCode, 'hex');
           const trimmed = buffer.subarray(0, buffer.findIndex(byte => byte === 0) === -1 ? 20 : buffer.findIndex(byte => byte === 0));
           return new TextDecoder().decode(trimmed);
@@ -116,9 +116,9 @@ export class XrplService {
           }
      }
 
-     private knownCreationDates: { [key: string]: Date } = {
-          'PHNIX:rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN': new Date('2024-12-03T00:00:00Z'),
-     };
+     // private knownCreationDates: { [key: string]: Date } = {
+     //      'PHNIX:rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN': new Date('2024-12-03T00:00:00Z'),
+     // };
 
      private formatTokenAge(fromDate: Date): string {
           const now = new Date();
@@ -289,105 +289,6 @@ export class XrplService {
           return fallback;
      }
 
-     // async getTokenCreationDate(currency: string, issuer: string, client: xrpl.Client, cache: Map<string, Date>): Promise<Date> {
-     //      const key = `${currency}:${issuer}`;
-     //      if (cache.has(key)) return cache.get(key)!;
-
-     //      let marker: any = null;
-
-     //      while (true) {
-     //           const response = (await client.request({
-     //                command: 'account_tx',
-     //                account: issuer,
-     //                limit: 20,
-     //                forward: true,
-     //                ...(marker && { marker }),
-     //           })) as { result: { transactions: any[]; marker?: any } };
-
-     //           for (const item of response.result.transactions) {
-     //                const tx = item.tx_json ?? item.tx;
-     //                if (!tx) continue;
-
-     //                const isRelevant = (tx.TransactionType === 'TrustSet' && tx.LimitAmount?.currency === currency) || (tx.TransactionType === 'Payment' && typeof tx.Amount === 'object' && tx.Amount?.currency === currency) || (tx.TransactionType === 'OfferCreate' && ((typeof tx.TakerGets === 'object' && tx.TakerGets.currency === currency) || (typeof tx.TakerPays === 'object' && tx.TakerPays.currency === currency)));
-
-     //                if (isRelevant && tx.date) {
-     //                     const date = new Date((tx.date + 946684800) * 1000);
-     //                     cache.set(key, date);
-     //                     return date;
-     //                }
-     //           }
-
-     //           if (!response.result.marker) break;
-     //           marker = response.result.marker;
-
-     //           await this.delay(150);
-     //      }
-
-     //      // Fallback if nothing found
-     //      const fallback = new Date(0);
-     //      cache.set(key, fallback);
-     //      return fallback;
-     // }
-
-     // async getTokenCreationDate(currency: string, issuer: string, client: xrpl.Client, tokenCreationDates: Map<string, Date>): Promise<Date> {
-     //      const key = `${currency}:${issuer}`;
-
-     //      if (tokenCreationDates.has(key)) {
-     //           return tokenCreationDates.get(key)!;
-     //      }
-
-     //      if (this.knownCreationDates?.[key]) {
-     //           tokenCreationDates.set(key, this.knownCreationDates[key]);
-     //           return this.knownCreationDates[key];
-     //      }
-
-     //      try {
-     //           const response = await client.request({
-     //                command: 'account_tx',
-     //                account: issuer,
-     //                ledger_index_min: -1,
-     //                ledger_index_max: -1,
-     //                limit: 1,
-     //                forward: false,
-     //           });
-
-     //           const transactions = response.result.transactions;
-
-     //           let earliestDate: Date | null = null;
-
-     //           for (const txObj of transactions) {
-     //                const tx = txObj.tx_json as any;
-     //                console.log('Oldest TX Date:', tx.date);
-     //                const rippleEpoch: number = tx.date;
-     //                const unixTimestamp = (rippleEpoch + 946684800) * 1000;
-     //                const txDate = new Date(unixTimestamp);
-
-     //                if (!earliestDate || txDate < earliestDate) {
-     //                     earliestDate = txDate;
-     //                }
-
-     //                // if (tx && tx.TransactionType === 'TrustSet' && tx.LimitAmount && tx.LimitAmount.currency === currency && tx.LimitAmount.issuer === issuer && typeof tx['date'] === 'number') {
-     //                //      const rippleEpoch: number = tx['date'];
-     //                //      const unixTimestamp = (rippleEpoch + 946684800) * 1000;
-     //                //      const txDate = new Date(unixTimestamp);
-
-     //                //      if (!earliestDate || txDate < earliestDate) {
-     //                //           earliestDate = txDate;
-     //                //      }
-     //                // }
-     //           }
-
-     //           const creationDate = earliestDate || new Date(); // fallback
-     //           tokenCreationDates.set(key, creationDate);
-     //           return creationDate;
-     //      } catch (error) {
-     //           console.error(`Error fetching creation date for ${key}:`, error);
-     //           const fallbackDate = new Date();
-     //           tokenCreationDates.set(key, fallbackDate);
-     //           return fallbackDate;
-     //      }
-     // }
-
      private isMemeCoin(currency: string, issuer: string): boolean {
           // Dynamic heuristic: Exclude known fiat/stablecoin currencies
           let isNonStandard;
@@ -450,8 +351,6 @@ export class XrplService {
                               return;
                          }
 
-                         // console.log('Processing transactions:', ledgerData.result.ledger.transactions);
-
                          const newTokens: Token[] = [];
                          for (const tx of ledgerData.result.ledger.transactions) {
                               let currency: string | undefined;
@@ -459,12 +358,10 @@ export class XrplService {
                               let action: string = 'Unknown';
                               let amountToken: string = '0';
                               let amountXrp: string = '0';
-                              // const txTimestamp = tx.close_time_iso ? new Date(tx.close_time_iso * 1000) : new Date(); // Convert Ripple time to JS Date
                               const txTimestamp = new Date(); // Convert Ripple time to JS Date
                               const transactionType = tx.tx_json.TransactionType;
 
                               if (tx.meta?.TransactionResult !== 'tesSUCCESS') {
-                                   // console.debug('tesSUCCESS is false:', tx);
                                    continue; // Skip failed transactions
                               }
 
@@ -474,7 +371,6 @@ export class XrplService {
                                    action = 'TrustSet';
                                    amountToken = tx.tx_json.LimitAmount.value || '0';
                               } else if (transactionType === 'Payment') {
-                                   // console.debug('Processing transaction:', tx);
                                    // Handle token-based DeliverMax (Buy: receiving token)
                                    if (typeof tx.tx_json.DeliverMax === 'object' && tx.tx_json.DeliverMax) {
                                         currency = tx.tx_json.DeliverMax.currency;
@@ -540,8 +436,6 @@ export class XrplService {
                               if (currency && issuer) {
                                    let createdDate: Date | null = null;
                                    try {
-                                        // createdDate = await this.getTokenCreationDateFromXPMarket(currency, issuer);
-                                        // createdDate = await this.getTokenCreationDate(currency, issuer, client, this.tokenCreationDates);
                                         createdDate = await this.getTokenCreationDateService(currency, issuer, client);
                                         await this.delay(2000); // Delay to avoid rate limiting
 
@@ -577,22 +471,7 @@ export class XrplService {
                                         amountToken,
                                         amountXrp,
                                    });
-                                   // }
                               }
-                              // if (currency && issuer) {
-                              //      const createdDate = await this.getTokenCreationDate(currency, issuer, client, this.tokenCreationDates);
-                              //      const creationAge = this.formatTokenAge(createdDate);
-                              //      // console.log(`creationAge ${creationAge}`);
-                              //      newTokens.push({
-                              //           transactionType: tx.tx_json.TransactionType,
-                              //           currency,
-                              //           issuer,
-                              //           transactionHash: tx.hash,
-                              //           timestamp: new Date(),
-                              //           createdDate,
-                              //           creationAge,
-                              //      });
-                              // }
                          }
 
                          if (newTokens.length > 0) {
@@ -704,7 +583,7 @@ export class XrplService {
 
      async getAMMInfo(client: Client, asset: any, asset2: any, account: string, ledgerIndex: xrpl.LedgerIndex): Promise<any> {
           try {
-               const response = client.request({
+               const response = await client.request({
                     command: 'amm_info',
                     asset: asset,
                     asset2: asset2,
@@ -713,6 +592,9 @@ export class XrplService {
                });
                return response;
           } catch (error: any) {
+               if (error.data && error.data?.error === 'actNotFound') {
+                    return []; // no AMM created
+               }
                console.error('Error fetching amm info:', error);
                throw new Error(`Failed to fetch amm info: ${error.message || 'Unknown error'}`);
           }
@@ -769,7 +651,6 @@ export class XrplService {
                     return []; // no offers exist
                }
                throw error;
-               // throw new Error(`Failed to fetch nft buy offers: ${error.message || 'Unknown error'}`);
           }
      }
 
@@ -785,7 +666,6 @@ export class XrplService {
                     return []; // no offers exist
                }
                throw error;
-               // throw new Error(`Failed to fetch nft sell offers: ${error.message || 'Unknown error'}`);
           }
      }
 
@@ -862,11 +742,11 @@ export class XrplService {
           try {
                const channelAuthorize = await client.request({
                     id: 'channel_authorize_example_id1',
-                    command: 'channel_authorize' as any, // Use type assertion
-                    channel_id: channelId, // Use the parameter instead of hardcoded value
-                    seed: wallet.seed, // Consider making this configurable
-                    key_type: 'secp256k1',
-                    amount: xrpl.xrpToDrops(amount), // Use the parameter
+                    command: 'channel_authorize' as any,
+                    channel_id: channelId,
+                    seed: wallet.seed,
+                    key_type: this.storageService.getInputValue('encryptionType') ? AppConstants.ENCRYPTION.ED25519 : AppConstants.ENCRYPTION.SECP256K1,
+                    amount: xrpl.xrpToDrops(amount),
                });
                return channelAuthorize;
           } catch (error: any) {
@@ -1010,7 +890,7 @@ export class XrplService {
 
      async getAccountTransactions(client: Client, address: string, limit: any, marker: string) {
           try {
-               const response = client.request({
+               const response = await client.request({
                     command: 'account_tx',
                     account: address,
                     limit,
@@ -1089,14 +969,11 @@ export class XrplService {
           }
      }
 
-     // async getXrpReserveRequirements(client: Client, accountInfo: any, server_info:any, address: string) {
      async getXrpReserveRequirements(accountInfo: any, server_info: any) {
           try {
-               // const accountInfo = await this.getAccountInfo(client, address, 'validated', '');
                const currentReserve = accountInfo.result.account_data.Reserve;
                const ownerCount = accountInfo.result.account_data.OwnerCount;
 
-               // const server_info = await this.getXrplServerInfo(client, 'current', '');
                const reserveBaseXrp = server_info.result.info.validated_ledger?.reserve_base_xrp || 10;
                const reserveIncXrp = server_info.result.info.validated_ledger?.reserve_inc_xrp || 2;
 

@@ -11,6 +11,7 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -171,6 +172,7 @@
                          </table> -->
 
                          <table id="flags">
+                              <th></th>
                               <tr class="metaData">
                                    <td>
                                         <span class="tooltip" tooltip-data="Asset Scale for MPT token.">
@@ -396,6 +398,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Set MPT Flags.">
@@ -481,8 +484,36 @@
                               </td>
                          </tr>
                     </table>
-                    <br />
                     <table id="meta">
+                         <th></th>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label>Self Authorize</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isSelfAuthorize" [(ngModel)]="isSelfAuthorize" (ngModelChange)="toggleTicketSequence()" name="isSelfAuthorize" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isSelfAuthorize"></label>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label>Unauthorize</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isUnauthorize" [(ngModel)]="isUnauthorize" (ngModelChange)="toggleTicketSequence()" name="isUnauthorize" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isUnauthorize"></label>
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
@@ -514,7 +545,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Seperate multiple memos by a comma." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
                          <tr>
@@ -629,7 +660,25 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="41" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <!-- <div class="selection-mode">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
+                                             Multiple Selection
+                                        </label>
+                                   </div> -->
+
+                                   <div *ngIf="multiSelectMode; else singleSelect">
+                                        <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </div>
+
+                                   <ng-template #singleSelect>
+                                        <select class="timeUnit" [(ngModel)]="selectedSingleTicket" [ngModelOptions]="{standalone: true}">
+                                             <option value="" disabled>Select a ticket</option>
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </ng-template>
                               </td>
                          </tr>
                          <tr>

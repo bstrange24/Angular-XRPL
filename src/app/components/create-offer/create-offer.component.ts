@@ -41,7 +41,8 @@ interface ValidationInputs {
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
-     ticketSequence?: string;
+     selectedSingleTicket?: string;
+     selectedTicket?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
 }
@@ -145,6 +146,12 @@ export class CreateOfferComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
+     ticketArray: string[] = [];
+     selectedTickets: string[] = []; // For multiple selection
+     selectedSingleTicket: string = ''; // For single selection
+     multiSelectMode: boolean = false; // Toggle between modes
+     selectedTicket: string = ''; // The currently selected ticket
+     destinationTagField: string = '';
      account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
      issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
@@ -215,19 +222,21 @@ export class CreateOfferComponent implements AfterViewChecked {
           });
      }
 
-     async ngAfterViewInit() {
-          try {
-               const wallet = await this.getWallet();
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-               this.dataSource.paginator = this.paginator;
-               this.dataSource.sort = this.sort;
-               this.startPriceRefresh(); // Start polling for price
-          } catch (error: any) {
-               console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
-          }
+     ngAfterViewInit() {
+          (async () => {
+               try {
+                    const wallet = await this.getWallet();
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                    this.dataSource.paginator = this.paginator;
+                    this.dataSource.sort = this.sort;
+                    this.startPriceRefresh(); // Start polling for price
+               } catch (error: any) {
+                    console.error(`No wallet could be created or is undefined ${error.message}`);
+                    return this.setError('ERROR: Wallet could not be created or is undefined');
+               } finally {
+                    this.cdr.detectChanges();
+               }
+          })();
      }
 
      ngAfterViewChecked() {
@@ -297,8 +306,14 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     onTicketToggle(event: any, ticket: string) {
+          if (event.target.checked) {
+               this.selectedTickets = [...this.selectedTickets, ticket];
+          } else {
+               this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
+          }
+     }
      ngOnDestroy() {
-          // Clean up interval to prevent memory leaks
           if (this.priceRefreshInterval) {
                clearInterval(this.priceRefreshInterval);
           }
@@ -359,7 +374,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const errors = await this.validateInputs(inputs, 'fetchXrpPrice');
           if (errors.length > 0) {
                this.xrpPrice = 'Error';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           try {
@@ -521,7 +536,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getOffers');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -581,18 +596,12 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched data — no redundant API calls!
                          this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
                          this.refreshUiAccountInfo(accountInfo);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-
-                         this.isMemoEnabled = false;
-                         this.memoField = '';
-
-                         // Update balance — this is async but non-blocking
+                         this.clearFields(false);
                          this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for offers:', err);
@@ -628,7 +637,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -649,7 +659,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getOrderBook');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Prepare currency objects
@@ -673,9 +683,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                // Decode currencies for display
                const displayWeWantCurrency = we_want.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_want.currency) : we_want.currency;
-
                const displayWeSpendCurrency = we_spend.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_spend.currency) : we_spend.currency;
-
                const offerType = we_spend.currency === AppConstants.XRP_CURRENCY ? 'buy' : 'sell';
 
                // PHASE 3: PARALLELIZE — fetch order book, counter order book, and AMM data
@@ -846,10 +854,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Update balance — async but non-blocking
                          this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error updating balance after order book render:', err);
@@ -886,7 +892,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -914,7 +921,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'createOffer');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                interface SpendObject {
@@ -1544,8 +1551,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                          }
                     }, 0);
                }
-
-               this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
           } catch (error: any) {
                console.error('Error:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
@@ -1572,7 +1577,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           const offerSequenceArray = this.offerSequenceField
@@ -1595,7 +1601,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancelOffer');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
                console.debug(`accountInfo for ${wallet.classicAddress}`, accountInfo);
 
@@ -1793,7 +1799,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           const offerSequenceArray = this.offerSequenceField
@@ -1820,7 +1827,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'cancelOffer');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -2032,10 +2039,14 @@ export class CreateOfferComponent implements AfterViewChecked {
                     this.setSuccess(this.result);
                }
 
+               const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+               this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          // Update balance — async but non-blocking
+                         this.updateTickets(updatedAccountObjects);
                          this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error updating balance after order book render:', err);
@@ -2084,7 +2095,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getTokenBalance');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Prepare data for rendering
@@ -2163,13 +2174,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                }
 
                this.renderUiComponentsService.renderDetails(data);
-
                this.setSuccess(this.result);
-
                this.account1.balance = await this.updateXrpBalance(client, accountInfo, wallet);
 
                if (this.weWantCurrencyField === 'XRP') {
-                    // this.weSpendTokenBalanceField = currencyBalance.toString();
                     this.weSpendTokenBalanceField = currencyBalance
                          ? Number(currencyBalance).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
@@ -2178,7 +2186,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                            })
                          : '0';
                } else {
-                    // this.weWantTokenBalanceField = currencyBalance.toString();
                     this.weWantTokenBalanceField = currencyBalance
                          ? Number(currencyBalance).toLocaleString(undefined, {
                                 minimumFractionDigits: 0,
@@ -2503,7 +2510,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const errors = await this.validateInputs(inputs, 'onWeWantCurrencyChange');
           if (errors.length > 0) {
                this.weWantTokenBalanceField = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           // Set default issuer for the selected currency
@@ -2556,7 +2563,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           const errors = await this.validateInputs(inputs, 'onWeSpendCurrencyChange');
           if (errors.length > 0) {
                this.weSpendTokenBalanceField = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           const client = await this.xrplService.getClient();
@@ -2642,7 +2649,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.phnixBalance = '0';
                this.phnixExchangeXrp = '0';
                this.weWantAmountField = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           try {
@@ -2870,7 +2877,7 @@ export class CreateOfferComponent implements AfterViewChecked {
           if (errors.length > 0) {
                this.phnixBalance = '0';
                this.phnixExchangeXrp = '0';
-               return this.setError(`ERROR: ${errors.join('; ')}`);
+               return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
           }
 
           const client = await this.xrplService.getClient();
@@ -3082,14 +3089,50 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
+     private async setTxOptionalFields(client: xrpl.Client, ammTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
+          if (txType === 'createAmm' || txType === 'swamViaAMM' || txType === 'depositToAmm' || txType === 'withdrawlFromAmm' || txType === 'clawbackFromAmm') {
+               if (this.selectedSingleTicket) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+                    if (!ticketExists) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(ammTx, this.selectedSingleTicket, true);
+               } else {
+                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         this.utilsService.setTicketSequence(ammTx, accountInfo.result.account_data.Sequence, false);
+                    }
+               }
+
+               if (this.memoField) {
+                    this.utilsService.setMemoField(ammTx, this.memoField);
+               }
+          }
+
+          if (txType === 'swamViaAMM') {
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(ammTx, this.destinationTagField);
+               }
+          }
+     }
+
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+
+          this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
+          this.refreshUiAccountInfo(updatedAccountInfo);
+     }
+
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
           const signerAccounts: string[] = [];
           if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                              if (entry.SignerEntry?.Account) {
+                                   const weight = entry.SignerEntry.SignerWeight ?? '';
+                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
                          });
@@ -3116,6 +3159,38 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
      }
 
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          const getAccountTickets: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'Ticket') {
+                         getAccountTickets.push(obj.TicketSequence.toString());
+                    }
+               });
+          }
+          return getAccountTickets;
+     }
+
+     private cleanUpSingleSelection() {
+          if (this.selectedSingleTicket && !this.ticketArray.includes(this.selectedSingleTicket)) {
+               this.selectedSingleTicket = ''; // Reset to "Select a ticket"
+          }
+     }
+
+     private cleanUpMultiSelection() {
+          this.selectedTickets = this.selectedTickets.filter(ticket => this.ticketArray.includes(ticket));
+     }
+
+     updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+
+          if (this.multiSelectMode) {
+               this.cleanUpMultiSelection();
+          } else {
+               this.cleanUpSingleSelection();
+          }
+     }
+
      private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
@@ -3126,7 +3201,12 @@ export class CreateOfferComponent implements AfterViewChecked {
           return balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
+     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+          if (this.ticketArray.length > 0) {
+               this.selectedTicket = this.ticketArray[0];
+          }
+
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -3141,10 +3221,10 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
                this.multiSignSeeds = '';
-               this.useMultiSign = false;
                this.storageService.removeValue('signerEntries');
           }
 
+          this.useMultiSign = false;
           const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
           if (isMasterKeyDisabled) {
                this.masterKeyDisabled = true;
@@ -3152,11 +3232,11 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-               this.useMultiSign = true; // Force to true if master key is disabled
-          } else {
-               this.useMultiSign = false;
-          }
+          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          //      this.useMultiSign = true; // Force to true if master key is disabled
+          // } else {
+          //      this.useMultiSign = false;
+          // }
 
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
@@ -3164,14 +3244,11 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.multiSigningEnabled = false;
           }
 
-          // Always reset memo fields
-          this.isMemoEnabled = false;
-          this.memoField = '';
+          this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: any) {
+     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
-
           if (regularKey) {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
@@ -3189,11 +3266,11 @@ export class CreateOfferComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          } else {
-               this.isRegularKeyAddress = false;
-          }
+          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          // } else {
+          //      this.isRegularKeyAddress = false;
+          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;
@@ -3336,8 +3413,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
                          () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         // Ticket flow
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -3362,8 +3440,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                          () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.weSpendIssuerField),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.weWantCurrencyField),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         // Ticket flow
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -3379,8 +3458,9 @@ export class CreateOfferComponent implements AfterViewChecked {
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => validateOfferSequences(inputs.offerSequenceField),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         // Ticket flow
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),

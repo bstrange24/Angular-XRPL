@@ -57,7 +57,6 @@
                                         <input type="text" id="xrpBalanceField" size="42" [(ngModel)]="account1.balance" readonly name="xrpBalanceField" />
                                    </td>
                               </tr>
-
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
@@ -453,7 +452,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Seperate multiple memos by a comma." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
                          <tr>
@@ -568,7 +567,25 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <!-- <div class="selection-mode">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
+                                             Multiple Selection
+                                        </label>
+                                   </div> -->
+
+                                   <div *ngIf="multiSelectMode; else singleSelect">
+                                        <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </div>
+
+                                   <ng-template #singleSelect>
+                                        <select class="timeUnit" [(ngModel)]="selectedSingleTicket" [ngModelOptions]="{standalone: true}">
+                                             <option value="" disabled>Select a ticket</option>
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </ng-template>
                               </td>
                          </tr>
                          <tr>

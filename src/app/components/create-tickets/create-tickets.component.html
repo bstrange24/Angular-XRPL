@@ -11,6 +11,7 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -90,6 +91,7 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Number of tickets to create 1-250">
@@ -204,7 +206,7 @@
                                    <td colspan="2">
                                         <button type="button" (click)="getTickets()">Get Tickets</button>
                                         <button type="button" (click)="createTicket()">Create Tickets</button>
-                                        <button type="button" (click)="createBatchTicket()">Create Batch Tickets</button>
+                                        <!-- <button type="button" (click)="createBatchTicket()">Create Batch Tickets</button> -->
                                         <button type="button" (click)="cancelTicket()">Cancel Tickets</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
@@ -287,6 +289,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
@@ -308,7 +311,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Seperate multiple memos by a comma." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
                          <tr>
@@ -402,7 +405,7 @@
                                    <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
                          </tr>
-                         <!-- <tr>
+                         <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
                                         <label>Use Ticket Sequence</label>
@@ -423,9 +426,27 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <!-- <div class="selection-mode">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
+                                             Multiple Selection
+                                        </label>
+                                   </div> -->
+
+                                   <div *ngIf="multiSelectMode; else singleSelect">
+                                        <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </div>
+
+                                   <ng-template #singleSelect>
+                                        <select class="timeUnit" [(ngModel)]="selectedSingleTicket" [ngModelOptions]="{standalone: true}">
+                                             <option value="" disabled>Select a ticket</option>
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </ng-template>
                               </td>
-                         </tr> -->
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to simulate a send xrp transaction">

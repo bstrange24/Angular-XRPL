@@ -242,7 +242,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'getCredentialsForAccount');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                type Section = {
@@ -372,7 +372,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'setCredentials');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                console.debug('expirationDate:', this.credential.subject.expirationDate);
@@ -532,7 +532,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'removeCredentials');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const credentialFound = accountObjects.result.account_objects.find((line: any) => {
@@ -693,7 +693,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'acceptCredentials');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const credentialFound = accountObjects.result.account_objects.find((line: any) => {
@@ -852,7 +852,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
                const errors = this.validateInputs(inputs, 'verifyCredential');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                type Section = {

@@ -16,8 +16,8 @@ import { RenderUiComponentsService } from '../../services/render-ui-components/r
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
-     seed?: string;
      account_info?: any;
+     seed?: string;
      amount?: string;
      destination?: string;
      destinationTag?: string;
@@ -28,7 +28,8 @@ interface ValidationInputs {
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
-     ticketSequence?: string;
+     selectedSingleTicket?: string;
+     selectedTicket?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
 }
@@ -83,6 +84,11 @@ export class TrustlinesComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket = false;
      isTicketEnabled = false;
+     ticketArray: string[] = [];
+     selectedTickets: string[] = []; // For multiple selection
+     selectedSingleTicket: string = ''; // For single selection
+     multiSelectMode: boolean = false; // Toggle between modes
+     selectedTicket: string = ''; // The currently selected ticket
      account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
@@ -92,7 +98,6 @@ export class TrustlinesComponent implements AfterViewChecked {
      destinationTagField: string = '';
      useMultiSign: boolean = false;
      multiSignAddress: string = '';
-     isUpdateMetaData = false;
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
      multiSigningEnabled: boolean = false;
@@ -102,7 +107,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      isRegularKeyAddress = false;
      regularKeySeed: string = '';
      regularKeyAddress: string = '';
-     spinner = false;
+     spinner: boolean = false;
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
@@ -176,23 +181,25 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.currencyField = 'CTZ'; // Set default selected currency if available
      }
 
-     async ngAfterViewInit() {
-          try {
-               const wallet = await this.getWallet();
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-               let storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
-               if (storedIssuers) {
-                    this.storageService.removeValue('knownIssuers');
-                    this.knownTrustLinesIssuers = this.utilsService.normalizeAccounts(storedIssuers, this.issuer.address);
-                    this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+     ngAfterViewInit() {
+          (async () => {
+               try {
+                    const wallet = await this.getWallet();
+                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                    let storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
+                    if (storedIssuers) {
+                         this.storageService.removeValue('knownIssuers');
+                         this.knownTrustLinesIssuers = this.utilsService.normalizeAccounts(storedIssuers, this.issuer.address);
+                         this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+                    }
+                    this.updateDestinations();
+               } catch (error: any) {
+                    console.error(`No wallet could be created or is undefined ${error.message}`);
+                    this.setError('ERROR: Wallet could not be created or is undefined');
+               } finally {
+                    this.cdr.detectChanges();
                }
-               this.updateDestinations();
-          } catch (error: any) {
-               console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
-          }
+          })();
      }
 
      ngAfterViewChecked() {
@@ -262,6 +269,16 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     onTicketToggle(event: any, ticket: string) {
+          if (event.target.checked) {
+               // Add to selection
+               this.selectedTickets = [...this.selectedTickets, ticket];
+          } else {
+               // Remove from selection
+               this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
+          }
+     }
+
      onFlagChange(flag: string) {
           if (this.trustlineFlags[flag]) {
                this.conflicts[flag]?.forEach(conflict => {
@@ -301,7 +318,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'getTrustlinesForAccount');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                const trustLinesFromObjects = accountObjects.result.account_objects.filter(obj => obj.LedgerEntryType === 'RippleState');
@@ -497,6 +514,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(true);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
+                              this.updateTickets(accountObjects);
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Failed to load token balances:', err);
@@ -579,6 +597,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
+                              this.updateTickets(accountObjects);
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Failed to load token balances:', err);
@@ -614,7 +633,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -633,12 +653,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`accountLines :`, accountLines);
 
                inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'setTrustLine');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Validate flags + currency
@@ -676,24 +697,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Handle Ticket Sequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(trustSetTx, this.ticketSequence, true);
-               } else {
-                    // Use pre-fetched sequence — no redundant call!
-                    this.utilsService.setTicketSequence(trustSetTx, accountInfo.result.account_data.Sequence, false);
-               }
-
                // Optional fields
-               if (this.memoField) {
-                    this.utilsService.setMemoField(trustSetTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, trustSetTx, wallet, accountInfo);
 
-               // PHASE 4: Validate balance
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
@@ -709,7 +715,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (simulation['result'] as any).errorMessage = userMessage;
+                         simulation['result'].errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
@@ -737,7 +743,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
+                         response.result.errorMessage = userMessage;
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
@@ -756,6 +762,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -788,7 +795,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -812,7 +820,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'removeTrustline');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Validate flags
@@ -870,22 +878,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                trustSetTx.Flags = flags;
                // delete trustSetTx.Flags; // Removing trustline — no flags needed
 
-               // Handle Ticket Sequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(trustSetTx, this.ticketSequence, true);
-               } else {
-                    // Use pre-fetched sequence — no redundant call!
-                    this.utilsService.setTicketSequence(trustSetTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               // Optional fields
-               if (this.memoField) {
-                    this.utilsService.setMemoField(trustSetTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, trustSetTx, wallet, accountInfo);
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -915,7 +908,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // PHASE 6: Sign transaction
+                    // Sign transaction
                     let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -949,6 +942,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -984,7 +978,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -1016,7 +1011,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'issueCurrency');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Get regular key wallet
@@ -1037,20 +1032,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
                     };
 
-                    // Handle Ticket Sequence
-                    if (this.ticketSequence) {
-                         const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                         if (!ticketExists) {
-                              return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                         }
-                         this.utilsService.setTicketSequence(accountSetTx, this.ticketSequence, true);
-                    } else {
-                         this.utilsService.setTicketSequence(accountSetTx, accountInfo.result.account_data.Sequence, false);
-                    }
-
-                    if (this.memoField) {
-                         this.utilsService.setMemoField(accountSetTx, this.memoField);
-                    }
+                    await this.setTxOptionalFields(client, accountSetTx, wallet, accountInfo);
 
                     if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, accountSetTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -1133,34 +1115,15 @@ export class TrustlinesComponent implements AfterViewChecked {
                     LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Handle Ticket Sequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(paymentTx, this.ticketSequence, true);
-               } else {
-                    // Use fresh account info for sequence
-                    const freshAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                    this.utilsService.setTicketSequence(paymentTx, freshAccountInfo.result.account_data.Sequence, false);
-               }
-
-               // Optional fields
-               if (this.memoField) {
-                    this.utilsService.setMemoField(paymentTx, this.memoField);
-               }
-               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    this.utilsService.setDestinationTag(paymentTx, this.destinationTagField);
-               }
+               await this.setTxOptionalFields(client, paymentTx, wallet, accountInfo);
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, paymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, paymentTx, this.destinationFields)) {
-                    return this.setError('ERROR: Not enough IOU balance for this transaction');
-               }
+               // if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, paymentTx, this.destinationFields)) {
+               //      return this.setError('ERROR: Not enough IOU balance for this transaction');
+               // }
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Currency Issuance (no changes will be made)...' : 'Submitting Currency Issuance to Ledger...');
 
@@ -1210,7 +1173,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                // Only fetch additional data and update UI if not in simulation mode
                if (!this.isSimulateEnabled) {
                     // Fetch updated trust lines and gateway balances in parallel
-                    const [updatedTrustLines, gatewayBalances] = await Promise.all([this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+                    const [updatedTrustLines, gatewayBalances, newBalance] = await Promise.all([this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''), client.getXrpBalance(wallet.classicAddress)]);
 
                     // Add New Balance section
                     const decodedCurrency = this.utilsService.decodeIfNeeded(this.currencyField);
@@ -1227,7 +1190,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                          content: [
                               { key: 'Destination', value: `<code>${this.destinationFields}</code>` },
                               { key: 'Currency', value: this.currencyField },
-                              { key: 'Balance', value: newTrustLine ? newTrustLine.balance : 'Unknown' },
+                              { key: 'Balance', value: newTrustLine ? this.utilsService.formatTokenBalance(newTrustLine.balance.toString(), 2) : 'Unknown' },
                          ],
                     });
 
@@ -1241,7 +1204,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    openByDefault: false,
                                    content: [
                                         { key: 'Currency', value: oblCurrency },
-                                        { key: 'Amount', value: amount },
+                                        { key: 'Amount', value: this.utilsService.formatTokenBalance(amount.toString(), 2) },
                                    ],
                               })),
                          });
@@ -1260,7 +1223,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                          content: [
                               { key: 'Issuer Address', value: `<code>${wallet.classicAddress}</code>` },
                               { key: 'Destination Address', value: `<code>${this.destinationFields}</code>` },
-                              { key: 'XRP Balance (Issuer)', value: (await client.getXrpBalance(wallet.classicAddress)).toString() },
+                              { key: 'XRP Balance (Issuer)', value: this.utilsService.formatTokenBalance(newBalance.toString(), 2) },
+                              // { key: 'XRP Balance (Issuer)', value: (await client.getXrpBalance(wallet.classicAddress)).toString() },
                          ],
                     });
 
@@ -1280,6 +1244,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               await this.updateCurrencyBalance(wallet, updatedAccountObjects);
                               this.updateGatewayBalance(gatewayBalances, wallet);
                               this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -1313,7 +1278,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -1346,7 +1312,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                const errors = await this.validateInputs(inputs, 'clawbackTokens');
                if (errors.length > 0) {
-                    return this.setError(`ERROR: ${errors.join('; ')}`);
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // PHASE 2: Validate currency
@@ -1368,22 +1334,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Handle Ticket Sequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(clawbackTx, this.ticketSequence, true);
-               } else {
-                    // Use pre-fetched sequence — no redundant call!
-                    this.utilsService.setTicketSequence(clawbackTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               // Optional fields
-               if (this.memoField) {
-                    this.utilsService.setMemoField(clawbackTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, clawbackTx, wallet, accountInfo);
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, clawbackTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -1449,6 +1400,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.updateCurrencyBalance(wallet, updatedAccountObjects);
                               this.updateGatewayBalance(gatewayBalancePromise, wallet);
                               this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -1522,6 +1474,33 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
+     private async setTxOptionalFields(client: xrpl.Client, trustSetTx: any, wallet: xrpl.Wallet, accountInfo: any) {
+          try {
+               if (this.selectedSingleTicket) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+                    if (!ticketExists) {
+                         // return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+                         throw `ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`;
+                    }
+                    this.utilsService.setTicketSequence(trustSetTx, this.selectedSingleTicket, true);
+               } else {
+                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         this.utilsService.setTicketSequence(trustSetTx, accountInfo.result.account_data.Sequence, false);
+                    }
+               }
+
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(trustSetTx, this.destinationTagField);
+               }
+               if (this.memoField) {
+                    this.utilsService.setMemoField(trustSetTx, this.memoField);
+               }
+          } catch (error: any) {
+               throw new Error(error.message);
+          }
+     }
+
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
           console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
           console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
@@ -1536,8 +1515,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                              if (entry.SignerEntry?.Account) {
+                                   const weight = entry.SignerEntry.SignerWeight ?? '';
+                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
                          });
@@ -1547,7 +1527,42 @@ export class TrustlinesComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          const getAccountTickets: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'Ticket') {
+                         getAccountTickets.push(obj.TicketSequence.toString());
+                    }
+               });
+          }
+          return getAccountTickets;
+     }
+
+     private cleanUpSingleSelection() {
+          // Check if selected ticket still exists in available tickets
+          if (this.selectedSingleTicket && !this.ticketArray.includes(this.selectedSingleTicket)) {
+               this.selectedSingleTicket = ''; // Reset to "Select a ticket"
+          }
+     }
+
+     private cleanUpMultiSelection() {
+          // Filter out any selected tickets that no longer exist
+          this.selectedTickets = this.selectedTickets.filter(ticket => this.ticketArray.includes(ticket));
+     }
+
+     updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+
+          // Clean up selections based on current mode
+          if (this.multiSelectMode) {
+               this.cleanUpMultiSelection();
+          } else {
+               this.cleanUpSingleSelection();
+          }
+     }
+
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
@@ -1557,7 +1572,12 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.account1.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
+     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+          if (this.ticketArray.length > 0) {
+               this.selectedTicket = this.ticketArray[0];
+          }
+
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -1583,11 +1603,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-               this.useMultiSign = true; // Force to true if master key is disabled
-          } else {
-               this.useMultiSign = false;
-          }
+          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          //      this.useMultiSign = true; // Force to true if master key is disabled
+          // } else {
+          //      this.useMultiSign = false;
+          // }
 
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
@@ -1598,7 +1618,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: any) {
+     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
           if (regularKey) {
                this.regularKeyAddress = regularKey;
@@ -1617,11 +1637,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          } else {
-               this.isRegularKeyAddress = false;
-          }
+          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          // } else {
+          //      this.isRegularKeyAddress = false;
+          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;
@@ -1695,7 +1715,12 @@ export class TrustlinesComponent implements AfterViewChecked {
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
-          // Common validators as functions
+          // --- Shared skip helper ---
+          const shouldSkipNumericValidation = (value: string | undefined): boolean => {
+               return value === undefined || value === null || value.trim() === '';
+          };
+
+          // --- Common validators ---
           const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
                if (value == null || !this.utilsService.validateInput(value)) {
                     return `${fieldName} cannot be empty`;
@@ -1718,8 +1743,12 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
-               if (value === undefined || (allowEmpty && value === '')) return null; // Skip if undefined or empty (when allowed)
-               const num = parseFloat(value);
+               // Skip number validation if value is empty — required() will handle it
+               if (shouldSkipNumericValidation(value) || (allowEmpty && value === '')) return null;
+
+               // ✅ Type-safe parse
+               const num = parseFloat(value as string);
+
                if (isNaN(num) || !isFinite(num)) {
                     return `${fieldName} must be a valid number`;
                }
@@ -1747,7 +1776,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
-               if (!addressesStr || !seedsStr) return null; // Not required
+               if (!addressesStr || !seedsStr) return null;
                const addresses = this.utilsService.getMultiSignAddress(addressesStr);
                const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
@@ -1760,17 +1789,19 @@ export class TrustlinesComponent implements AfterViewChecked {
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
                return null;
           };
 
-          // Action-specific config: required fields and custom rules
           // --- Async validator: check if destination account requires a destination tag ---
           const checkDestinationTagRequirement = async (): Promise<string | null> => {
                if (!inputs.destination) return null; // Skip if no destination provided
                try {
                     const client = await this.xrplService.getClient();
                     const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
-
                     if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
                          return `ERROR: Receiver requires a Destination Tag for payment`;
                     }
@@ -1803,8 +1834,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1821,8 +1852,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1838,12 +1869,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.amount, 'Amount', 0),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
-                         () => isValidNumber(inputs.ticketSequence, 'Ticket', 0, true),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1864,12 +1894,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.amount, 'Amount', 0),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
-                         () => isValidNumber(inputs.ticketSequence, 'Ticket', 0, true),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1883,7 +1912,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
           const config = actionConfig[action] || actionConfig['default'];
 
-          // Check required fields
+          // --- Run required checks ---
           config.required.forEach((field: keyof ValidationInputs) => {
                const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
                if (err) errors.push(err);
@@ -1936,7 +1965,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           return Object.values(this.currencies).filter(key => key !== 'XRP');
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
           const wallet = await this.utilsService.getWallet(seed, environment);
@@ -1986,7 +2015,6 @@ export class TrustlinesComponent implements AfterViewChecked {
           // Fetch account details
           try {
                if (address && xrpl.isValidAddress(address)) {
-                    // await Promise.all([this.onCurrencyChange(), this.getTrustlinesForAccount()]);
                     await Promise.all([this.onCurrencyChange()]);
                } else if (address) {
                     this.setError('Invalid XRP address');
@@ -1996,16 +2024,16 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     private async displayDataForAccount1() {
-          await this.displayDataForAccount('account1');
+     private displayDataForAccount1() {
+          this.displayDataForAccount('account1');
      }
 
-     private async displayDataForAccount2() {
-          await this.displayDataForAccount('account2');
+     private displayDataForAccount2() {
+          this.displayDataForAccount('account2');
      }
 
-     private async displayDataForAccount3() {
-          await this.displayDataForAccount('issuer');
+     private displayDataForAccount3() {
+          this.displayDataForAccount('issuer');
      }
 
      clearFields(clearAllFields: boolean) {
@@ -2068,35 +2096,6 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     addToken1() {
-          if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
-               const currency = this.newCurrency.trim();
-               const c = currency.split('.');
-               if (this.knownTrustLinesIssuers[c[0]]) {
-                    this.setError(`Currency ${c[0]} already exists`);
-                    return;
-               }
-               if (!this.utilsService.isValidCurrencyCode(c[0])) {
-                    this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
-                    return;
-               }
-               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
-                    this.setError('Invalid issuer address');
-                    return;
-               }
-               this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
-               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
-               this.updateCurrencies();
-               this.newCurrency = '';
-               this.newIssuer = '';
-               this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
-               this.cdr.detectChanges();
-          } else {
-               this.setError('Currency code and issuer address are required');
-          }
-          this.spinner = false;
-     }
-
      addToken() {
           if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
                const currency = this.newCurrency.trim();
@@ -2121,20 +2120,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.cdr.detectChanges();
           } else {
                this.setError('Currency code and issuer address are required');
-          }
-          this.spinner = false;
-     }
-
-     removeToken1() {
-          if (this.tokenToRemove) {
-               delete this.knownTrustLinesIssuers[this.tokenToRemove];
-               this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
-               this.updateCurrencies();
-               this.setSuccess(`Removed ${this.tokenToRemove}`);
-               this.tokenToRemove = '';
-               this.cdr.detectChanges();
-          } else {
-               this.setError('Select a token to remove');
           }
           this.spinner = false;
      }
@@ -2222,5 +2207,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 }

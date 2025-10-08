@@ -11,6 +11,7 @@
                <div class="left-column">
                     <div class="flags-layout">
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Name of the currently selected account.">
@@ -87,7 +88,6 @@
                                         <input type="text" id="totalExecutionTime" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
                                    </td>
                               </tr>
-
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="LP Token Balance.">
@@ -111,6 +111,7 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td style="text-align: right; padding-bottom: 10px">
                                         <span class="tooltip" tooltip-data="Asset 1">
@@ -165,6 +166,7 @@
                                         <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
                                    </td>
                               </tr>
+                              <br />
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Amounts of assets in pool 1.">
@@ -208,7 +210,6 @@
                                         </span>
                                    </td>
                               </tr>
-
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Select withdrawal option(s) for the AMM pool">
@@ -235,6 +236,7 @@
                          </table>
 
                          <table id="flags">
+                              <th></th>
                               <tr>
                                    <td style="text-align: right; padding-bottom: 10px">
                                         <span class="tooltip" tooltip-data="Asset 2.">
@@ -289,6 +291,7 @@
                                         <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
                                    </td>
                               </tr>
+                              <br />
                               <tr>
                                    <td>
                                         <span class="tooltip" tooltip-data="Amounts of assets in pool 2.">
@@ -297,6 +300,22 @@
                                    </td>
                                    <td>
                                         <input type="text" id="assetPool2Balance" id="assetPool2Balance" [(ngModel)]="assetPool2Balance" name="assetPool2Balance" size="42" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <label for="destinationTagField">Destination Tag</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                   </td>
+                              </tr>
+                              <tr>
+                                   <td>
+                                        <label for="holderField">Holder</label>
+                                   </td>
+                                   <td>
+                                        <input type="text" id="holderField" [(ngModel)]="holderField" name="holderField" />
                                    </td>
                               </tr>
                          </table>
@@ -472,6 +491,7 @@
 
                <div class="right-column">
                     <table id="meta">
+                         <th></th>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
@@ -493,7 +513,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Add optional memo to transaction." [(ngModel)]="memoField" name="memoField"></textarea>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Seperate multiple memos by a comma." [(ngModel)]="memoField" name="memoField"></textarea>
                               </td>
                          </tr>
                          <tr>
@@ -608,7 +628,25 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="ticketSequence" size="40" id="ticketSequence" placeholder="Enter Ticket Sequence" [(ngModel)]="ticketSequence" name="ticketSequence" />
+                                   <!-- <div class="selection-mode">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
+                                             Multiple Selection
+                                        </label>
+                                   </div> -->
+
+                                   <div *ngIf="multiSelectMode; else singleSelect">
+                                        <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </div>
+
+                                   <ng-template #singleSelect>
+                                        <select class="timeUnit" [(ngModel)]="selectedSingleTicket" [ngModelOptions]="{standalone: true}">
+                                             <option value="" disabled>Select a ticket</option>
+                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                        </select>
+                                   </ng-template>
                               </td>
                          </tr>
                          <tr>
