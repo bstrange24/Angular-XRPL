@@ -12,9 +12,10 @@ import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
+import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
-     selectedAccount?: 'account1' | 'account2' | null;
+     selectedAccount?: string;
      senderAddress?: string;
      seed?: string;
      account_info?: any;
@@ -75,7 +76,7 @@ interface AccountFlags {
 @Component({
      selector: 'app-account-configurator',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './account-configurator.component.html',
      styleUrl: './account-configurator.component.css',
 })
@@ -89,9 +90,12 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
-     account1 = { name: '', address: '', seed: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', balance: '' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+
+     ticketArray: string[] = [];
+     selectedTickets: string[] = []; // For multiple selection
+     selectedSingleTicket: string = ''; // For single selection
+     multiSelectMode: boolean = false; // Toggle between modes
+     selectedTicket: string = ''; // The currently selected ticket
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -146,6 +150,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      };
      spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
+     // Dynamic wallets
+     wallets: any[] = [];
+     selectedWalletIndex: number = 0;
+     currentWallet = { name: '', address: '', seed: '', balance: '' };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -153,16 +161,17 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           console.log(`Account Configuratior OnInit called`);
      }
 
-     async ngAfterViewInit() {
-          try {
-               const wallet = await this.getWallet();
-               this.loadSignerList(wallet.classicAddress);
-          } catch (error: any) {
-               console.error(`No wallet could be created or is undefined ${error.message}`);
-               return this.setError('ERROR getting wallet in toggleMultiSign');
-          } finally {
-               this.cdr.detectChanges();
-          }
+     ngAfterViewInit() {
+          (async () => {
+               try {
+                    this.onAccountChange(); // Load initial
+               } catch (error: any) {
+                    console.error(`Error loading initial wallet: ${error.message}`);
+                    this.setError('ERROR: Could not load initial wallet');
+               } finally {
+                    this.cdr.detectChanges();
+               }
+          })();
      }
 
      ngAfterViewChecked() {
@@ -173,10 +182,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
-          this.account1 = { ...event.account1, balance: '0' };
-          this.account2 = { ...event.account2, balance: '0' };
-          this.issuer = { ...event.issuer, balance: '0' };
+     onWalletListChange(event: any[]) {
+          this.wallets = event;
+          if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
+               this.selectedWalletIndex = 0;
+          }
           this.onAccountChange();
      }
 
@@ -189,13 +199,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
-          };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
-          this.configurationType = null;
+          if (this.wallets.length === 0) return;
+          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.getAccountDetails();
+          } else if (this.currentWallet.address) {
+               this.setError('Invalid XRP address');
+          }
+          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -371,8 +382,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
           };
 
           try {
@@ -408,8 +419,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
           };
 
           try {
@@ -480,8 +491,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      //      this.setSuccessProperties();
 
      //      let inputs: ValidationInputs = {
-     //           selectedAccount: this.selectedAccount,
-     //           seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+     //           selectedAccount: this.currentWallet.address,
+     //           seed: this.currentWallet.seed,
      //           isRegularKeyAddress: this.isSetRegularKey,
      //           isMultiSign: this.useMultiSign,
      //           regularKeyAddress: this.regularKeyAccount || undefined,
@@ -641,8 +652,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
                regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
@@ -761,8 +772,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                tickSize: this.tickSize,
                transferRate: this.transferRate,
                domain: this.domain,
@@ -938,8 +949,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                depositAuthAddress: this.depositAuthAddress,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
@@ -1093,8 +1104,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.isMultiSign,
                regularKeyAddress: this.regularKeyAccount || undefined,
@@ -1262,8 +1273,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
                regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
@@ -1417,8 +1428,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                nfTokenMinterAddress: this.nfTokenMinterAddress,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
@@ -1833,7 +1844,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          this.account1.balance = balance.toString();
+          this.currentWallet.balance = balance.toString();
      }
 
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
@@ -2236,9 +2247,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const seed = this.currentWallet.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
@@ -2261,67 +2272,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      clearSignerList() {
           this.signers = [{ account: '', seed: '', weight: 1 }];
-     }
-
-     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const isIssuer = accountKey === 'issuer';
-          const prefix = isIssuer ? 'issuer' : accountKey;
-
-          // Define casing differences in keys
-          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
-
-          // Fetch stored values
-          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
-          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
-          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
-
-          // Update account object
-          const accountMap = {
-               account1: this.account1,
-               account2: this.account2,
-               issuer: this.issuer,
-          };
-          const account = accountMap[accountKey];
-          account.name = name;
-          account.address = address;
-          account.seed = seed;
-
-          // DOM manipulation (map field IDs instead of repeating)
-          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
-               name: 'accountName1Field',
-               address: 'accountAddress1Field',
-               seed: 'accountSeed1Field',
-          };
-
-          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
-               const el = document.getElementById(id) as HTMLInputElement | null;
-               if (el) el.value = account[key];
-          });
-
-          this.cdr.detectChanges(); // sync with ngModel
-
-          // Fetch account details
-          try {
-               if (address && xrpl.isValidAddress(address)) {
-                    await this.getAccountDetails();
-               } else if (address) {
-                    this.setError('Invalid XRP address');
-               }
-          } catch (error: any) {
-               this.setError(`Error fetching account details: ${error.message}`);
-          }
-     }
-
-     async displayDataForAccount1() {
-          await this.displayDataForAccount('account1');
-     }
-
-     async displayDataForAccount2() {
-          await this.displayDataForAccount('account2');
-     }
-
-     private async displayDataForAccount3() {
-          await this.displayDataForAccount('issuer');
      }
 
      clearFields(clearAllFields: boolean) {

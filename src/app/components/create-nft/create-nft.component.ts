@@ -564,7 +564,7 @@ export class CreateNftComponent implements AfterViewChecked {
                          try {
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
