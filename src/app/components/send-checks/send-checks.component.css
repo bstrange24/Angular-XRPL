@@ -45,7 +45,6 @@
      display: flex;
      flex-direction: column;
      gap: 0;
-     /* Remove gap between rows if not needed */
      background: #2a2c31;
      border-radius: 8px;
      overflow: hidden;
@@ -71,7 +70,6 @@
 .check-cell {
      flex: 1;
      padding: 12px;
-     /* Reduced from 12px to decrease spacing */
      color: white;
      font-size: 13px;
      text-align: left;
@@ -136,15 +134,6 @@
      cursor: pointer;
      transition: background 0.3s ease;
 }
-
-/* .check-subdetails summary {
-     color: white;
-     font-weight: bold;
-     font-size: 14px;
-     padding: 10px;
-     cursor: pointer;
-     transition: background 0.3s ease;
-} */
 
 summary::marker {
      color: white;
@@ -252,45 +241,28 @@ label.switch {
      border-collapse: collapse;
 }
 
-/* #flags .tooltip {
-     display: inline-block;
-     text-align: right;
-} */
-
 #flags td:first-child {
      width: 180px;
-     /* consistent width for label cells */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
      vertical-align: top;
-     /* keeps labels aligned to top if multiple controls in same row */
 }
 
 #flags .form-row-td {
      width: 150px;
-     /* consistent label cell width */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
-     /* space between label and input */
 }
 
 #flags input[type="text"],
 #flags select {
      width: 300px;
-     /* consistent input/dropdown width */
      height: 28px;
 }
 
 #meta {
      border-collapse: collapse;
 }
-
-/* #meta .tooltip {
-     display: inline-block;
-     text-align: right;
-} */
 
 #meta td:first-child {
      width: 180px;
@@ -316,4 +288,172 @@ label.switch {
      width: 300px;
      /* consistent input/dropdown width */
      height: 28px;
+}
+
+.trustline-option {
+     display: flex;
+     justify-content: space-between;
+     /* text left, slider right */
+     align-items: center;
+     /* vertical centering */
+     width: 100%;
+     margin: 6px 0;
+     padding: 4px 0;
+}
+
+.trustline-option span {
+     text-align: left;
+}
+
+.trustline-option .switch {
+     margin-left: 10px;
+}
+
+.inner-table {
+     border-collapse: collapse;
+     width: 100%;
+}
+
+.inner-table th {
+     background: #f3f3f3;
+     text-align: left;
+     padding: 8px;
+     font-weight: 600;
+     border-bottom: 1px solid #ccc;
+}
+
+.inner-table td {
+     border: 1px solid #ddd;
+     padding: 6px 8px;
+     vertical-align: middle;
+}
+
+.inner-table input,
+.inner-table select {
+     width: 100%;
+     padding: 5px;
+     box-sizing: border-box;
+}
+
+.account-section,
+.xrp-section {
+     width: 50%;
+     vertical-align: top;
+}
+
+.account-section {
+     border-right: 1px solid #ccc;
+}
+
+/* Revert top-sections-wrapper to row for side-by-side layout */
+.top-sections-wrapper {
+     display: flex;
+     flex-direction: row;
+     gap: 24px;
+     width: auto;
+     flex-wrap: nowrap;
+     align-items: flex-start;
+}
+
+/* Adjust flex for children to fit content */
+.top-sections-wrapper>.top-section-left {
+     flex: 0 0 auto;
+     min-width: 0;
+}
+
+.top-sections-wrapper>.top-section-right {
+     flex: 0 0 auto;
+     min-width: 0;
+}
+
+/* Update transaction-layout to use auto for left column to fit content */
+.transaction-layout {
+     display: grid;
+     grid-template-columns: auto 1fr;
+     gap: 20px;
+     align-items: start;
+}
+
+/* Keep or adjust max-width for result-container to shorten it */
+.result-container {
+     max-width: 1050px;
+}
+
+/* Ensure consistent sizing and right alignment for labels in all sections */
+#accountSelection td:first-child,
+#xrpDetails td:first-child,
+#flags td:first-child {
+     width: 180px;
+     text-align: right;
+     padding-right: 10px;
+     vertical-align: top;
+}
+
+#accountSelection input,
+#accountSelection select,
+#xrpDetails input,
+#xrpDetails select,
+#flags input[type="text"],
+#flags select,
+#flags textarea {
+     width: 300px;
+     box-sizing: border-box;
+}
+
+#flags textarea {
+     height: 100px;
+}
+
+/* For switches and other non-input elements, ensure they fit */
+#flags td:last-child {
+     width: auto;
+}
+
+#selectedWalletField,
+#destinationFields,
+#currencyField,
+#escrowFinishTimeUnit,
+#escrowCancelTimeUnit {
+     background-color: #1a1c21;
+     border-radius: 10px;
+     margin-bottom: 10px;
+     height: 28px;
+     border: 1px solid white;
+}
+
+/* Target the multi-sign fieldset table cells specifically */
+.multisignAddressClass td:first-child {
+     width: 80px;
+     text-align: right;
+     padding-right: 10px;
+     padding-left: 0;
+     vertical-align: top;
+}
+
+.multisignAddressClass td:last-child {
+     width: auto;
+     padding-left: 10px;
+}
+
+/* Target the inner table in the multi-sign fieldset */
+#flags fieldset table {
+     width: 100%;
+     border-collapse: collapse;
+     margin: 0;
+     padding: 0;
+}
+
+#flags fieldset td:first-child {
+     width: 60px;
+     /* Shorter for compact labels like "Signers", "Seeds", "Quorum" */
+     text-align: right;
+     padding: 5px 10px 5px 0;
+     /* Zero left padding to hug the fieldset left border */
+     vertical-align: top;
+}
+
+#flags fieldset td:last-child {
+     padding-left: 0;
+     /* Remove extra left padding on input cells */
+     width: auto;
 }

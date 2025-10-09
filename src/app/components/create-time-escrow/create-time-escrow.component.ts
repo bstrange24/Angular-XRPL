@@ -359,12 +359,14 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                // PHASE 2: Calculate total balance for selected currency
                let balanceTotal: number = 0;
+               const relevantIssuers: string[] = []; // New array for issuers of this currency
 
                if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
                     for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
                          for (const { currency, value } of currencies) {
                               if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
                                    balanceTotal += Number(value);
+                                   relevantIssuers.push(issuer); // Collect issuers for this currency
                               }
                          }
                     }
@@ -375,11 +377,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                // PHASE 3: Update destination field
                if (this.currencyFieldDropDownValue === 'XRP') {
-                    this.destinationFields = this.wallets[0]?.address || ''; // Default to first wallet address for XRP
+                    this.destinationFields = this.wallets[1]?.address || ''; // Default to first wallet address for XRP
                } else {
-                    // Dynamically set issuers from wallets (filter or map as needed; assume all wallets are potential issuers)
-                    this.currencyIssuers = this.wallets.map(w => w.address).filter(addr => addr); // Or integrate with knownTrustLinesIssuers if persisted
-                    this.destinationFields = this.wallets[0]?.address || ''; // Default to first for tokens
+                    this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
+                    this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
                }
           } catch (error: any) {
                this.tokenBalance = '0';
@@ -1557,7 +1558,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           const currencyCode = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
           if (wallet.classicAddress) {
                const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
-               balance = balanceResult !== null ? balanceResult.toString() : '0';
+               balance = balanceResult !== null ? Math.abs(balanceResult).toString() : '0';
                this.tokenBalance = this.utilsService.formatTokenBalance(balance, 18);
           } else {
                this.tokenBalance = '0';
