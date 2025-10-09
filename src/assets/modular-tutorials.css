@@ -234,7 +234,8 @@ input:read-only {
 #depositAuthAddress,
 #destinationFields,
 #backupAccountField,
-#selectedWalletField {
+#selectedWalletField,
+#authorizedWalletField {
      color: #4CAF50;
 }
 
