@@ -210,7 +210,9 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           };
 
           try {
-               this.updateSpinnerMessage('Getting Account Details ...');
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : '';
+               this.updateSpinnerMessage(`Getting Account Details (${mode})...`);
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
@@ -630,6 +632,10 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                if (invalidAddr) {
                     return `Invalid signer address: ${invalidAddr}`;
                }
+               const invalidSeed = seeds.find((seed: string) => !xrpl.isValidSecret(seed));
+               if (invalidSeed) {
+                    return 'One or more signer seeds are invalid';
+               }
                return null;
           };
 
@@ -776,7 +782,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message);
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
@@ -814,5 +819,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
+          this.cdr.detectChanges();
      }
 }
