@@ -14,9 +14,9 @@ import * as xrpl from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
+import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
      selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
@@ -56,7 +56,7 @@ interface SignerEntry {
 @Component({
      selector: 'app-account',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe, MatAutocompleteModule, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe, MatAutocompleteModule, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule],
      templateUrl: './send-xrp.component.html',
      styleUrl: './send-xrp.component.css',
      encapsulation: ViewEncapsulation.None,
@@ -64,16 +64,12 @@ interface SignerEntry {
 export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit, AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
      private lastResult: string = '';
      transactionInput: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = false;
-     account1 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     account2 = { name: '', address: '', seed: '', secretNumbers: '', mnemonic: '', balance: '' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -105,28 +101,27 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      destinationFields: string = '';
-     private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
+
+     // New for dynamic wallets
+     wallets: any[] = [];
+     selectedWalletIndex: number = 0;
+     currentWallet = { name: '', address: '', seed: '', balance: '' };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService) {}
 
      ngOnInit() {
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               this.knownDestinations = storedDestinations;
-          }
+          // Removed knownDestinations loading - now dynamic from wallets
      }
 
      ngAfterViewInit() {
           (async () => {
                try {
-                    const wallet = await this.getWallet();
-                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                    this.updateDestinations();
+                    this.onAccountChange(); // Load initial
                } catch (error: any) {
-                    console.error(`No wallet could be created or is undefined ${error.message}`);
-                    this.setError('ERROR: Wallet could not be created or is undefined');
+                    console.error(`Error loading initial wallet: ${error.message}`);
+                    this.setError('ERROR: Could not load initial wallet');
                } finally {
                     this.cdr.detectChanges();
                }
@@ -141,10 +136,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
-          this.account1 = { ...event.account1, balance: '0' };
-          this.account2 = { ...event.account2, balance: '0' };
-          this.issuer = { ...event.issuer, balance: '0' };
+     onWalletListChange(event: any[]) {
+          this.wallets = event;
+          if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
+               this.selectedWalletIndex = 0;
+          }
+          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -157,12 +154,15 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      }
 
      onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
-          };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+          if (this.wallets.length === 0) return;
+          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          this.updateDestinations();
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.getAccountDetails();
+          } else if (this.currentWallet.address) {
+               this.setError('Invalid XRP address');
+          }
+          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -216,8 +216,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
           };
 
           try {
@@ -279,9 +278,8 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
-               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
+               senderAddress: this.currentWallet.address,
                amount: this.amountField,
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
@@ -505,7 +503,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          this.account1.balance = balance.toString();
+          this.currentWallet.balance = balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
@@ -539,12 +537,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-          //      this.useMultiSign = true; // Force to true if master key is disabled
-          // } else {
-          //      this.useMultiSign = false;
-          // }
-
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
@@ -570,12 +562,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           } else {
                this.masterKeyDisabled = false;
           }
-
-          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          // } else {
-          //      this.isRegularKeyAddress = false;
-          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;
@@ -697,12 +683,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                }
           > = {
                getAccountDetails: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                sendXrp: {
-                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    required: ['seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.amount, 'XRP Amount', 0),
@@ -765,89 +751,25 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
 
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
-          }
-
           return errors;
      }
 
-     private updateDestinations() {
-          const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-          this.destinations = [...Object.values(knownDestinationsTemp)];
-          this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
-          this.destinationFields = this.issuer.address;
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => w.address);
+          if (this.destinations.length > 0 && !this.destinationFields) {
+               this.destinationFields = this.destinations[0];
+          }
+          this.cdr.detectChanges();
      }
 
      private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const seed = this.currentWallet.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
           return wallet;
-     }
-
-     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const isIssuer = accountKey === 'issuer';
-          const prefix = isIssuer ? 'issuer' : accountKey;
-
-          // Define casing differences in keys
-          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
-
-          // Fetch stored values
-          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
-          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
-          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
-
-          // Update account object
-          const accountMap = {
-               account1: this.account1,
-               account2: this.account2,
-               issuer: this.issuer,
-          };
-          const account = accountMap[accountKey];
-          account.name = name;
-          account.address = address;
-          account.seed = seed;
-
-          // DOM manipulation (map field IDs instead of repeating)
-          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
-               name: 'accountName1Field',
-               address: 'accountAddress1Field',
-               seed: 'accountSeed1Field',
-          };
-
-          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
-               const el = document.getElementById(id) as HTMLInputElement | null;
-               if (el) el.value = account[key];
-          });
-
-          this.cdr.detectChanges(); // sync with ngModel
-
-          // Fetch account details
-          try {
-               if (address && xrpl.isValidAddress(address)) {
-                    await this.getAccountDetails();
-               } else if (address) {
-                    this.setError('Invalid XRP address');
-               }
-          } catch (error: any) {
-               this.setError(`Error fetching account details: ${error.message}`);
-          }
-     }
-
-     private displayDataForAccount1() {
-          this.displayDataForAccount('account1');
-     }
-
-     private displayDataForAccount2() {
-          this.displayDataForAccount('account2');
-     }
-
-     private displayDataForAccount3() {
-          this.displayDataForAccount('issuer');
      }
 
      clearFields(clearAllFields: boolean) {

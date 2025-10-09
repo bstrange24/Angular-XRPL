@@ -1,0 +1,94 @@
+<input type="text" id="transactionField" class="transactionDivClass" placeholder="Search Address / Tx / CTID / ..." [(ngModel)]="transactionInput" (keydown.enter)="triggerSearch()" aria-label="Search for a transaction by address, hash, or CTID; press Enter to submit" />
+
+<details class="wallet-info">
+     <summary>Wallet Information</summary>
+     <fieldset class="wallet-fieldset">
+          <div class="wallet-container">
+               <div class="wallet-controls">
+                    <label class="tooltip" tooltip-data="Uncheck to retrieve a wallet based on secret">Create New Wallet:</label>
+                    <label class="switch">
+                         <input type="checkbox" id="createWallet" name="createWallet" [(ngModel)]="createWallet" (ngModelChange)="onCreateWalletChange()" />
+                         <span class="slider round"></span>
+                    </label>
+                    <label class="tooltip" style="padding-left: 20px" tooltip-data="Select type of encryption to get wallet info">ED25519 Encryption:</label>
+                    <label class="switch" style="padding-left: 20px">
+                         <input type="checkbox" id="encryptionType" name="encryptionType" [(ngModel)]="encryptionType" (ngModelChange)="onEncryptionChange()" />
+                         <span class="slider round"></span>
+                    </label>
+               </div>
+          </div>
+
+          <button type="button" (click)="addWallet()">Add New Wallet</button>
+
+          <div class="wallet-list">
+               <div *ngFor="let wallet of wallets; let i = index">
+                    <details class="wallet-details">
+                         <summary>Wallet {{i + 1}} {{wallet.name ? ' - ' + wallet.name : ''}}</summary>
+                         <fieldset>
+                              <div class="button-container" *ngIf="showGenerateButtons">
+                                   <button type="button" (click)="generateNewWalletFromFamilySeed(i)">New From Seed</button>
+                                   <button type="button" (click)="generateNewWalletFromMnemonic(i)">New From Mnemonic</button>
+                                   <button type="button" (click)="generateNewWalletFromSecretNumbers(i)">New From Secret Numbers</button>
+                              </div>
+                              <div class="button-container" *ngIf="showDeriveButtons">
+                                   <button type="button" (click)="deriveNewWalletFromFamilySeed(i)">Derive From Seed</button>
+                                   <button type="button" (click)="deriveNewWalletFromMnemonic(i)">Derive From Mnemonic</button>
+                                   <button type="button" (click)="deriveNewWalletFromSecretNumbers(i)">Derive From Secret Numbers</button>
+                              </div>
+                              <table id="flags">
+                                   <tr>
+                                        <td>
+                                             <label for="walletName{{i}}" class="tooltip label_account" tooltip-data="Arbitrary human-readable name">Name</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="walletName{{i}}" [(ngModel)]="wallet.name" (ngModelChange)="saveWallets()" placeholder="Wallet Name" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="walletAddress{{i}}" class="tooltip label_account" tooltip-data="Identifying address">Address</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="walletAddress{{i}}" [(ngModel)]="wallet.address" (ngModelChange)="saveWallets()" placeholder="Wallet Address" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="walletSeed{{i}}" class="tooltip label_account" tooltip-data="Seed for keys">Seed</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="walletSeed{{i}}" [(ngModel)]="wallet.seed" (ngModelChange)="saveWallets()" placeholder="Wallet Seed" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="walletMnemonic{{i}}" class="tooltip label_account" tooltip-data="Mnemonic for keys">Mnemonic</label>
+                                        </td>
+                                        <td>
+                                             <textarea id="walletMnemonic{{i}}" style="width: 300px; height: 90px; background: #1a1c21; color: white; border: 1px solid white; border-radius: 8px" [(ngModel)]="wallet.mnemonic" (ngModelChange)="saveWallets()" (paste)="onPasteTrim($event, i)" placeholder="Wallet Mnemonic" rows="3" wrap="soft"></textarea>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="walletSecretNumbers{{i}}" class="tooltip label_account" tooltip-data="Secret numbers for keys">Secret Numbers</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="walletSecretNumbers{{i}}" [(ngModel)]="wallet.secretNumbers" (ngModelChange)="saveWallets()" placeholder="Wallet Secret Numbers" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="walletEncryptionAlgorithm{{i}}" class="tooltip label_account" tooltip-data="Encryption Algorithm for wallet">Algorithm</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="walletEncryptionAlgorithm{{i}}" [(ngModel)]="wallet.encryptionAlgorithm" (ngModelChange)="saveWallets()" placeholder="Wallet Encryption algorithm" />
+                                        </td>
+                                   </tr>
+                              </table>
+                              <button type="button" (click)="removeWallet(i)" *ngIf="wallets.length > 1">Remove Wallet</button>
+                         </fieldset>
+                    </details>
+               </div>
+          </div>
+     </fieldset>
+</details>
