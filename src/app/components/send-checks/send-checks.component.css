@@ -413,7 +413,8 @@ label.switch {
 #destinationFields,
 #currencyField,
 #escrowFinishTimeUnit,
-#escrowCancelTimeUnit {
+#escrowCancelTimeUnit,
+#checkExpirationTime {
      background-color: #1a1c21;
      border-radius: 10px;
      margin-bottom: 10px;
