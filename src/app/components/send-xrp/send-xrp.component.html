@@ -325,6 +325,13 @@
                                    </span>
                               </td>
                               <td>
+                                   <!-- <div class="selection-mode">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
+                                             Multiple Selection
+                                        </label>
+                                   </div> -->
+
                                    <div *ngIf="multiSelectMode; else singleSelect">
                                         <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
                                              <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>

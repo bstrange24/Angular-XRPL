@@ -1,10 +1,4 @@
 import { OnInit, AfterViewInit, Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef, ViewEncapsulation } from '@angular/core';
-import { MatSortModule } from '@angular/material/sort';
-import { MatPaginatorModule } from '@angular/material/paginator';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatTableModule } from '@angular/material/table';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
@@ -19,7 +13,6 @@ import { RenderUiComponentsService } from '../../services/render-ui-components/r
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
-     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
      senderAddress?: string;
      account_info?: any;
      seed?: string;
@@ -56,7 +49,7 @@ interface SignerEntry {
 @Component({
      selector: 'app-account',
      standalone: true,
-     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe, MatAutocompleteModule, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './send-xrp.component.html',
      styleUrl: './send-xrp.component.css',
      encapsulation: ViewEncapsulation.None,
@@ -103,17 +96,14 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      destinationFields: string = '';
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-
-     // New for dynamic wallets
+     // Dynamic wallets
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService) {}
 
-     ngOnInit() {
-          // Removed knownDestinations loading - now dynamic from wallets
-     }
+     ngOnInit() {}
 
      ngAfterViewInit() {
           (async () => {
@@ -222,17 +212,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           try {
                this.updateSpinnerMessage('Getting Account Details ...');
 
-               // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Phase 2: Fetch account info + objects in PARALLEL
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
@@ -240,11 +225,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                }
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`account objects:`, accountObjects.result);
 
                // CRITICAL: Sort based on Ledger Entry Type and render immediately
                const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
+               // CRITICAL: Render immediately
                this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
@@ -264,7 +250,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                }, 0);
           } catch (error: any) {
                console.error('Error in getAccountDetails:', error);
-               this.setError(error.message || 'Unknown error');
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -286,8 +272,8 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                sourceTag: this.sourceTagField,
                invoiceId: this.invoiceIdField,
                isRegularKeyAddress: this.isRegularKeyAddress,
-               regularKeyAddress: this.regularKeyAddress || undefined,
-               regularKeySeed: this.regularKeySeed || undefined,
+               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
+               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
                useMultiSign: this.useMultiSign,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
@@ -305,7 +291,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: Fetch account info + calculate fee + ledger index in PARALLEL
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -332,28 +317,17 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                // Optional fields
                await this.setTxOptionalFields(client, paymentTx, wallet, accountInfo);
 
+               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, paymentTx, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending XRP (no funds will be moved)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, paymentTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         simulation['result'].errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, paymentTx);
                } else {
-                    // PHASE 3: Get regular key wallet (if needed)
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                     // Sign transaction
@@ -363,29 +337,28 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         response.result.errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    response.result.errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               // Render result
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
-                    // PARALLELIZE
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    //DEFER: Non-critical UI updates (skip for simulation)
+                    // DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -542,6 +515,8 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           } else {
                this.multiSigningEnabled = false;
           }
+
+          this.clearFields(false);
      }
 
      private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
@@ -600,6 +575,13 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                return null;
           };
 
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
+               if (sender && receiver && sender === receiver) {
+                    return `Sender and receiver cannot be the same`;
+               }
+               return null;
+          };
+
           const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
                // Skip number validation if value is empty — required() will handle it
                if (shouldSkipNumericValidation(value) || (allowEmpty && value === '')) return null;
@@ -626,12 +608,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                return null;
           };
 
-          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
-               if (sender && receiver && sender === receiver) {
-                    return `Sender and receiver cannot be the same`;
-               }
-               return null;
-          };
 
           const isValidInvoiceId = (value: string | undefined): string | null => {
                if (value && !this.utilsService.validateInput(value)) {
@@ -744,9 +720,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           }
 
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
-          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') {
-               errors.push(regAddrErr);
-          }
+          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);

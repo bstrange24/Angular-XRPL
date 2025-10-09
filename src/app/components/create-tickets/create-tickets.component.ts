@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { StorageService } from '../../services/storage.service';
 import { TransactionMetadataBase, TicketCreate } from 'xrpl';
 import * as xrpl from 'xrpl';
@@ -13,23 +12,22 @@ import { AppConstants } from '../../core/app.constants';
 import { BatchService } from '../../services/batch/batch-service.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
+import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
-     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
-     senderAddress?: string;
      seed?: string;
      account_info?: any;
      isRegularKeyAddress?: boolean;
-     useMultiSign?: boolean;
-     isTicket?: boolean;
-     ticketCount?: string;
-     ticketSequence?: string;
-     selectedSingleTicket?: string;
-     selectedTicket?: string;
-     multiSignAddresses?: string;
-     multiSignSeeds?: string;
      regularKeyAddress?: string;
      regularKeySeed?: string;
+     useMultiSign?: boolean;
+     multiSignSeeds?: string;
+     multiSignAddresses?: string;
+     isTicket?: boolean;
+     ticketCount?: string;
+     deleteTicketSequence?: string;
+     selectedSingleTicket?: string;
+     selectedTicket?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
 }
@@ -49,14 +47,13 @@ interface SignerEntry {
 @Component({
      selector: 'app-create-tickets',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './create-tickets.component.html',
      styleUrl: './create-tickets.component.css',
 })
 export class CreateTicketsComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
      private lastResult: string = '';
      transactionInput: string = '';
      result: string = '';
@@ -64,7 +61,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
      isSuccess: boolean = false;
      isEditable: boolean = false;
      ticketCountField: string = '';
-     ticketSequence: string = '';
+     deleteTicketSequence: string = '';
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
@@ -72,9 +69,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
      selectedSingleTicket: string = ''; // For single selection
      multiSelectMode: boolean = false; // Toggle between modes
      selectedTicket: string = ''; // The currently selected ticket
-     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      xrpBalance1Field: string = '';
      checkIdField: string = '';
      ownerCount: string = '';
@@ -103,7 +97,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      spinnerMessage: string = '';
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-
+     // Dynamic wallets
+     wallets: any[] = [];
+     selectedWalletIndex: number = 0;
+     currentWallet = { name: '', address: '', seed: '', balance: '' };
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly batchService: BatchService, private renderUiComponentsService: RenderUiComponentsService, private xrplTransactions: XrplTransactionService) {}
 
      ngOnInit() {}
@@ -111,11 +108,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
      ngAfterViewInit() {
           (async () => {
                try {
-                    const wallet = await this.getWallet();
-                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                    this.onAccountChange(); // Load initial
                } catch (error: any) {
-                    console.error(`No wallet could be created or is undefined ${error.message}`);
-                    return this.setError('ERROR: Wallet could not be created or is undefined');
+                    console.error(`Error loading initial wallet: ${error.message}`);
+                    this.setError('ERROR: Could not load initial wallet');
                } finally {
                     this.cdr.detectChanges();
                }
@@ -130,10 +126,11 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
-          this.account1 = { ...event.account1, balance: '0' };
-          this.account2 = { ...event.account2, balance: '0' };
-          this.issuer = { ...event.issuer, balance: '0' };
+     onWalletListChange(event: any[]) {
+          this.wallets = event;
+          if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
+               this.selectedWalletIndex = 0;
+          }
           this.onAccountChange();
      }
 
@@ -146,12 +143,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
-          };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+          if (this.wallets.length === 0) return;
+          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.getTickets();
+          } else {
+               this.setError('Invalid XRP address');
+          }
+          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -198,7 +197,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
-     toggleFlags() {}
 
      async getTickets() {
           console.log('Entering getTickets');
@@ -206,22 +204,16 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
           };
 
           try {
-               this.showSpinnerWithDelay('Getting Tickets ...', 250);
+               this.updateSpinnerMessage('Getting Tickets ...');
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Phase 2: PARALLELIZE — fetch account info + payment channels + other account objects
-               const [accountInfo, ticketObjects, allAccountObjects] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket'),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), // for refreshUiAccountObjects
-               ]);
+               const [accountInfo, ticketObjects, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket'), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: ticketObjects };
 
@@ -232,7 +224,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
-               console.debug(`account objects:`, allAccountObjects.result);
+               console.debug(`account objects:`, accountObjects.result);
                console.debug(`check objects:`, ticketObjects.result);
 
                // Prepare data for renderAccountDetails
@@ -275,22 +267,22 @@ export class CreateTicketsComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched allAccountObjects and accountInfo
-                         this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
-                         console.error('Error in deferred UI updates for payment channels:', err);
-                         // Don't break main render — payment channels are already shown
+                         console.error('Error in deferred UI updates:', err);
+                         // Don't break main flow — account details are already rendered
                     }
                }, 0);
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in getAccountDetails:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -305,8 +297,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
                ticketCount: this.ticketCountField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
@@ -315,7 +306,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               deleteTicketSequence: this.isTicket ? this.deleteTicketSequence : undefined,
                selectedTicket: this.selectedTicket,
                selectedSingleTicket: this.selectedSingleTicket,
           };
@@ -329,22 +320,20 @@ export class CreateTicketsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: Fetch account info + calculate fee + ledger index in PARALLEL
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
-
-               inputs = { ...inputs, account_info: accountInfo };
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
 
+               inputs = { ...inputs, account_info: accountInfo };
+
                const errors = this.validateInputs(inputs, 'createTicket');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // PHASE 2: Prepare base payment
                let ticketCreateTx: xrpl.TicketCreate = {
                     TransactionType: 'TicketCreate',
                     Account: wallet.classicAddress,
@@ -361,24 +350,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Ticket Creation (no funds will be moved)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, ticketCreateTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, ticketCreateTx);
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -389,31 +364,31 @@ export class CreateTicketsComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    response.result.errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               // Render result
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
-                    // PARALLELIZE
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     // DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -438,8 +413,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
                ticketCount: this.ticketCountField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
@@ -556,15 +530,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
      }
 
-     async cancelTicket() {
-          console.log('Entering cancelTicket');
+     async deleteTicket() {
+          console.log('Entering deleteTicket');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-               ticketSequence: this.ticketSequence,
+               seed: this.currentWallet.seed,
+               deleteTicketSequence: this.deleteTicketSequence,
                selectedTicket: this.selectedTicket,
                selectedSingleTicket: this.selectedSingleTicket,
           };
@@ -578,7 +551,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: Fetch account info + calculate fee + ledger index in PARALLEL
                const [accountInfo, ticketObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                inputs = { ...inputs, account_info: ticketObjects };
@@ -589,20 +561,20 @@ export class CreateTicketsComponent implements AfterViewChecked {
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
 
-               const errors = this.validateInputs(inputs, 'cancelTicket');
+               const errors = this.validateInputs(inputs, 'deleteTicket');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               const ticketExists = ticketObjects.result.account_objects.some((ticket: any) => ticket.TicketSequence === Number(this.ticketSequence));
+               const ticketExists = ticketObjects.result.account_objects.some((ticket: any) => ticket.TicketSequence === Number(this.deleteTicketSequence));
                if (!ticketExists) {
-                    return this.setError(`Ticket ${this.ticketSequence} does not exist for account ${wallet.classicAddress}`);
+                    return this.setError(`Ticket ${this.deleteTicketSequence} does not exist for account ${wallet.classicAddress}`);
                }
 
                let accountSetTx: xrpl.AccountSet = {
                     TransactionType: 'AccountSet',
                     Account: wallet.classicAddress,
-                    TicketSequence: Number(this.ticketSequence),
+                    TicketSequence: Number(this.deleteTicketSequence),
                     Sequence: 0,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -616,24 +588,10 @@ export class CreateTicketsComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Canceling ticket (no funds will be moved)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
@@ -644,25 +602,25 @@ export class CreateTicketsComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    response.result.errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               // Render result
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
-                    // PARALLELIZE
+               // ONLY refresh after REAL transaction
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
@@ -678,12 +636,12 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error in cancelTicket:', error);
+               console.error('Error in deleteTicket:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving cancelTicket in ${this.executionTime}ms`);
+               console.log(`Leaving deleteTicket in ${this.executionTime}ms`);
           }
      }
 
@@ -774,7 +732,7 @@ export class CreateTicketsComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          this.account1.balance = balance.toString();
+          this.currentWallet.balance = balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
@@ -942,16 +900,16 @@ export class CreateTicketsComponent implements AfterViewChecked {
           // Action-specific config: required fields and custom rules
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
                getTickets: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                },
                createTicket: {
-                    required: ['selectedAccount', 'seed', 'ticketCount'],
+                    required: ['seed', 'ticketCount'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.ticketCount, 'Ticket count', 0)],
                },
-               cancelTicket: {
-                    required: ['selectedAccount', 'seed', 'ticketSequence'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.ticketSequence, 'Ticket sequence', 0)],
+               deleteTicket: {
+                    required: ['seed', 'deleteTicketSequence'],
+                    customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.deleteTicketSequence, 'Ticket sequence', 0)],
                },
                default: { required: [], customValidators: [] },
           };
@@ -974,23 +932,21 @@ export class CreateTicketsComponent implements AfterViewChecked {
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
 
+          if (errors.length === 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
+
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
           if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
 
-          // Selected account check (common to most)
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
-          }
-
           return errors;
      }
 
      setBatchMode(mode: 'allOrNothing' | 'onlyOne' | 'untilFailure' | 'independent') {
           this.batchMode = mode;
-          this.toggleFlags(); // optional: update your XRPL batch flags
      }
 
      setBatchFlags() {
@@ -1015,9 +971,9 @@ export class CreateTicketsComponent implements AfterViewChecked {
           return flags;
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const seed = this.currentWallet.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
@@ -1025,72 +981,20 @@ export class CreateTicketsComponent implements AfterViewChecked {
           return wallet;
      }
 
-     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const isIssuer = accountKey === 'issuer';
-          const prefix = isIssuer ? 'issuer' : accountKey;
-
-          // Define casing differences in keys
-          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
-
-          // Fetch stored values
-          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
-          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
-          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
-
-          // Update account object
-          const accountMap = {
-               account1: this.account1,
-               account2: this.account2,
-               issuer: this.issuer,
-          };
-          const account = accountMap[accountKey];
-          account.name = name;
-          account.address = address;
-          account.seed = seed;
-
-          // DOM manipulation (map field IDs instead of repeating)
-          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
-               name: 'accountName1Field',
-               address: 'accountAddress1Field',
-               seed: 'accountSeed1Field',
-          };
-
-          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
-               const el = document.getElementById(id) as HTMLInputElement | null;
-               if (el) el.value = account[key];
-          });
-
-          this.cdr.detectChanges(); // sync with ngModel
-
-          // Fetch account details
-          try {
-               if (address && xrpl.isValidAddress(address)) {
-                    await this.getTickets();
-               } else if (address) {
-                    this.setError('Invalid XRP address');
-               }
-          } catch (error: any) {
-               this.setError(`Error fetching account details: ${error.message}`);
-          }
-     }
-
-     async displayDataForAccount1() {
-          this.displayDataForAccount('account1');
-     }
-
-     async displayDataForAccount2() {
-          this.displayDataForAccount('account2');
-     }
-
-     private displayDataForAccount3() {
-          this.displayDataForAccount('issuer');
-     }
-
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
+               this.isSimulateEnabled = false;
+               this.useMultiSign = false;
+               this.isRegularKeyAddress = false;
+               this.deleteTicketSequence = '';
           }
-          this.memoField = '';
+
+          this.isTicketEnabled = false;
+          this.isTicket = false;
+          this.selectedTicket = '';
           this.ticketCountField = '';
+          this.isMemoEnabled = false;
+          this.memoField = '';
           this.cdr.detectChanges();
      }
 
@@ -1106,13 +1010,13 @@ export class CreateTicketsComponent implements AfterViewChecked {
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message); // For debugging
+          console.log('Spinner message updated:', message);
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      private setErrorProperties() {
