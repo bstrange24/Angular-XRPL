@@ -155,6 +155,16 @@ summary::marker {
      color: white;
 }
 
+#selectedWalletField,
+#destinationFields,
+#currencyField {
+     background-color: #1a1c21;
+     border-radius: 10px;
+     margin-bottom: 10px;
+     height: 28px;
+     border: 1px solid white;
+}
+
 th.mat-header-cell,
 td.mat-cell,
 td.mat-footer-cell {

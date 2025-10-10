@@ -13,7 +13,6 @@ import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatPaginator, MatPaginatorModule } from '@angular/material/paginator';
 import { MatSort, MatSortModule } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
@@ -122,7 +121,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      holderField: string = '';
      ticketSequence: string = '';
      isTicket: boolean = false;
-     isTicketEnabled = false;
+     isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
      selectedTickets: string[] = []; // For multiple selection
      selectedSingleTicket: string = ''; // For single selection
@@ -311,7 +310,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.showSpinnerWithDelay('Getting AMM Pool Info...', 200);
+               this.resultField.nativeElement.innerHTML = '';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               this.updateSpinnerMessage(`Getting AMM Pool Info (${mode})...`);
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
