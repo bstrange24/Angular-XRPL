@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
@@ -10,12 +10,13 @@ import { flagNames } from 'flagnames';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
+import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
-     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     selectedAccount?: string;
+     senderAddress?: string;
      seed?: string;
      account_info?: any;
      destination?: string;
@@ -29,7 +30,8 @@ interface ValidationInputs {
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
-     ticketSequence?: string;
+     selectedSingleTicket?: string;
+     selectedTicket?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
 }
@@ -66,13 +68,13 @@ interface PermissionedDomainInfo {
 @Component({
      selector: 'app-permissioned-domain',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './permissioned-domain.component.html',
      styleUrl: './permissioned-domain.component.css',
 })
 export class PermissionedDomainComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1'; // Initialize to 'account1' for default selection
+     @ViewChild('accountForm') accountForm!: NgForm;
      private lastResult: string = '';
      result: string = '';
      isError: boolean = false;
@@ -81,9 +83,12 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
-     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
+     ticketArray: string[] = [];
+     selectedTickets: string[] = []; // For multiple selection
+     selectedSingleTicket: string = ''; // For single selection
+     multiSelectMode: boolean = false; // Toggle between modes
+     selectedTicket: string = ''; // The currently selected ticket
+     selectedAccount: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -132,6 +137,10 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      private knownDestinations: { [key: string]: string } = {};
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
+     // Dynamic wallets
+     wallets: any[] = [];
+     selectedWalletIndex: number = 0;
+     currentWallet = { name: '', address: '', seed: '', balance: '' };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -143,19 +152,17 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           }
      }
 
-     async ngAfterViewInit() {
-          try {
-               const wallet = await this.getWallet();
-               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-               this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-               this.updateDestinations();
-               this.credential.subject.destinationAddress = this.issuer.address;
-          } catch (error: any) {
-               console.log(`ERROR: Wallet could not be created or is undefined ${error.message}`);
-               return this.setError('ERROR: Wallet could not be created or is undefined');
-          } finally {
-               this.cdr.detectChanges();
-          }
+     ngAfterViewInit() {
+          (async () => {
+               try {
+                    this.onAccountChange(); // Load initial
+               } catch (error: any) {
+                    console.error(`Error loading initial wallet: ${error.message}`);
+                    this.setError('ERROR: Could not load initial wallet');
+               } finally {
+                    this.cdr.detectChanges();
+               }
+          })();
      }
 
      ngAfterViewChecked() {
@@ -166,10 +173,12 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
-          this.account1 = { ...event.account1, balance: '0' };
-          this.account2 = { ...event.account2, balance: '0' };
-          this.issuer = { ...event.issuer, balance: '0' };
+     onWalletListChange(event: any[]) {
+          this.wallets = event;
+          if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
+               this.selectedWalletIndex = 0;
+          }
+          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -182,12 +191,15 @@ export class PermissionedDomainComponent implements AfterViewChecked {
      }
 
      onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
-          };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+          if (this.wallets.length === 0) return;
+          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          this.updateDestinations();
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.getPermissionedDomainForAccount();
+          } else if (this.currentWallet.address) {
+               this.setError('Invalid XRP address');
+          }
+          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -225,14 +237,22 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     onTicketToggle(event: any, ticket: string) {
+          if (event.target.checked) {
+               // Add to selection
+               this.selectedTickets = [...this.selectedTickets, ticket];
+          } else {
+               // Remove from selection
+               this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
+          }
+     }
      async getPermissionedDomainForAccount() {
           console.log('Entering getPermissionedDomainForAccount');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
           };
 
           try {
@@ -316,18 +336,20 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
-               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-               this.refreshUiAccountInfo(accountInfo);
-
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
+                         // Use pre-fetched allAccountObjects and accountInfo
+                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
+                         this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
+                         this.clearFields(false);
                     } catch (err) {
-                         console.error('Error in deferred UI updates for credentials:', err);
-                         // Don't break main render — credentials are already shown
+                         console.error('Error in deferred UI updates for payment channels:', err);
+                         // Don't break main render — payment channels are already shown
                     }
                }, 0);
           } catch (error: any) {
@@ -346,8 +368,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               selectedAccount: this.currentWallet.address,
+               seed: this.currentWallet.seed,
                destination: this.credential.subject.destinationAddress,
                credentialType: this.credential.credential_type,
                isRegularKeyAddress: this.isRegularKeyAddress,
@@ -357,7 +379,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -504,7 +527,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
 
           let inputs: ValidationInputs = {
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ?? '', this.account1, this.account2, this.issuer),
+               seed: this.currentWallet.seed,
                domainId: this.domainId,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
@@ -512,7 +535,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
@@ -641,6 +665,7 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                               try {
                                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                                    this.clearFields(false);
+                                   this.updateTickets(updatedAccountObjects);
                                    await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                               } catch (err) {
                                    console.error('Error in post-tx cleanup:', err);
@@ -667,6 +692,31 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           }
      }
 
+     private async setTxOptionalFields(client: xrpl.Client, checkTx: any, wallet: xrpl.Wallet, accountInfo: any, checkExpiration: any, txType: string) {
+          if (txType === 'create') {
+               if (checkExpiration && checkExpiration != '') {
+                    this.utilsService.setExpiration(checkTx, Number(checkExpiration));
+               }
+          }
+
+          if (this.selectedSingleTicket) {
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+               if (!ticketExists) {
+                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+               }
+               this.utilsService.setTicketSequence(checkTx, this.selectedSingleTicket, true);
+          } else {
+               if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                    console.log('Setting multiple tickets:', this.selectedTickets);
+                    this.utilsService.setTicketSequence(checkTx, accountInfo.result.account_data.Sequence, false);
+               }
+          }
+
+          if (this.memoField) {
+               this.utilsService.setMemoField(checkTx, this.memoField);
+          }
+     }
+
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
           console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
           console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
@@ -682,7 +732,8 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
                               if (entry.SignerEntry?.Account) {
-                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
+                                   const weight = entry.SignerEntry.SignerWeight ?? '';
+                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
                          });
@@ -692,17 +743,57 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(client: xrpl.Client, accountInfo: any, wallet: xrpl.Wallet) {
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          const getAccountTickets: string[] = [];
+          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+               accountObjects.result.account_objects.forEach(obj => {
+                    if (obj.LedgerEntryType === 'Ticket') {
+                         getAccountTickets.push(obj.TicketSequence.toString());
+                    }
+               });
+          }
+          return getAccountTickets;
+     }
+
+     private cleanUpSingleSelection() {
+          // Check if selected ticket still exists in available tickets
+          if (this.selectedSingleTicket && !this.ticketArray.includes(this.selectedSingleTicket)) {
+               this.selectedSingleTicket = ''; // Reset to "Select a ticket"
+          }
+     }
+
+     private cleanUpMultiSelection() {
+          // Filter out any selected tickets that no longer exist
+          this.selectedTickets = this.selectedTickets.filter(ticket => this.ticketArray.includes(ticket));
+     }
+
+     updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+
+          // Clean up selections based on current mode
+          if (this.multiSelectMode) {
+               this.cleanUpMultiSelection();
+          } else {
+               this.cleanUpSingleSelection();
+          }
+     }
+
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          this.account1.balance = balance.toString();
+          this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: any, accountInfo: any, wallet: xrpl.Wallet) {
+     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          this.ticketArray = this.getAccountTickets(accountObjects);
+          if (this.ticketArray.length > 0) {
+               this.selectedTicket = this.ticketArray[0];
+          }
+
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -728,22 +819,23 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-               this.useMultiSign = true; // Force to true if master key is disabled
-          } else {
-               this.useMultiSign = false;
-          }
+          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          //      this.useMultiSign = true; // Force to true if master key is disabled
+          // } else {
+          //      this.useMultiSign = false;
+          // }
 
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
                this.multiSigningEnabled = false;
           }
+
+          this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: any) {
+     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
-
           if (regularKey) {
                this.regularKeyAddress = regularKey;
                const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
@@ -761,11 +853,11 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-               this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          } else {
-               this.isRegularKeyAddress = false;
-          }
+          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          // } else {
+          //      this.isRegularKeyAddress = false;
+          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;
@@ -845,18 +937,18 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           // Action-specific config: required fields and custom rules
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
                getPermissionedDomainForAccount: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                },
                setPermissionedDomain: {
-                    required: ['selectedAccount', 'seed', 'destination', 'credentialType'],
+                    required: ['seed', 'destination', 'credentialType'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidXrpAddress(inputs.destination, 'Destination address'),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -865,13 +957,13 @@ export class PermissionedDomainComponent implements AfterViewChecked {
                     ],
                },
                deletePermissionedDomain: {
-                    required: ['selectedAccount', 'seed', 'domainId'],
+                    required: ['seed', 'domainId'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -906,89 +998,25 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
 
-          // Selected account check (common to most)
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
-          }
-
           return errors;
      }
 
-     private updateDestinations() {
-          // this.destinations = [...Object.values(this.knownDestinations)];
-          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '');
-          this.storageService.setKnownIssuers('destinations', this.knownDestinations);
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => w.address);
+          if (this.destinations.length > 0 && !this.destinationFields) {
+               this.credential.subject.destinationAddress = this.destinations[0];
+          }
+          this.cdr.detectChanges();
      }
 
-     async getWallet() {
+     private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const seed = this.currentWallet.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
           return wallet;
-     }
-
-     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const isIssuer = accountKey === 'issuer';
-          const prefix = isIssuer ? 'issuer' : accountKey;
-
-          // Define casing differences in keys
-          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
-
-          // Fetch stored values
-          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
-          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
-          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
-
-          // Update account object
-          const accountMap = {
-               account1: this.account1,
-               account2: this.account2,
-               issuer: this.issuer,
-          };
-          const account = accountMap[accountKey];
-          account.name = name;
-          account.address = address;
-          account.seed = seed;
-
-          // DOM manipulation (map field IDs instead of repeating)
-          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
-               name: 'accountName1Field',
-               address: 'accountAddress1Field',
-               seed: 'accountSeed1Field',
-          };
-
-          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
-               const el = document.getElementById(id) as HTMLInputElement | null;
-               if (el) el.value = account[key];
-          });
-
-          this.cdr.detectChanges(); // sync with ngModel
-
-          // Fetch account details
-          try {
-               if (address && xrpl.isValidAddress(address)) {
-                    await this.getPermissionedDomainForAccount();
-               } else if (address) {
-                    this.setError('Invalid XRP address');
-               }
-          } catch (error: any) {
-               this.setError(`Error fetching account details: ${error.message}`);
-          }
-     }
-
-     private async displayDataForAccount1() {
-          await this.displayDataForAccount('account1');
-     }
-
-     private async displayDataForAccount2() {
-          await this.displayDataForAccount('account2');
-     }
-
-     private async displayDataForAccount3() {
-          await this.displayDataForAccount('issuer');
      }
 
      clearFields(clearAllFields: boolean) {
