@@ -186,6 +186,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      maxSellablePhnix: string = '';
      phnixCurrencyCode: string = '';
      insufficientLiquidityWarning: boolean = false;
+     showManageTokens = false;
      slippage: number = 0.2357; // Default to 23.57%
      tokens$: Observable<{ transactionType: string; action: string; amountXrp: string; amountToken: string; currency: string; issuer: string; transactionHash: string; timestamp: Date; createdDate: Date; creationAge: string }[]>;
      private memeTokensSubject = new BehaviorSubject<{ transactionType: string; action: string; amountXrp: string; amountToken: string; currency: string; issuer: string; transactionHash: string; timestamp: Date; createdDate: Date; creationAge: string }[]>([]);

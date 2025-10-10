@@ -270,7 +270,40 @@
 
                     <div class="button-container">
                          <table style="text-align: left; width: 100%">
-                              <fieldset style="width: 50%">
+                              <tr>
+                                   <td colspan="2" style="display: flex; align-items: center; gap: 10px; margin-left: 20px">
+                                        <label>Show Manage Tokens</label>
+                                        <label class="switch">
+                                             <input type="checkbox" [(ngModel)]="showManageTokens" name="showManageTokens" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+
+                              <tr *ngIf="showManageTokens">
+                                   <td colspan="2">
+                                        <fieldset style="width: 50%">
+                                             <legend style="color: white">Manage Tokens</legend>
+
+                                             <div style="margin-bottom: 10px">
+                                                  <label>Add Token: </label>
+                                                  <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
+                                                  <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
+                                                  <button type="button" (click)="addToken()">Add</button>
+                                             </div>
+
+                                             <div>
+                                                  <label>Remove Token: </label>
+                                                  <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                                                       <option value="">Select a token</option>
+                                                       <option *ngFor="let curr of currencies" [value]="curr">{{ curr }}</option>
+                                                  </select>
+                                                  <button type="button" (click)="removeToken()">Remove</button>
+                                             </div>
+                                        </fieldset>
+                                   </td>
+                              </tr>
+                              <!-- <fieldset style="width: 50%">
                                    <legend style="color: white">Manage Tokens</legend>
                                    <div style="margin-bottom: 10px">
                                         <label>Add Token: </label>
@@ -286,7 +319,7 @@
                                         </select>
                                         <button type="button" (click)="removeToken()">Remove</button>
                                    </div>
-                              </fieldset>
+                              </fieldset> -->
                               <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <button type="button" (click)="getOffers()">Get Offers</button>

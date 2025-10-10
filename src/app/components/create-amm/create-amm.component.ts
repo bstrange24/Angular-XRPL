@@ -155,6 +155,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      insufficientLiquidityWarning: boolean = false;
+     showManageTokens = false;
      lpTokenBalanceField: string = '0'; // LP Token balance field
      tradingFeeField: string = '0.1';
      withdrawlLpTokenFromPoolField: string = '';

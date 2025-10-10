@@ -111,7 +111,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="withdrawlLpTokenFromPoolField" size="42" [(ngModel)]="withdrawlLpTokenFromPoolField" name="withdrawlLpTokenFromPoolField" />
+                                        <input type="text" id="withdrawlLpTokenFromPoolField" [(ngModel)]="withdrawlLpTokenFromPoolField" name="withdrawlLpTokenFromPoolField" />
                                    </td>
                               </tr>
                          </table>
@@ -149,7 +149,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                                        <input type="text" id="weWantIssuerField" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
                                    </td>
                               </tr>
                               <tr>
@@ -159,7 +159,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                                        <input type="text" id="weWantAmountField" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
                                    </td>
                               </tr>
                               <tr>
@@ -169,7 +169,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
+                                        <input type="text" id="weWantTokenBalanceField" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
                                    </td>
                               </tr>
                               <br />
@@ -180,7 +180,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="assetPool1Balance" [(ngModel)]="assetPool1Balance" name="assetPool1Balance" size="42" />
+                                        <input type="text" id="assetPool1Balance" [(ngModel)]="assetPool1Balance" name="assetPool1Balance" />
                                    </td>
                               </tr>
                               <tr>
@@ -190,7 +190,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" [(ngModel)]="tradingFeeField" placeholder="Example: 500 is 0.05%" name="tradingFeeField" id="tradingFeeField" size="42" />
+                                        <input type="text" [(ngModel)]="tradingFeeField" placeholder="Example: 500 is 0.05%" name="tradingFeeField" id="tradingFeeField" />
                                    </td>
                               </tr>
                               <tr>
@@ -274,7 +274,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                                        <input type="text" id="weSpendIssuerField" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
                                    </td>
                               </tr>
                               <tr>
@@ -284,7 +284,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                                        <input type="text" id="weSpendAmountField" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
                                    </td>
                               </tr>
                               <tr>
@@ -294,7 +294,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
+                                        <input type="text" id="weSpendTokenBalanceField" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
                                    </td>
                               </tr>
                               <br />
@@ -305,7 +305,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="assetPool2Balance" id="assetPool2Balance" [(ngModel)]="assetPool2Balance" name="assetPool2Balance" size="42" />
+                                        <input type="text" id="assetPool2Balance" id="assetPool2Balance" [(ngModel)]="assetPool2Balance" name="assetPool2Balance" />
                                    </td>
                               </tr>
                               <tr>
@@ -334,7 +334,40 @@
 
                     <div class="button-container">
                          <table style="text-align: left; width: 100%">
-                              <fieldset style="width: 50%">
+                              <tr>
+                                   <td colspan="2" style="display: flex; align-items: center; gap: 10px; margin-left: 20px">
+                                        <label>Show Manage Tokens</label>
+                                        <label class="switch">
+                                             <input type="checkbox" [(ngModel)]="showManageTokens" name="showManageTokens" />
+                                             <span class="slider round"></span>
+                                        </label>
+                                   </td>
+                              </tr>
+
+                              <tr *ngIf="showManageTokens">
+                                   <td colspan="2">
+                                        <fieldset style="width: 50%">
+                                             <legend style="color: white">Manage Tokens</legend>
+
+                                             <div style="margin-bottom: 10px">
+                                                  <label>Add Token: </label>
+                                                  <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
+                                                  <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
+                                                  <button type="button" (click)="addToken()">Add</button>
+                                             </div>
+
+                                             <div>
+                                                  <label>Remove Token: </label>
+                                                  <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
+                                                       <option value="">Select a token</option>
+                                                       <option *ngFor="let curr of currencies" [value]="curr">{{ curr }}</option>
+                                                  </select>
+                                                  <button type="button" (click)="removeToken()">Remove</button>
+                                             </div>
+                                        </fieldset>
+                                   </td>
+                              </tr>
+                              <!-- <fieldset style="width: 50%">
                                    <legend style="color: white">Manage Tokens</legend>
                                    <div style="margin-bottom: 10px">
                                         <label>Add Token: </label>
@@ -350,7 +383,7 @@
                                         </select>
                                         <button type="button" (click)="removeToken()">Remove</button>
                                    </div>
-                              </fieldset>
+                              </fieldset> -->
                               <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <button type="button" (click)="getAMMPoolInfo()">Get AMM Pool Info</button>
@@ -599,7 +632,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAddress" size="41" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
+                                   <input type="text" id="regularKeyAddress" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
                               </td>
                          </tr>
                          <tr class="" *ngIf="isRegularKeyAddress">
@@ -609,7 +642,7 @@
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeySeed" size="41" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
+                                   <input type="text" id="regularKeySeed" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
                          </tr>
                          <tr>
