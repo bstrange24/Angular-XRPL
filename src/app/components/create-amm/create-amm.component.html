@@ -2,323 +2,335 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event)"></app-wallet-multi-input>
+     <app-app-wallet-dynamic-input (walletListChange)="onWalletListChange($event)" (transactionResult)="handleTransactionResult($event)"></app-app-wallet-dynamic-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
 
           <div class="transaction-layout">
-               <div class="left-column">
-                    <div class="flags-layout">
-                         <table id="flags">
-                              <th></th>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                                             <label for="accountName1Field">Name</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="accountName1Field" [(ngModel)]="account1.name" name="accountName1Field" />
-                                        <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="account1">Account 1</label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                                             <label for="accountAddress1Field">Address</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="accountAddress1Field" [(ngModel)]="account1.address" name="accountAddress1Field" />
-                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="account2">Account 2</label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                                             <label for="accountSeed1Field">Seed</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="accountSeed1Field" [(ngModel)]="account1.seed" name="accountSeed1Field" />
-                                        <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="accountIssuer">Account 3</label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                                             <label for="xrpBalance1Field">Spendable XRP Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="xrpBalance1Field" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
-                                             <label for="ownerCountField">Owner Count</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="ownerCountField" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
-                                             <label for="totalXrpReservesField">Total XRP Reserves</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="totalXrpReservesField" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
-                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="totalExecutionTime" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="LP Token Balance.">
-                                             <label for="lpTokenBalanceField">LP Token Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="lpTokenBalanceField" size="42" [(ngModel)]="lpTokenBalanceField" readonly name="lpTokenBalanceField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amount of LP Token(s) to withdrawl from pool.">
-                                             <label for="withdrawlLpTokenFromPoolField">Withdrawl LP Token From Pool</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="withdrawlLpTokenFromPoolField" size="42" [(ngModel)]="withdrawlLpTokenFromPoolField" name="withdrawlLpTokenFromPoolField" />
-                                   </td>
-                              </tr>
-                         </table>
+               <div class="top-section-left">
+                    <div class="top-sections-wrapper">
+                         <div class="top-section-left">
+                              <table id="accountSelection">
+                                   <th></th>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Select the account to use for the transaction.">
+                                                  <label for="selectedWalletField">Select Account</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select id="selectedWalletField" class="dropdownWallet" [(ngModel)]="selectedWalletIndex" (ngModelChange)="onAccountChange()" name="selectedWalletField">
+                                                  <option *ngFor="let wallet of wallets; let i = index" [value]="i">{{wallet.name || 'Wallet ' + (i+1)}} ({{wallet.address | slice:0:6}}...{{wallet.address | slice:-4}})</option>
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                                                  <label for="accountNameField">Name</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="accountNameField" [(ngModel)]="currentWallet.name" name="accountNameField" readonly />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                                                  <label for="accountAddressField">Address</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="accountAddressField" [(ngModel)]="currentWallet.address" name="accountAddressField" readonly />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                                                  <label for="accountSeedField">Seed</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="accountSeedField" [(ngModel)]="currentWallet.seed" name="accountSeedField" readonly />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                                                  <label for="xrpBalanceField">Spendable XRP Balance</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="xrpBalanceField" [(ngModel)]="currentWallet.balance" readonly name="xrpBalanceField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                                                  <label for="ownerCountField">Owner Count</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="ownerCountField" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                                                  <label for="totalXrpReservesField">Total XRP Reserves</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="totalXrpReservesField" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                                                  <label for="totalExecutionTime">Total Execution Time</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="totalExecutionTime" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="LP Token Balance.">
+                                                  <label for="lpTokenBalanceField">LP Token Balance</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="lpTokenBalanceField" size="42" [(ngModel)]="lpTokenBalanceField" readonly name="lpTokenBalanceField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amount of LP Token(s) to withdrawl from pool.">
+                                                  <label for="withdrawlLpTokenFromPoolField">Withdrawl LP Token</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="withdrawlLpTokenFromPoolField" size="42" [(ngModel)]="withdrawlLpTokenFromPoolField" name="withdrawlLpTokenFromPoolField" />
+                                        </td>
+                                   </tr>
+                              </table>
+                         </div>
 
-                         <table id="flags">
-                              <th></th>
-                              <tr>
-                                   <td style="text-align: right; padding-bottom: 10px">
-                                        <span class="tooltip" tooltip-data="Asset 1">
-                                             <label for="weWantCurrencyField">Asset 1</label>
-                                        </span>
-                                   </td>
-                                   <td style="text-align: left">
-                                        <span class="tooltip" tooltip-data="This is the first pool of assets.">
-                                             <label for="weWantCurrencyField">First pool assets</label>
-                                        </span>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
-                                             <label for="weWantCurrencyField">Currency Code</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="weWantCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()" name="currencyField">
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
-                                             <label for="weWantIssuerField">Issuer</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of offered currencies.">
-                                             <label for="weWantAmountField">Amount</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of currencies I hold">
-                                             <label for="weWantTokenBalance">Currency Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
-                                   </td>
-                              </tr>
-                              <br />
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of assets in pool 1.">
-                                             <label for="assetPool1Balance">Total Assets in Pool 1</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="assetPool1Balance" [(ngModel)]="assetPool1Balance" name="assetPool1Balance" size="42" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Set the fee for trading this token in the AMM">
-                                             <label for="tradingFeeField">Trading Fee %</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" [(ngModel)]="tradingFeeField" placeholder="Example: 500 is 0.05%" name="tradingFeeField" id="tradingFeeField" size="42" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Select deposit option(s) for the AMM pool">
-                                             <label>Deposit Option(s)</label>
-                                        </span>
-                                   </td>
-                                   <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                        <span class="tooltip" tooltip-data="Deposit currency into both pools.">
-                                             <input type="checkbox" id="isDepositIntoBothPools" [checked]="depositOptions.bothPools" (change)="selectDepositOption('bothPools')" />
-                                             <label for="isDepositIntoBothPools">Both Pools</label>
-                                        </span>
+                         <div class="top-section-right">
+                              <table id="xrpDetails">
+                                   <th></th>
+                                   <tr>
+                                        <td style="text-align: right; padding-bottom: 10px">
+                                             <span class="tooltip" tooltip-data="Asset 1">
+                                                  <label for="weWantCurrencyField">Asset 1</label>
+                                             </span>
+                                        </td>
+                                        <td style="text-align: left">
+                                             <span class="tooltip" tooltip-data="This is the first pool of assets.">
+                                                  <label for="weWantCurrencyField">First pool assets</label>
+                                             </span>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                                                  <label for="weWantCurrencyField">Currency Code</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select class="timeUnit" id="weWantCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weWantCurrencyField" (ngModelChange)="onWeWantCurrencyChange()" name="currencyField">
+                                                  <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Issuers of the offered currencies.">
+                                                  <label for="weWantIssuerField">Issuer</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="weWantIssuerField" size="42" [(ngModel)]="weWantIssuerField" name="weWantIssuerField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                                                  <label for="weWantAmountField">Amount</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="weWantAmountField" size="42" [(ngModel)]="weWantAmountField" name="weWantAmountField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of currencies I hold">
+                                                  <label for="weWantTokenBalance">Currency Balance</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="weWantTokenBalanceField" size="42" [(ngModel)]="weWantTokenBalanceField" name="weWantTokenBalanceField" readonly />
+                                        </td>
+                                   </tr>
+                                   <br />
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of assets in pool 1.">
+                                                  <label for="assetPool1Balance">Total Assets in Pool 1</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="assetPool1Balance" [(ngModel)]="assetPool1Balance" name="assetPool1Balance" size="42" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Set the fee for trading this token in the AMM">
+                                                  <label for="tradingFeeField">Trading Fee %</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" [(ngModel)]="tradingFeeField" placeholder="Example: 500 is 0.05%" name="tradingFeeField" id="tradingFeeField" size="42" />
+                                        </td>
+                                   </tr>
+                                   <!-- <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Select deposit option(s) for the AMM pool">
+                                                  <label>Deposit Option(s)</label>
+                                             </span>
+                                        </td>
+                                        <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                             <span class="tooltip" tooltip-data="Deposit currency into both pools.">
+                                                  <input type="checkbox" id="isDepositIntoBothPools" [checked]="depositOptions.bothPools" (change)="selectDepositOption('bothPools')" />
+                                                  <label for="isDepositIntoBothPools">Both Pools</label>
+                                             </span>
 
-                                        <span class="tooltip" tooltip-data="Deposit currency into the first pool only.">
-                                             <input type="checkbox" id="isDepositIntoFirstPoolOnly" [checked]="depositOptions.firstPoolOnly" (change)="selectDepositOption('firstPoolOnly')" />
-                                             <label for="isDepositIntoFirstPoolOnly">First Pool Only</label>
-                                        </span>
+                                             <span class="tooltip" tooltip-data="Deposit currency into the first pool only.">
+                                                  <input type="checkbox" id="isDepositIntoFirstPoolOnly" [checked]="depositOptions.firstPoolOnly" (change)="selectDepositOption('firstPoolOnly')" />
+                                                  <label for="isDepositIntoFirstPoolOnly">First Pool Only</label>
+                                             </span>
 
-                                        <span class="tooltip" tooltip-data="Deposit currency into the second pool only.">
-                                             <input type="checkbox" id="isDepositIntoSecondPoolOnly" [checked]="depositOptions.secondPoolOnly" (change)="selectDepositOption('secondPoolOnly')" />
-                                             <label for="isDepositIntoSecondPoolOnly">Second Pool Only</label>
-                                        </span>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Select withdrawal option(s) for the AMM pool">
-                                             <label>Withdrawal Option(s)</label>
-                                        </span>
-                                   </td>
-                                   <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                        <span class="tooltip" tooltip-data="Withdraw currency from both pools.">
-                                             <input type="checkbox" id="isWithdrawFromBothPools" [checked]="withdrawOptions.bothPools" (change)="selectWithdrawOption('bothPools')" />
-                                             <label for="isWithdrawFromBothPools">Both Pools</label>
-                                        </span>
+                                             <span class="tooltip" tooltip-data="Deposit currency into the second pool only.">
+                                                  <input type="checkbox" id="isDepositIntoSecondPoolOnly" [checked]="depositOptions.secondPoolOnly" (change)="selectDepositOption('secondPoolOnly')" />
+                                                  <label for="isDepositIntoSecondPoolOnly">Second Pool Only</label>
+                                             </span>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Select withdrawal option(s) for the AMM pool">
+                                                  <label>Withdrawal Option(s)</label>
+                                             </span>
+                                        </td>
+                                        <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                             <span class="tooltip" tooltip-data="Withdraw currency from both pools.">
+                                                  <input type="checkbox" id="isWithdrawFromBothPools" [checked]="withdrawOptions.bothPools" (change)="selectWithdrawOption('bothPools')" />
+                                                  <label for="isWithdrawFromBothPools">Both Pools</label>
+                                             </span>
 
-                                        <span class="tooltip" tooltip-data="Withdraw currency from the first pool only.">
-                                             <input type="checkbox" id="isWithdrawFromFirstPoolOnly" [checked]="withdrawOptions.firstPoolOnly" (change)="selectWithdrawOption('firstPoolOnly')" />
-                                             <label for="isWithdrawFromFirstPoolOnly">First Pool Only</label>
-                                        </span>
+                                             <span class="tooltip" tooltip-data="Withdraw currency from the first pool only.">
+                                                  <input type="checkbox" id="isWithdrawFromFirstPoolOnly" [checked]="withdrawOptions.firstPoolOnly" (change)="selectWithdrawOption('firstPoolOnly')" />
+                                                  <label for="isWithdrawFromFirstPoolOnly">First Pool Only</label>
+                                             </span>
 
-                                        <span class="tooltip" tooltip-data="Withdraw currency from the second pool only.">
-                                             <input type="checkbox" id="isWithdrawFromSecondPoolOnly" [checked]="withdrawOptions.secondPoolOnly" (change)="selectWithdrawOption('secondPoolOnly')" />
-                                             <label for="isWithdrawFromSecondPoolOnly">Second Pool Only</label>
-                                        </span>
-                                   </td>
-                              </tr>
-                         </table>
+                                             <span class="tooltip" tooltip-data="Withdraw currency from the second pool only.">
+                                                  <input type="checkbox" id="isWithdrawFromSecondPoolOnly" [checked]="withdrawOptions.secondPoolOnly" (change)="selectWithdrawOption('secondPoolOnly')" />
+                                                  <label for="isWithdrawFromSecondPoolOnly">Second Pool Only</label>
+                                             </span>
+                                        </td>
+                                   </tr> -->
+                              </table>
+                         </div>
 
-                         <table id="flags">
-                              <th></th>
-                              <tr>
-                                   <td style="text-align: right; padding-bottom: 10px">
-                                        <span class="tooltip" tooltip-data="Asset 2.">
-                                             <label for="weSpendCurrencyField">Asset2</label>
-                                        </span>
-                                   </td>
-                                   <td style="text-align: left; padding-bottom: 10px">
-                                        <span class="tooltip" tooltip-data="This is the second pool of assets.">
-                                             <label for="weSpendCurrencyField">Second pool assets</label>
-                                        </span>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
-                                             <label for="weSpendCurrencyField">Currency Code</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="weSpendCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
-                                             <option *ngFor="let curr of xrpOnly" [value]="curr">{{curr}}</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Issuers of the offered pool.">
-                                             <label for="weSpendIssuerField">Issuer</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of offered currencies.">
-                                             <label for="weSpendAmountField">Amount</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
-                                             <label for="weSpendTokenBalance">Currency Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
-                                   </td>
-                              </tr>
-                              <br />
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of assets in pool 2.">
-                                             <label for="assetPool2Balance">Total Assets in Pool 2</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="assetPool2Balance" id="assetPool2Balance" [(ngModel)]="assetPool2Balance" name="assetPool2Balance" size="42" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <label for="destinationTagField">Destination Tag</label>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <label for="holderField">Holder</label>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="holderField" [(ngModel)]="holderField" name="holderField" />
-                                   </td>
-                              </tr>
-                         </table>
+                         <div class="top-section-right">
+                              <table id="xrpDetails">
+                                   <th></th>
+                                   <tr>
+                                        <td style="text-align: right; padding-bottom: 10px">
+                                             <span class="tooltip" tooltip-data="Asset 2.">
+                                                  <label for="weSpendCurrencyField">Asset2</label>
+                                             </span>
+                                        </td>
+                                        <td style="text-align: left; padding-bottom: 10px">
+                                             <span class="tooltip" tooltip-data="This is the second pool of assets.">
+                                                  <label for="weSpendCurrencyField">Second pool assets</label>
+                                             </span>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Currency codes for the Pay and Get offers.">
+                                                  <label for="weSpendCurrencyField">Currency Code</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select class="timeUnit" id="weSpendCurrencyField" style="width: 302px; height: 28px" [(ngModel)]="weSpendCurrencyField" name="weSpendCurrencyField" (ngModelChange)="onWeSpendCurrencyChange()">
+                                                  <option *ngFor="let curr of xrpOnly" [value]="curr">{{curr}}</option>
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Issuers of the offered pool.">
+                                                  <label for="weSpendIssuerField">Issuer</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="weSpendIssuerField" size="42" [(ngModel)]="weSpendIssuerField" name="weSpendIssuerField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of offered currencies.">
+                                                  <label for="weSpendAmountField">Amount</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="weSpendAmountField" size="42" [(ngModel)]="weSpendAmountField" name="weSpendAmountField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of currencies I hold.">
+                                                  <label for="weSpendTokenBalance">Currency Balance</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="weSpendTokenBalanceField" size="42" [(ngModel)]="weSpendTokenBalanceField" name="weSpendTokenBalanceField" readonly />
+                                        </td>
+                                   </tr>
+                                   <br />
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of assets in pool 2.">
+                                                  <label for="assetPool2Balance">Total Assets in Pool 2</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="assetPool2Balance" id="assetPool2Balance" [(ngModel)]="assetPool2Balance" name="assetPool2Balance" size="42" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="destinationTagField">Destination Tag</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="holderField">Holder</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="holderField" [(ngModel)]="holderField" name="holderField" />
+                                        </td>
+                                   </tr>
+                              </table>
+                         </div>
                     </div>
 
                     <div class="spinner-container">
@@ -327,7 +339,7 @@
                     </div>
 
                     <div class="button-container">
-                         <table style="text-align: left; width: 100%">
+                         <table style="text-align: left; width: 75%">
                               <fieldset>
                                    <legend style="color: white">Manage Tokens</legend>
                                    <div style="margin-bottom: 10px">
@@ -362,7 +374,7 @@
                                    </td>
                               </tr>
 
-                              <details class="offer-info">
+                              <!-- <details class="offer-info">
                                    <summary>Offer Info</summary>
                                    <fieldset class="offer-fieldset">
                                         <details class="offer-subdetails">
@@ -484,14 +496,60 @@
                                              </div>
                                         </details>
                                    </fieldset>
-                              </details>
+                              </details> -->
                          </table>
                     </div>
                </div>
 
-               <div class="right-column">
-                    <table id="meta">
+               <div class="right-section">
+                    <table id="flags">
                          <th></th>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Select deposit option(s) for the AMM pool">
+                                        <label>Deposit Option(s)</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <span class="tooltip" tooltip-data="Deposit currency into both pools.">
+                                        <input type="checkbox" id="isDepositIntoBothPools" [checked]="depositOptions.bothPools" (change)="selectDepositOption('bothPools')" />
+                                        <label for="isDepositIntoBothPools">Both Pools</label>
+                                   </span>
+
+                                   <span class="tooltip" tooltip-data="Deposit currency into the first pool only.">
+                                        <input type="checkbox" id="isDepositIntoFirstPoolOnly" [checked]="depositOptions.firstPoolOnly" (change)="selectDepositOption('firstPoolOnly')" />
+                                        <label for="isDepositIntoFirstPoolOnly">First Pool Only</label>
+                                   </span>
+
+                                   <span class="tooltip" tooltip-data="Deposit currency into the second pool only.">
+                                        <input type="checkbox" id="isDepositIntoSecondPoolOnly" [checked]="depositOptions.secondPoolOnly" (change)="selectDepositOption('secondPoolOnly')" />
+                                        <label for="isDepositIntoSecondPoolOnly">Second Pool Only</label>
+                                   </span>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Select withdrawal option(s) for the AMM pool">
+                                        <label>Withdrawal Option(s)</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <span class="tooltip" tooltip-data="Withdraw currency from both pools.">
+                                        <input type="checkbox" id="isWithdrawFromBothPools" [checked]="withdrawOptions.bothPools" (change)="selectWithdrawOption('bothPools')" />
+                                        <label for="isWithdrawFromBothPools">Both Pools</label>
+                                   </span>
+
+                                   <span class="tooltip" tooltip-data="Withdraw currency from the first pool only.">
+                                        <input type="checkbox" id="isWithdrawFromFirstPoolOnly" [checked]="withdrawOptions.firstPoolOnly" (change)="selectWithdrawOption('firstPoolOnly')" />
+                                        <label for="isWithdrawFromFirstPoolOnly">First Pool Only</label>
+                                   </span>
+
+                                   <span class="tooltip" tooltip-data="Withdraw currency from the second pool only.">
+                                        <input type="checkbox" id="isWithdrawFromSecondPoolOnly" [checked]="withdrawOptions.secondPoolOnly" (change)="selectWithdrawOption('secondPoolOnly')" />
+                                        <label for="isWithdrawFromSecondPoolOnly">Second Pool Only</label>
+                                   </span>
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">
@@ -506,11 +564,9 @@
                                    <label for="isMemoEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" *ngIf="isMemoEnabled">
+                         <tr class="" *ngIf="isMemoEnabled">
                               <td>
-                                   <span class="tooltip" tooltip-data="">
-                                        <label for="memoField"></label>
-                                   </span>
+                                   <label for="memoField"></label>
                               </td>
                               <td>
                                    <textarea class="memoField" style="width: 300px; height: 100px" id="memoField" placeholder="Seperate multiple memos by a comma." [(ngModel)]="memoField" name="memoField"></textarea>
@@ -519,13 +575,13 @@
                          <tr>
                               <td></td>
                               <td *ngIf="masterKeyDisabled">
-                                   <label style="color: red">Master Key is disabled. Use multi-sign or regular key to sign transactions.</label>
+                                   <span [style.color]="'red'">Master Key is disabled. Use multi-sign or regular key to sign transactions.</span>
                               </td>
                          </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to update add Multi-Sign Address">
-                                        <label [ngStyle]="{'color': multiSigningEnabled ? '#4CAF50' : 'white'}">Use Multi-Sign Address</label>
+                                        <span [ngStyle]="{'color': multiSigningEnabled ? '#4CAF50' : 'white'}">Use Multi-Sign Address</span>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -540,36 +596,38 @@
                               <td></td>
                               <td>
                                    <fieldset style="border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; width: fit-content">
-                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
-                                             <td>
-                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
-                                                       <label for="multiSignAddress">Signer Addresses</label>
-                                                  </span>
-                                             </td>
-                                             <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
-                                             </td>
-                                        </tr>
-                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
-                                             <td>
-                                                  <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
-                                                       <label for="multiSignSeeds">Signer Seeds</label>
-                                                  </span>
-                                             </td>
-                                             <td>
-                                                  <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
-                                             </td>
-                                        </tr>
-                                        <tr class="multisignAddressClass" *ngIf="useMultiSign">
-                                             <td>
-                                                  <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
-                                                       <label for="quorum">Signer Quorum:</label>
-                                                  </span>
-                                             </td>
-                                             <td>
-                                                  <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" readonly />
-                                             </td>
-                                        </tr>
+                                        <table style="border-collapse: collapse">
+                                             <tr class="multisignAddressClass" *ngIf="useMultiSign">
+                                                  <td>
+                                                       <span class="tooltip" tooltip-data="Comma-separated list of signer addresses (must be in the account's SignerList)">
+                                                            <label for="multiSignAddress">Signers</label>
+                                                       </span>
+                                                  </td>
+                                                  <td>
+                                                       <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignAddress" placeholder="Comma-separated list of signer addresses" [(ngModel)]="multiSignAddress" name="multiSignAddress" readonly></textarea>
+                                                  </td>
+                                             </tr>
+                                             <tr class="multisignAddressClass" *ngIf="useMultiSign">
+                                                  <td>
+                                                       <span class="tooltip" tooltip-data="Comma-separated list of signer seeds (must correspond to signer addresses)">
+                                                            <label for="multiSignSeeds">Seeds</label>
+                                                       </span>
+                                                  </td>
+                                                  <td>
+                                                       <textarea class="memoField" style="width: 280px; height: 100px" id="multiSignSeeds" placeholder="Comma-separated list of signer seeds" [(ngModel)]="multiSignSeeds" name="multiSignSeeds" readonly></textarea>
+                                                  </td>
+                                             </tr>
+                                             <tr class="multisignAddressClass" *ngIf="useMultiSign">
+                                                  <td>
+                                                       <span class="tooltip" tooltip-data="Quorum amount for multi sign.">
+                                                            <label for="quorum">Quorum</label>
+                                                       </span>
+                                                  </td>
+                                                  <td>
+                                                       <input type="text" id="signerQuorumField" style="width: 50px; height: 28px" [(ngModel)]="signerQuorum" (ngModelChange)="validateQuorum()" name="signerQuorumField" readonly />
+                                                  </td>
+                                             </tr>
+                                        </table>
                                    </fieldset>
                               </td>
                          </tr>
@@ -587,24 +645,24 @@
                                    <label for="isRegularKeyAddressData"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                         <tr class="" *ngIf="isRegularKeyAddress">
                               <td>
                                    <span class="tooltip" tooltip-data="Regular Key Address to sign the transaction">
                                         <label for="regularKeyAddress"></label>
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeyAddress" size="40" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
+                                   <input type="text" id="regularKeyAddress" size="41" id="regularKeyAddress" placeholder="Enter Regular Key Address" [(ngModel)]="regularKeyAddress" name="regularKeyAddress" readonly />
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" *ngIf="isRegularKeyAddress">
+                         <tr class="" *ngIf="isRegularKeyAddress">
                               <td>
                                    <span class="tooltip" tooltip-data="Regular Key Seed to sign the transaction">
                                         <label for="regularKeySeed"></label>
                                    </span>
                               </td>
                               <td>
-                                   <input type="text" id="regularKeySeed" size="40" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
+                                   <input type="text" id="regularKeySeed" size="41" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
                          </tr>
                          <tr>
@@ -621,7 +679,7 @@
                                    <label for="isTicketEnabled"></label>
                               </td>
                          </tr>
-                         <tr class="multisignAddressClass" *ngIf="isTicket">
+                         <tr class="" *ngIf="isTicket">
                               <td>
                                    <span class="tooltip" tooltip-data="Enter ticket sequence to use for currently selected account">
                                         <label for="ticketSequence"></label>
