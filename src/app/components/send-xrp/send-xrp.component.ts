@@ -94,7 +94,8 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      destinationFields: string = '';
-     destinations: string[] = [];
+     // destinations: string[] = [];
+     destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      // Dynamic wallets
      wallets: any[] = [];
@@ -143,7 +144,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.cdr.detectChanges();
      }
 
-     onAccountChange() {
+     async onAccountChange() {
           if (this.wallets.length === 0) return;
           this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
           this.updateDestinations();
@@ -610,7 +611,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                return null;
           };
 
-
           const isValidInvoiceId = (value: string | undefined): string | null => {
                if (value && !this.utilsService.validateInput(value)) {
                     return 'Invoice ID is invalid';
@@ -735,9 +735,20 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      }
 
      updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
           if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
+     }
+
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
           }
           this.cdr.detectChanges();
      }
