@@ -169,7 +169,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           XRP: '',
      };
      currencies: string[] = [];
-     currencyIssuers: string[] = [];
+     // currencyIssuers: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
@@ -177,7 +177,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      selectedIssuer: string = '';
      isSimulateEnabled: boolean = false;
      private knownDestinations: { [key: string]: string } = {};
-     destinations: string[] = [];
+     // destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      escrowCancelDateTimeField: string = '';
      escrowFinishDateTimeField: string = '';
@@ -185,6 +185,8 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
+     destinations: { name?: string; address: string }[] = [];
+     currencyIssuers: { name?: string; address: string }[] = [];
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -239,7 +241,20 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     onAccountChange() {
+     async onAccountChange() {
+          if (this.wallets.length === 0) return;
+          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          this.updateDestinations();
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.ensureDefaultNotSelected();
+               this.getEscrows();
+          } else if (this.currentWallet.address) {
+               this.setError('Invalid XRP address');
+          }
+          this.cdr.detectChanges();
+     }
+
+     onAccountChange1() {
           if (this.wallets.length === 0) return;
           this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
           this.updateDestinations();
@@ -379,9 +394,15 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (this.currencyFieldDropDownValue === 'XRP') {
                     this.destinationFields = this.wallets[1]?.address || ''; // Default to first wallet address for XRP
                } else {
-                    this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
+                    // Map relevantIssuers to objects with names from wallets
+                    this.currencyIssuers = relevantIssuers.map(issuer => {
+                         const matchingWallet = this.wallets.find(w => w.address === issuer);
+                         return { name: matchingWallet?.name || '', address: issuer };
+                    });
+                    this.selectedIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || '';
                     this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
                }
+               this.ensureDefaultNotSelected();
           } catch (error: any) {
                this.tokenBalance = '0';
                this.gatewayBalance = '0';
@@ -393,6 +414,56 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
           }
      }
+
+     // async toggleIssuerField1() {
+     //      console.log('Entering onCurrencyChange');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+
+     //      try {
+     //           const client = await this.xrplService.getClient();
+     //           const wallet = await this.getWallet();
+     //           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+
+     //           // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
+     //           const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+
+     //           // PHASE 2: Calculate total balance for selected currency
+     //           let balanceTotal: number = 0;
+     //           const relevantIssuers: string[] = []; // New array for issuers of this currency
+
+     //           if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+     //                for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+     //                     for (const { currency, value } of currencies) {
+     //                          if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
+     //                               balanceTotal += Number(value);
+     //                               relevantIssuers.push(issuer); // Collect issuers for this currency
+     //                          }
+     //                     }
+     //                }
+     //                this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
+     //           } else {
+     //                this.gatewayBalance = '0';
+     //           }
+
+     //           // PHASE 3: Update destination field
+     //           if (this.currencyFieldDropDownValue === 'XRP') {
+     //                this.destinationFields = this.wallets[1]?.address || ''; // Default to first wallet address for XRP
+     //           } else {
+     //                this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
+     //                this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
+     //           }
+     //      } catch (error: any) {
+     //           this.tokenBalance = '0';
+     //           this.gatewayBalance = '0';
+     //           console.error('Error in onCurrencyChange:', error);
+     //           this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
+     //      }
+     // }
 
      async getEscrowOwnerAddress() {
           let inputs: ValidationInputs = {
@@ -1565,13 +1636,38 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
      }
 
-     updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
-          if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
+          }
+          if (currentAddress && this.currencyIssuers.length > 0) {
+               if (!this.selectedIssuer || this.selectedIssuer === currentAddress) {
+                    const nonSelectedIss = this.currencyIssuers.find(i => i.address !== currentAddress);
+                    this.selectedIssuer = nonSelectedIss ? nonSelectedIss.address : this.currencyIssuers[0].address;
+               }
           }
           this.cdr.detectChanges();
      }
+
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          if (this.destinations.length > 0 && !this.destinationFields) {
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
+     }
+
+     // updateDestinations() {
+     //      this.destinations = this.wallets.map(w => w.address);
+     //      if (this.destinations.length > 0 && !this.destinationFields) {
+     //           this.destinationFields = this.destinations[0];
+     //      }
+     //      this.cdr.detectChanges();
+     // }
 
      private async getWallet() {
           const environment = this.xrplService.getNet().environment;
@@ -1708,7 +1804,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           }
           // Update XRP balance in currentWallet (dynamic equivalent of selected account)
           this.currentWallet.balance = tokenBalanceData.xrpBalance.toString();
-          this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
+          // this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
      }
 
      // private async updatedTokenBalance(client: xrpl.Client, accountInfo: any, accountObjects: any, wallet: xrpl.Wallet) {
