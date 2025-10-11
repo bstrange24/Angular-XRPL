@@ -9,8 +9,8 @@ import { TrustSetFlags } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
@@ -83,8 +83,8 @@ export class TrustlinesComponent implements AfterViewChecked {
      gatewayBalance: string = '';
      amountField: string = '';
      ticketSequence: string = '';
-     isTicket = false;
-     isTicketEnabled = false;
+     isTicket: boolean = false;
+     isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
      selectedTickets: string[] = []; // For multiple selection
      selectedSingleTicket: string = ''; // For single selection
@@ -226,7 +226,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.updateDestinations();
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
                if (this.currencyField) {
-                    this.onCurrencyChange();
+                    this.onCurrencyChange(true);
                } else {
                     this.getTrustlinesForAccount();
                }
@@ -1400,79 +1400,81 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async onCurrencyChange() {
+     async onCurrencyChange(currencyChange: boolean) {
           console.log('Entering onCurrencyChange');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+               if (currencyChange) {
+                    const client = await this.xrplService.getClient();
+                    const wallet = await this.getWallet();
+                    const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
 
-               // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
-               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+                    // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
+                    const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
-               // PHASE 2: Calculate total balance for selected currency
-               let balanceTotal: number = 0;
+                    // PHASE 2: Calculate total balance for selected currency
+                    let balanceTotal: number = 0;
 
-               if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
-                    for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
-                         for (const { currency, value } of currencies) {
-                              if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyField) {
-                                   balanceTotal += Number(value);
+                    if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+                         for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+                              for (const { currency, value } of currencies) {
+                                   if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyField) {
+                                        balanceTotal += Number(value);
+                                   }
                               }
                          }
+                         this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
+                    } else {
+                         this.gatewayBalance = '0';
                     }
-                    this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
-               } else {
-                    this.gatewayBalance = '0';
-               }
 
-               // PHASE 3: Update destination field
-               this.destinationFields = this.knownTrustLinesIssuers[this.currencyField];
+                    // PHASE 3: Update destination field
+                    this.destinationFields = this.knownTrustLinesIssuers[this.currencyField];
 
-               // NEW: Filter issuers to only those wallets that are issuers for the selected currency
-               const encodedCurr = this.utilsService.encodeIfNeeded(this.currencyField);
-               const issuerCandidates: { name: string; address: string }[] = [];
-               for (const w of this.wallets) {
-                    if (!xrpl.isValidAddress(w.address)) continue;
-                    try {
-                         const tokenBalance = await this.xrplService.getTokenBalance(client, w.address, 'validated', '');
-                         if (tokenBalance.result.obligations && tokenBalance.result.obligations[encodedCurr] !== undefined && tokenBalance.result.obligations[encodedCurr] !== '0') {
-                              issuerCandidates.push({ name: w.name, address: w.address });
-                         } else if (w.isIssuer && w.isIssuer === true) {
-                              issuerCandidates.push({ name: w.name, address: w.address });
+                    // NEW: Filter issuers to only those wallets that are issuers for the selected currency
+                    const encodedCurr = this.utilsService.encodeIfNeeded(this.currencyField);
+                    const issuerCandidates: { name: string; address: string }[] = [];
+                    for (const w of this.wallets) {
+                         if (!xrpl.isValidAddress(w.address)) continue;
+                         try {
+                              const tokenBalance = await this.xrplService.getTokenBalance(client, w.address, 'validated', '');
+                              if (tokenBalance.result.obligations && tokenBalance.result.obligations[encodedCurr] !== undefined && tokenBalance.result.obligations[encodedCurr] !== '0') {
+                                   issuerCandidates.push({ name: w.name, address: w.address });
+                              } else if (w.isIssuer && w.isIssuer === true) {
+                                   issuerCandidates.push({ name: w.name, address: w.address });
+                              }
+                         } catch (err) {
+                              console.warn(`Failed to check issuer status for ${w.address}:`, err);
                          }
-                    } catch (err) {
-                         console.warn(`Failed to check issuer status for ${w.address}:`, err);
                     }
+
+                    // Remove duplicates by address
+                    this.issuers = issuerCandidates.filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
+
+                    // Set issuerFields to the known issuer if it matches one of the filtered issuers, otherwise first available or empty
+                    const knownIssuer = this.knownTrustLinesIssuers[this.currencyField];
+                    if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
+                         this.issuerFields = knownIssuer;
+                    } else if (this.issuers.length > 0) {
+                         this.issuerFields = this.issuers[0].address;
+                    } else {
+                         this.issuerFields = '';
+                    }
+
+                    if (this.issuers.length === 0) {
+                         console.warn(`No issuers found among wallets for currency: ${this.currencyField}`);
+                    }
+
+                    // After setting issuerFields
+                    this.ensureDefaultNotSelected();
+
+                    // PHASE 4: Defer getTrustlinesForAccount — don't block UI
+                    setTimeout(() => {
+                         this.getTrustlinesForAccount();
+                    }, 0);
                }
-
-               // Remove duplicates by address
-               this.issuers = issuerCandidates.filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
-
-               // Set issuerFields to the known issuer if it matches one of the filtered issuers, otherwise first available or empty
-               const knownIssuer = this.knownTrustLinesIssuers[this.currencyField];
-               if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
-                    this.issuerFields = knownIssuer;
-               } else if (this.issuers.length > 0) {
-                    this.issuerFields = this.issuers[0].address;
-               } else {
-                    this.issuerFields = '';
-               }
-
-               if (this.issuers.length === 0) {
-                    console.warn(`No issuers found among wallets for currency: ${this.currencyField}`);
-               }
-
-               // After setting issuerFields
-               this.ensureDefaultNotSelected();
-
-               // PHASE 4: Defer getTrustlinesForAccount — don't block UI
-               setTimeout(() => {
-                    this.getTrustlinesForAccount();
-               }, 0);
           } catch (error: any) {
                this.currencyBalanceField = '0';
                this.gatewayBalance = '0';
@@ -1984,6 +1986,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.issuerFields = nonSelectedIss ? nonSelectedIss.address : this.issuers[0].address;
                }
           }
+          this.cdr.detectChanges();
      }
 
      updateDestinations() {

@@ -1211,43 +1211,47 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      private async setTxOptionalFields(client: xrpl.Client, escrowTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
-          if (this.selectedSingleTicket) {
-               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
-               if (!ticketExists) {
-                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
-               }
-               this.utilsService.setTicketSequence(escrowTx, this.selectedSingleTicket, true);
-          } else {
-               if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                    console.log('Setting multiple tickets:', this.selectedTickets);
-                    this.utilsService.setTicketSequence(escrowTx, accountInfo.result.account_data.Sequence, false);
-               }
-          }
-
-          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-               this.utilsService.setDestinationTag(escrowTx, this.destinationTagField);
-          }
-          if (this.memoField) {
-               this.utilsService.setMemoField(escrowTx, this.memoField);
-          }
-
-          if (txType === 'create') {
-               if (this.isMptEnabled) {
-                    const curr: xrpl.MPTAmount = {
-                         mpt_issuance_id: this.mptIssuanceIdField,
-                         value: this.amountField,
-                    };
-                    escrowTx.Amount = curr;
-               } else if (this.currencyFieldDropDownValue !== 'XRP') {
-                    const curr: xrpl.IssuedCurrencyAmount = {
-                         currency: this.currencyFieldDropDownValue.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyFieldDropDownValue) : this.currencyFieldDropDownValue,
-                         issuer: this.selectedIssuer,
-                         value: this.amountField,
-                    };
-                    escrowTx.Amount = curr;
+          try {
+               if (this.selectedSingleTicket) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+                    if (!ticketExists) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(escrowTx, this.selectedSingleTicket, true);
                } else {
-                    escrowTx.Amount = xrpl.xrpToDrops(this.amountField);
+                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         this.utilsService.setTicketSequence(escrowTx, accountInfo.result.account_data.Sequence, false);
+                    }
                }
+
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(escrowTx, this.destinationTagField);
+               }
+               if (this.memoField) {
+                    this.utilsService.setMemoField(escrowTx, this.memoField);
+               }
+
+               if (txType === 'create') {
+                    if (this.isMptEnabled) {
+                         const curr: xrpl.MPTAmount = {
+                              mpt_issuance_id: this.mptIssuanceIdField,
+                              value: this.amountField,
+                         };
+                         escrowTx.Amount = curr;
+                    } else if (this.currencyFieldDropDownValue !== 'XRP') {
+                         const curr: xrpl.IssuedCurrencyAmount = {
+                              currency: this.currencyFieldDropDownValue.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyFieldDropDownValue) : this.currencyFieldDropDownValue,
+                              issuer: this.selectedIssuer,
+                              value: this.amountField,
+                         };
+                         escrowTx.Amount = curr;
+                    } else {
+                         escrowTx.Amount = xrpl.xrpToDrops(this.amountField);
+                    }
+               }
+          } catch (error: any) {
+               throw new Error(error.message);
           }
      }
 

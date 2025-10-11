@@ -159,7 +159,8 @@
                                         </td>
                                         <td>
                                              <select id="authorizedWalletField" class="timeUnit" [(ngModel)]="authorizedWalletAddress" name="authorizedWalletField">
-                                                  <option *ngFor="let auth of authorizedWallets; let i = index" [value]="auth.address" [disabled]="auth.address === currentWallet.address">{{auth.name || 'Wallet ' + (i + 1)}} ({{auth.address | slice:0:6}}...{{auth.address | slice:-4}})</option>
+                                                  <!-- <option *ngFor="let auth of authorizedWallets; let i = index" [value]="auth.address" [disabled]="auth.address === currentWallet.address">{{auth.name || 'Wallet ' + (i + 1)}} ({{auth.address | slice:0:6}}...{{auth.address | slice:-4}})</option> -->
+                                                  <option *ngFor="let auth of authorizedWallets; let i = index" [value]="auth.address">{{auth.name || 'Wallet ' + (i + 1)}} ({{auth.address | slice:0:6}}...{{auth.address | slice:-4}})</option>
                                              </select>
                                         </td>
                                    </tr>
