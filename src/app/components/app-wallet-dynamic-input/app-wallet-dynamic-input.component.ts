@@ -45,6 +45,16 @@ export class AppWalletDynamicInputComponent {
           const savedWallets = this.storageService.get('wallets');
           if (savedWallets) {
                this.wallets = JSON.parse(savedWallets);
+               // Migrate old string 'issuer' to boolean 'isIssuer' if needed
+               this.wallets.forEach(wallet => {
+                    if (wallet.issuer !== undefined) {
+                         wallet.isIssuer = wallet.issuer === 'true';
+                         delete wallet.issuer;
+                    } else if (wallet.isIssuer === undefined) {
+                         wallet.isIssuer = false;
+                    }
+               });
+               this.saveWallets(); // Persist the migration
           } else {
                // Migrate from old fixed wallets
                const oldAccount1 = {
@@ -54,6 +64,7 @@ export class AppWalletDynamicInputComponent {
                     mnemonic: this.storageService.getInputValue('account1mnemonic'),
                     secretNumbers: this.storageService.getInputValue('account1secretNumbers'),
                     encryptionAlgorithm: this.storageService.getInputValue('account1encryptionAlgorithm'),
+                    isIssuer: false,
                };
                const oldAccount2 = {
                     name: this.storageService.getInputValue('account2name'),
@@ -62,6 +73,7 @@ export class AppWalletDynamicInputComponent {
                     mnemonic: this.storageService.getInputValue('account2mnemonic'),
                     secretNumbers: this.storageService.getInputValue('account2secretNumbers'),
                     encryptionAlgorithm: this.storageService.getInputValue('account2encryptionAlgorithm'),
+                    isIssuer: false,
                };
                const oldIssuer = {
                     name: this.storageService.getInputValue('issuerName'),
@@ -70,6 +82,7 @@ export class AppWalletDynamicInputComponent {
                     mnemonic: this.storageService.getInputValue('issuerMnemonic'),
                     secretNumbers: this.storageService.getInputValue('issuerSecretNumbers'),
                     encryptionAlgorithm: this.storageService.getInputValue('issuerEncryptionAlgorithm'),
+                    isIssuer: true,
                };
                this.wallets = [oldAccount1, oldAccount2, oldIssuer].filter(w => w.address);
                if (this.wallets.length === 0) {
@@ -113,6 +126,37 @@ export class AppWalletDynamicInputComponent {
           }
      }
 
+     // New method for handling issuer toggle
+     async onIssuerChange(index: number) {
+          const wallet = this.wallets[index];
+          if (!wallet.isIssuer) {
+               console.log(`Issuer flag disabled for wallet ${index + 1} (${wallet.address}). No on-chain update needed.`);
+               return;
+          }
+
+          if (!wallet.address || !xrpl.isValidAddress(wallet.address)) {
+               this.transactionResult.emit({
+                    result: `<p>ERROR: Wallet ${index + 1} must have a valid address to enable issuer mode.</p>`,
+                    isError: true,
+                    isSuccess: false,
+               });
+               wallet.isIssuer = false; // Revert the toggle
+               this.saveWallets();
+               return;
+          }
+
+          if (!wallet.seed || !xrpl.isValidSecret(wallet.seed)) {
+               this.transactionResult.emit({
+                    result: `<p>ERROR: Wallet ${index + 1} must have a valid seed to sign the issuer update.</p>`,
+                    isError: true,
+                    isSuccess: false,
+               });
+               wallet.isIssuer = false; // Revert the toggle
+               this.saveWallets();
+               return;
+          }
+     }
+
      addWallet() {
           this.wallets.push({
                name: '',
@@ -121,6 +165,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: '',
                secretNumbers: '',
                encryptionAlgorithm: '',
+               isIssuer: false,
           });
           this.saveWallets();
           this.emitChange();
@@ -171,6 +216,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: '',
                secretNumbers: '',
                encryptionAlgorithm: wallet.keypair.algorithm || '',
+               isIssuer: this.wallets[index].isIssuer ?? false,
           };
           this.saveWallets();
           this.emitChange();
@@ -190,6 +236,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: '',
                secretNumbers: '',
                encryptionAlgorithm: wallet.keypair.algorithm || '',
+               isIssuer: this.wallets[index].isIssuer ?? false,
           };
           this.saveWallets();
           this.emitChange();
@@ -210,6 +257,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: wallet.secret.mnemonic || '',
                secretNumbers: '',
                encryptionAlgorithm: wallet.keypair.algorithm || '',
+               isIssuer: this.wallets[index].isIssuer ?? false,
           };
           this.saveWallets();
           this.emitChange();
@@ -228,6 +276,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: wallet.secret.mnemonic || '',
                secretNumbers: '',
                encryptionAlgorithm: wallet.keypair.algorithm || '',
+               isIssuer: this.wallets[index].isIssuer ?? false,
           };
           this.saveWallets();
           this.emitChange();
@@ -248,6 +297,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: '',
                secretNumbers: wallet.secret.secretNumbers || '',
                encryptionAlgorithm: wallet.keypair.algorithm || '',
+               isIssuer: this.wallets[index].isIssuer ?? false,
           };
           this.saveWallets();
           this.emitChange();
@@ -266,6 +316,7 @@ export class AppWalletDynamicInputComponent {
                mnemonic: '',
                secretNumbers: wallet.secret.secretNumbers || '',
                encryptionAlgorithm: wallet.keypair.algorithm || '',
+               isIssuer: this.wallets[index].isIssuer ?? false,
           };
           this.saveWallets();
           this.emitChange();

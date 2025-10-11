@@ -84,6 +84,17 @@
                                              <input type="text" id="walletEncryptionAlgorithm{{i}}" [(ngModel)]="wallet.encryptionAlgorithm" (ngModelChange)="saveWallets()" placeholder="Wallet Encryption algorithm" />
                                         </td>
                                    </tr>
+                                   <tr>
+                                        <td>
+                                             <label for="walletIsIssuer{{i}}" class="tooltip label_account" tooltip-data="Mark this wallet as an Issuer for currencies (used in trustlines and other operations)">Issuer</label>
+                                        </td>
+                                        <td>
+                                             <label class="switch">
+                                                  <input type="checkbox" id="walletIsIssuer{{i}}" [(ngModel)]="wallet.isIssuer" (ngModelChange)="onIssuerChange(i); saveWallets()" />
+                                                  <span class="slider round"></span>
+                                             </label>
+                                        </td>
+                                   </tr>
                               </table>
                               <button type="button" (click)="removeWallet(i)" *ngIf="wallets.length > 1">Remove Wallet</button>
                          </fieldset>

@@ -110,18 +110,13 @@
                                         </td>
                                    </tr>
                                    <tr>
+                                        <td><label for="destinationFields">Destination</label></td>
                                         <td>
-                                             <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
-                                                  <label for="destinationFields">Destination</label>
-                                             </span>
-                                        </td>
-                                        <td>
-                                             <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
-                                                  <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
+                                             <select class="timeUnit" id="destinationFields" [(ngModel)]="destinationFields" name="destinationFields">
+                                                  <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
                                              </select>
                                         </td>
                                    </tr>
-
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
@@ -163,8 +158,8 @@
                                              </span>
                                         </td>
                                         <td>
-                                             <select id="authorizedWalletField" class="timeUnit" [(ngModel)]="authorizedWalletIndex" name="authorizedWalletField">
-                                                  <option *ngFor="let wallet of wallets; let i = index" [value]="i" [disabled]="i === selectedWalletIndex">{{wallet.name || 'Wallet ' + (i+1)}} ({{wallet.address | slice:0:6}}...{{wallet.address | slice:-4}})</option>
+                                             <select id="authorizedWalletField" class="timeUnit" [(ngModel)]="authorizedWalletAddress" name="authorizedWalletField">
+                                                  <option *ngFor="let auth of authorizedWallets; let i = index" [value]="auth.address" [disabled]="auth.address === currentWallet.address">{{auth.name || 'Wallet ' + (i + 1)}} ({{auth.address | slice:0:6}}...{{auth.address | slice:-4}})</option>
                                              </select>
                                         </td>
                                    </tr>

@@ -83,9 +83,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      selectedSingleTicket: string = ''; // For single selection
      multiSelectMode: boolean = false; // Toggle between modes
      selectedTicket: string = ''; // The currently selected ticket
-     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      paymentChannelCancelAfterTimeField: string = '';
      paymentChannelCancelAfterTimeUnit: string = 'seconds';
      channelIDField: string = '';
@@ -116,13 +113,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      multiSigningEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
-     issuers: string[] = [];
-     destinationFields: string = '';
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
-     destinations: string[] = [];
      // Dynamic wallets
+     authorizedWalletAddress: string = '';
+     authorizedWallets: { name?: string; address: string }[] = [];
+     destinationFields: string = '';
+     destinations: { name?: string; address: string }[] = [];
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      authorizedWalletIndex: number = 1; // Default to second wallet; adjust based on logic
@@ -178,11 +176,12 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     onAccountChange() {
+     async onAccountChange() {
           if (this.wallets.length === 0) return;
           this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
           this.updateDestinations();
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.ensureDefaultAuthorizedWallet();
                this.getPaymentChannels();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
@@ -485,7 +484,8 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                     this.updateSpinnerMessage(`Preparing Claim Payment Channel ${action} (${mode})...`);
 
-                    const authorizedWallet = await this.getPaymentChannelAuthorizedWallet(environment, this.authorizedWalletIndex);
+                    // const authorizedWallet = await this.getPaymentChannelAuthorizedWallet(environment, this.authorizedWalletIndex);
+                    const authorizedWallet = await this.getPaymentChannelAuthorizedWallet(environment, this.authorizedWalletAddress);
                     const [signatureVerified, isChannelAuthorized] = await Promise.all([this.xrplService.getChannelVerifiy(client, this.channelIDField, this.amountField, this.publicKeyField, this.channelClaimSignatureField), this.xrplService.getPaymentChannelAuthorized(client, this.channelIDField, this.amountField, authorizedWallet)]);
 
                     // Get payment channel details to verify creator and receiver
@@ -646,25 +646,47 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     private async getPaymentChannelAuthorizedWallet(environment: string, authorizedWalletIndex: number) {
+     private async getPaymentChannelAuthorizedWallet(environment: string, authorizedWalletAddress: string) {
           if (!this.wallets || this.wallets.length === 0) {
                throw new Error('ERROR: No wallets available');
           }
-          if (authorizedWalletIndex < 0 || authorizedWalletIndex >= this.wallets.length || authorizedWalletIndex === this.selectedWalletIndex) {
-               throw new Error('ERROR: Invalid authorized wallet index (must be different from selected)');
+          if (!authorizedWalletAddress || authorizedWalletAddress === this.currentWallet.address) {
+               throw new Error('ERROR: Invalid authorized wallet address (must be different from selected)');
           }
-          const authorizedWalletData = this.wallets[authorizedWalletIndex];
-          const authorizedSeed = authorizedWalletData.seed || authorizedWalletData.mnemonic || authorizedWalletData.secretNumbers; // Handle different seed types like in wallet component
+          const authorizedWalletData = this.wallets.find(w => w.address === authorizedWalletAddress);
+          if (!authorizedWalletData) {
+               throw new Error('ERROR: Authorized wallet not found');
+          }
+          const authorizedSeed = authorizedWalletData.seed || authorizedWalletData.mnemonic || authorizedWalletData.secretNumbers;
           if (!authorizedSeed) {
                throw new Error('ERROR: No seed available for authorized wallet');
           }
-
           const authorizedWallet = await this.utilsService.getWallet(authorizedSeed, environment);
           if (!authorizedWallet) {
                throw new Error('ERROR: Authorized wallet could not be created or is undefined');
           }
           return authorizedWallet;
      }
+
+     // private async getPaymentChannelAuthorizedWallet(environment: string, authorizedWalletIndex: number) {
+     //      if (!this.wallets || this.wallets.length === 0) {
+     //           throw new Error('ERROR: No wallets available');
+     //      }
+     //      if (authorizedWalletIndex < 0 || authorizedWalletIndex >= this.wallets.length || authorizedWalletIndex === this.selectedWalletIndex) {
+     //           throw new Error('ERROR: Invalid authorized wallet index (must be different from selected)');
+     //      }
+     //      const authorizedWalletData = this.wallets[authorizedWalletIndex];
+     //      const authorizedSeed = authorizedWalletData.seed || authorizedWalletData.mnemonic || authorizedWalletData.secretNumbers; // Handle different seed types like in wallet component
+     //      if (!authorizedSeed) {
+     //           throw new Error('ERROR: No seed available for authorized wallet');
+     //      }
+
+     //      const authorizedWallet = await this.utilsService.getWallet(authorizedSeed, environment);
+     //      if (!authorizedWallet) {
+     //           throw new Error('ERROR: Authorized wallet could not be created or is undefined');
+     //      }
+     //      return authorizedWallet;
+     // }
 
      async generateCreatorClaimSignature() {
           console.log('Entering generateCreatorClaimSignature');
@@ -884,7 +906,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          this.account1.balance = balance.toString();
+          this.currentWallet.balance = balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
@@ -1036,7 +1058,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           };
 
           const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
-               if (!addressesStr || !seedsStr) return null; // Not required
+               if (!addressesStr || !seedsStr) return null;
                const addresses = this.utilsService.getMultiSignAddress(addressesStr);
                const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
                if (addresses.length === 0) {
@@ -1236,11 +1258,36 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           return errors;
      }
 
-     updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
-          if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
           }
+     }
+
+     private ensureDefaultAuthorizedWallet() {
+          if (this.wallets.length <= 1) {
+               this.authorizedWalletAddress = '';
+               this.cdr.detectChanges();
+               return;
+          }
+          const currentAddress = this.currentWallet.address;
+          if (!this.authorizedWalletAddress || this.authorizedWalletAddress === currentAddress) {
+               // Find a valid non-current address
+               const nonSelectedWallet = this.wallets.find(w => w.address !== currentAddress);
+               this.authorizedWalletAddress = nonSelectedWallet ? nonSelectedWallet.address : this.wallets[0].address;
+          }
+          this.cdr.detectChanges();
+     }
+
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          this.authorizedWallets = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          this.ensureDefaultNotSelected();
+          this.ensureDefaultAuthorizedWallet();
           this.cdr.detectChanges();
      }
 

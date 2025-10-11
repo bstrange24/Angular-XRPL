@@ -382,7 +382,8 @@ table textarea {
 
 #selectedWalletField,
 #destinationFields,
-#currencyField {
+#currencyField,
+#issuerFields {
      background-color: #1a1c21;
      border-radius: 10px;
      margin-bottom: 10px;
