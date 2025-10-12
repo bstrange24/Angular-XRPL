@@ -376,7 +376,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     response.result.errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -385,7 +384,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    // DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -502,16 +500,13 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     return;
                }
 
-               // Render all successful transactions
                this.renderUiComponentsService.renderTransactionsResults(tx, this.resultField.nativeElement);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               // PARALLELIZE
                const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-               // DEFER: Non-critical UI updates (skip for simulation)
                setTimeout(async () => {
                     try {
                          this.clearFields(false);
@@ -614,17 +609,14 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     response.result.errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               // ONLY refresh after REAL transaction
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    // DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
