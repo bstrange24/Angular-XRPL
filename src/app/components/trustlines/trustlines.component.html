@@ -108,7 +108,7 @@
                                              </span>
                                         </td>
                                         <td>
-                                             <select class="timeUnit" id="currencyField" [(ngModel)]="currencyField" (ngModelChange)="onCurrencyChange(true)" name="currencyField">
+                                             <select class="timeUnit" id="currencyField" [(ngModel)]="currencyField" (ngModelChange)="onCurrencyChange()" name="currencyField">
                                                   <option *ngFor="let curr of currencyOptions" [value]="curr">{{ curr }}</option>
                                              </select>
                                         </td>
@@ -141,14 +141,15 @@
                                         <td><label for="destinationFields">Destination</label></td>
                                         <td>
                                              <select class="timeUnit" id="destinationFields" [(ngModel)]="destinationFields" name="destinationFields">
-                                                  <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
+                                                  <option *ngFor="let dest of destinations; let i = index" [value]="dest.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
+                                                  <!-- <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option> -->
                                              </select>
                                         </td>
                                    </tr>
                                    <tr>
                                         <td><label for="issuerFields">Issuers</label></td>
                                         <td>
-                                             <select class="timeUnit" id="issuerFields" [(ngModel)]="issuerFields" name="issuerFields" (ngModelChange)="onCurrencyChange(false)">
+                                             <select class="timeUnit" id="issuerFields" [(ngModel)]="issuerFields" name="issuerFields" (ngModelChange)="getTrustlinesForAccount(); this.onCurrencyChange()">
                                                   <!-- <option *ngFor="let iss of issuers; let i = index" [value]="iss.address" [disabled]="iss.address === currentWallet.address">{{iss.name || 'Wallet ' + (i + 1)}} ({{iss.address | slice:0:6}}...{{iss.address | slice:-4}})</option> -->
                                                   <option *ngFor="let iss of issuers; let i = index" [value]="iss.address">{{iss.name || 'Wallet ' + (i + 1)}} ({{iss.address | slice:0:6}}...{{iss.address | slice:-4}})</option>
                                              </select>

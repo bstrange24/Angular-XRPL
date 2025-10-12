@@ -226,7 +226,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.updateDestinations();
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
                if (this.currencyField) {
-                    this.onCurrencyChange(true);
+                    this.onCurrencyChange();
                } else {
                     this.getTrustlinesForAccount();
                }
@@ -324,9 +324,22 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                // Filter by selected currency
                const activeTrustLines = trustLinesFromObjects.filter((line: any) => {
-                    const decodedCurrency = this.utilsService.decodeIfNeeded(line.Balance.currency);
-                    return decodedCurrency === this.currencyField;
+               const decodedCurrency = this.utilsService.decodeIfNeeded(line.Balance.currency);
+               
+               // Determine which side is the issuer
+               const issuerAddress = line.HighLimit.issuer === wallet.classicAddress
+                    ? line.LowLimit.issuer
+                    : line.HighLimit.issuer;
+
+               return (
+                    decodedCurrency === this.currencyField &&
+                    issuerAddress === this.issuerFields
+               );
                });
+               // const activeTrustLines = trustLinesFromObjects.filter((line: any) => {
+               //      const decodedCurrency = this.utilsService.decodeIfNeeded(line.Balance.currency);
+               //      return decodedCurrency === this.currencyField;
+               // });
 
                type Section = {
                     title: string;
@@ -508,8 +521,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.renderUiComponentsService.renderDetails(data);
 
                               // --- Final UI Updates ---
-                              this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                              this.refreshUiAccountInfo(accountInfo);
+                              this.refreshUIData(wallet, accountInfo, accountObjects);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(true);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
@@ -591,8 +603,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               this.renderUiComponentsService.renderDetails(data);
 
                               // Final UI updates
-                              this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                              this.refreshUiAccountInfo(accountInfo);
+                              this.refreshUIData(wallet, accountInfo, accountObjects);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
@@ -1400,13 +1411,12 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async onCurrencyChange(currencyChange: boolean) {
+     async onCurrencyChange() {
           console.log('Entering onCurrencyChange');
           const startTime = Date.now();
           this.setSuccessProperties();
 
           try {
-               if (currencyChange) {
                     const client = await this.xrplService.getClient();
                     const wallet = await this.getWallet();
                     const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
@@ -1456,7 +1466,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                     // Set issuerFields to the known issuer if it matches one of the filtered issuers, otherwise first available or empty
                     const knownIssuer = this.knownTrustLinesIssuers[this.currencyField];
                     if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
-                         this.issuerFields = knownIssuer;
+                         if(this.issuerFields == knownIssuer) {
+                              this.issuerFields = knownIssuer;
+                         }
                     } else if (this.issuers.length > 0) {
                          this.issuerFields = this.issuers[0].address;
                     } else {
@@ -1474,7 +1486,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(() => {
                          this.getTrustlinesForAccount();
                     }, 0);
-               }
           } catch (error: any) {
                this.currencyBalanceField = '0';
                this.gatewayBalance = '0';
@@ -1482,8 +1493,8 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               this.cdr.detectChanges();
+               // this.executionTime = (Date.now() - startTime).toString();
+               // this.cdr.detectChanges();
                console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
           }
      }
