@@ -231,13 +231,9 @@
                               </ng-container>
 
                               <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                              <tr mat-row *matRowDef="let row; columns: displayedColumns; trackBy: trackByHash" style="min-height: 20px"></tr>
+                              <tr mat-row *matRowDef="let row; columns: displayedColumns;" style="min-height: 20px"></tr>
                          </table>
                     </cdk-virtual-scroll-viewport>
-
-                    <!-- <div *ngIf="hasMoreData && !loadingMore" class="scroll-hint">Scroll down to load more transactions</div> -->
-                    <!-- <mat-spinner *ngIf="loadingMore" diameter="50" class="loading-spinner"></mat-spinner> -->
-                    <!-- <div *ngIf="!hasMoreData">No more transactions</div> -->
                </div>
                <div *ngIf="!selectedAccount">Select an account to view balance changes.</div>
           </fieldset>

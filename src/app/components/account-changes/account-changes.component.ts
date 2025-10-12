@@ -9,12 +9,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
+import { Component, ElementRef, ViewChild, ChangeDetectorRef, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
 import { NavbarComponent } from '../navbar/navbar.component';
@@ -23,6 +22,18 @@ import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-tr
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
+// ✅ Define the balance change interface
+interface BalanceChange {
+     date: Date;
+     hash: string;
+     type: string;
+     change: number;
+     currency: string;
+     balanceBefore: number;
+     balanceAfter: number;
+     counterparty: string;
+}
+
 @Component({
      selector: 'app-account-changes',
      standalone: true,
@@ -30,22 +41,23 @@ import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-
      templateUrl: './account-changes.component.html',
      styleUrl: './account-changes.component.css',
 })
-export class AccountChangesComponent {
+export class AccountChangesComponent implements OnDestroy {
      @ViewChild(CdkVirtualScrollViewport) viewport!: CdkVirtualScrollViewport;
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      @ViewChild(MatSort) sort!: MatSort;
      @ViewChild(MatPaginator) paginator!: MatPaginator;
-     selectedAccount: 'account1' | 'account2' | null = 'account1'; // Initialize to 'account1' for default selection
-     configurationType: 'holder' | 'exchanger' | 'issuer' | null = null; // New property to track configuration type
+
+     selectedAccount: 'account1' | 'account2' | null = 'account1';
+     configurationType: 'holder' | 'exchanger' | 'issuer' | null = null;
      displayedColumns: string[] = ['date', 'hash', 'type', 'change', 'currency', 'balanceBefore', 'balanceAfter', 'counterparty'];
-     balanceChanges: any[] = []; // Array of processed tx with balance changes
-     balanceChangesDataSource = new MatTableDataSource<any>(this.balanceChanges);
+     balanceChanges: BalanceChange[] = [];
+     balanceChangesDataSource = new MatTableDataSource<BalanceChange>(this.balanceChanges);
      loadingMore: boolean = false;
      hasMoreData: boolean = true;
-     marker: any = undefined; // For pagination
-     currentBalance: number = 0; // Track running balance (start from current, subtract backwards since tx are newest-first)
-     currencyBalances: Map<string, number> = new Map(); // Key: 'XRP' or 'currency+issuer'
+     marker: any = undefined;
+     currentBalance: number = 0;
+     currencyBalances: Map<string, number> = new Map();
      lastResult: string = '';
      result: string = '';
      isError: boolean = false;
@@ -60,25 +72,40 @@ export class AccountChangesComponent {
      url: string = '';
      filterValue: string = '';
      isExpanded: boolean = false;
-     // Dynamic wallets
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
+     // ✅ Add caching
+     private accountLinesCache = new Map<string, any>();
+     private accountLinesCacheTime = new Map<string, number>();
+     private transactionCache = new Map<string, any[]>();
+     private filterCache = new Map<string, BalanceChange[]>();
+     private readonly CACHE_EXPIRY = 30000; // 30 seconds
+
+     // ✅ Prevent duplicate scroll events
+     private scrollDebounce: any = null;
+
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
+
+     ngOnDestroy() {
+          // ✅ Clean up debounce timer
+          if (this.scrollDebounce) {
+               clearTimeout(this.scrollDebounce);
+          }
+     }
 
      ngAfterViewInit() {
           console.log('ngAfterViewInit: Viewport initialized:', this.viewport);
-          console.log('Balance changes data:', this.balanceChangesDataSource.data);
-          if (this.viewport) {
-               this.viewport.checkViewportSize(); // Force viewport to recalculate
-          }
           this.balanceChangesDataSource.sort = this.sort;
           this.balanceChangesDataSource.paginator = this.paginator;
+
+          // ✅ Set the trackBy function
+          (this.balanceChangesDataSource as any).trackByFunction = this.trackByFunction;
+
           if (this.selectedAccount) {
-               this.loadBalanceChanges(true); // Initial load
+               this.loadBalanceChanges(true);
           }
-          this.cdr.detectChanges();
      }
 
      toggleExpanded() {
@@ -88,19 +115,22 @@ export class AccountChangesComponent {
      applyFilter(filterValue: string) {
           this.filterValue = filterValue.trim().toLowerCase();
           this.balanceChangesDataSource.filter = this.filterValue;
-          this.cdr.detectChanges();
      }
 
-     // Custom filter predicate to search type, currency, and counterparty
+     private trackByFunction = (index: number, item: BalanceChange) => {
+          return item.hash; // Use the hash as unique identifier
+     };
+
      private setFilterPredicate() {
-          this.balanceChangesDataSource.filterPredicate = (data: any, filter: string) => {
+          this.balanceChangesDataSource.filterPredicate = (data: BalanceChange, filter: string) => {
                const searchText = filter.toLowerCase();
                return data.type.toLowerCase().includes(searchText) || data.currency.toLowerCase().includes(searchText) || (data.counterparty || '').toLowerCase().includes(searchText);
           };
      }
 
      onPageChange(event: any) {
-          if (this.hasMoreData && !this.loadingMore && event.pageIndex * event.pageSize >= this.balanceChanges.length) {
+          const shouldLoadMore = event.pageIndex * event.pageSize >= this.balanceChanges.length;
+          if (this.hasMoreData && !this.loadingMore && shouldLoadMore) {
                console.log('Loading more data for page:', event.pageIndex);
                this.loadBalanceChanges(false);
           }
@@ -110,7 +140,6 @@ export class AccountChangesComponent {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.detectChanges();
           }
      }
 
@@ -127,58 +156,65 @@ export class AccountChangesComponent {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.detectChanges();
      }
 
      onAccountChange() {
           if (this.wallets.length === 0) return;
-          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          this.currentWallet = {
+               ...this.wallets[this.selectedWalletIndex],
+               balance: this.currentWallet.balance || '0',
+          };
+
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
-               this.loadBalanceChanges();
+               this.loadBalanceChanges(true);
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
-          this.cdr.detectChanges();
      }
 
+     // ✅ Optimized loadBalanceChanges with caching
+     // Add this method to update balances after loading transactions
      async loadBalanceChanges(reset = true) {
           console.log('Entering loadBalanceChanges');
           const startTime = Date.now();
-          try {
-               if (!this.selectedAccount) {
-                    return;
-               }
 
+          try {
                const address = this.currentWallet.address;
+               if (!address) return;
+
                const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
 
                if (reset) {
-                    // ➤ Reset UI state
                     this.balanceChanges = [];
                     this.balanceChangesDataSource.data = [];
                     this.marker = undefined;
                     this.hasMoreData = true;
 
-                    // ➤ Set environment URL
+                    // Set environment URL
                     type EnvKey = keyof typeof AppConstants.XRPL_WIN_URL;
                     const env = this.xrplService.getNet().environment.toUpperCase() as EnvKey;
                     this.url = AppConstants.XRPL_WIN_URL[env] || AppConstants.XRPL_WIN_URL.DEVNET;
 
-                    // ➤ PARALLELIZE: Fetch account info + trust lines
-                    const [accountInfo, accountLines] = await Promise.all([this.xrplService.getAccountInfo(client, address, 'validated', ''), client.request({ command: 'account_lines', account: address })]);
+                    // ✅ PARALLELIZE + CACHE account info + lines
+                    const [accountInfo, accountLines] = await Promise.all([this.xrplService.getAccountInfo(client, address, 'validated', ''), this.getCachedAccountLines(client, address)]);
 
-                    // ➤ Update XRP balance
                     this.currentBalance = xrpl.dropsToXrp(accountInfo.result.account_data.Balance);
                     this.currencyBalances.set('XRP', this.currentBalance);
 
-                    // ➤ Update token balances
                     accountLines.result.lines.forEach((line: any) => {
                          const key = `${line.currency}+${line.account}`;
                          this.currencyBalances.set(key, parseFloat(line.balance));
                     });
 
-                    // ➤ Set filter predicate
+                    // ✅ Update owner count and reserves here
+                    const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, address);
+                    this.ownerCount = ownerCount;
+                    this.totalXrpReserves = totalXrpReserves;
+
+                    // ✅ Update wallet balance
+                    const balance = (await client.getXrpBalance(address)) - parseFloat(totalXrpReserves || '0');
+                    this.currentWallet.balance = balance.toString();
+
                     this.setFilterPredicate();
                }
 
@@ -186,7 +222,7 @@ export class AccountChangesComponent {
 
                this.loadingMore = true;
 
-               // ➤ Fetch transactions
+               // ✅ Fetch transactions
                const txResponse = await this.xrplService.getAccountTransactions(client, address, 20, this.marker);
 
                if (txResponse.result.transactions.length === 0) {
@@ -194,25 +230,15 @@ export class AccountChangesComponent {
                     return;
                }
 
-               // ➤ PROCESS TRANSACTIONS — offload heavy work
+               // ✅ PROCESS TRANSACTIONS — offload heavy work
                const processedTx = this.processTransactionsForBalanceChanges(txResponse.result.transactions, address);
 
-               // ➤ Update UI
+               // ✅ Update UI
                this.balanceChanges.push(...processedTx);
                this.balanceChangesDataSource.data = [...this.balanceChanges]; // Force new array reference
 
                this.marker = txResponse.result.marker;
                if (!this.marker) this.hasMoreData = false;
-
-               // ➤ DEFER: Non-critical balance update
-               setTimeout(async () => {
-                    try {
-                         const freshAccountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-                         await this.updateXrpBalance(client, freshAccountInfo, wallet);
-                    } catch (err) {
-                         console.error('Deferred balance update failed:', err);
-                    }
-               }, 0);
           } catch (error) {
                console.error('Error loading tx:', error);
                this.setError('Failed to load balance changes');
@@ -224,11 +250,28 @@ export class AccountChangesComponent {
           }
      }
 
-     processTransactionsForBalanceChanges(transactions: any[], address: string): any[] {
+     // ✅ Add caching helper
+     private async getCachedAccountLines(client: any, address: string): Promise<any> {
+          const cacheKey = `${address}-${this.xrplService.getNet().environment}`;
+          const now = Date.now();
+
+          const cached = this.accountLinesCache.get(cacheKey);
+          const cachedTime = this.accountLinesCacheTime.get(cacheKey);
+
+          if (cached && cachedTime && now - cachedTime < this.CACHE_EXPIRY) {
+               return cached;
+          }
+
+          const accountLines = await client.request({ command: 'account_lines', account: address });
+          this.accountLinesCache.set(cacheKey, accountLines);
+          this.accountLinesCacheTime.set(cacheKey, now);
+          return accountLines;
+     }
+
+     processTransactionsForBalanceChanges(transactions: any[], address: string): BalanceChange[] {
           console.log('Entering processTransactionsForBalanceChanges');
 
-          // Use array constructor with known length for better performance
-          const processed: any[] = [];
+          const processed: BalanceChange[] = [];
 
           for (const txWrapper of transactions) {
                const tx = txWrapper.tx_json || txWrapper.transaction;
@@ -341,18 +384,28 @@ export class AccountChangesComponent {
                console.warn('onScroll: Viewport not initialized');
                return;
           }
-          const total = this.balanceChangesDataSource.data.length;
-          const viewportHeight = this.viewport.elementRef.nativeElement.clientHeight;
-          const itemHeight = 48; // Matches itemSize
-          const visibleItems = Math.ceil(viewportHeight / itemHeight);
-          console.log(`onScroll: index=${index}, total=${total}, visibleItems=${visibleItems}, hasMoreData=${this.hasMoreData}, loadingMore=${this.loadingMore}`);
-          if (index + visibleItems >= total && this.hasMoreData && !this.loadingMore) {
-               console.log('onScroll: Triggering loadBalanceChanges');
-               this.loadBalanceChanges(false);
+
+          // ✅ Debounce scroll events
+          if (this.scrollDebounce) {
+               clearTimeout(this.scrollDebounce);
           }
+
+          this.scrollDebounce = setTimeout(() => {
+               const total = this.balanceChangesDataSource.data.length;
+               const viewportHeight = this.viewport.elementRef.nativeElement.clientHeight;
+               const itemHeight = 48; // Matches itemSize
+               const visibleItems = Math.ceil(viewportHeight / itemHeight);
+
+               // console.log(`onScroll: index=${index}, total=${total}, visibleItems=${visibleItems}, hasMoreData=${this.hasMoreData}, loadingMore=${this.loadingMore}`);
+
+               if (index + visibleItems >= total && this.hasMoreData && !this.loadingMore) {
+                    console.log('onScroll: Triggering loadBalanceChanges');
+                    this.loadBalanceChanges(false);
+               }
+          }, 100); // 100ms debounce
      }
 
-     trackByHash(index: number, item: any): string {
+     trackByHash(index: number, item: BalanceChange): string {
           return item.hash; // Unique identifier for rows
      }
 
@@ -360,11 +413,7 @@ export class AccountChangesComponent {
           navigator.clipboard
                .writeText(text)
                .then(() => {
-                    // Optional: Show snackbar/toast notification
                     console.log('Copied to clipboard:', text);
-
-                    // Optional: You can add a snackbar here for user feedback
-                    // this.snackBar.open('Copied to clipboard!', 'Close', { duration: 2000 });
                })
                .catch(err => {
                     console.error('Failed to copy: ', err);
