@@ -311,7 +311,7 @@
 
                     <div class="spinner-container">
                          <div id="spinner" [ngStyle]="{ display: spinner ? 'block' : 'none' }" class="spinner"></div>
-                         <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || 'Loading...' }}</div>
+                         <div *ngIf="spinner" class="spinner-text">{{ spinnerMessage || '' }}</div>
                     </div>
 
                     <div class="button-container">

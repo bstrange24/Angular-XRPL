@@ -226,7 +226,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               return this.setError('ERROR getting wallet in toggleMultiSign');
+               this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.markForCheck();
           }
@@ -400,7 +400,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.refreshUiIAccountMetaData(accountInfo.result);
           } catch (error: any) {
                console.error('Error in toggleMetaData:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -903,7 +903,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error in updateMetaData:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -1053,7 +1053,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error in setDepositAuthAccounts:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -1220,7 +1220,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error in setMultiSign:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -1373,7 +1373,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error in setRegularKey:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -2195,6 +2195,17 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.regularKeySigningEnabled = true;
           } else {
                this.regularKeySigningEnabled = false;
+          }
+
+          const tickSize = accountInfo?.result?.account_data?.TickSize;
+          const transferRate = accountInfo?.result?.account_data?.TransferRate;
+          const domain = accountInfo?.result?.account_data?.Domain;
+          const messageKey = accountInfo?.result?.account_data?.MessageKey;
+          if (tickSize || transferRate || domain || messageKey) {
+               this.isUpdateMetaData = true;
+               this.toggleMetaData();
+          } else {
+               this.isUpdateMetaData = false;
           }
      }
 
