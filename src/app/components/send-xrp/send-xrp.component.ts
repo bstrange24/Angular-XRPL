@@ -94,7 +94,6 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      destinationFields: string = '';
-     // destinations: string[] = [];
      destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      // Dynamic wallets
@@ -233,18 +232,17 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
 
                // CRITICAL: Sort based on Ledger Entry Type and render immediately
                const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
-               // CRITICAL: Render immediately
                this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
-               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-               this.refreshUiAccountInfo(accountInfo);
+               this.refreshUIData(wallet, accountInfo, accountObjects);
 
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
+                         this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates:', err);
@@ -294,12 +292,13 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs = { ...inputs, account_info: accountInfo };
 
@@ -320,7 +319,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                // Optional fields
                await this.setTxOptionalFields(client, paymentTx, wallet, accountInfo);
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, this.amountField, wallet.classicAddress, paymentTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, paymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -513,6 +512,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                this.masterKeyDisabled = false;
           }
 
+          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
+          //      this.useMultiSign = true; // Force to true if master key is disabled
+          // } else {
+          //      this.useMultiSign = false;
+          // }
+
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
@@ -540,6 +545,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           } else {
                this.masterKeyDisabled = false;
           }
+
+          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
+          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
+          // } else {
+          //      this.isRegularKeyAddress = false;
+          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;

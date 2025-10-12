@@ -92,8 +92,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      destinationFields: string = '';
-     private knownDestinations: { [key: string]: string } = {};
-     destinations: string[] = [];
+     destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      // Dynamic wallets
      wallets: any[] = [];
@@ -102,17 +101,12 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
-     ngOnInit() {
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               this.knownDestinations = storedDestinations;
-          }
-     }
+     ngOnInit() {}
 
      ngAfterViewInit() {
           (async () => {
                try {
-                    this.onAccountChange(); // Load initial
+                    this.onAccountChange();
                } catch (error: any) {
                     console.error(`Error loading initial wallet: ${error.message}`);
                     this.setError('ERROR: Could not load initial wallet');
@@ -215,17 +209,12 @@ export class DeleteAccountComponent implements AfterViewChecked {
           try {
                this.showSpinnerWithDelay('Getting Account Details ...', 100);
 
-               // Phase 1: Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Phase 2: Fetch account info + objects in PARALLEL
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               inputs = {
-                    ...inputs,
-                    account_info: accountInfo,
-               };
+               inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
@@ -241,20 +230,19 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
+               this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               this.refreshUiAccountInfo(accountInfo);
+
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched allAccountObjects and accountInfo
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
-                         this.clearFields(false);
                     } catch (err) {
-                         console.error('Error in deferred UI updates for payment channels:', err);
-                         // Don't break main render — payment channels are already shown
+                         console.error('Error in deferred UI updates:', err);
+                         // Don't break main flow — account details are already rendered
                     }
                }, 0);
           } catch (error: any) {
@@ -296,7 +284,6 @@ export class DeleteAccountComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.checkAccountObjectsForDeletion(client, wallet.classicAddress), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
@@ -321,13 +308,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    this.utilsService.setDestinationTag(accountDeleteTx, this.destinationTagField);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(accountDeleteTx, this.memoField);
-               }
+               // Optional fields
+               await this.setTxOptionalFields(client, accountDeleteTx, wallet, accountInfo);
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, accountDeleteTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -335,24 +317,10 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Deleting Account (no changes will be made)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, accountDeleteTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, accountDeleteTx);
                } else {
                     // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
@@ -364,23 +332,37 @@ export class DeleteAccountComponent implements AfterViewChecked {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    response.result.errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               // Render result
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
+               if (!this.isSimulateEnabled) {
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    // DEFER: Non-critical UI updates (skip for simulation)
+                    setTimeout(async () => {
+                         try {
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                              this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                         } catch (err) {
+                              console.error('Error in post-tx cleanup:', err);
+                         }
+                    }, 0);
                }
           } catch (error: any) {
                console.error('Error in deleteAccount:', error);
@@ -401,34 +383,26 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
      }
 
-     private async setTxOptionalFields(client: xrpl.Client, checkTx: any, wallet: xrpl.Wallet, accountInfo: any, checkExpiration: any, txType: string) {
-          if (txType === 'create') {
-               if (checkExpiration && checkExpiration != '') {
-                    this.utilsService.setExpiration(checkTx, Number(checkExpiration));
-               }
-          }
-
+     private async setTxOptionalFields(client: xrpl.Client, deleteTx: any, wallet: xrpl.Wallet, accountInfo: any) {
           if (this.selectedSingleTicket) {
                const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
                if (!ticketExists) {
                     return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
                }
-               this.utilsService.setTicketSequence(checkTx, this.selectedSingleTicket, true);
+               this.utilsService.setTicketSequence(deleteTx, this.selectedSingleTicket, true);
           } else {
                if (this.multiSelectMode && this.selectedTickets.length > 0) {
                     console.log('Setting multiple tickets:', this.selectedTickets);
-                    this.utilsService.setTicketSequence(checkTx, accountInfo.result.account_data.Sequence, false);
+                    this.utilsService.setTicketSequence(deleteTx, accountInfo.result.account_data.Sequence, false);
                }
           }
 
-          if (txType === 'create') {
-               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    this.utilsService.setDestinationTag(checkTx, this.destinationTagField);
-               }
+          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+               this.utilsService.setDestinationTag(deleteTx, this.destinationTagField);
           }
 
           if (this.memoField) {
-               this.utilsService.setMemoField(checkTx, this.memoField);
+               this.utilsService.setMemoField(deleteTx, this.memoField);
           }
      }
 
@@ -780,9 +754,20 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
           if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
+     }
+
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
           }
           this.cdr.detectChanges();
      }

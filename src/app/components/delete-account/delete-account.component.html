@@ -100,31 +100,32 @@
 
                          <div class="top-section-right">
                               <table id="xrpDetails">
-                              <th></th>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
-                                             <label for="destinationFields">Destination</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
-                                             <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
-                                        </select>
-                                   </td>
-                              </tr>
+                                   <th></th>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
+                                                  <label for="destinationFields">Destination</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                                  <!-- <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option> -->
+                                                  <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
+                                             </select>
+                                        </td>
+                                   </tr>
 
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
-                                             <label for="destinationTagField">Destination Tag</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                                   </td>
-                              </tr>
-                         </table>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
+                                                  <label for="destinationTagField">Destination Tag</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        </td>
+                                   </tr>
+                              </table>
                          </div>
                     </div>
 

@@ -109,7 +109,7 @@
                                         </td>
                                         <td>
                                              <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="credential.subject.destinationAddress" name="destinationFields">
-                                                  <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option>
+                                                  <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
                                              </select>
                                         </td>
                                    </tr>
