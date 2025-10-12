@@ -122,7 +122,8 @@ export class MptComponent implements AfterViewChecked {
      spinner: boolean = false;
      destinationFields: string = '';
      private knownDestinations: { [key: string]: string } = {};
-     destinations: string[] = [];
+     // destinations: string[] = [];
+     destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      isSelfAuthorize: boolean = true; // New: toggle for self vs. issuer authorization
      isUnauthorize: boolean = false; // New: toggle for authorize vs. unauthorize
@@ -255,7 +256,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + account objects together
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
@@ -380,7 +380,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -506,7 +505,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -630,7 +628,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -755,7 +752,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -776,7 +772,7 @@ export class MptComponent implements AfterViewChecked {
                }
 
                const mptTransferTx = {
-                    TransactionType: 'MPTokenTransfer', // ✅ Still works!
+                    TransactionType: 'MPTokenTransfer',
                     Account: wallet.classicAddress,
                     MPTokenIssuanceID: this.mptIssuanceIdField,
                     Amount: this.amountField,
@@ -879,7 +875,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + dest objects + issuance + fee + ledger index
                const [accountInfo, accountObjects, destObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -1027,7 +1022,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, mptokenObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -1154,7 +1148,6 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, destObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -1765,9 +1758,20 @@ export class MptComponent implements AfterViewChecked {
      }
 
      updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
           if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
+     }
+
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
           }
           this.cdr.detectChanges();
      }
