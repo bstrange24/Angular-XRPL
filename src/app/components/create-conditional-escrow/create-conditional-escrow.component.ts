@@ -162,7 +162,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      multiSigningEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
      spinner: boolean = false;
-     issuers: string[] = [];
+     issuers: { name?: string; address: string }[] = [];
      destinationFields: string = '';
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
@@ -190,6 +190,9 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      currentWallet = { name: '', address: '', seed: '', balance: '' };
      destinations: { name?: string; address: string }[] = [];
      currencyIssuers: { name?: string; address: string }[] = [];
+     private lastCurrency: string = '';
+     private lastIssuer: string = '';
+     showManageTokens: boolean = false;
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -974,14 +977,15 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                // Calculate total balance for selected currency
                let balanceTotal: number = 0;
-               const relevantIssuers: string[] = []; // New array for issuers of this currency
+               const currency = this.utilsService.formatCurrencyForDisplay(this.currencyFieldDropDownValue);
+               // const relevantIssuers: string[] = []; // New array for issuers of this currency
 
                if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
                     for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
                          for (const { currency, value } of currencies) {
                               if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
                                    balanceTotal += Number(value);
-                                   relevantIssuers.push(issuer); // Collect issuers for this currency
+                                   // relevantIssuers.push(issuer); // Collect issuers for this currency
                               }
                          }
                     }
@@ -990,17 +994,61 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                     this.gatewayBalance = '0';
                }
 
+               const encodedCurr = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
+               const issuerPromises = this.wallets
+                    .filter(w => xrpl.isValidAddress(w.address))
+                    .map(async w => {
+                         try {
+                              const tokenBalance = await this.xrplService.getTokenBalance(client, w.address, 'validated', '');
+                              const hasObligation = tokenBalance.result.obligations?.[encodedCurr];
+
+                              if (hasObligation && hasObligation !== '0') {
+                                   return { name: w.name, address: w.address };
+                              } else if (w.isIssuer === true) {
+                                   return { name: w.name, address: w.address };
+                              }
+                         } catch (err) {
+                              console.warn(`Issuer check failed for ${w.address}:`, err);
+                         }
+                         return null;
+                    });
+
+               const issuerResults = await Promise.all(issuerPromises);
+               let uniqueIssuers = issuerResults.filter((i): i is { name: string; address: string } => i !== null).filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
+
+               // Always include the current wallet in issuers
+               if (!uniqueIssuers.some(i => i.address === wallet.classicAddress)) {
+                    uniqueIssuers.push({ name: this.currentWallet.name || 'Current Account', address: wallet.classicAddress });
+               }
+
+               this.issuers = uniqueIssuers;
+
+               const knownIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
+               if (!this.selectedIssuer || !this.issuers.some(iss => iss.address === this.selectedIssuer)) {
+                    let newIssuer = '';
+                    if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
+                         newIssuer = knownIssuer;
+                    } else if (this.issuers.length > 0) {
+                         newIssuer = this.issuers[0].address;
+                    } else {
+                         newIssuer = '';
+                    }
+                    this.selectedIssuer = newIssuer;
+               }
+
+               if (this.issuers.length === 0) {
+                    console.warn(`No issuers found among wallets for currency: ${this.currencyFieldDropDownValue}`);
+               }
+
                if (this.currencyFieldDropDownValue === 'XRP') {
                     this.destinationFields = this.wallets[1]?.address || ''; // Default to first wallet address for XRP
                } else {
-                    // Map relevantIssuers to objects with names from wallets
-                    this.currencyIssuers = relevantIssuers.map(issuer => {
-                         const matchingWallet = this.wallets.find(w => w.address === issuer);
-                         return { name: matchingWallet?.name || '', address: issuer };
-                    });
-                    this.selectedIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || '';
-                    this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
-
+                    const currencyChanged = this.lastCurrency !== this.currencyFieldDropDownValue;
+                    const issuerChanged = this.lastIssuer !== this.selectedIssuer;
+                    if (currencyChanged || issuerChanged) {
+                         this.lastCurrency = this.currencyFieldDropDownValue;
+                         this.lastIssuer = this.selectedIssuer;
+                    }
                     await this.updateCurrencyBalance(gatewayBalances, wallet);
                }
                this.ensureDefaultNotSelected();
