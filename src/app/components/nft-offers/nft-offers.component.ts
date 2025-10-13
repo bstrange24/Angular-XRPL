@@ -440,8 +440,7 @@ export class NftOffersComponent implements AfterViewChecked {
                setTimeout(async () => {
                     try {
                          // Use pre-fetched data — no redundant API calls!
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
+                         this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          this.updateTickets(accountObjects);
@@ -624,8 +623,7 @@ export class NftOffersComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates
                setTimeout(async () => {
                     try {
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
+                         this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.clearFields(false);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {

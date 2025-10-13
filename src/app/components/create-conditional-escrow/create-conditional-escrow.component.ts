@@ -478,8 +478,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                // Final UI updates
                setTimeout(async () => {
                     try {
-                         this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo);
+                         this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.getEscrowOwnerAddress();
 
