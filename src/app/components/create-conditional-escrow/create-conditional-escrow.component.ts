@@ -174,7 +174,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           XRP: '',
      };
      currencies: string[] = [];
-     currencyIssuers: string[] = [];
+     // currencyIssuers: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
@@ -182,7 +182,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      selectedIssuer: string = '';
      isSimulateEnabled: boolean = false;
      private knownDestinations: { [key: string]: string } = {};
-     destinations: string[] = [];
+     // destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      escrowCancelDateTimeField: string = '';
      escrowFinishDateTimeField: string = '';
@@ -190,6 +190,8 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
+     destinations: { name?: string; address: string }[] = [];
+     currencyIssuers: { name?: string; address: string }[] = [];
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -244,7 +246,20 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     onAccountChange() {
+     async onAccountChange() {
+          if (this.wallets.length === 0) return;
+          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+          this.updateDestinations();
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.ensureDefaultNotSelected();
+               this.getEscrows();
+          } else if (this.currentWallet.address) {
+               this.setError('Invalid XRP address');
+          }
+          this.cdr.detectChanges();
+     }
+
+     onAccountChange1() {
           if (this.wallets.length === 0) return;
           this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
           this.updateDestinations();
@@ -334,11 +349,17 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
 
                // PHASE 3: Update destination field
                if (this.currencyFieldDropDownValue === 'XRP') {
-                    this.destinationFields = this.wallets[0]?.address || ''; // Default to first wallet address for XRP
+                    this.destinationFields = this.wallets[1]?.address || ''; // Default to first wallet address for XRP
                } else {
-                    this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
+                    // Map relevantIssuers to objects with names from wallets
+                    this.currencyIssuers = relevantIssuers.map(issuer => {
+                         const matchingWallet = this.wallets.find(w => w.address === issuer);
+                         return { name: matchingWallet?.name || '', address: issuer };
+                    });
+                    this.selectedIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || '';
                     this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
                }
+               this.ensureDefaultNotSelected();
           } catch (error: any) {
                this.tokenBalance = '0';
                this.gatewayBalance = '0';
@@ -1033,7 +1054,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, escrowCancelTx);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
                     // Sign transaction
@@ -1100,43 +1120,47 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      }
 
      private async setTxOptionalFields(client: xrpl.Client, escrowTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
-          if (this.selectedSingleTicket) {
-               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
-               if (!ticketExists) {
-                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
-               }
-               this.utilsService.setTicketSequence(escrowTx, this.selectedSingleTicket, true);
-          } else {
-               if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                    console.log('Setting multiple tickets:', this.selectedTickets);
-                    this.utilsService.setTicketSequence(escrowTx, accountInfo.result.account_data.Sequence, false);
-               }
-          }
-
-          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-               this.utilsService.setDestinationTag(escrowTx, this.destinationTagField);
-          }
-          if (this.memoField) {
-               this.utilsService.setMemoField(escrowTx, this.memoField);
-          }
-
-          if (txType === 'create') {
-               if (this.isMptEnabled) {
-                    const curr: xrpl.MPTAmount = {
-                         mpt_issuance_id: this.mptIssuanceIdField,
-                         value: this.amountField,
-                    };
-                    escrowTx.Amount = curr;
-               } else if (this.currencyFieldDropDownValue !== 'XRP') {
-                    const curr: xrpl.IssuedCurrencyAmount = {
-                         currency: this.currencyFieldDropDownValue.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyFieldDropDownValue) : this.currencyFieldDropDownValue,
-                         issuer: this.selectedIssuer,
-                         value: this.amountField,
-                    };
-                    escrowTx.Amount = curr;
+          try {
+               if (this.selectedSingleTicket) {
+                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+                    if (!ticketExists) {
+                         return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+                    }
+                    this.utilsService.setTicketSequence(escrowTx, this.selectedSingleTicket, true);
                } else {
-                    escrowTx.Amount = xrpl.xrpToDrops(this.amountField);
+                    if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         this.utilsService.setTicketSequence(escrowTx, accountInfo.result.account_data.Sequence, false);
+                    }
                }
+
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(escrowTx, this.destinationTagField);
+               }
+               if (this.memoField) {
+                    this.utilsService.setMemoField(escrowTx, this.memoField);
+               }
+
+               if (txType === 'create') {
+                    if (this.isMptEnabled) {
+                         const curr: xrpl.MPTAmount = {
+                              mpt_issuance_id: this.mptIssuanceIdField,
+                              value: this.amountField,
+                         };
+                         escrowTx.Amount = curr;
+                    } else if (this.currencyFieldDropDownValue !== 'XRP') {
+                         const curr: xrpl.IssuedCurrencyAmount = {
+                              currency: this.currencyFieldDropDownValue.length > 3 ? this.utilsService.encodeCurrencyCode(this.currencyFieldDropDownValue) : this.currencyFieldDropDownValue,
+                              issuer: this.selectedIssuer,
+                              value: this.amountField,
+                         };
+                         escrowTx.Amount = curr;
+                    } else {
+                         escrowTx.Amount = xrpl.xrpToDrops(this.amountField);
+                    }
+               }
+          } catch (error: any) {
+               throw new Error(error.message);
           }
      }
 
@@ -1533,20 +1557,45 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           const currencyCode = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
           if (wallet.classicAddress) {
                const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
-               balance = balanceResult !== null ? balanceResult.toString() : '0';
+               balance = balanceResult !== null ? Math.abs(balanceResult).toString() : '0';
                this.tokenBalance = this.utilsService.formatTokenBalance(balance, 18);
           } else {
                this.tokenBalance = '0';
           }
      }
 
-     updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
-          if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
+          }
+          if (currentAddress && this.currencyIssuers.length > 0) {
+               if (!this.selectedIssuer || this.selectedIssuer === currentAddress) {
+                    const nonSelectedIss = this.currencyIssuers.find(i => i.address !== currentAddress);
+                    this.selectedIssuer = nonSelectedIss ? nonSelectedIss.address : this.currencyIssuers[0].address;
+               }
           }
           this.cdr.detectChanges();
      }
+
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          if (this.destinations.length > 0 && !this.destinationFields) {
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
+     }
+
+     // updateDestinations() {
+     //      this.destinations = this.wallets.map(w => w.address);
+     //      if (this.destinations.length > 0 && !this.destinationFields) {
+     //           this.destinationFields = this.destinations[0];
+     //      }
+     //      this.cdr.detectChanges();
+     // }
 
      private async getWallet() {
           const environment = this.xrplService.getNet().environment;
@@ -1714,7 +1763,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           }
           // Update XRP balance in currentWallet (dynamic equivalent of selected account)
           this.currentWallet.balance = tokenBalanceData.xrpBalance.toString();
-          this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
+          // this.currencyIssuers = [this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || ''];
      }
 
      private setErrorProperties() {

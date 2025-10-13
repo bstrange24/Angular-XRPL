@@ -82,7 +82,6 @@ interface AccountFlags {
 export class AccountConfiguratorComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     selectedAccount: 'account1' | 'account2' | null = 'account1';
      configurationType: 'holder' | 'exchanger' | 'issuer' | null = null;
      private lastResult: string = '';
      result: string = '';
@@ -150,7 +149,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
-     currentWallet = { name: '', address: '', seed: '', balance: '' };
+     currentWallet = { name: '', address: '', seed: '', balance: '', isIssuer: false };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -721,6 +720,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (hasError) {
                     this.resultField.nativeElement.classList.add('error');
                     this.setErrorProperties();
+               }
+
+               if(this.configurationType === 'issuer') {
+                    this.currentWallet.isIssuer = true;
+
                }
 
                console.log(`transactions:`, transactions);

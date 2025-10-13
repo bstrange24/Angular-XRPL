@@ -125,6 +125,9 @@ export class TrustlinesComponent implements AfterViewChecked {
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
+     private currencyChangeTimeout: any;
+private lastCurrency: string = '';
+private lastIssuer: string = '';
 
      conflicts: { [key: string]: string[] } = {
           tfSetNoRipple: ['tfClearNoRipple'],
@@ -1401,7 +1404,114 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async onCurrencyChange() {
+     async onCurrencyChange(): Promise<void> {
+    console.log('Entering onCurrencyChange');
+
+    this.setSuccessProperties();
+    this.spinner = true;
+
+    try {
+        const client = await this.xrplService.getClient();
+        const wallet = await this.getWallet();
+
+        // Kick off both async calls in parallel
+        const [accountObjects, gatewayBalances] = await Promise.all([
+            this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+            this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')
+        ]);
+
+        // PHASE 1: Update balance
+        await this.updateCurrencyBalance(wallet, accountObjects);
+
+        // PHASE 2: Calculate total gateway balance
+        let balanceTotal = 0;
+        const currency = this.utilsService.formatCurrencyForDisplay(this.currencyField);
+
+        if (gatewayBalances.result.assets) {
+            for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+                for (const { currency: cur, value } of currencies) {
+                    if (this.utilsService.formatCurrencyForDisplay(cur) === currency) {
+                        balanceTotal += Number(value);
+                    }
+                }
+            }
+        }
+
+        this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
+
+        // PHASE 3: Find valid issuers
+        const encodedCurr = this.utilsService.encodeIfNeeded(this.currencyField);
+        const issuerPromises = this.wallets
+            .filter(w => xrpl.isValidAddress(w.address))
+            .map(async w => {
+                try {
+                    const tokenBalance = await this.xrplService.getTokenBalance(client, w.address, 'validated', '');
+                    const hasObligation = tokenBalance.result.obligations?.[encodedCurr];
+
+                    if (hasObligation && hasObligation !== '0') {
+                        return { name: w.name, address: w.address };
+                    } else if (w.isIssuer === true) {
+                        return { name: w.name, address: w.address };
+                    }
+                } catch (err) {
+                    console.warn(`Issuer check failed for ${w.address}:`, err);
+                }
+                return null;
+            });
+
+        const issuerResults = await Promise.all(issuerPromises);
+        const uniqueIssuers = issuerResults
+            .filter((i): i is { name: string; address: string } => i !== null)
+            .filter((candidate, index, self) =>
+                index === self.findIndex(c => c.address === candidate.address)
+            );
+
+        this.issuers = uniqueIssuers;
+
+        // PHASE 4: Conditionally update issuer
+        const knownIssuer = this.knownTrustLinesIssuers[this.currencyField];
+        let newIssuer = '';
+
+        if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
+            newIssuer = knownIssuer;
+        } else if (this.issuers.length > 0) {
+            newIssuer = this.issuers[0].address;
+        }
+
+        const issuerChanged = newIssuer !== this.issuerFields;
+        if (issuerChanged) {
+            this.issuerFields = newIssuer;
+        }
+
+        // PHASE 5: Update destination
+        const knownDestination = this.knownTrustLinesIssuers[this.currencyField];
+        if (knownDestination) {
+            this.destinationFields = knownDestination;
+        }
+
+        this.ensureDefaultNotSelected();
+
+        // PHASE 6: Call getTrustlines only if changed
+        const currencyChanged = this.lastCurrency !== this.currencyField;
+        if (currencyChanged || issuerChanged) {
+            this.lastCurrency = this.currencyField;
+            this.lastIssuer = this.issuerFields;
+            await this.getTrustlinesForAccount();
+        }
+
+    } catch (error: any) {
+        this.currencyBalanceField = '0';
+        this.gatewayBalance = '0';
+        console.error('Error in onCurrencyChange:', error);
+        this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
+    } finally {
+        this.spinner = false;
+        console.log('Leaving onCurrencyChange');
+    }
+}
+
+
+     async onCurrencyChange1() {
           console.log('Entering onCurrencyChange');
           const startTime = Date.now();
           this.setSuccessProperties();
@@ -1455,15 +1565,18 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     // Set issuerFields to the known issuer if it matches one of the filtered issuers, otherwise first available or empty
                     const knownIssuer = this.knownTrustLinesIssuers[this.currencyField];
-                    if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
-                         if(this.issuerFields == knownIssuer) {
-                              this.issuerFields = knownIssuer;
-                         }
-                    } else if (this.issuers.length > 0) {
-                         this.issuerFields = this.issuers[0].address;
-                    } else {
-                         this.issuerFields = '';
-                    }
+                    if (
+    knownIssuer &&
+    this.issuers.some(iss => iss.address === knownIssuer) &&
+    this.issuerFields !== knownIssuer
+) {
+    this.issuerFields = knownIssuer;
+} else if (
+    this.issuers.length > 0 &&
+    !this.issuers.some(iss => iss.address === this.issuerFields)
+) {
+    this.issuerFields = this.issuers[0].address;
+}
 
                     if (this.issuers.length === 0) {
                          console.warn(`No issuers found among wallets for currency: ${this.currencyField}`);
