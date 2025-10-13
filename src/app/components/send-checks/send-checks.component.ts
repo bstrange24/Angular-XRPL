@@ -58,7 +58,6 @@ export class SendChecksComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      private lastResult: string = '';
-     transactionInput: string = '';
      result: string = '';
      currencyFieldDropDownValue: string = 'XRP';
      checkExpirationTime: string = 'seconds';
@@ -68,14 +67,12 @@ export class SendChecksComponent implements AfterViewChecked {
      isEditable: boolean = false;
      ticketSequence: string = '';
      isTicket: boolean = false;
-     isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
      selectedTickets: string[] = []; // For multiple selection
      selectedSingleTicket: string = ''; // For single selection
      multiSelectMode: boolean = false; // Toggle between modes
      selectedTicket: string = ''; // The currently selected ticket
      selectedAccount: string = '';
-     xrpBalance1Field: string = '';
      checkIdField: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
@@ -100,20 +97,14 @@ export class SendChecksComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
-     private knownTrustLinesIssuers: { [key: string]: string } = {
-          XRP: '',
-     };
+     private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
      currencies: string[] = [];
-     // currencyIssuers: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
      selectedIssuer: string = '';
      isSimulateEnabled: boolean = false;
-     private knownDestinations: { [key: string]: string } = {};
-     // destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-     // Dynamic wallets
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
@@ -126,10 +117,6 @@ export class SendChecksComponent implements AfterViewChecked {
           const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
           if (storedIssuers) {
                this.knownTrustLinesIssuers = storedIssuers;
-          }
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               this.knownDestinations = storedDestinations;
           }
           this.updateCurrencies();
           this.currencyFieldDropDownValue = 'XRP'; // Set default to XRP
@@ -316,11 +303,10 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Fetch account info and all objects in parallel
                const [accountInfo, checkObjects, allAccountObjects, tokenBalance, mptAccountTokens] = await Promise.all([
                     this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), // for refreshUiAccountObjects
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'mptoken'),
                ]);
@@ -479,13 +465,11 @@ export class SendChecksComponent implements AfterViewChecked {
                // CRITICAL: Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
+               this.refreshUIData(wallet, accountInfo, allAccountObjects);
 
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched allAccountObjects and accountInfo
-                         this.refreshUiAccountObjects(allAccountObjects, accountInfo, wallet);
-                         this.refreshUiAccountInfo(accountInfo); // already have it — no need to refetch!
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                          await this.toggleIssuerField();

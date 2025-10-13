@@ -121,14 +121,14 @@
                                              <input type="text" id="currencyBalanceField" [(ngModel)]="currencyBalanceField" readonly name="currencyBalanceField" />
                                         </td>
                                    </tr>
-                                   <tr>
+                                   <!-- <tr>
                                         <td>
                                              <label for="gatewayBalance">Gateway Balance</label>
                                         </td>
                                         <td>
                                              <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
                                         </td>
-                                   </tr>
+                                   </tr> -->
                                    <tr>
                                         <td>
                                              <label for="amountField">Amount</label>
@@ -149,7 +149,7 @@
                                    <tr>
                                         <td><label for="issuerFields">Issuers</label></td>
                                         <td>
-                                             <select class="timeUnit" id="issuerFields" [(ngModel)]="issuerFields" name="issuerFields" (ngModelChange)="getTrustlinesForAccount(); this.onCurrencyChange()">
+                                             <select class="timeUnit" id="issuerFields" [(ngModel)]="issuerFields" name="issuerFields" (ngModelChange)="this.onCurrencyChange()">
                                                   <!-- <option *ngFor="let iss of issuers; let i = index" [value]="iss.address" [disabled]="iss.address === currentWallet.address">{{iss.name || 'Wallet ' + (i + 1)}} ({{iss.address | slice:0:6}}...{{iss.address | slice:-4}})</option> -->
                                                   <option *ngFor="let iss of issuers; let i = index" [value]="iss.address">{{iss.name || 'Wallet ' + (i + 1)}} ({{iss.address | slice:0:6}}...{{iss.address | slice:-4}})</option>
                                              </select>

@@ -1859,6 +1859,38 @@ export class UtilsService {
           }
      }
 
+     async getCurrencyBalanceWithIssuer(currency: string, issuer: string, accountObjects: xrpl.AccountObjectsResponse, account: string): Promise<number | null> {
+          try {
+               let account_objects: any[] = [];
+               if (accountObjects && !Array.isArray(accountObjects) && accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+                    account_objects = accountObjects.result.account_objects;
+               }
+
+               const matchingObjects: any[] = account_objects.filter((obj: any) => {
+                    if (!obj.Balance || obj.Balance.currency !== currency.toUpperCase()) return false;
+
+                    const lowIssuer = obj.LowLimit?.issuer;
+                    const highIssuer = obj.HighLimit?.issuer;
+
+                    // Check if this trustline is between the account and the specified issuer
+                    return (lowIssuer === account && highIssuer === issuer) || (highIssuer === account && lowIssuer === issuer);
+               });
+
+               let total = 0;
+               for (const obj of matchingObjects) {
+                    const balanceValue = parseFloat(obj.Balance.value);
+                    // Sign the balance from the account's perspective
+                    const signedBalance = account === obj.HighLimit?.issuer ? balanceValue : -balanceValue;
+                    total += signedBalance;
+               }
+
+               return total;
+          } catch (error) {
+               console.error('Error fetching balance:', error);
+               return null;
+          }
+     }
+
      setError(message: string, spinner: { style: { display: string } } | undefined) {
           this.isError = true;
           this.isSuccess = false;
