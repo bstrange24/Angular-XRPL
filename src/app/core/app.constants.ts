@@ -1,6 +1,7 @@
 // src/app/core/constants/app.constants.ts
 import { ECDSA } from 'xrpl';
 import * as xrpl from 'xrpl';
+import { TrustSetFlags } from 'xrpl';
 
 interface DelegateAction {
      id: number;
@@ -242,43 +243,39 @@ export const AppConstants = {
      MAX_ESCROW_FEE: '24',
 
      TRUSTLINE: {
-    CONFLICTS: {
-      tfSetNoRipple: ['tfClearNoRipple'],
-      tfClearNoRipple: ['tfSetNoRipple'],
-      tfSetFreeze: ['tfClearFreeze'],
-      tfClearFreeze: ['tfSetFreeze'],
-    },
-
-    FLAGS: {
-      tfSetfAuth: false,
-      tfSetNoRipple: false,
-      tfClearNoRipple: false,
-      tfSetFreeze: false,
-      tfClearFreeze: false,
-    },
-
-    FLAG_LIST: [
-      { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
-      { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
-      { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
-      { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
-      { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
-    ],
-
-    FLAG_MAP: {
-      tfSetfAuth: 0x00010000,
-      tfSetNoRipple: 0x00020000,
-      tfClearNoRipple: 0x00040000,
-      tfSetFreeze: 0x00080000,
-      tfClearFreeze: 0x00100000,
-    },
-
-    LEDGER_FLAG_MAP: {
-      lsfLowAuth: 0x00010000,
-      lsfHighAuth: 0x00040000,
-      lsfNoRipple: 0x00020000,
-      lsfLowFreeze: 0x00400000,
-      lsfHighFreeze: 0x00800000,
-    },
-  },
+          FLAGS: {
+               tfSetfAuth: false,
+               tfSetNoRipple: false,
+               tfClearNoRipple: false,
+               tfSetFreeze: false,
+               tfClearFreeze: false,
+          },
+          FLAG_LIST: [
+               { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
+               { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
+               { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
+               { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
+               { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
+          ],
+          FLAG_MAP: {
+               tfSetfAuth: TrustSetFlags.tfSetfAuth,
+               tfSetNoRipple: TrustSetFlags.tfSetNoRipple,
+               tfClearNoRipple: TrustSetFlags.tfClearNoRipple,
+               tfSetFreeze: TrustSetFlags.tfSetFreeze,
+               tfClearFreeze: TrustSetFlags.tfClearFreeze,
+          },
+          LEDGER_FLAG_MAP: {
+               lsfLowAuth: 0x00010000,
+               lsfHighAuth: 0x00040000,
+               lsfNoRipple: 0x00020000,
+               lsfLowFreeze: 0x00400000,
+               lsfHighFreeze: 0x00800000,
+          },
+          CONFLICTS: {
+               tfSetNoRipple: ['tfClearNoRipple'],
+               tfClearNoRipple: ['tfSetNoRipple'],
+               tfSetFreeze: ['tfClearFreeze'],
+               tfClearFreeze: ['tfSetFreeze'],
+          } as { [key: string]: string[] },
+     },
 };
