@@ -968,6 +968,7 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
           console.log('Entering onCurrencyChange');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage('Updating Currency...');
 
           try {
                const client = await this.xrplService.getClient();
