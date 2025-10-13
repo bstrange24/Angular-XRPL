@@ -311,7 +311,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Getting AMM Pool Info (${mode})...`);
 
@@ -479,7 +481,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'creating';
                this.updateSpinnerMessage(`Preparing AMM Creation (${mode})...`);
 
@@ -664,7 +668,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'depositing';
                this.updateSpinnerMessage(`Preparing AMM Deposit (${mode})...`);
 
@@ -848,7 +854,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'withdrawing';
                this.updateSpinnerMessage(`Preparing AMM Withdrawal (${mode})...`);
 
@@ -1071,7 +1079,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'clawing back';
                this.updateSpinnerMessage(`Preparing AMM Clawback (${mode})...`);
 
@@ -1227,7 +1237,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing AMM Clawback (${mode})...`);
 
@@ -1368,7 +1380,9 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing AMM Swap (${mode})...`);
 

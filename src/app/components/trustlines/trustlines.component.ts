@@ -225,7 +225,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage(`Getting Trustlines`);
 
                const client = await this.xrplService.getClient();
@@ -586,7 +588,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Trustline (${mode})...`);
 
@@ -725,7 +729,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating removal' : 'removing';
                this.updateSpinnerMessage(`Preparing Trustline Removal (${mode})...`);
 
@@ -886,7 +892,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'issuing';
                this.updateSpinnerMessage(`Preparing Currency Issuance (${mode})...`);
 
@@ -1136,7 +1144,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'clawing back';
                this.updateSpinnerMessage(`Preparing Token Clawback (${mode})...`);
 

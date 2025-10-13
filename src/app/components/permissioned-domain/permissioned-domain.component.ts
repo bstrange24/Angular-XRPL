@@ -245,7 +245,9 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage(`Getting Permissioned Domains`);
 
                const client = await this.xrplService.getClient();
@@ -371,7 +373,9 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Permissioned Domain Set (${mode})...`);
 
@@ -492,7 +496,9 @@ export class PermissionedDomainComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Deleting Permissioned Domain (${mode})...`);
 

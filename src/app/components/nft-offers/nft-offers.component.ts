@@ -654,7 +654,9 @@ export class NftOffersComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Buy NFT (${mode})...`);
 
@@ -809,7 +811,9 @@ export class NftOffersComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Sell NFT (${mode})...`);
 
@@ -950,7 +954,9 @@ export class NftOffersComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Sell NFT (${mode})...`);
 
@@ -1095,7 +1101,9 @@ export class NftOffersComponent implements AfterViewChecked {
      //      };
 
      //      try {
-     //           this.resultField.nativeElement.innerHTML = '';
+     //           if (this.resultField?.nativeElement) {
+     // this.resultField.nativeElement.innerHTML = '';
+     // }
      //           const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
      //           this.updateSpinnerMessage(`Preparing Cancel Buy NFT Offer (${mode})...`);
 
@@ -1229,7 +1237,9 @@ export class NftOffersComponent implements AfterViewChecked {
      //      };
 
      //      try {
-     //           this.resultField.nativeElement.innerHTML = '';
+     //           if (this.resultField?.nativeElement) {
+     // this.resultField.nativeElement.innerHTML = '';
+     // }
      //           const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
      //           this.updateSpinnerMessage(`Preparing Cancel Sell NFT Offer (${mode})...`);
 
@@ -1365,7 +1375,9 @@ export class NftOffersComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Cancel Sell NFT Offer (${mode})...`);
 

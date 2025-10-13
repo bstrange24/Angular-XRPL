@@ -101,18 +101,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
 
      ngOnInit() {}
 
-     ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange();
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.markForCheck();
-               }
-          })();
-     }
+     ngAfterViewInit() {}
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
@@ -205,7 +194,9 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.setSuccessProperties();
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage(`Getting Account Details`);
 
                const client = await this.xrplService.getClient();
@@ -280,7 +271,9 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'sending';
                this.updateSpinnerMessage(`Preparing XRP Transaction (${mode})...`);
 

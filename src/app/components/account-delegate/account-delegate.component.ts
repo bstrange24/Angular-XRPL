@@ -247,7 +247,9 @@ export class AccountDelegateComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage(`Getting Account Details`);
 
                const client = await this.xrplService.getClient();
@@ -396,7 +398,9 @@ export class AccountDelegateComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Delegate (${mode})... Action ${delegate}`);
 

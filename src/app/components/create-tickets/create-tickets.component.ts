@@ -310,7 +310,9 @@ export class CreateTicketsComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'sending';
                this.updateSpinnerMessage(`Preparing Create Ticket Transaction (${mode})...`);
 
@@ -432,7 +434,9 @@ export class CreateTicketsComponent implements AfterViewChecked {
           }
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Create Batch Tickets (${mode})...`);
 
@@ -536,7 +540,9 @@ export class CreateTicketsComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'sending';
                this.updateSpinnerMessage(`Preparing Cancel Ticket Transaction (${mode})...`);
 

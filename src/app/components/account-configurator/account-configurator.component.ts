@@ -413,7 +413,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage(`Getting Account Details`);
 
                const client = await this.xrplService.getClient();
@@ -655,7 +657,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.clearUiIAccountMetaData();
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Updating Account Flags (${mode})...`);
 
@@ -722,9 +726,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     this.setErrorProperties();
                }
 
-               if(this.configurationType === 'issuer') {
+               if (this.configurationType === 'issuer') {
                     this.currentWallet.isIssuer = true;
-
                }
 
                console.log(`transactions:`, transactions);
@@ -943,7 +946,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Deposit Auth Set (${mode})...`);
 
@@ -1086,7 +1091,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Multi Sign (${mode})...`);
 
@@ -1253,7 +1260,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Regular Key (${mode})...`);
 
@@ -1413,7 +1422,9 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing NFT Minter ${mode}...`);
 

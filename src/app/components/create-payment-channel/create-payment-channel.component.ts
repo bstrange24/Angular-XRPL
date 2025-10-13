@@ -258,7 +258,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : '';
                this.updateSpinnerMessage(`Getting Payment Channels (${mode})...`);
 
@@ -388,7 +390,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Payment Channels (${mode})...`);
 
@@ -415,7 +419,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                let response: any;
 
                if (action === 'create') {
-                    this.resultField.nativeElement.innerHTML = '';
+                    if (this.resultField?.nativeElement) {
+                         this.resultField.nativeElement.innerHTML = '';
+                    }
                     const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                     this.updateSpinnerMessage(`Preparing Create Payment Channel ${action} (${mode})...`);
 
@@ -449,7 +455,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          response = await this.xrplTransactions.submitTransaction(client, signedTx);
                     }
                } else if (action === 'fund' || action === 'renew') {
-                    this.resultField.nativeElement.innerHTML = '';
+                    if (this.resultField?.nativeElement) {
+                         this.resultField.nativeElement.innerHTML = '';
+                    }
                     const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                     this.updateSpinnerMessage(`Preparing Fund/Renew Payment Channel ${action} (${mode})...`);
 
@@ -480,7 +488,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          response = await this.xrplTransactions.submitTransaction(client, signedTx);
                     }
                } else if (action === 'claim') {
-                    this.resultField.nativeElement.innerHTML = '';
+                    if (this.resultField?.nativeElement) {
+                         this.resultField.nativeElement.innerHTML = '';
+                    }
                     const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                     this.updateSpinnerMessage(`Preparing Claim Payment Channel ${action} (${mode})...`);
 
@@ -536,7 +546,9 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          response = await this.xrplTransactions.submitTransaction(client, signedTx);
                     }
                } else if (action === 'close') {
-                    this.resultField.nativeElement.innerHTML = '';
+                    if (this.resultField?.nativeElement) {
+                         this.resultField.nativeElement.innerHTML = '';
+                    }
                     const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                     this.updateSpinnerMessage(`Preparing Close Payment Channel ${action} (${mode})...`);
 

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, EventEmitter, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { StorageService } from '../../services/storage.service';
@@ -8,6 +8,10 @@ import { DatePipe } from '@angular/common';
 import { interval, Subscription } from 'rxjs';
 import { formatInTimeZone } from 'date-fns-tz';
 import { UtilsService } from '../../services/utils.service';
+import { debounceTime } from 'rxjs/operators';
+import { Subject } from 'rxjs';
+import * as xrpl from 'xrpl';
+import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 
 @Component({
      selector: 'app-navbar',
@@ -17,6 +21,7 @@ import { UtilsService } from '../../services/utils.service';
      templateUrl: './navbar.component.html',
 })
 export class NavbarComponent implements OnInit {
+     @Output() transactionResult = new EventEmitter<{ result: string; isError: boolean; isSuccess: boolean }>();
      selectedNetwork: string = 'Devnet';
      networkColor: string = '#1a1c21';
      navbarColor: string = '#1a1c21';
@@ -30,8 +35,11 @@ export class NavbarComponent implements OnInit {
      isAccountsDropdownActive: boolean = false;
      currentDateTime: string = ''; // Store formatted date/time
      private timerSubscription: Subscription | null = null; // For real-time updates
+     private searchSubject = new Subject<void>();
+     transactionInput = '';
+     spinner = false;
 
-     constructor(private readonly storageService: StorageService, private readonly utilsService: UtilsService, private readonly xrplService: XrplService, private readonly router: Router, private readonly datePipe: DatePipe) {}
+     constructor(private readonly storageService: StorageService, private readonly utilsService: UtilsService, private readonly xrplService: XrplService, private readonly router: Router, private readonly datePipe: DatePipe, private readonly renderUiComponentsService: RenderUiComponentsService) {}
 
      ngOnInit() {
           // Initialize network
@@ -72,6 +80,14 @@ export class NavbarComponent implements OnInit {
           this.timerSubscription = interval(100).subscribe(() => {
                this.updateDateTime();
           });
+
+          this.searchSubject.pipe(debounceTime(300)).subscribe(() => {
+               this.getTransaction();
+          });
+     }
+
+     triggerSearch() {
+          this.searchSubject.next();
      }
 
      ngOnDestroy() {
@@ -396,5 +412,86 @@ export class NavbarComponent implements OnInit {
                if (element) this.storageService.setInputValue(id, element.value || '');
           });
           console.log('Leaving saveInputValues');
+     }
+
+     async getTransaction() {
+          console.log('Entering getTransaction');
+          const startTime = Date.now();
+          this.spinner = true;
+
+          const input = this.transactionInput.trim();
+          if (!input) {
+               this.transactionResult.emit({
+                    result: `<p>ERROR: Transaction field cannot be empty</p>`,
+                    isError: true,
+                    isSuccess: false,
+               });
+               this.spinner = false;
+               return;
+          }
+          if (!this.utilsService.isValidTransactionHash(input) && !this.utilsService.isValidCTID(input) && !xrpl.isValidAddress(input)) {
+               this.transactionResult.emit({
+                    result: `<p>ERROR: Invalid input. Must be a valid Transaction Hash, CTID, or Address</p>`,
+                    isError: true,
+                    isSuccess: false,
+               });
+               this.spinner = false;
+               return;
+          }
+
+          try {
+               const client = await this.xrplService.getClient();
+
+               const tempDiv = document.createElement('div');
+
+               let txResponse;
+               if (this.utilsService.isValidTransactionHash(input)) {
+                    txResponse = await client.request({
+                         command: 'tx',
+                         transaction: input,
+                    });
+               } else if (this.utilsService.isValidCTID(input)) {
+                    txResponse = await client.request({
+                         command: 'tx',
+                         ctid: input,
+                    });
+               } else if (xrpl.isValidAddress(input)) {
+                    txResponse = await client.request({
+                         command: 'account_tx',
+                         account: input,
+                         ledger_index_min: -1,
+                         ledger_index_max: -1,
+                         limit: 10,
+                    });
+               }
+
+               tempDiv.innerHTML += `\nTransaction data retrieved successfully.\n`;
+
+               if (txResponse) {
+                    this.renderUiComponentsService.renderTransactionsResults(txResponse, tempDiv);
+
+                    this.transactionResult.emit({
+                         result: tempDiv.innerHTML,
+                         isError: false,
+                         isSuccess: true,
+                    });
+               } else {
+                    this.transactionResult.emit({
+                         result: `<p>ERROR: No transaction data found.</p>`,
+                         isError: true,
+                         isSuccess: false,
+                    });
+               }
+          } catch (error: any) {
+               console.error('Error:', error);
+               this.transactionResult.emit({
+                    result: `ERROR: ${error.message || 'Unknown error'}`,
+                    isError: true,
+                    isSuccess: false,
+               });
+          } finally {
+               this.spinner = false;
+               console.log(`Leaving getTransaction in ${Date.now() - startTime}ms`);
+          }
      }
 }
