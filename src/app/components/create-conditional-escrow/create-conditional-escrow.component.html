@@ -100,140 +100,140 @@
 
                          <div class="top-section-right">
                               <table id="xrpDetails">
-                              <th></th>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Currency code for the check.">
-                                             <label for="currencyFieldDropDownValue">Currency Code</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amount of currency to send.">
-                                             <label for="amountField">Amount</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
-                                             <label for="issuerField">Issuer</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
-                                             <option value="" disabled selected>Select an issuer</option>
+                                   <th></th>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Currency code for the check.">
+                                                  <label for="currencyFieldDropDownValue">Currency Code</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
+                                                  <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amount of currency to send.">
+                                                  <label for="amountField">Amount</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                        </td>
+                                   </tr>
+                                   <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
+                                                  <label for="issuerField">Issuer</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                                  <option value="" disabled selected>Select an issuer</option>
                                                   <option *ngFor="let issuer of currencyIssuers; let i = index" [value]="issuer.address" [disabled]="issuer.address === currentWallet.address">{{issuer.name || 'Wallet ' + (i + 1)}} ({{issuer.address | slice:0:6}}...{{issuer.address | slice:-4}})</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
-                                             <label for="tokenBalance">Currency Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
-                                   <td>
-                                        <label for="gatewayBalance">Gateway Balance</label>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
-                                             <label for="destinationFields">Destination</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
+                                                  <label for="tokenBalance">Currency Balance</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
+                                        </td>
+                                   </tr>
+                                   <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
+                                        <td>
+                                             <label for="gatewayBalance">Gateway Balance</label>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
+                                        </td>
+                                   </tr> -->
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
+                                                  <label for="destinationFields">Destination</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
                                                   <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
-                                        </select>
-                                   </td>
-                              </tr>
+                                             </select>
+                                        </td>
+                                   </tr>
 
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
-                                             <label for="destinationTagField">Destination Tag</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Escrow cancel time.">
-                                             <label for="escrowCancelTimeField">Escrow Cancel Time</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowCancelTimeField" placeholder="Enter time" [(ngModel)]="escrowCancelTimeField" name="escrowCancelTimeField" />
-                                        <select class="timeUnit" style="width: 100px" id="escrowCancelTimeUnit" [(ngModel)]="escrowCancelTimeUnit" name="escrowCancelTimeUnit">
-                                             <option value="seconds">Seconds</option>
-                                             <option value="minutes">Minutes</option>
-                                             <option value="hours">Hours</option>
-                                             <option value="days">Days</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Escrow sequence number, used when finishing the escrow.">
-                                             <label for="escrowSequenceNumberField">Escrow Sequence Number</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowSequenceNumberField" [(ngModel)]="escrowSequenceNumberField" (blur)="getEscrowOwnerAddress()" (keyup.enter)="getEscrowOwnerAddress()" name="escrowSequenceNumberField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Condition code used to begin the escrow transaction.">
-                                             <label for="escrowConditionField">Escrow Condition</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowConditionField" [(ngModel)]="escrowConditionField" name="escrowConditionField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Fullfillment code to complete the escrow transaction.">
-                                             <label for="escrowFulfillmentField">Escrow Fulfillment</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowFulfillmentField" [(ngModel)]="escrowFulfillmentField" name="escrowFulfillmentField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
-                                             <label for="escrowOwnerField">Escrow Owner</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="escrowOwnerField" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
-                                   </td>
-                              </tr>
-                         </table>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
+                                                  <label for="destinationTagField">Destination Tag</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Escrow cancel time.">
+                                                  <label for="escrowCancelTimeField">Cancel Time</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="escrowCancelTimeField" placeholder="Enter time" [(ngModel)]="escrowCancelTimeField" name="escrowCancelTimeField" />
+                                             <select class="timeUnit" style="width: 100px" id="escrowCancelTimeUnit" [(ngModel)]="escrowCancelTimeUnit" name="escrowCancelTimeUnit">
+                                                  <option value="seconds">Seconds</option>
+                                                  <option value="minutes">Minutes</option>
+                                                  <option value="hours">Hours</option>
+                                                  <option value="days">Days</option>
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Escrow sequence number, used when finishing the escrow.">
+                                                  <label for="escrowSequenceNumberField">Sequence Number</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="escrowSequenceNumberField" [(ngModel)]="escrowSequenceNumberField" (blur)="getEscrowOwnerAddress()" (keyup.enter)="getEscrowOwnerAddress()" name="escrowSequenceNumberField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Escrow Condition code used to begin the escrow transaction.">
+                                                  <label for="escrowConditionField">Condition</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="escrowConditionField" [(ngModel)]="escrowConditionField" name="escrowConditionField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Escrow Fullfillment code to complete the escrow transaction.">
+                                                  <label for="escrowFulfillmentField">Fulfillment</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="escrowFulfillmentField" [(ngModel)]="escrowFulfillmentField" name="escrowFulfillmentField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Escrow owner, the account that created the escrow.">
+                                                  <label for="escrowOwnerField">Escrow Owner</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="escrowOwnerField" [(ngModel)]="escrowOwnerField" name="escrowOwnerField" />
+                                        </td>
+                                   </tr>
+                              </table>
                          </div>
                     </div>
 

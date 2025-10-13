@@ -159,14 +159,14 @@
                                              <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                         </td>
                                    </tr>
-                                   <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
+                                   <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
                                         <td>
                                              <label for="gatewayBalance">Gateway Balance</label>
                                         </td>
                                         <td>
                                              <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
                                         </td>
-                                   </tr>
+                                   </tr> -->
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
@@ -205,7 +205,7 @@
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Escrow finish time.">
-                                                  <label for="escrowFinishTimeField">Escrow Finish Time</label>
+                                                  <label for="escrowFinishTimeField">Finish Time</label>
                                              </span>
                                         </td>
                                         <td>
@@ -231,7 +231,7 @@
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Escrow cancel time.">
-                                                  <label for="escrowCancelTimeField">Escrow Cancel Time</label>
+                                                  <label for="escrowCancelTimeField">Cancel Time</label>
                                              </span>
                                         </td>
                                         <td>
@@ -257,7 +257,7 @@
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Escrow sequence number, used when finishing the escrow.">
-                                                  <label for="escrowSequenceNumberField">Escrow Sequence Number</label>
+                                                  <label for="escrowSequenceNumberField">Sequence Number</label>
                                              </span>
                                         </td>
                                         <td>
