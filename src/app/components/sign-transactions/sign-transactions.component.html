@@ -250,10 +250,7 @@
                                         <div class="transaction-column">
                                              <h4>Transaction JSON</h4>
                                              <div #resultField id="resultField" *ngIf="selectedTransaction || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()">
-                                                  <!-- Error message -->
                                                   <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div>
-
-                                                  <!-- JSON -->
                                                   <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div>
                                              </div>
                                         </div>

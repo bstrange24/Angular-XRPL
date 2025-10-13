@@ -133,8 +133,6 @@ export class CreateConditionalEscrowComponent implements AfterViewChecked {
      multiSelectMode: boolean = false; // Toggle between modes
      selectedTicket: string = ''; // The currently selected ticket
      selectedAccount: string = '';
-     channelIDField: string = '';
-     settleDelayField: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
