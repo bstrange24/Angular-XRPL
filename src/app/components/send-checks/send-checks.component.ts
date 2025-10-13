@@ -713,10 +713,6 @@ export class SendChecksComponent implements AfterViewChecked {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
-               } else {
-                    if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, checkCashTx, this.destinationFields)) {
-                         return this.setError('ERROR: Not enough IOU balance for this transaction');
-                    }
                }
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Cashing Check (no changes will be made)...' : 'Submitting to Ledger...');
