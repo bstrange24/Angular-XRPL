@@ -442,7 +442,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               console.debug(`parseAllGatewayBalances:`, this.parseAllGatewayBalances(tokenBalance, wallet));
                               const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
                               if (parsedBalances && Object.keys(parsedBalances).length > 0) {
-                                   this.currencyBalanceField = parsedBalances[this.currencyField][this.issuerFields];
+                                   this.currencyBalanceField = parsedBalances?.[this.currencyField]?.[this.issuerFields] ?? '0';
                               } else {
                                    this.currencyBalanceField = '0';
                               }
@@ -533,7 +533,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               console.debug(`parseAllGatewayBalances`, this.parseAllGatewayBalances(tokenBalance, wallet));
                               const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
                               if (parsedBalances && Object.keys(parsedBalances).length > 0) {
-                                   this.currencyBalanceField = parsedBalances[this.currencyField][this.issuerFields];
+                                   this.currencyBalanceField = parsedBalances?.[this.currencyField]?.[this.issuerFields] ?? '0';
                               } else {
                                    this.currencyBalanceField = '0';
                               }

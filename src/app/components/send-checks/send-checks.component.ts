@@ -399,7 +399,7 @@ export class SendChecksComponent implements AfterViewChecked {
                     console.debug(`parseAllGatewayBalances:`, this.parseAllGatewayBalances(tokenBalance, wallet));
                     const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
                     if (parsedBalances && Object.keys(parsedBalances).length > 0) {
-                         this.tokenBalance = parsedBalances[this.currencyFieldDropDownValue][this.selectedIssuer];
+                         this.tokenBalance = parsedBalances?.[this.currencyFieldDropDownValue]?.[this.selectedIssuer] ?? '0';
                     } else {
                          this.tokenBalance = '0';
                     }
