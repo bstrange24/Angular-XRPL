@@ -40,7 +40,7 @@ interface ValidationInputs {
      isTicket?: boolean;
      ticketSequence?: string;
      selectedSingleTicket?: string;
-     
+
      signerQuorum?: number;
      signers?: { account: string; seed: string; weight: number }[];
 }
@@ -157,18 +157,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      ngOnInit() {}
 
-     ngAfterViewInit() {
-          // (async () => {
-          //      try {
-          //           this.onAccountChange();
-          //      } catch (error: any) {
-          //           console.error(`Error loading initial wallet: ${error.message}`);
-          //           this.setError('ERROR: Could not load initial wallet');
-          //      } finally {
-          //           this.cdr.markForCheck();
-          //      }
-          // })();
-     }
+     ngAfterViewInit() {}
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
@@ -376,39 +365,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           }
      }
 
-     async toggleMetaData() {
-          console.log('Entering toggleMetaData');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          try {
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
-
-               const inputs: ValidationInputs = {
-                    selectedAccount: this.currentWallet.address,
-                    seed: this.currentWallet.seed,
-                    account_info: accountInfo,
-               };
-
-               const errors = await this.validateInputs(inputs, 'toggleMetaData');
-               if (errors.length > 0) {
-                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-               }
-               console.debug(`accountInfo for`, accountInfo.result);
-
-               this.refreshUiIAccountMetaData(accountInfo.result);
-          } catch (error: any) {
-               console.error('Error in toggleMetaData:', error);
-               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving toggleMetaData in ${this.executionTime}ms`);
-          }
-     }
-
      async getAccountDetails() {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
@@ -490,7 +446,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      //           multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
      //           multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
      //           isTicket: this.isTicket,
-     //           ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+     //           selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
      //           signers: this.signers || undefined,
      //           signerQuorum: this.signerQuorum || undefined,
      //      };
@@ -747,7 +703,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          try {
                               this.loadSignerList(wallet.classicAddress);
                               this.clearFields(false);
-                              this.updateTickets(accountObjects);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in deferred UI updates:', err);
@@ -761,6 +717,39 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving updateFlags in ${this.executionTime}ms`);
+          }
+     }
+
+     async toggleMetaData() {
+          console.log('Entering toggleMetaData');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          try {
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+               const accountInfo = await this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '');
+
+               const inputs: ValidationInputs = {
+                    selectedAccount: this.currentWallet.address,
+                    seed: this.currentWallet.seed,
+                    account_info: accountInfo,
+               };
+
+               const errors = await this.validateInputs(inputs, 'toggleMetaData');
+               if (errors.length > 0) {
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
+               }
+               console.debug(`accountInfo for`, accountInfo.result);
+
+               this.refreshUiIAccountMetaData(accountInfo.result);
+          } catch (error: any) {
+               console.error('Error in toggleMetaData:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving toggleMetaData in ${this.executionTime}ms`);
           }
      }
 
@@ -782,7 +771,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
                signers: this.signers ? this.signers : undefined,
                signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
           };
@@ -815,21 +804,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                });
 
-               // Handle Ticket Sequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(accountSetTx, this.ticketSequence, true);
-               } else {
-                    // Use pre-fetched sequence — no redundant call!
-                    this.utilsService.setTicketSequence(accountSetTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(accountSetTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, accountSetTx, wallet, accountInfo);
 
                const updates: (() => void)[] = [];
 
@@ -937,7 +912,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
                signers: this.signers ? this.signers : undefined,
                signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
           };
@@ -1005,42 +980,41 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Deposit Auth (no changes will be made)...' : 'Submitting to Ledger...');
 
+                    let response: any;
+
                     if (this.isSimulateEnabled) {
-                         const simulation = await this.xrplTransactions.simulateTransaction(client, depositPreauthTx);
+                         response = await this.xrplTransactions.simulateTransaction(client, depositPreauthTx);
 
-                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
                          if (!isSuccess) {
-                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                              (simulation['result'] as any).errorMessage = userMessage;
-                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                              (response.result as any).errorMessage = userMessage;
                          }
 
-                         console.log('Submit Response:', JSON.stringify(simulation, null, '\t'));
-                         const result = simulation.result;
+                         console.log('Submit Response:', JSON.stringify(response, null, '\t'));
+                         const result = response.result;
                          results.push({ result });
                     } else {
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, depositPreauthTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, depositPreauthTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
 
-                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                         response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                          const isSuccess = this.utilsService.isTxSuccessful(response);
                          if (!isSuccess) {
                               const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+                              const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                              (response.result as any).errorMessage = userMessage;
                               console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                              (response.result as any).errorMessage = userMessage;
                          }
 
                          const result = response.result;
@@ -1050,14 +1024,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.renderTransactionResult(results);
 
-               const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-               this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
                if (!this.isSimulateEnabled) {
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
-                              this.updateTickets(accountObjects);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -1079,7 +1053,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
@@ -1089,7 +1063,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                multiSignAddresses: this.isMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.isMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
                signers: this.signers || undefined,
                signerQuorum: this.signerQuorum || undefined,
           };
@@ -1101,21 +1075,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Multi Sign (${mode})...`);
 
-               // Get client + wallet
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Fetch account info, fee and current ledger in PARALLEL
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'setMultiSign');
                if (errors.length > 0) {
@@ -1136,22 +1108,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     Fee: fee,
                };
 
-               // Attach ticket sequence and LastLedgerSequence
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(signerListTx, this.ticketSequence, true);
-               } else {
-                    // Use pre-fetched sequence — no redundant call!
-                    this.utilsService.setTicketSequence(signerListTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               // Optional fields
-               if (this.memoField) {
-                    this.utilsService.setMemoField(signerListTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, signerListTx, wallet, accountInfo);
 
                signerListTx.LastLedgerSequence = currentLedger + AppConstants.LAST_LEDGER_ADD_TIME;
 
@@ -1167,53 +1124,36 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Multi Sign (no changes will be made)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, signerListTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, signerListTx);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, signerListTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, signerListTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
+               if (!this.isSimulateEnabled) {
                     if (enableMultiSignFlag === 'Y') {
                          this.storageService.set(wallet.classicAddress + 'signerEntries', signerEntries);
                     } else {
@@ -1249,7 +1189,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
@@ -1259,7 +1199,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
                signers: this.signers ? this.signers : undefined,
                signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
           };
@@ -1271,21 +1211,19 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Regular Key (${mode})...`);
 
-               // Get client + wallet
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Fetch account info, fee and current ledger in PARALLEL
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'setRegularKey');
                if (errors.length > 0) {
@@ -1307,15 +1245,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     setRegularKeyTx.RegularKey = this.regularKeyAccount;
                }
 
-               // Attach ticket sequence and LastLedgerSequence
-               if (this.ticketSequence) {
-                    const ticketObject = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'ticket');
-                    this.utilsService.applyTicketSequence(accountInfo, ticketObject, setRegularKeyTx, this.ticketSequence);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(setRegularKeyTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, setRegularKeyTx, wallet, accountInfo);
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, setRegularKeyTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -1323,50 +1253,34 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Regular Key (no changes will be made)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, setRegularKeyTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, setRegularKeyTx);
                } else {
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, setRegularKeyTx, false, '', fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, setRegularKeyTx, false, '', fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
+               if (!this.isSimulateEnabled) {
                     const regularKeysAccount = wallet.classicAddress + 'regularKey';
                     const regularKeySeedAccount = wallet.classicAddress + 'regularKeySeed';
                     if (enableRegularKeyFlag === 'Y') {
@@ -1382,6 +1296,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
+                              this.loadSignerList(wallet.classicAddress);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -1405,7 +1320,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                nfTokenMinterAddress: this.nfTokenMinterAddress,
@@ -1416,7 +1331,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
                signers: this.signers || undefined,
                signerQuorum: this.signerQuorum || undefined,
           };
@@ -1434,20 +1349,18 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing NFT Minter ${mode}...`);
 
-               // Get client + wallet
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Fetch account info, fee and current ledger in PARALLEL
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'setNftMinterAddress');
                if (errors.length > 0) {
@@ -1487,42 +1400,41 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     const action = enableNftMinter === 'Y' ? 'setting' : 'clearing';
                     this.updateSpinnerMessage(this.isSimulateEnabled ? `Simulating ${action} NFT Minter for ${authorizedAddress}...` : `Submitting ${action} NFT Minter for ${authorizedAddress}...`);
 
+                    let response: any;
+
                     if (this.isSimulateEnabled) {
-                         const simulation = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
+                         response = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
 
-                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
+                         const isSuccess = this.utilsService.isTxSuccessful(response);
                          if (!isSuccess) {
-                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+                              const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                              const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                              (simulation['result'] as any).errorMessage = userMessage;
-                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
+                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                              (response.result as any).errorMessage = userMessage;
                          }
 
-                         console.log('Submit Response:', JSON.stringify(simulation, null, '\t'));
-                         const result = simulation.result;
+                         console.log('Submit Response:', JSON.stringify(response, null, '\t'));
+                         const result = response.result;
                          results.push({ result });
                     } else {
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, accountSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, accountSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
                          }
 
-                         const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                         response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
                          const isSuccess = this.utilsService.isTxSuccessful(response);
                          if (!isSuccess) {
                               const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+                              const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                              (response.result as any).errorMessage = userMessage;
                               console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                              (response.result as any).errorMessage = userMessage;
                          }
 
                          const result = response.result;
@@ -1532,10 +1444,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                this.renderTransactionResult(results);
 
-               const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-               this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
                if (!this.isSimulateEnabled) {
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
@@ -2118,6 +2030,25 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           return errors;
      }
 
+     private async setTxOptionalFields(client: xrpl.Client, accountTx: any, wallet: xrpl.Wallet, accountInfo: any) {
+          if (this.selectedSingleTicket) {
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
+               if (!ticketExists) {
+                    return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
+               }
+               this.utilsService.setTicketSequence(accountTx, this.selectedSingleTicket, true);
+          } else {
+               if (this.multiSelectMode && this.selectedTickets.length > 0) {
+                    console.log('Setting multiple tickets:', this.selectedTickets);
+                    this.utilsService.setTicketSequence(accountTx, accountInfo.result.account_data.Sequence, false);
+               }
+          }
+
+          if (this.memoField) {
+               this.utilsService.setMemoField(accountTx, this.memoField);
+          }
+     }
+
      refreshUiAccountObjects(accountObjects: any, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const signerAccounts: string[] = this.checkForSignerAccounts(accountObjects);
 
@@ -2296,14 +2227,18 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
                this.ticketSequence = '';
-               this.isTicket = false;
-               this.isMultiSign = false;
                this.useMultiSign = false;
                this.isAuthorizedNFTokenMinter = false;
                this.isdepositAuthAddress = false;
                this.isUpdateMetaData = false;
                this.isSetRegularKey = false;
           }
+
+          this.isTicket = false;
+          this.isTicketEnabled = false;
+          this.multiSelectMode = false;
+          this.selectedSingleTicket = '';
+          this.selectedTickets = [];
           this.isMultiSign = false;
           this.memoField = '';
           this.isMemoEnabled = false;

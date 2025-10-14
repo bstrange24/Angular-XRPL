@@ -57,7 +57,7 @@ interface SignerEntry {
 export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit, AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     private lastResult: string = '';
+     lastResult: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -465,7 +465,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           }
      }
 
-     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
@@ -475,7 +475,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           this.ticketArray = this.getAccountTickets(accountObjects);
           if (this.ticketArray.length > 0) {
                this.selectedTicket = this.ticketArray[0];
@@ -740,7 +740,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.ensureDefaultNotSelected();
      }
 
-     private ensureDefaultNotSelected() {
+     ensureDefaultNotSelected() {
           const currentAddress = this.currentWallet.address;
           if (currentAddress && this.destinations.length > 0) {
                if (!this.destinationFields || this.destinationFields === currentAddress) {
