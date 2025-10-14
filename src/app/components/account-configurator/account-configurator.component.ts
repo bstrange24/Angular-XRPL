@@ -163,7 +163,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.markForCheck();
+               this.cdr.detectChanges();
           }
      }
 
@@ -180,7 +180,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      async onAccountChange() {
@@ -203,7 +203,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           if (this.signerQuorum > totalWeight) {
                this.signerQuorum = totalWeight;
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      async toggleMultiSign() {
@@ -218,7 +218,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
-               this.cdr.markForCheck();
+               this.cdr.detectChanges();
           }
      }
 
@@ -226,54 +226,32 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
                this.multiSignSeeds = '';
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      onConfigurationChange() {
-          // Reset all flags to ensure a clean state
           this.resetFlags();
 
-          // Call the appropriate method based on configurationType
+          const type = this.configurationType || '';
           const configActions: Record<string, () => void> = {
                holder: () => this.setHolder(),
                exchanger: () => this.setExchanger(),
                issuer: () => this.setIssuer(),
           };
 
-          const type = this.configurationType;
-          if (type && configActions[type]) {
-               configActions[type]();
-          }
+          configActions[type]?.();
 
           console.log('Configuration changed to:', this.configurationType);
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      private resetFlags() {
-          this.flags = {
-               asfRequireDest: false,
-               asfRequireAuth: false,
-               asfDisallowXRP: false,
-               asfDisableMaster: false,
-               asfNoFreeze: false,
-               asfGlobalFreeze: false,
-               asfDefaultRipple: false,
-               asfDepositAuth: false,
-               asfAllowTrustLineClawback: false,
-               asfDisallowIncomingNFTokenOffer: false,
-               asfDisallowIncomingCheck: false,
-               asfDisallowIncomingPayChan: false,
-               asfDisallowIncomingTrustline: false,
-               asfAllowTrustLineLocking: false,
-          };
+          Object.keys(this.flags).forEach(key => (this.flags[key as keyof AccountFlags] = false));
 
-          // Reset metadata fields
           ['domainField', 'transferRateField', 'tickSizeField'].forEach(id => {
                const elem = document.getElementById(id) as HTMLInputElement | null;
                if (elem) elem.value = '';
           });
-
-          this.cdr.markForCheck();
      }
 
      setHolder() {
@@ -291,8 +269,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfDisallowIncomingCheck = false;
           this.flags.asfDisallowIncomingPayChan = false;
           this.flags.asfDisallowIncomingTrustline = false;
-
-          this.cdr.markForCheck();
      }
 
      setExchanger() {
@@ -310,8 +286,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfDisallowIncomingCheck = false;
           this.flags.asfDisallowIncomingPayChan = true;
           this.flags.asfDisallowIncomingTrustline = false;
-
-          this.cdr.markForCheck();
      }
 
      setIssuer() {
@@ -329,12 +303,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.flags.asfDisallowIncomingCheck = true;
           this.flags.asfDisallowIncomingPayChan = true;
           this.flags.asfDisallowIncomingTrustline = false;
-
-          this.cdr.markForCheck();
      }
 
      toggleConfigurationTemplate() {
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      addSigner() {
@@ -346,11 +318,11 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      toggleTicketSequence() {
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      onAuthorizedNFTokenMinter() {
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      onNoFreezeChange() {
@@ -369,6 +341,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.configurationType = null;
 
           try {
                if (this.resultField?.nativeElement) {
@@ -408,11 +381,10 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
 
-               this.refreshUIData(wallet, accountInfo, accountObjects);
-
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
+                         this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.loadSignerList(wallet.classicAddress);
                          this.clearFields(false);
                          this.updateTickets(accountObjects);
@@ -430,167 +402,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                console.log(`Leaving getAccountDetails in ${this.executionTime}ms`);
           }
      }
-
-     // async updateFlags1() {
-     //      console.log('Entering updateFlags');
-     //      const startTime = Date.now();
-     //      this.setSuccessProperties();
-
-     //      let inputs: ValidationInputs = {
-     //           selectedAccount: this.currentWallet.address,
-     //           seed: this.currentWallet.seed,
-     //           isRegularKeyAddress: this.isSetRegularKey,
-     //           isMultiSign: this.useMultiSign,
-     //           regularKeyAddress: this.regularKeyAccount || undefined,
-     //           regularKeySeed: this.regularKeyAccountSeed || undefined,
-     //           multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
-     //           multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
-     //           isTicket: this.isTicket,
-     //           selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
-     //           signers: this.signers || undefined,
-     //           signerQuorum: this.signerQuorum || undefined,
-     //      };
-
-     //      this.clearUiIAccountMetaData();
-
-     //      try {
-     //           this.resultField.nativeElement.innerHTML = '';
-     //           const mode = this.isSimulateEnabled ? 'simulating' : 'updating';
-     //           this.updateSpinnerMessage(`Preparing Account Flags ${mode}...`);
-
-     //           const client = await this.xrplService.getClient();
-     //           const wallet = await this.getWallet();
-
-     //           // ➤ PHASE 1: PARALLELIZE — fetch account info + objects + fee + ledger index
-     //           let [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
-
-     //           inputs = { ...inputs, account_info: accountInfo };
-
-     //           const { setFlags, clearFlags } = this.utilsService.getFlagUpdates(accountInfo.result.account_flags);
-     //           inputs = { ...inputs, flags: accountInfo.result.account_flags, setFlags, clearFlags };
-
-     //           const errors = await this.validateInputs(inputs, 'updateFlags');
-     //           if (errors.length > 0) {
-     //                return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-     //           }
-
-     //           // ➤ EARLY EXIT: No changes needed
-     //           if (setFlags.length === 0 && clearFlags.length === 0) {
-     //                this.resultField.nativeElement.innerHTML = 'No flag changes needed.';
-     //                this.resultField.nativeElement.classList.add('success');
-     //                this.setSuccess('No changes required');
-     //                return;
-     //           }
-
-     //           // ➤ PHASE 2: Build SINGLE transaction with all flag changes
-     //           const flagTx: xrpl.AccountSet = {
-     //                TransactionType: 'AccountSet',
-     //                Account: classicAddress,
-     //                Fee: fee,
-     //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //           };
-
-     //           // Add SetFlag(s) - only the highest value is needed, but we'll add all for clarity
-     //           if (setFlags.length > 0) {
-     //                // XRPL only accepts one SetFlag per transaction, so use the first one
-     //                // But actually, you can only set one flag at a time in AccountSet
-     //                // So we need to handle this differently...
-     //           }
-
-     //           // Wait - actually, let's check the XRPL docs...
-     //           // ❗ **CORRECTION**: AccountSet only accepts ONE SetFlag or ClearFlag per transaction
-     //           // So we cannot batch them. We must submit sequentially.
-     //           // But we can still optimize the sequential processing!
-
-     //           // ➤ PHASE 3: Process flags SEQUENTIALLY (required by XRPL) but OPTIMIZED
-     //           const transactions = [];
-     //           let hasError = false;
-
-     //           // Combine all flags to process
-     //           const allFlagActions = [...setFlags.map(flag => ({ type: 'SetFlag', value: parseInt(flag) })), ...clearFlags.map(flag => ({ type: 'ClearFlag', value: parseInt(flag) }))];
-
-     //           // Get regular key wallet ONCE
-     //           const environment = this.xrplService.getNet().environment;
-     //           const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isSetRegularKey, this.regularKeyAccountSeed);
-
-     //           // Process each flag
-     //           for (const flagAction of allFlagActions) {
-     //                const flagName = this.utilsService.getFlagName(flagAction.value.toString());
-     //                const action = flagAction.type === 'SetFlag' ? 'setting' : 'clearing';
-
-     //                this.updateSpinnerMessage(`Submitting ${flagName} (${action})...`);
-
-     //                const response = await this.submitFlagTransaction(
-     //                     client,
-     //                     wallet,
-     //                     { [flagAction.type]: flagAction.value },
-     //                     this.memoField,
-     //                     fee, // ✅ Pass pre-calculated fee
-     //                     currentLedger, // ✅ Pass pre-fetched ledger index
-     //                     accountInfo, // ✅ Pass pre-fetched account info
-     //                     useRegularKeyWalletSignTx,
-     //                     regularKeyWalletSignTx
-     //                );
-
-     //                if (!this.isValidResponse(response)) {
-     //                     this.setError('ERROR: Invalid response from submitFlagTransaction');
-     //                     hasError = true;
-     //                     continue;
-     //                }
-
-     //                transactions.push({
-     //                     type: flagAction.type,
-     //                     flag: flagName,
-     //                     result: typeof response.message === 'object' && 'result' in response.message ? response.message.result : response.message,
-     //                });
-
-     //                if (!response.success) {
-     //                     hasError = true;
-     //                }
-
-     //                // Update ledger index for next transaction
-     //                if (response.success && typeof response.message !== 'string' && response.message?.result?.ledger_index) {
-     //                     currentLedger = response.message.result.ledger_index;
-     //                }
-     //           }
-
-     //           // ➤ PHASE 4: Render results
-     //           this.renderUiComponentsService.renderTransactionsResults(transactions, this.resultField.nativeElement);
-
-     //           if (hasError) {
-     //                this.resultField.nativeElement.classList.add('error');
-     //                this.setErrorProperties();
-     //           } else {
-     //                this.resultField.nativeElement.classList.add('success');
-     //                this.setSuccess(this.result);
-     //           }
-
-     //           // ➤ ONLY refresh account data after REAL transactions
-     //           if (!this.isSimulateEnabled) {
-     //                const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
-
-     //                this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
-     //                // ➤ DEFER non-critical cleanup
-     //                setTimeout(async () => {
-     //                     try {
-     //                          this.loadSignerList(classicAddress);
-     //                          this.clearFields(false);
-     //                          await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-     //                     } catch (err) {
-     //                          console.error('Error in deferred UI updates:', err);
-     //                     }
-     //                }, 0);
-     //           }
-     //      } catch (error: any) {
-     //           console.error('Error in updateFlags:', error);
-     //           this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-     //      } finally {
-     //           this.spinner = false;
-     //           this.executionTime = (Date.now() - startTime).toString();
-     //           console.log(`Leaving updateFlags in ${this.executionTime}ms`);
-     //      }
-     // }
 
      async updateFlags() {
           console.log('Entering updateFlags');
@@ -624,7 +435,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Fetch account info + objects in PARALLEL
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -2105,7 +1915,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.transferRate = TransferRate ? ((TransferRate / 1_000_000_000 - 1) * 100).toFixed(3) : '';
           this.domain = Domain ? this.utilsService.decodeHex(Domain) : '';
           this.isMessageKey = !!MessageKey;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      refreshUiAccountInfo(accountInfo: any) {
@@ -2242,7 +2052,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.isMultiSign = false;
           this.memoField = '';
           this.isMemoEnabled = false;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      isValidResponse(response: any): response is { success: boolean; message: xrpl.TxResponse<xrpl.SubmittableTransaction> | string } {
@@ -2274,12 +2084,12 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
           this.domain = '';
           this.isMessageKey = false;
 
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
           console.debug('Spinner message updated:', message);
      }
 
