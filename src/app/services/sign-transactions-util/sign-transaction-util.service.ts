@@ -6,19 +6,7 @@ import { UtilsService } from '../utils.service';
 interface SignTransactionOptions {
      client: xrpl.Client;
      wallet: xrpl.Wallet;
-     selectedTransaction?:
-          | 'accountFlagSet'
-          | 'accountFlagClear'
-          | 'setTrustline'
-          | 'removeTrustline'
-          | 'createTimeEscrow'
-          | 'finishTimeEscrow'
-          | 'createConditionEscrow'
-          | 'finishConditionEscrow'
-          | 'cancelEscrow'
-          | 'createCheck'
-          | 'cashCheck'
-          | 'cancelCheck'; // Or string if more
+     selectedTransaction?: 'accountFlagSet' | 'accountFlagClear' | 'setTrustline' | 'removeTrustline' | 'createTimeEscrow' | 'finishTimeEscrow' | 'createConditionEscrow' | 'finishConditionEscrow' | 'cancelEscrow' | 'createCheck' | 'cashCheck' | 'cancelCheck'; // Or string if more
      isTicketEnabled?: boolean;
      ticketSequence?: string;
 }
@@ -27,27 +15,16 @@ interface SignTransactionOptions {
      providedIn: 'root',
 })
 export class SignTransactionUtilService {
-     constructor(
-          private readonly xrplService: XrplService,
-          private readonly utilsService: UtilsService,
-     ) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService) {}
 
-     async createSendXrpRequestText({
-          client,
-          wallet,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async createSendXrpRequestText({ client, wallet, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let xrpPaymentRequest: any = {
                TransactionType: 'Payment',
                Account: wallet.classicAddress,
                Destination: 'rB59o63jhXxHU9RHDMUq2bypc8pW4m5f6s',
-               Amount: '1000000', // 1 XRP in drops
+               Amount: '0.00001', // 1 XRP in drops
                Fee: '10',
                LastLedgerSequence: currentLedger,
                Sequence: accountInfo.result.account_data.Sequence,
@@ -72,16 +49,10 @@ export class SignTransactionUtilService {
 
           // If using a Ticket
           if (isTicketEnabled && ticketSequence) {
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
                if (!ticketExists) {
-                    throw new Error(
-                         `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-                    );
+                    throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
                }
 
                // Overwrite fields for ticketed tx
@@ -93,22 +64,12 @@ export class SignTransactionUtilService {
           return txString;
      }
 
-     async modifyTrustlineRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async modifyTrustlineRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'TrustSet',
                Account: wallet.classicAddress,
-               Destination: 'rB59o63jhXxHU9RHDMUq2bypc8pW4m5f6s',
                Fee: '10',
                QualityIn: 0,
                QualityOut: 0,
@@ -133,13 +94,13 @@ export class SignTransactionUtilService {
 
           if (selectedTransaction === 'setTrustline') {
                modifyTrustlineRequest.LimitAmount = {
-                    currency: 'CTZ',
+                    currency: '',
                     issuer: 'rsP3mgGb2tcYUrxiLFiHJiQXhsziegtwBc',
-                    value: '100',
+                    value: '10000000000000000000',
                };
           } else {
                modifyTrustlineRequest.LimitAmount = {
-                    currency: 'CTZ',
+                    currency: '',
                     issuer: 'rsP3mgGb2tcYUrxiLFiHJiQXhsziegtwBc',
                     value: '0',
                };
@@ -147,16 +108,10 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
                if (!ticketExists) {
-                    throw new Error(
-                         `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-                    );
+                    throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
                }
 
                // Overwrite fields for ticketed tx
@@ -168,17 +123,8 @@ export class SignTransactionUtilService {
           return txString; // Set property instead of DOM
      }
 
-     async modifyAccountFlagsRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async modifyAccountFlagsRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyAccountSetRequest: any = {
                TransactionType: 'AccountSet',
@@ -205,16 +151,10 @@ export class SignTransactionUtilService {
           };
 
           if (isTicketEnabled && ticketSequence) {
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
                if (!ticketExists) {
-                    throw new Error(
-                         `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-                    );
+                    throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
                }
 
                // Override for ticket use
@@ -225,17 +165,8 @@ export class SignTransactionUtilService {
           return JSON.stringify(modifyAccountSetRequest, null, 2);
      }
 
-     async createTimeEscrowRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async createTimeEscrowRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'EscrowCreate',
@@ -265,15 +196,9 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
-               throw new Error(
-                    `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-               );
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
 
                // Overwrite fields for ticketed tx
                modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
@@ -284,17 +209,8 @@ export class SignTransactionUtilService {
           return txString; // Set property instead of DOM
      }
 
-     async finshEscrowRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async finshEscrowRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'EscrowFinish',
@@ -322,15 +238,9 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
-               throw new Error(
-                    `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-               );
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
 
                // Overwrite fields for ticketed tx
                modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
@@ -341,17 +251,8 @@ export class SignTransactionUtilService {
           return txString; // Set property instead of DOM
      }
 
-     async createEscrowRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async createEscrowRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'EscrowCreate',
@@ -381,15 +282,9 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
-               throw new Error(
-                    `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-               );
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
 
                // Overwrite fields for ticketed tx
                modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
@@ -400,17 +295,8 @@ export class SignTransactionUtilService {
           return txString; // Set property instead of DOM
      }
 
-     async createCheckRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async createCheckRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'CheckCreate',
@@ -438,15 +324,9 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
-               throw new Error(
-                    `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-               );
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
 
                // Overwrite fields for ticketed tx
                modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
@@ -457,17 +337,8 @@ export class SignTransactionUtilService {
           return txString; // Set property instead of DOM
      }
 
-     async cashCheckRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async cashCheckRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'CheckCash',
@@ -495,15 +366,9 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
-               throw new Error(
-                    `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-               );
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
 
                // Overwrite fields for ticketed tx
                modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
@@ -514,17 +379,8 @@ export class SignTransactionUtilService {
           return txString; // Set property instead of DOM
      }
 
-     async cancelCheckRequestText({
-          client,
-          wallet,
-          selectedTransaction,
-          isTicketEnabled,
-          ticketSequence,
-     }: SignTransactionOptions): Promise<string> {
-          const [accountInfo, currentLedger] = await Promise.all([
-               this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-               this.xrplService.getLastLedgerIndex(client),
-          ]);
+     async cancelCheckRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 
           let modifyTrustlineRequest: any = {
                TransactionType: 'CheckCancel',
@@ -551,15 +407,9 @@ export class SignTransactionUtilService {
 
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
-               const ticketExists = await this.xrplService.checkTicketExists(
-                    client,
-                    wallet.classicAddress,
-                    Number(ticketSequence),
-               );
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
 
-               throw new Error(
-                    `ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`,
-               );
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
 
                // Overwrite fields for ticketed tx
                modifyTrustlineRequest.TicketSequence = Number(ticketSequence);

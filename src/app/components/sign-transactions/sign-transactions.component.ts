@@ -1,10 +1,4 @@
-import {
-     Component,
-     ElementRef,
-     ViewChild,
-     AfterViewChecked,
-     ChangeDetectorRef,
-} from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { MatSortModule } from '@angular/material/sort';
 import { MatPaginatorModule } from '@angular/material/paginator';
 import { MatInputModule } from '@angular/material/input';
@@ -62,19 +56,7 @@ interface SignerEntry {
 @Component({
      selector: 'app-sign-transactions',
      standalone: true,
-     imports: [
-          CommonModule,
-          FormsModule,
-          AppWalletDynamicInputComponent,
-          NavbarComponent,
-          SanitizeHtmlPipe,
-          MatAutocompleteModule,
-          MatTableModule,
-          MatSortModule,
-          MatPaginatorModule,
-          MatInputModule,
-          MatFormFieldModule,
-     ],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe, MatAutocompleteModule, MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, MatFormFieldModule],
      templateUrl: './sign-transactions.component.html',
      styleUrl: './sign-transactions.component.css',
 })
@@ -128,9 +110,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      isSimulateEnabled: boolean = false;
      destinationFields: string = '';
      destinations: string[] = [];
-     signers: { account: string; seed: string; weight: number }[] = [
-          { account: '', seed: '', weight: 1 },
-     ];
+     signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
 
      errorMessage: string | null = null;
      selectedTransaction: string | null = null;
@@ -146,6 +126,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      showAccountOptions: boolean = false;
      showEscrowOptions: boolean = false;
      showCheckOptions: boolean = false;
+     showSendXrpOptions: boolean = false;
      transactionTypes = [
           {
                value: 'Payment',
@@ -202,17 +183,14 @@ export class SignTransactionsComponent implements AfterViewChecked {
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
-     constructor(
-          private readonly xrplService: XrplService,
-          private readonly utilsService: UtilsService,
-          private readonly cdr: ChangeDetectorRef,
-          private readonly storageService: StorageService,
-          private readonly xrplTransactions: XrplTransactionService,
-          private readonly renderUiComponentsService: RenderUiComponentsService,
-          private readonly signTransactionUtilService: SignTransactionUtilService,
-     ) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly signTransactionUtilService: SignTransactionUtilService) {}
 
-     ngOnInit() {}
+     ngOnInit() {
+          this.showSendXrpOptions = true;
+          this.selectedTransaction = 'sendXrp';
+          this.enableTransaction();
+          this.cdr.detectChanges();
+     }
 
      ngAfterViewInit() {}
 
@@ -234,10 +212,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           }
      }
 
-     handleTransactionResult(
-          event: { result: string; isError: boolean; isSuccess: boolean },
-          tx: any,
-     ) {
+     handleTransactionResult(event: { result: string; isError: boolean; isSuccess: boolean }, tx: any) {
           if (event.isError) {
                this.errorMessage = event.result;
                // txJson remains untouched
@@ -307,47 +282,56 @@ export class SignTransactionsComponent implements AfterViewChecked {
           if (event.target.checked) {
                this.selectedTickets = [...this.selectedTickets, ticket];
           } else {
-               this.selectedTickets = this.selectedTickets.filter((t) => t !== ticket);
+               this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
 
-     selectTransaction(value: string) {
-          this.selectedTransaction = value;
-          console.log('Selected transaction:', value);
-     }
-
-     setTransaction1(type: string, event: Event) {
-          const checked = (event.target as HTMLInputElement).checked;
-
-          if (checked) {
-               this.selectedTransaction = type; // turn this one on
-               this.resultFieldError.nativeElement.innerText = '';
-               this.enableTransaction();
-          } else {
-               this.selectedTransaction = null; // allow all off if you want
-               this.resultFieldError.nativeElement.innerText = '';
-               this.resultField.nativeElement.innerText = '';
-               this.hashField.nativeElement.innerText = '';
-          }
-     }
+     // selectTransaction(value: string) {
+     //      this.selectedTransaction = value;
+     //      console.log('Selected transaction:', value);
+     // }
 
      setTransaction(type: string, event: Event) {
           const checked = (event.target as HTMLInputElement).checked;
 
           if (checked) {
+               this.resetToggles(type);
                this.selectedTransaction = type;
-               this.txJson = '';
-               this.hashField.nativeElement.innerText = '';
+               this.txJson = ''; // clear until data appears
+               this.outputField = '';
                this.isError = false;
                this.errorMessage = null;
-               this.enableTransaction();
+               if (this.hashField) this.hashField.nativeElement.innerText = '';
+               if (this.resultField) this.resultField.nativeElement.innerText = '';
+               this.enableTransaction?.();
           } else {
-               this.selectedTransaction = null; // 👈 removes the whole block
+               this.selectedTransaction = null;
                this.txJson = '';
+               this.outputField = '';
                this.isError = false;
                this.errorMessage = null;
           }
+
+          this.cdr.detectChanges();
      }
+
+     // setTransaction(type: string, event: Event) {
+     //      const checked = (event.target as HTMLInputElement).checked;
+
+     //      if (checked) {
+     //           this.selectedTransaction = type;
+     //           this.txJson = '';
+     //           this.hashField.nativeElement.innerText = '';
+     //           this.isError = false;
+     //           this.errorMessage = null;
+     //           this.enableTransaction();
+     //      } else {
+     //           this.selectedTransaction = null; // 👈 removes the whole block
+     //           this.txJson = '';
+     //           this.isError = false;
+     //           this.errorMessage = null;
+     //      }
+     // }
 
      async getAccountDetails() {
           console.log('Entering getAccountDetails');
@@ -365,26 +349,13 @@ export class SignTransactionsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, accountObjects] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(
-                         client,
-                         wallet.classicAddress,
-                         'validated',
-                         '',
-                    ),
-               ]);
+               const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                inputs = { ...inputs, account_info: accountInfo };
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {
-                    return this.setError(
-                         errors.length === 1
-                              ? `Error:\n${errors.join('\n')}`
-                              : `Multiple Error's:\n${errors.join('\n')}`,
-                         null,
-                    );
+                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`, null);
                }
 
                // DEFER: Non-critical UI updates — let main render complete first
@@ -414,125 +385,43 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
           switch (this.selectedTransaction) {
                case 'sendXrp':
-                    this.txJson = await this.signTransactionUtilService.createSendXrpRequestText({
-                         client,
-                         wallet,
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.createSendXrpRequestText({ client, wallet, isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'setTrustline':
-                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'setTrustline',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'setTrustline', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'removeTrustline':
-                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'removeTrustline',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'removeTrustline', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'accountFlagSet':
-                    this.txJson =
-                         await this.signTransactionUtilService.modifyAccountFlagsRequestText({
-                              client,
-                              wallet,
-                              selectedTransaction: 'accountFlagSet',
-                              isTicketEnabled: this.isTicketEnabled,
-                              ticketSequence: this.ticketSequence,
-                         });
+                    this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'accountFlagClear':
-                    this.txJson =
-                         await this.signTransactionUtilService.modifyAccountFlagsRequestText({
-                              client,
-                              wallet,
-                              selectedTransaction: 'accountFlagSet',
-                              isTicketEnabled: this.isTicketEnabled,
-                              ticketSequence: this.ticketSequence,
-                         });
+                    this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'createTimeEscrow':
-                    this.txJson = await this.signTransactionUtilService.createTimeEscrowRequestText(
-                         {
-                              client,
-                              wallet,
-                              selectedTransaction: 'createTimeEscrow',
-                              isTicketEnabled: this.isTicketEnabled,
-                              ticketSequence: this.ticketSequence,
-                         },
-                    );
+                    this.txJson = await this.signTransactionUtilService.createTimeEscrowRequestText({ client, wallet, selectedTransaction: 'createTimeEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'finishTimeEscrow':
-                    this.txJson = await this.signTransactionUtilService.finshEscrowRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'finishTimeEscrow',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.finshEscrowRequestText({ client, wallet, selectedTransaction: 'finishTimeEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'createConditionEscrow':
-                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'createConditionEscrow',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({ client, wallet, selectedTransaction: 'createConditionEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'finishConditionEscrow':
-                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'finishConditionEscrow',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({ client, wallet, selectedTransaction: 'finishConditionEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'cancelEscrow':
-                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'cancelEscrow',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({ client, wallet, selectedTransaction: 'cancelEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
-
                case 'createCheck':
-                    this.txJson = await this.signTransactionUtilService.createCheckRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'createCheck',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.createCheckRequestText({ client, wallet, selectedTransaction: 'createCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'cashCheck':
-                    this.txJson = await this.signTransactionUtilService.cashCheckRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'cashCheck',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.cashCheckRequestText({ client, wallet, selectedTransaction: 'cashCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                case 'cancelCheck':
-                    this.txJson = await this.signTransactionUtilService.cancelCheckRequestText({
-                         client,
-                         wallet,
-                         selectedTransaction: 'cancelCheck',
-                         isTicketEnabled: this.isTicketEnabled,
-                         ticketSequence: this.ticketSequence,
-                    });
+                    this.txJson = await this.signTransactionUtilService.cancelCheckRequestText({ client, wallet, selectedTransaction: 'cancelCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                // add others as needed
                default:
@@ -642,14 +531,9 @@ export class SignTransactionsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               this.updateSpinnerMessage(
-                    this.isSimulateEnabled
-                         ? 'Simulating Sending XRP (no funds will be moved)...'
-                         : 'Submitting to Ledger...',
-               );
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending XRP (no funds will be moved)...' : 'Submitting to Ledger...');
 
-               if (!this.outputField.trim())
-                    return this.setError('Signed tx blob can not be empty', null);
+               if (!this.outputField.trim()) return this.setError('Signed tx blob can not be empty', null);
                const signedTxBlob = this.outputField.trim();
 
                const currentLedger = await client.getLedgerIndex();
@@ -658,25 +542,16 @@ export class SignTransactionsComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     const txToSign = this.cleanTx(JSON.parse(this.txJson.trim()));
                     console.log('Pre txToSign', txToSign);
-                    const simulation = await this.xrplTransactions.simulateTransaction(
-                         client,
-                         txToSign,
-                    );
+                    const simulation = await this.xrplTransactions.simulateTransaction(client, txToSign);
 
                     const isSuccess = this.utilsService.isTxSuccessful(simulation);
                     if (!isSuccess) {
-                         const resultMsg =
-                              this.utilsService.getTransactionResultMessage(simulation);
+                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
                          let userMessage = 'Transaction failed.\n';
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                          (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(
-                              `Transaction ${
-                                   this.isSimulateEnabled ? 'simulation' : 'submission'
-                              } failed: ${resultMsg}`,
-                              simulation,
-                         );
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
                     // Render result
@@ -695,12 +570,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                          userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                          (response.result as any).errorMessage = userMessage;
-                         console.error(
-                              `Transaction ${
-                                   this.isSimulateEnabled ? 'simulation' : 'submission'
-                              } failed: ${resultMsg}`,
-                              response,
-                         );
+                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
                     }
 
                     this.renderTransactionResult(response);
@@ -708,20 +578,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.txJson, null);
 
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([
-                         this.xrplService.getAccountInfo(
-                              client,
-                              wallet.classicAddress,
-                              'validated',
-                              '',
-                         ),
-                         this.xrplService.getAccountObjects(
-                              client,
-                              wallet.classicAddress,
-                              'validated',
-                              '',
-                         ),
-                    ]);
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
@@ -752,10 +609,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           };
 
           for (const field in defaults) {
-               if (
-                    editedJson.hasOwnProperty(field) &&
-                    defaults[field].includes(editedJson[field])
-               ) {
+               if (editedJson.hasOwnProperty(field) && defaults[field].includes(editedJson[field])) {
                     delete editedJson[field];
                }
           }
@@ -766,10 +620,8 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     if (!memo) return false;
 
                     // Check if both fields are effectively empty
-                    const memoDataEmpty =
-                         !memo.MemoData || memo.MemoData === '' || memo.MemoData === 0;
-                    const memoTypeEmpty =
-                         !memo.MemoType || memo.MemoType === '' || memo.MemoType === 0;
+                    const memoDataEmpty = !memo.MemoData || memo.MemoData === '' || memo.MemoData === 0;
+                    const memoTypeEmpty = !memo.MemoType || memo.MemoType === '' || memo.MemoType === 0;
 
                     // Remove if both are empty
                     return !(memoDataEmpty && memoTypeEmpty);
@@ -824,35 +676,22 @@ export class SignTransactionsComponent implements AfterViewChecked {
      highlightJson(json: string): string {
           if (!json) return '';
           json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          return json.replace(
-               /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-               (match) => {
-                    let cls = 'number';
-                    if (/^"/.test(match)) {
-                         cls = /:$/.test(match) ? 'key' : 'string';
-                    } else if (/true|false/.test(match)) {
-                         cls = 'boolean';
-                    } else if (/null/.test(match)) {
-                         cls = 'null';
-                    }
-                    return `<span class="${cls}">${match}</span>`;
-               },
-          );
+          return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+               let cls = 'number';
+               if (/^"/.test(match)) {
+                    cls = /:$/.test(match) ? 'key' : 'string';
+               } else if (/true|false/.test(match)) {
+                    cls = 'boolean';
+               } else if (/null/.test(match)) {
+                    cls = 'null';
+               }
+               return `<span class="${cls}">${match}</span>`;
+          });
      }
 
-     private refreshUIData(
-          wallet: xrpl.Wallet,
-          updatedAccountInfo: any,
-          updatedAccountObjects: xrpl.AccountObjectsResponse,
-     ) {
-          console.debug(
-               `updatedAccountInfo for ${wallet.classicAddress}:`,
-               updatedAccountInfo.result,
-          );
-          console.debug(
-               `updatedAccountObjects for ${wallet.classicAddress}:`,
-               updatedAccountObjects.result,
-          );
+     private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
+          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
 
           this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
           this.refreshUiAccountInfo(updatedAccountInfo);
@@ -861,15 +700,11 @@ export class SignTransactionsComponent implements AfterViewChecked {
      private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
           const signerAccounts: string[] = [];
           if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach((obj) => {
+               accountObjects.result.account_objects.forEach(obj => {
                     if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
                          obj.SignerEntries.forEach((entry: any) => {
                               if (entry.SignerEntry && entry.SignerEntry.Account) {
-                                   signerAccounts.push(
-                                        entry.SignerEntry.Account +
-                                             '~' +
-                                             entry.SignerEntry.SignerWeight,
-                                   );
+                                   signerAccounts.push(entry.SignerEntry.Account + '~' + entry.SignerEntry.SignerWeight);
                                    this.signerQuorum = obj.SignerQuorum;
                               }
                          });
@@ -879,32 +714,17 @@ export class SignTransactionsComponent implements AfterViewChecked {
           return signerAccounts;
      }
 
-     private async updateXrpBalance(
-          client: xrpl.Client,
-          accountInfo: xrpl.AccountInfoResponse,
-          wallet: xrpl.Wallet,
-     ) {
-          const { ownerCount, totalXrpReserves } =
-               await this.utilsService.updateOwnerCountAndReserves(
-                    client,
-                    accountInfo,
-                    wallet.classicAddress,
-               );
+     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+          const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
           this.totalXrpReserves = totalXrpReserves;
 
-          const balance =
-               (await client.getXrpBalance(wallet.classicAddress)) -
-               parseFloat(this.totalXrpReserves || '0');
+          const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(
-          accountObjects: xrpl.AccountObjectsResponse,
-          accountInfo: xrpl.AccountInfoResponse,
-          wallet: xrpl.Wallet,
-     ) {
+     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
 
           if (signerAccounts?.length) {
@@ -913,8 +733,8 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
                console.debug(`refreshUiAccountObjects:`, signerEntries);
 
-               this.multiSignAddress = signerEntries.map((e) => e.Account).join(',\n');
-               this.multiSignSeeds = signerEntries.map((e) => e.seed).join(',\n');
+               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
@@ -947,8 +767,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               const regularKeySeedAccount =
-                    accountInfo.result.account_data.Account + 'regularKeySeed';
+               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
                this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
           } else {
                this.isRegularKeyAddress = false;
@@ -977,12 +796,60 @@ export class SignTransactionsComponent implements AfterViewChecked {
      }
 
      updateDestinations() {
-          this.destinations = this.wallets.map((w) => w.address);
+          this.destinations = this.wallets.map(w => w.address);
           if (this.destinations.length > 0 && !this.destinationFields) {
                this.destinationFields = this.destinations[0];
           }
           this.cdr.detectChanges();
      }
+
+     toggleGroup(groupKey: string, event: Event) {
+          const checked = (event.target as HTMLInputElement).checked;
+
+          // Reset all groups
+          this.transactionGroups.forEach(group => {
+               (this as any)[group.key] = false;
+          });
+
+          // Open selected group if checked
+          if (checked) (this as any)[groupKey] = true;
+
+          // Reset transaction & display
+          this.selectedTransaction = '';
+          this.txJson = '';
+          this.outputField = '';
+          this.isError = true;
+          this.errorMessage = null;
+
+          if (this.hashField) this.hashField.nativeElement.innerText = '';
+          if (this.resultField) this.resultField.nativeElement.innerText = '';
+
+          this.cdr.detectChanges();
+     }
+
+     private resetToggles(exceptFor?: string) {
+          // Turn off every "showXYZOptions" flag
+          this.transactionGroups.forEach(group => {
+               (this as any)[group.key] = false;
+          });
+
+          // If a transaction name is provided, open the matching group (so sub-selection keeps parent open)
+          if (exceptFor) {
+               const matchingGroup = this.transactionGroups.find(group => group.transactions.includes(exceptFor));
+               if (matchingGroup) {
+                    (this as any)[matchingGroup.key] = true;
+               }
+          }
+     }
+
+     private transactionGroups = [
+          { key: 'showSendXrpOptions', transactions: ['sendXrp'] },
+          { key: 'showTrustlineOptions', transactions: ['setTrustline', 'removeTrustline'] },
+          { key: 'showAccountOptions', transactions: ['accountFlagSet', 'accountFlagClear'] },
+          { key: 'showEscrowOptions', transactions: ['createTimeEscrow', 'finishTimeEscrow', 'createConditionEscrow', 'finishConditionEscrow', 'cancelEscrow'] },
+          { key: 'showCheckOptions', transactions: ['createCheck', 'cashCheck', 'cancelCheck'] },
+          // add more groups here if you add new submenu transaction names
+     ];
 
      private async getWallet() {
           const environment = this.xrplService.getNet().environment;
@@ -998,20 +865,14 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const errors: string[] = [];
 
           // --- Common validators ---
-          const isRequired = (
-               value: string | null | undefined,
-               fieldName: string,
-          ): string | null => {
+          const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
                if (value == null || !this.utilsService.validateInput(value)) {
                     return `${fieldName} cannot be empty`;
                }
                return null;
           };
 
-          const isValidXrpAddress = (
-               value: string | undefined,
-               fieldName: string,
-          ): string | null => {
+          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
                if (value && !xrpl.isValidAddress(value)) {
                     return `${fieldName} is invalid`;
                }
@@ -1025,12 +886,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                return null;
           };
 
-          const isValidNumber = (
-               value: string | undefined,
-               fieldName: string,
-               minValue?: number,
-               allowEmpty: boolean = false,
-          ): string | null => {
+          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
                if (value === undefined || (allowEmpty && value === '')) return null;
                const num = parseFloat(value);
                if (isNaN(num) || !isFinite(num)) {
@@ -1052,10 +908,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                return null;
           };
 
-          const isNotSelfPayment = (
-               sender: string | undefined,
-               receiver: string | undefined,
-          ): string | null => {
+          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
                if (sender && receiver && sender === receiver) {
                     return `Sender and receiver cannot be the same`;
                }
@@ -1069,10 +922,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                return null;
           };
 
-          const validateMultiSign = (
-               addressesStr: string | undefined,
-               seedsStr: string | undefined,
-          ): string | null => {
+          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
                if (!addressesStr || !seedsStr) return null;
                const addresses = this.utilsService.getMultiSignAddress(addressesStr);
                const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
@@ -1094,17 +944,9 @@ export class SignTransactionsComponent implements AfterViewChecked {
                if (!inputs.destination) return null; // Skip if no destination provided
                try {
                     const client = await this.xrplService.getClient();
-                    const accountInfo = await this.xrplService.getAccountInfo(
-                         client,
-                         inputs.destination,
-                         'validated',
-                         '',
-                    );
+                    const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
 
-                    if (
-                         accountInfo.result.account_flags.requireDestinationTag &&
-                         (!inputs.destinationTag || inputs.destinationTag.trim() === '')
-                    ) {
+                    if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
                          return `ERROR: Receiver requires a Destination Tag for payment`;
                     }
                } catch (err) {
@@ -1125,13 +967,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           > = {
                getAccountDetails: {
                     required: ['seed'],
-                    customValidators: [
-                         () => isValidSeed(inputs.seed),
-                         () =>
-                              inputs.account_info === undefined || inputs.account_info === null
-                                   ? `No account data found`
-                                   : null,
-                    ],
+                    customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                sendXrp: {
@@ -1144,47 +980,14 @@ export class SignTransactionsComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true),
                          () => isValidInvoiceId(inputs.invoiceId),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () =>
-                              inputs.account_info === undefined || inputs.account_info === null
-                                   ? `No account data found`
-                                   : null,
-                         () =>
-                              inputs.account_info.result.account_flags.disableMasterKey &&
-                              !inputs.useMultiSign &&
-                              !inputs.isRegularKeyAddress
-                                   ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.'
-                                   : null,
-                         () =>
-                              inputs.isTicket
-                                   ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence')
-                                   : null,
-                         () =>
-                              inputs.isTicket
-                                   ? isValidNumber(
-                                          inputs.selectedSingleTicket,
-                                          'Ticket Sequence',
-                                          0,
-                                     )
-                                   : null,
-                         () =>
-                              inputs.isRegularKeyAddress && !inputs.useMultiSign
-                                   ? isRequired(inputs.regularKeyAddress, 'Regular Key Address')
-                                   : null,
-                         () =>
-                              inputs.isRegularKeyAddress && !inputs.useMultiSign
-                                   ? isRequired(inputs.regularKeySeed, 'Regular Key Seed')
-                                   : null,
-                         () =>
-                              inputs.isRegularKeyAddress && !inputs.useMultiSign
-                                   ? isValidXrpAddress(
-                                          inputs.regularKeyAddress,
-                                          'Regular Key Address',
-                                     )
-                                   : null,
-                         () =>
-                              inputs.isRegularKeyAddress && !inputs.useMultiSign
-                                   ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed')
-                                   : null,
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
@@ -1196,15 +999,12 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
           // --- Run required checks ---
           config.required.forEach((field: keyof ValidationInputs) => {
-               const err = isRequired(
-                    inputs[field],
-                    field.charAt(0).toUpperCase() + field.slice(1),
-               );
+               const err = isRequired(inputs[field], field.charAt(0).toUpperCase() + field.slice(1));
                if (err) errors.push(err);
           });
 
           // --- Run sync custom validators ---
-          config.customValidators?.forEach((validator) => {
+          config.customValidators?.forEach(validator => {
                const err = validator();
                if (err) errors.push(err);
           });
@@ -1221,12 +1021,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
 
-          if (
-               errors.length == 0 &&
-               inputs.useMultiSign &&
-               (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' ||
-                    inputs.multiSignSeeds === '')
-          ) {
+          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
                errors.push('At least one signer address is required for multi-signing');
           }
 
@@ -1258,16 +1053,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
-               this.renderUiComponentsService.renderSimulatedTransactionsResults(
-                    response,
-                    this.resultField.nativeElement,
-               );
+               this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
           } else {
                console.debug(`Response`, response);
-               this.renderUiComponentsService.renderTransactionsResults(
-                    response,
-                    this.resultField.nativeElement,
-               );
+               this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
      }
 
@@ -1280,7 +1069,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      private setErrorProperties() {

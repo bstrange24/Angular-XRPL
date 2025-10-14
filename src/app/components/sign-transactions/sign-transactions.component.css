@@ -278,6 +278,8 @@ table textarea {
 .result-container {
      font-family: monospace;
      white-space: pre;
+     transition: opacity 0.3s ease-in-out;
+     opacity: 1;
 }
 
 .result-container .key {
