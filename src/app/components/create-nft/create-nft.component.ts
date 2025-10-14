@@ -2128,6 +2128,7 @@ export class CreateNftComponent implements AfterViewChecked {
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+          this.currencies.sort((a, b) => a.localeCompare(b));
      }
 
      private renderTransactionResult(response: any): void {

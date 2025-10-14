@@ -60,7 +60,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     currencyField: string = '';
+     currencyField: string = 'CTZ';
      destinationFields: string = '';
      issuerFields: string = '';
      currencyBalanceField: string = '';
@@ -121,7 +121,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.knownTrustLinesIssuers = storedIssuers;
           }
           this.updateCurrencies();
-          this.currencyField = 'CTZ'; // Set default selected currency if available
      }
 
      ngAfterViewInit() {}
@@ -1308,12 +1307,29 @@ export class TrustlinesComponent implements AfterViewChecked {
                     });
 
                const issuerResults = await Promise.all(issuerPromises);
-               let uniqueIssuers = issuerResults.filter((i): i is { name: string; address: string } => i !== null).filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
+               // let uniqueIssuers = issuerResults.filter((i): i is { name: string; address: string } => i !== null).filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
+
+               // Step 1: filter out nulls
+               const nonNullIssuers = issuerResults.filter((i): i is { name: string; address: string } => {
+                    const isValid = i !== null;
+                    console.log('Filtering null:', i, '->', isValid);
+                    return isValid;
+               });
+
+               // Step 2: remove duplicates by address
+               const uniqueIssuers = nonNullIssuers.filter((candidate, index, self) => {
+                    const firstIndex = self.findIndex(c => c.address === candidate.address);
+                    const isUnique = index === firstIndex;
+                    console.log('Checking uniqueness:', candidate, 'Index:', index, 'First index:', firstIndex, 'Unique?', isUnique);
+                    return isUnique;
+               });
+
+               console.log('Unique issuers:', uniqueIssuers);
 
                // Always include the current wallet in issuers
-               if (!uniqueIssuers.some(i => i.address === wallet.classicAddress)) {
-                    uniqueIssuers.push({ name: this.currentWallet.name || 'Current Account', address: wallet.classicAddress });
-               }
+               // if (!uniqueIssuers.some(i => i.address === wallet.classicAddress)) {
+               //      uniqueIssuers.push({ name: this.currentWallet.name || 'Current Account', address: wallet.classicAddress });
+               // }
 
                this.issuers = uniqueIssuers;
 
@@ -2022,6 +2038,8 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+          this.currencies.sort((a, b) => a.localeCompare(b));
+          this.currencyField = 'CZT';
      }
 
      private processAccountCurrencies(accountCurrencies: any) {
