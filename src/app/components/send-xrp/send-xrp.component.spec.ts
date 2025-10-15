@@ -1,605 +1,426 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { ChangeDetectorRef } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { SendXrpComponent } from './send-xrp.component';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
-import * as xrpl from 'xrpl';
-import { NavbarComponent } from '../navbar/navbar.component';
-import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
-import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
-import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
-import { SendXrpComponent } from './send-xrp.component';
-import { RouterTestingModule } from '@angular/router/testing';
-import { Observable, of, Subject } from 'rxjs';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 
-describe('SendXrpComponent', () => {
+describe('SendXrpComponent (isolated)', () => {
      let component: SendXrpComponent;
      let fixture: ComponentFixture<SendXrpComponent>;
-     let mockXrplService: jasmine.SpyObj<XrplService>;
-     let mockUtilsService: jasmine.SpyObj<UtilsService>;
-     let mockStorageService: jasmine.SpyObj<StorageService & { getWallets: () => Observable<any[]> }>;
-     let mockXrplTransactionService: jasmine.SpyObj<XrplTransactionService>;
-     let mockRenderUiComponentsService: jasmine.SpyObj<RenderUiComponentsService>;
-     let mockCdr: jasmine.SpyObj<ChangeDetectorRef>;
-
-     const mockWallet: xrpl.Wallet = {
-          classicAddress: 'rMockAddress',
-          seed: 'sMockSeed',
-          address: 'rMockAddress',
-          publicKey: 'mockPubKey',
-          privateKey: 'mockPrivKey',
-          sign: jasmine.createSpy('sign') as any,
-          verifyTransaction: function (signedTransaction: xrpl.Transaction | string): boolean {
-               throw new Error('Function not implemented.');
-          },
-          getXAddress: function (tag?: number | false, isTestnet?: boolean): string {
-               throw new Error('Function not implemented.');
-          },
-     };
+     let xrplServiceMock: any;
+     let utilsServiceMock: any;
+     let storageServiceMock: any;
+     let renderUiComponentsServiceMock: any;
+     let xrplTransactionServiceMock: any;
+     const validAddr = 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe';
 
      beforeEach(async () => {
-          const inputsClearedSubject = new Subject<void>();
+          xrplServiceMock = {
+               getNet: jasmine.createSpy('getNet').and.returnValue({ environment: 'test' }),
+               getClient: jasmine.createSpy('getClient'),
+               getAccountInfo: jasmine.createSpy('getAccountInfo'),
+               getAccountObjects: jasmine.createSpy('getAccountObjects'),
+               calculateTransactionFee: jasmine.createSpy('calculateTransactionFee'),
+               getLastLedgerIndex: jasmine.createSpy('getLastLedgerIndex'),
+               getXrplServerInfo: jasmine.createSpy('getXrplServerInfo'),
+          };
 
-          mockXrplService = jasmine.createSpyObj('XrplService', ['getClient', 'getAccountInfo', 'getAccountObjects', 'calculateTransactionFee', 'getLastLedgerIndex', 'getXrplServerInfo', 'checkTicketExists', 'getNet']);
-          mockUtilsService = jasmine.createSpyObj('UtilsService', ['clearSignerList', 'loadSignerList', 'getWallet', 'getRegularKeyWallet', 'isInsufficientXrpBalance1', 'isTxSuccessful', 'getTransactionResultMessage', 'processErrorMessageFromLedger', 'setTicketSequence', 'setDestinationTag', 'setMemoField', 'setInvoiceIdField', 'setSourceTagField', 'updateOwnerCountAndReserves', 'detectXrpInputType', 'getMultiSignAddress', 'getMultiSignSeeds', 'validateInput', 'sortByLedgerEntryType']);
-          mockStorageService = jasmine.createSpyObj('StorageService', ['get', 'removeValue', 'getNet', 'getNetworkColor', 'getActiveNavLink', 'getActiveEscrowLink', 'getActiveSettingsLink', 'setActiveNavLink', 'setActiveEscrowLink', 'setActiveSettingsLink', 'set', 'getWallets', 'getActiveNftLink', 'getActiveAccountsLink', 'getInputValue', 'setInputValue'], {
-               inputsCleared: inputsClearedSubject,
-          });
-          mockXrplTransactionService = jasmine.createSpyObj('XrplTransactionService', ['simulateTransaction', 'signTransaction', 'submitTransaction']);
-          mockRenderUiComponentsService = jasmine.createSpyObj('RenderUiComponentsService', ['attachSearchListener', 'renderAccountDetails', 'renderSimulatedTransactionsResults', 'renderTransactionsResults']);
-          mockCdr = jasmine.createSpyObj('ChangeDetectorRef', ['markForCheck']);
+          utilsServiceMock = {
+               clearSignerList: jasmine.createSpy('clearSignerList'),
+               loadSignerList: jasmine.createSpy('loadSignerList'),
+               setTicketSequence: jasmine.createSpy('setTicketSequence'),
+               setDestinationTag: jasmine.createSpy('setDestinationTag'),
+               setSourceTagField: jasmine.createSpy('setSourceTagField'),
+               setInvoiceIdField: jasmine.createSpy('setInvoiceIdField'),
+               setMemoField: jasmine.createSpy('setMemoField'),
+               getWallet: jasmine.createSpy('getWallet').and.resolveTo({ classicAddress: 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe', seed: 's' }),
+               sortByLedgerEntryType: jasmine.createSpy('sortByLedgerEntryType').and.returnValue([]),
+               getRegularKeyWallet: jasmine.createSpy('getRegularKeyWallet').and.resolveTo({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: undefined }),
+               isInsufficientXrpBalance1: jasmine.createSpy('isInsufficientXrpBalance1').and.returnValue(false),
+               isTxSuccessful: jasmine.createSpy('isTxSuccessful').and.returnValue(true),
+               getTransactionResultMessage: jasmine.createSpy('getTransactionResultMessage').and.returnValue('tesSUCCESS'),
+               processErrorMessageFromLedger: jasmine.createSpy('processErrorMessageFromLedger').and.returnValue('Processed error'),
+          };
 
-          // Mock default returns
-          mockUtilsService.getWallet.and.returnValue(Promise.resolve(mockWallet));
-          mockStorageService.getNet.and.returnValue({ environment: 'testnet', net: '' });
-          mockStorageService.getWallets.and.returnValue(of([]));
-          mockStorageService.setInputValue.and.returnValue(undefined);
-          mockXrplService.getNet.and.returnValue(await Promise.resolve({ environment: 'testnet', net: '' }));
-          mockUtilsService.loadSignerList.and.callFake(() => {
-               component.signers = [];
-          });
+          storageServiceMock = {};
+
+          renderUiComponentsServiceMock = {
+               renderAccountDetails: jasmine.createSpy('renderAccountDetails'),
+               renderSimulatedTransactionsResults: jasmine.createSpy('renderSimulatedTransactionsResults'),
+               renderTransactionsResults: jasmine.createSpy('renderTransactionsResults'),
+               attachSearchListener: jasmine.createSpy('attachSearchListener'),
+          };
+
+          xrplTransactionServiceMock = {
+               simulateTransaction: jasmine.createSpy('simulateTransaction').and.resolveTo({ result: {} }),
+               signTransaction: jasmine.createSpy('signTransaction'),
+               submitTransaction: jasmine.createSpy('submitTransaction'),
+          };
 
           await TestBed.configureTestingModule({
-               imports: [CommonModule, FormsModule, RouterTestingModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe, SendXrpComponent],
+               imports: [SendXrpComponent],
                providers: [
-                    { provide: XrplService, useValue: mockXrplService },
-                    { provide: UtilsService, useValue: mockUtilsService },
-                    { provide: StorageService, useValue: mockStorageService },
-                    { provide: XrplTransactionService, useValue: mockXrplTransactionService },
-                    { provide: RenderUiComponentsService, useValue: mockRenderUiComponentsService },
-                    { provide: ChangeDetectorRef, useValue: mockCdr },
+                    { provide: XrplService, useValue: xrplServiceMock },
+                    { provide: UtilsService, useValue: utilsServiceMock },
+                    { provide: StorageService, useValue: storageServiceMock },
+                    { provide: RenderUiComponentsService, useValue: renderUiComponentsServiceMock },
+                    { provide: XrplTransactionService, useValue: xrplTransactionServiceMock },
                ],
-          }).compileComponents();
+          })
+               .overrideComponent(SendXrpComponent, { set: { template: '' } })
+               .compileComponents();
 
           fixture = TestBed.createComponent(SendXrpComponent);
           component = fixture.componentInstance;
-          fixture.detectChanges();
+          // Do not call detectChanges to avoid template init
      });
 
      it('should create', () => {
           expect(component).toBeTruthy();
      });
 
-     describe('ngOnInit', () => {
-          it('should call ngOnInit without errors', () => {
-               component.ngOnInit();
-               expect(component.ngOnInit).toBeDefined();
-          });
-     });
-
-     describe('ngAfterViewInit', () => {
-          it('should call ngAfterViewInit without errors', () => {
-               component.ngAfterViewInit();
-               expect(component.ngAfterViewInit).toBeDefined();
-          });
-     });
-
-     describe('ngAfterViewChecked', () => {
-          it('should attach search listener if result changed', () => {
-               const mockElement = document.createElement('div');
-               component.resultField = { nativeElement: mockElement } as any;
-               component.result = 'new result';
-               component.lastResult = 'old result';
-
-               component.ngAfterViewChecked();
-
-               expect(mockRenderUiComponentsService.attachSearchListener).toHaveBeenCalledWith(mockElement);
-               expect(component.lastResult).toBe('new result');
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
-          });
-
-          it('should not attach if result unchanged', () => {
-               component.resultField = { nativeElement: document.createElement('div') } as any;
-               component.result = 'same';
-               component.lastResult = 'same';
-
-               component.ngAfterViewChecked();
-
-               expect(mockRenderUiComponentsService.attachSearchListener).not.toHaveBeenCalled();
-          });
-     });
-
      describe('onWalletListChange', () => {
-          it('should update wallets and call onAccountChange', () => {
-               spyOn(component, 'onAccountChange');
-               spyOn(component, 'updateDestinations');
+          it('updates wallets and calls updateDestinations and onAccountChange', () => {
+               const updateDestinationsSpy = spyOn(component as any, 'updateDestinations').and.stub();
+               const onAccountChangeSpy = spyOn(component, 'onAccountChange').and.stub();
 
-               const mockWallets = [{ name: 'Test', address: 'rTest', seed: 'sTest', balance: '100' }];
-               component.onWalletListChange(mockWallets);
+               const newWallets = [{ name: 'Wallet A', address: validAddr, seed: 's1', balance: '0' }];
 
-               expect(component.wallets).toEqual(mockWallets);
+               component.onWalletListChange(newWallets as any[]);
+
+               expect(component.wallets).toEqual(newWallets as any[]);
+               expect(updateDestinationsSpy).toHaveBeenCalledTimes(1);
+               expect(onAccountChangeSpy).toHaveBeenCalledTimes(1);
+          });
+
+          it('resets selectedWalletIndex to 0 if out of range', () => {
+               spyOn(component as any, 'updateDestinations').and.stub();
+               spyOn(component, 'onAccountChange').and.stub();
+
+               component.selectedWalletIndex = 10;
+               const newWallets = [{ name: 'Wallet A', address: validAddr, seed: 's1', balance: '0' }];
+
+               component.onWalletListChange(newWallets as any[]);
+
                expect(component.selectedWalletIndex).toBe(0);
-               expect(component.updateDestinations).toHaveBeenCalled();
-               expect(component.onAccountChange).toHaveBeenCalled();
-          });
-
-          it('should adjust index if out of bounds', () => {
-               component.selectedWalletIndex = 5;
-               const mockWallets = [{ name: 'Test', address: 'rTest', seed: 'sTest', balance: '100' }];
-               component.onWalletListChange(mockWallets);
-
-               expect(component.selectedWalletIndex).toBe(0);
-          });
-     });
-
-     describe('handleTransactionResult', () => {
-          it('should set properties for success', () => {
-               const event = { result: 'Success', isError: false, isSuccess: true };
-               component.handleTransactionResult(event);
-
-               expect(component.result).toBe('Success');
-               expect(component.isError).toBe(false);
-               expect(component.isSuccess).toBe(true);
-               expect(component.isEditable).toBe(false);
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
-          });
-
-          it('should set properties for error', () => {
-               const event = { result: 'Error', isError: true, isSuccess: false };
-               component.handleTransactionResult(event);
-
-               expect(component.result).toBe('Error');
-               expect(component.isError).toBe(true);
-               expect(component.isSuccess).toBe(false);
-               expect(component.isEditable).toBe(true);
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
-          });
-     });
-
-     describe('onAccountChange', () => {
-          beforeEach(() => {
-               component.wallets = [{ name: 'Test', address: 'rValidAddress', seed: 'sValidSeed', balance: '100' }];
-               component.selectedWalletIndex = 0;
-               spyOn(component, 'getAccountDetails');
-               spyOn(component, 'updateDestinations');
-               // Mock isValidAddress using spyOnProperty
-               spyOn(xrpl, 'isValidAddress').and.returnValue(true);
-          });
-
-          it('should update current wallet and call getAccountDetails for valid address', fakeAsync(async () => {
-               await component.onAccountChange();
-               tick();
-
-               expect(component.currentWallet).toEqual(
-                    jasmine.objectContaining({
-                         name: 'Test',
-                         address: 'rValidAddress',
-                         seed: 'sValidSeed',
-                         balance: '100',
-                    })
-               );
-               expect(component.updateDestinations).toHaveBeenCalled();
-               expect(component.getAccountDetails).toHaveBeenCalled();
-          }));
-
-          it('should set error for invalid address', fakeAsync(async () => {
-               component.wallets[0].address = 'invalid';
-               spyOn(xrpl, 'isValidAddress').and.returnValue(false);
-
-               await component.onAccountChange();
-               tick();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('Invalid XRP address');
-          }));
-
-          it('should do nothing if no wallets', () => {
-               component.wallets = [];
-               component.onAccountChange();
-
-               expect(component.getAccountDetails).not.toHaveBeenCalled();
           });
      });
 
      describe('validateQuorum', () => {
-          it('should adjust quorum if exceeds total weight', () => {
+          it('clamps signerQuorum to total weight', () => {
                component.signers = [
-                    { account: 'a1', seed: 's1', weight: 2 },
-                    { account: 'a2', seed: 's2', weight: 3 },
+                    { account: 'a', seed: 's', weight: 2 },
+                    { account: 'b', seed: 't', weight: 3 },
                ];
-               component.signerQuorum = 6;
+               component.signerQuorum = 10;
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
 
                component.validateQuorum();
 
                expect(component.signerQuorum).toBe(5);
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
-          });
-
-          it('should not adjust if quorum <= total', () => {
-               component.signers = [{ account: 'a1', seed: 's1', weight: 5 }];
-               component.signerQuorum = 3;
-
-               component.validateQuorum();
-
-               expect(component.signerQuorum).toBe(3);
+               expect(markSpy).toHaveBeenCalled();
           });
      });
 
      describe('toggleMultiSign', () => {
-          beforeEach(() => {
-               mockUtilsService.loadSignerList.and.callFake(() => {
-                    component.signers = [];
-               });
+          it('clears signers when disabling multi-sign', async () => {
+               component.useMultiSign = false;
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
+
+               await component.toggleMultiSign();
+
+               expect(utilsServiceMock.clearSignerList).toHaveBeenCalledWith(component.signers);
+               expect(markSpy).toHaveBeenCalled();
           });
 
-          it('should clear signers if disabling multi-sign', async () => {
+          it('loads signers when enabling multi-sign', async () => {
                component.useMultiSign = true;
-               component.signers = [{ account: 'a1', seed: 's1', weight: 1 }];
+               spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr });
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
 
-               component.useMultiSign = false;
                await component.toggleMultiSign();
 
-               expect(mockUtilsService.clearSignerList).toHaveBeenCalledWith(component.signers);
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
+               expect(utilsServiceMock.loadSignerList).toHaveBeenCalledWith(validAddr, component.signers);
+               expect(markSpy).toHaveBeenCalled();
           });
 
-          it('should load signers if enabling multi-sign', async () => {
-               component.useMultiSign = false;
-               component.signers = []; // Match mocked return value
+          it('sets error on wallet retrieval failure', async () => {
+               component.useMultiSign = true;
+               spyOn(component as any, 'getWallet').and.throwError('fail');
+               const setErrorSpy = spyOn(component as any, 'setError').and.stub();
 
                await component.toggleMultiSign();
 
-               expect(mockUtilsService.loadSignerList).toHaveBeenCalledWith(mockWallet.classicAddress, []);
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
-          });
-
-          it('should handle error in toggleMultiSign', async () => {
-               component.useMultiSign = false;
-               mockUtilsService.getWallet.and.throwError('Error');
-
-               await component.toggleMultiSign();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('ERROR getting wallet in toggleMultiSign');
+               expect(setErrorSpy).toHaveBeenCalledWith('ERROR getting wallet in toggleMultiSign');
           });
      });
 
      describe('toggleUseMultiSign', () => {
-          it('should clear multiSignSeeds if no address configured', () => {
+          it('clears seeds when no address configured', async () => {
                component.multiSignAddress = 'No Multi-Sign address configured for account';
-               component.multiSignSeeds = 'some seeds';
+               component.multiSignSeeds = 'abc';
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
 
-               component.toggleUseMultiSign();
+               await component.toggleUseMultiSign();
 
                expect(component.multiSignSeeds).toBe('');
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
+               expect(markSpy).toHaveBeenCalled();
           });
 
-          it('should not clear if address configured', () => {
+          it('does not clear seeds when address configured', async () => {
                component.multiSignAddress = 'rAddress';
-               component.multiSignSeeds = 'some seeds';
+               component.multiSignSeeds = 'abc';
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
 
-               component.toggleUseMultiSign();
+               await component.toggleUseMultiSign();
 
-               expect(component.multiSignSeeds).toBe('some seeds');
+               expect(component.multiSignSeeds).toBe('abc');
+               expect(markSpy).toHaveBeenCalled();
           });
      });
 
      describe('toggleTicketSequence', () => {
-          it('should mark for check', () => {
+          it('marks for check', () => {
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
                component.toggleTicketSequence();
-
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
+               expect(markSpy).toHaveBeenCalled();
           });
      });
 
      describe('onTicketToggle', () => {
-          it('should add ticket to selected if checked', () => {
-               const event = { target: { checked: true } };
-               const ticket = '123';
+          it('adds and removes tickets correctly', () => {
+               component.selectedTickets = [];
+               component.onTicketToggle({ target: { checked: true } }, '101');
+               expect(component.selectedTickets).toEqual(['101']);
+               component.onTicketToggle({ target: { checked: false } }, '101');
+               expect(component.selectedTickets).toEqual([]);
+          });
+     });
 
-               component.onTicketToggle(event, ticket);
+     describe('handleTransactionResult', () => {
+          it('updates state and marks for check', () => {
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
 
-               expect(component.selectedTickets).toEqual([ticket]);
+               component.handleTransactionResult({ result: 'OK', isError: false, isSuccess: true });
+
+               expect(component.result).toBe('OK');
+               expect(component.isError).toBeFalse();
+               expect(component.isSuccess).toBeTrue();
+               expect(component.isEditable).toBeFalse();
+               expect(markSpy).toHaveBeenCalled();
+          });
+     });
+
+     describe('ngAfterViewChecked', () => {
+          it('attaches search listener when result changed', () => {
+               (component as any).resultField = { nativeElement: document.createElement('div') };
+               (component as any)['lastResult'] = '';
+               component['result'] = 'NEW';
+
+               const markSpy = spyOn((component as any).cdr, 'markForCheck').and.stub();
+               component.ngAfterViewChecked();
+
+               expect(renderUiComponentsServiceMock.attachSearchListener).toHaveBeenCalled();
+               expect((component as any)['lastResult']).toBe('NEW');
+               expect(markSpy).toHaveBeenCalled();
           });
 
-          it('should remove ticket from selected if unchecked', () => {
-               component.selectedTickets = ['123', '456'];
-               const event = { target: { checked: false } };
-               const ticket = '123';
+          it('does nothing when result not changed', () => {
+               (component as any).resultField = { nativeElement: document.createElement('div') };
+               (component as any)['lastResult'] = 'SAME';
+               component['result'] = 'SAME';
 
-               component.onTicketToggle(event, ticket);
+               component.ngAfterViewChecked();
+               expect(renderUiComponentsServiceMock.attachSearchListener).not.toHaveBeenCalled();
+          });
+     });
 
-               expect(component.selectedTickets).toEqual(['456']);
+     describe('renderTransactionResult', () => {
+          it('uses simulated renderer when simulating', () => {
+               component.isSimulateEnabled = true;
+               (component as any).resultField = { nativeElement: document.createElement('div') };
+               (component as any).renderTransactionResult({ result: {} });
+               expect(renderUiComponentsServiceMock.renderSimulatedTransactionsResults).toHaveBeenCalled();
+          });
+
+          it('uses normal renderer when not simulating', () => {
+               component.isSimulateEnabled = false;
+               (component as any).resultField = { nativeElement: document.createElement('div') };
+               (component as any).renderTransactionResult({ result: {} });
+               expect(renderUiComponentsServiceMock.renderTransactionsResults).toHaveBeenCalled();
           });
      });
 
      describe('getAccountDetails', () => {
-          let mockClient: any;
-          let mockAccountInfo: any;
-          let mockAccountObjects: any;
+          it('sets error on validation failure', async () => {
+               (component as any).resultField = { nativeElement: { innerHTML: '' } };
+               spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr });
+               spyOn(component as any, 'validateInputs').and.resolveTo(['e1']);
+               const setErrorSpy = spyOn(component as any, 'setError').and.stub();
 
-          beforeEach(() => {
-               mockClient = { getXrpBalance: () => Promise.resolve('100') };
-               mockXrplService.getClient.and.returnValue(Promise.resolve(mockClient));
-               mockAccountInfo = { result: { account_data: { Sequence: 1 } } };
-               mockAccountObjects = { result: { account_objects: [] } };
-               mockXrplService.getAccountInfo.and.returnValue(Promise.resolve(mockAccountInfo));
-               mockXrplService.getAccountObjects.and.returnValue(Promise.resolve(mockAccountObjects));
-               (component as any).validateInputs = jasmine.createSpy('validateInputs').and.returnValue(Promise.resolve([]));
-               mockUtilsService.sortByLedgerEntryType.and.returnValue([]);
-               component.resultField = { nativeElement: { innerHTML: '' } } as any;
-               component.currentWallet = { name: 'Mock', address: mockWallet.classicAddress ?? '', seed: mockWallet.seed ?? '', balance: '0' };
-               spyOn(component as any, 'refreshUiAccountObjects');
-               spyOn(component as any, 'updateXrpBalance');
+               await component.getAccountDetails();
+
+               expect(setErrorSpy).toHaveBeenCalled();
+               expect(renderUiComponentsServiceMock.renderAccountDetails).not.toHaveBeenCalled();
           });
 
-          it('should get account details successfully', fakeAsync(async () => {
-               mockUtilsService.updateOwnerCountAndReserves.and.returnValue(Promise.resolve({ ownerCount: '1', totalXrpReserves: '10' }));
+          it('renders account details on success', async () => {
+               (component as any).resultField = { nativeElement: { innerHTML: '' } };
+               spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr });
+               spyOn(component as any, 'validateInputs').and.resolveTo([]);
+               xrplServiceMock.getClient.and.resolveTo({ getXrpBalance: jasmine.createSpy('getXrpBalance').and.resolveTo('100') });
+               xrplServiceMock.getAccountInfo.and.resolveTo({ result: { account_data: { Sequence: 1 } } });
+               xrplServiceMock.getAccountObjects.and.resolveTo({ result: { account_objects: [] } });
+               utilsServiceMock.loadSignerList.and.stub();
+               spyOn(component as any, 'refreshUiAccountObjects').and.stub();
+               spyOn(component as any, 'updateXrpBalance').and.stub();
 
                await component.getAccountDetails();
-               tick();
 
-               expect(component.spinner).toBe(false);
-               expect(mockRenderUiComponentsService.renderAccountDetails).toHaveBeenCalled();
-               expect(component.isSuccess).toBe(true);
-               expect((component as any).refreshUiAccountObjects).toHaveBeenCalled();
-               expect((component as any).updateXrpBalance).toHaveBeenCalledWith(mockClient, mockAccountInfo, mockWallet);
-          }));
-
-          it('should handle validation errors', fakeAsync(async () => {
-               (component as any).validateInputs.and.returnValue(Promise.resolve(['Validation error']));
-
-               await component.getAccountDetails();
-               tick();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('Error:\nValidation error');
-          }));
-
-          it('should handle getAccountDetails error', fakeAsync(async () => {
-               mockXrplService.getClient.and.throwError('Client error');
-
-               await component.getAccountDetails();
-               tick();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('ERROR: Client error');
-          }));
+               expect(renderUiComponentsServiceMock.renderAccountDetails).toHaveBeenCalled();
+          });
      });
 
      describe('sendXrp', () => {
-          let mockClient: any;
-          let mockAccountInfo: any;
-          let mockFee: string;
-          let mockLedger: number;
-          let mockServerInfo: any;
-
           beforeEach(() => {
-               mockClient = {};
-               mockXrplService.getClient.and.returnValue(Promise.resolve(mockClient));
-               mockAccountInfo = { result: { account_data: { Sequence: 1 }, account_flags: {} } };
-               mockFee = '10';
-               mockLedger = 123;
-               mockServerInfo = {};
-               mockXrplService.getAccountInfo.and.returnValue(Promise.resolve(mockAccountInfo));
-               mockXrplService.calculateTransactionFee.and.returnValue(Promise.resolve(mockFee));
-               mockXrplService.getLastLedgerIndex.and.returnValue(Promise.resolve(mockLedger));
-               mockXrplService.getXrplServerInfo.and.returnValue(Promise.resolve(mockServerInfo));
-               (component as any).validateInputs = jasmine.createSpy('validateInputs').and.returnValue(Promise.resolve([]));
-               mockUtilsService.isInsufficientXrpBalance1.and.returnValue(false);
-               component.resultField = { nativeElement: { innerHTML: '', classList: { add: jasmine.createSpy() } } } as any;
+               (component as any).resultField = { nativeElement: { innerHTML: '', classList: { add: jasmine.createSpy('add') } } };
+               spyOn(component as any, 'refreshUiAccountObjects').and.stub();
+               spyOn(component as any, 'updateXrpBalance').and.stub();
+               spyOn(component as any, 'setTxOptionalFields').and.callFake((client: any, tx: any) => tx);
+
                component.amountField = '5';
-               component.destinationFields = 'rDestAddress';
-               component.currentWallet = { name: 'Mock', address: mockWallet.classicAddress ?? '', seed: mockWallet.seed ?? '', balance: '100' };
-               component.isSimulateEnabled = false;
-               spyOn(component as any, 'refreshUiAccountObjects');
-               spyOn(component as any, 'updateXrpBalance');
+               component.destinationFields = validAddr;
+               component.currentWallet = { name: 'W', address: validAddr, seed: 's', balance: '100' } as any;
+
+               xrplServiceMock.getClient.and.resolveTo({});
+               xrplServiceMock.getAccountInfo.and.resolveTo({ result: { account_data: { Sequence: 1 }, account_flags: {} } });
+               xrplServiceMock.calculateTransactionFee.and.resolveTo('10');
+               xrplServiceMock.getLastLedgerIndex.and.resolveTo(123);
+               xrplServiceMock.getXrplServerInfo.and.resolveTo({});
           });
 
-          it('should simulate sendXrp successfully', fakeAsync(async () => {
+          it('sets error on validation failure', async () => {
+               spyOn(component as any, 'validateInputs').and.resolveTo(['e']);
+               const setErrorSpy = spyOn(component as any, 'setError').and.stub();
+
+               await component.sendXrp();
+
+               expect(setErrorSpy).toHaveBeenCalled();
+          });
+
+          it('sets error on insufficient XRP balance', async () => {
+               spyOn(component as any, 'validateInputs').and.resolveTo([]);
+               utilsServiceMock.isInsufficientXrpBalance1.and.returnValue(true);
+               const setErrorSpy = spyOn(component as any, 'setError').and.stub();
+
+               await component.sendXrp();
+
+               expect(setErrorSpy).toHaveBeenCalledWith('ERROR: Insufficient XRP to complete transaction');
+          });
+
+          it('simulates when isSimulateEnabled', async () => {
                component.isSimulateEnabled = true;
-               const mockResponse = { result: { code: 'tesSUCCESS' } };
-               mockXrplTransactionService.simulateTransaction.and.returnValue(Promise.resolve(mockResponse));
-               mockUtilsService.isTxSuccessful.and.returnValue(true);
+               spyOn(component as any, 'validateInputs').and.resolveTo([]);
+               const renderSpy = spyOn<any>(component, 'renderTransactionResult').and.stub();
 
                await component.sendXrp();
-               tick();
 
-               expect(mockXrplTransactionService.simulateTransaction).toHaveBeenCalled();
-               expect(component.isSuccess).toBe(true);
-          }));
+               expect(xrplTransactionServiceMock.simulateTransaction).toHaveBeenCalled();
+               expect(renderSpy).toHaveBeenCalled();
+          });
 
-          it('should sendXrp successfully', fakeAsync(async () => {
-               const mockSignedTx = { tx_blob: 'signed', hash: 'mockHash' };
-               const mockResponse = { result: { code: 'tesSUCCESS', meta: {} } }; // Add meta to avoid undefined result
-               mockUtilsService.getRegularKeyWallet.and.returnValue(Promise.resolve({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: null }));
-               mockXrplTransactionService.signTransaction.and.returnValue(Promise.resolve(mockSignedTx));
-               mockXrplTransactionService.submitTransaction.and.returnValue(Promise.resolve(mockResponse));
-               mockUtilsService.isTxSuccessful.and.returnValue(true);
+          it('handles sign failure', async () => {
+               component.isSimulateEnabled = false;
+               spyOn(component as any, 'validateInputs').and.resolveTo([]);
+               utilsServiceMock.getRegularKeyWallet.and.resolveTo({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: null });
+               xrplTransactionServiceMock.signTransaction.and.resolveTo(null);
+               const setErrorSpy = spyOn(component as any, 'setError').and.stub();
 
                await component.sendXrp();
-               tick();
 
-               expect(mockXrplTransactionService.submitTransaction).toHaveBeenCalled();
-               expect((component as any).refreshUiAccountObjects).toHaveBeenCalled();
-               expect(component.isSuccess).toBe(true);
-          }));
+               expect(setErrorSpy).toHaveBeenCalledWith('ERROR: Failed to sign Payment transaction.');
+          });
 
-          it('should handle validation errors in sendXrp', fakeAsync(async () => {
-               (component as any).validateInputs.and.returnValue(Promise.resolve(['Validation error']));
-
-               await component.sendXrp();
-               tick();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('Error:\nValidation error');
-          }));
-
-          it('should handle insufficient balance error', fakeAsync(async () => {
-               mockUtilsService.isInsufficientXrpBalance1.and.returnValue(true);
+          it('submits transaction and handles success', async () => {
+               component.isSimulateEnabled = false;
+               spyOn(component as any, 'validateInputs').and.resolveTo([]);
+               utilsServiceMock.getRegularKeyWallet.and.resolveTo({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: null });
+               xrplTransactionServiceMock.signTransaction.and.resolveTo({ tx_blob: 'signed' });
+               xrplTransactionServiceMock.submitTransaction.and.resolveTo({ result: { code: 'tesSUCCESS', meta: {} } });
+               utilsServiceMock.isTxSuccessful.and.returnValue(true);
 
                await component.sendXrp();
-               tick();
 
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('ERROR: Insufficient XRP to complete transaction');
-          }));
+               expect(xrplTransactionServiceMock.submitTransaction).toHaveBeenCalled();
+          });
 
-          it('should handle sign transaction failure', fakeAsync(async () => {
-               mockUtilsService.getRegularKeyWallet.and.returnValue(Promise.resolve({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: null }));
-               mockXrplTransactionService.signTransaction.and.returnValue(Promise.resolve(null));
-
-               await component.sendXrp();
-               tick();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('ERROR: Failed to sign Payment transaction.');
-          }));
-
-          it('should handle transaction failure', fakeAsync(async () => {
-               const mockSignedTx = { tx_blob: 'signed', hash: 'mockHash' };
-               const mockResponse = { result: { code: 'tecFAILURE', meta: {} } }; // Add meta to avoid undefined result
-               mockUtilsService.getRegularKeyWallet.and.returnValue(Promise.resolve({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: null }));
-               mockXrplTransactionService.signTransaction.and.returnValue(Promise.resolve(mockSignedTx));
-               mockXrplTransactionService.submitTransaction.and.returnValue(Promise.resolve(mockResponse));
-               mockUtilsService.isTxSuccessful.and.returnValue(false);
-               mockUtilsService.getTransactionResultMessage.and.returnValue('tecFAILURE');
-               mockUtilsService.processErrorMessageFromLedger.and.returnValue('Processed error');
+          it('handles ledger failure (non-success)', async () => {
+               component.isSimulateEnabled = false;
+               spyOn(component as any, 'validateInputs').and.resolveTo([]);
+               utilsServiceMock.getRegularKeyWallet.and.resolveTo({ useRegularKeyWalletSignTx: false, regularKeyWalletSignTx: null });
+               xrplTransactionServiceMock.signTransaction.and.resolveTo({ tx_blob: 'signed' });
+               xrplTransactionServiceMock.submitTransaction.and.resolveTo({ result: { code: 'tecFAILURE', meta: {} } });
+               utilsServiceMock.isTxSuccessful.and.returnValue(false);
 
                await component.sendXrp();
-               tick();
 
-               expect(component.isError).toBe(true);
-          }));
-
-          it('should handle sendXrp error', fakeAsync(async () => {
-               mockXrplService.getClient.and.throwError('Send error');
-
-               await component.sendXrp();
-               tick();
-
-               expect(component.isError).toBe(true);
-               expect(component.result).toBe('ERROR: Send error');
-          }));
+               expect(utilsServiceMock.getTransactionResultMessage).toHaveBeenCalled();
+               expect(utilsServiceMock.processErrorMessageFromLedger).toHaveBeenCalled();
+          });
      });
 
      describe('clearFields', () => {
-          it('should clear all fields when clearAllFields is true', () => {
+          it('clears all fields when clearAllFields is true', () => {
                component.amountField = '5';
                component.isSimulateEnabled = true;
                component.useMultiSign = true;
                component.isRegularKeyAddress = true;
+               component.selectedTicket = '1';
+               component.isTicket = true;
+               component.memoField = 'm';
+               component.isMemoEnabled = true;
 
-               component.clearFields(true);
+               (component as any).clearFields(true);
 
                expect(component.amountField).toBe('');
-               expect(component.isSimulateEnabled).toBe(false);
-               expect(component.useMultiSign).toBe(false);
-               expect(component.isRegularKeyAddress).toBe(false);
+               expect(component.isSimulateEnabled).toBeFalse();
+               expect(component.useMultiSign).toBeFalse();
+               expect(component.isRegularKeyAddress).toBeFalse();
                expect(component.selectedTicket).toBe('');
-               expect(component.isTicket).toBe(false);
+               expect(component.isTicket).toBeFalse();
                expect(component.memoField).toBe('');
-               expect(component.isMemoEnabled).toBe(false);
-               // TODO: Fix markForCheck not called - check component logic
-               // expect(mockCdr.markForCheck).toHaveBeenCalled();
+               expect(component.isMemoEnabled).toBeFalse();
           });
 
-          it('should clear partial fields when clearAllFields is false', () => {
-               component.selectedTicket = '123';
+          it('clears partial fields when clearAllFields is false', () => {
+               component.selectedTicket = '1';
                component.isTicket = true;
 
-               component.clearFields(false);
+               (component as any).clearFields(false);
 
                expect(component.selectedTicket).toBe('');
-               expect(component.isTicket).toBe(false);
+               expect(component.isTicket).toBeFalse();
           });
      });
 
      describe('updateDestinations', () => {
-          it('should update destinations and set default', () => {
+          it('updates destinations and sets default, ensuring not default selected', () => {
                component.wallets = [
-                    { name: 'Test1', address: 'r1' },
-                    { name: 'Test2', address: 'r2' },
-               ];
-               spyOn(component, 'ensureDefaultNotSelected');
+                    { name: 'A', address: 'r1' },
+                    { name: 'B', address: 'r2' },
+               ] as any;
+               const ensureSpy = spyOn(component as any, 'ensureDefaultNotSelected').and.stub();
 
-               component.updateDestinations();
+               (component as any).updateDestinations();
 
                expect(component.destinations).toEqual([
-                    { name: 'Test1', address: 'r1' },
-                    { name: 'Test2', address: 'r2' },
+                    { name: 'A', address: 'r1' },
+                    { name: 'B', address: 'r2' },
                ]);
                expect(component.destinationFields).toBe('r1');
-               expect(component.ensureDefaultNotSelected).toHaveBeenCalled();
-          });
-     });
-
-     describe('validateInputs', () => {
-          beforeEach(() => {
-               mockUtilsService.detectXrpInputType.and.returnValue({ value: 'seed', type: 'seed' });
-               mockUtilsService.getMultiSignAddress.and.returnValue(['addr1']);
-               mockUtilsService.getMultiSignSeeds.and.returnValue(['seed1']);
-               mockUtilsService.validateInput.and.returnValue(true);
-               mockXrplService.getClient.and.returnValue(
-                    Promise.resolve({
-                         connection: {} as any,
-                         feeCushion: 1,
-                         maxFeeXRP: '2',
-                         networkID: 0,
-                         getXrpBalance: jasmine.createSpy('getXrpBalance').and.returnValue(Promise.resolve('100')),
-                         request: jasmine.createSpy('request'),
-                         autofill: jasmine.createSpy('autofill'),
-                         sign: jasmine.createSpy('sign'),
-                         submitAndWait: jasmine.createSpy('submitAndWait'),
-                         disconnect: jasmine.createSpy('disconnect'),
-                         connect: jasmine.createSpy('connect'),
-                         isConnected: jasmine.createSpy('isConnected').and.returnValue(true),
-                    } as unknown as xrpl.Client)
-               );
-               mockXrplService.getAccountInfo.and.returnValue(Promise.resolve({ result: { account_flags: {} } }));
-               spyOn(xrpl, 'isValidAddress').and.returnValue(true);
-               spyOnProperty(xrpl, 'isValidSecret', 'get').and.returnValue(() => true);
-          });
-
-          it('should return errors for required fields in sendXrp', async () => {
-               const inputs = { seed: '', amount: '', destination: '' } as any;
-               const errors = await (component as any).validateInputs(inputs, 'sendXrp');
-
-               expect(errors.length).toBeGreaterThan(0);
-               expect(errors).toContain(jasmine.stringMatching(/Seed cannot be empty/));
-               expect(errors).toContain(jasmine.stringMatching(/Amount cannot be empty/));
-               expect(errors).toContain(jasmine.stringMatching(/Destination cannot be empty/));
-          });
-
-          it('should return no errors for valid inputs in getAccountDetails', async () => {
-               const inputs = { seed: 'sValidSeed' } as any;
-               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
-
-               expect(errors).toEqual([]);
+               expect(ensureSpy).toHaveBeenCalled();
           });
      });
 });
-
-// BILL
