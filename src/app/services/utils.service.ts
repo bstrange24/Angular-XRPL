@@ -933,7 +933,13 @@ export class UtilsService {
                return { type: 'secret_numbers', value: trimmed };
           }
 
-          return { type: 'unknown', value: trimmed };
+          if (!xrpl.isValidSecret(trimmed)) {
+               console.error(`Invalid seed:`, trimmed);
+               return { type: 'unknown', value: 'Invalid seed' };
+          }
+
+          console.error(`Invalid seed:`, trimmed);
+          return { type: 'unknown', value: 'Invalid seed' };
      }
 
      checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {

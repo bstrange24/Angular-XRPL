@@ -315,14 +315,6 @@ describe('CreateConditionalEscrowComponent (isolated)', () => {
                spyOn(component as any, 'validateInputs').and.resolveTo(['e']);
                const setErrorSpy = spyOn(component as any, 'setError').and.stub();
 
-               // minimal typed client
-               // xrplServiceMock.getClient.and.resolveTo({
-               //      connection: {} as any,
-               //      getXrpBalance: jasmine.createSpy('getXrpBalance'),
-               // } as unknown as xrpl.Client);
-               // xrplServiceMock.getAccountInfo.and.resolveTo({ result: { account_data: { Sequence: 1 }, account_flags: {} } });
-               // xrplServiceMock.getAccountObjects.and.callFake((_c: any, _a: any, _s: any, type?: string) => ({ result: { account_objects: [] } }));
-
                typedClient();
                await component.getEscrows();
 
@@ -365,6 +357,7 @@ describe('CreateConditionalEscrowComponent (isolated)', () => {
           });
 
           it('simulates when isSimulateEnabled', async () => {
+               (component as any).resultField = { nativeElement: { innerHTML: '' } };
                spyOn(component as any, 'validateInputs').and.resolveTo([]);
                component.isSimulateEnabled = true;
                xrplBasicClient();
