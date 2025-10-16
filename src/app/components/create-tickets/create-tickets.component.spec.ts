@@ -350,24 +350,24 @@ describe('CreateTicketsComponent', () => {
      });
 
      describe('onAccountChange', () => {
-          it('updates current wallet and calls getTickets for valid address', () => {
+          it('updates current wallet and calls getTickets for valid address', async () => {
                spyOn(component, 'getTickets').and.stub();
                component.wallets = [{ name: 'Wallet1', address: validAddr, seed: validSeed, balance: '0' }];
                component.selectedWalletIndex = 0;
 
-               component.onAccountChange();
+               await component.onAccountChange();
 
                expect(component.currentWallet).toEqual({ name: 'Wallet1', address: validAddr, seed: validSeed, balance: '0' });
                expect(component.getTickets).toHaveBeenCalled();
                // Note: detectChanges may not be called
           });
 
-          it('sets error for invalid address', () => {
+          it('sets error for invalid address', async () => {
                spyOn(component as any, 'setError').and.callThrough();
                component.wallets = [{ name: 'Wallet1', address: 'invalid', seed: validSeed, balance: '0' }];
                component.selectedWalletIndex = 0;
 
-               component.onAccountChange();
+               await component.onAccountChange();
 
                expect(component.setError).toHaveBeenCalledWith('Invalid XRP address');
                // Note: detectChanges may not be called

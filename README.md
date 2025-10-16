@@ -60,19 +60,29 @@ For more information on using the Angular CLI, including detailed command refere
 
 ## Run Test individually
 
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/trustlines/trustlines.component.spec.ts
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
 
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/send-xrp/send-xrp.component.spec.ts
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-conditional-escrow/create-conditional-escrow.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/create-conditional-escrow/create-conditional-escrow.component.spec.ts
 
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-tickets/create-tickets.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/create-tickets/create-tickets.component.spec.ts
 
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-conditional-escrow/create-conditional-escrow.component.spec.ts
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/send-checks/send-checks.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/send-checks/send-checks.component.spec.ts
 
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/account-configurator/account-configurator.component.spec.ts
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/account-configurator/account-configurator.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/account-configurator/account-configurator.component.spec.ts
 
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-tickets/create-tickets.component.spec.ts
-
-cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/send-checks/send-checks.component.spec.ts
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/sign-transactions/sign-transactions.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/sign-transactions/sign-transactions.component.spec.ts
 
 Run proxy-server.js and Angular at the same time
 npm install --save-dev concurrently

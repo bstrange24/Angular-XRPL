@@ -601,13 +601,23 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
 
           const isValidSeed = (value: string | undefined): string | null => {
                if (value) {
-                    const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
-                    if (detectedValue === 'unknown') {
-                         return 'Account seed is invalid';
+                    const { type } = this.utilsService.detectXrpInputType(value);
+                    if (type === 'unknown') {
+                         return 'Account seed or mnemonic is invalid';
                     }
                }
                return null;
           };
+
+          // const isValidSeed = (value: string | undefined): string | null => {
+          //      if (value) {
+          //           const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
+          //           if (detectedValue === 'unknown') {
+          //                return 'Account seed is invalid';
+          //           }
+          //      }
+          //      return null;
+          // };
 
           const isValidInvoiceId = (value: string | undefined): string | null => {
                if (value && !this.utilsService.validateInput(value)) {

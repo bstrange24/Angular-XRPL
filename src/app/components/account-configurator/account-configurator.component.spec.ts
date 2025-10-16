@@ -14,6 +14,7 @@ describe('AccountConfiguratorComponent (isolated)', () => {
      let xrplServiceMock: any;
      let utilsServiceMock: any;
      let storageServiceMock: any;
+     let xrplMock: any;
      let renderUiComponentsServiceMock: any;
      let xrplTransactionServiceMock: any;
      let cdrMock: any;
@@ -46,6 +47,7 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                setTransferRate: jasmine.createSpy('setTransferRate'),
                setMessageKey: jasmine.createSpy('setMessageKey'),
                setDomain: jasmine.createSpy('setDomain'),
+               validateSeed: jasmine.createSpy('validateSeed'),
                updateOwnerCountAndReserves: jasmine.createSpy('updateOwnerCountAndReserves').and.resolveTo({ ownerCount: '0', totalXrpReserves: '0' }),
                detectXrpInputType: jasmine.createSpy('detectXrpInputType').and.returnValue({ value: 'seed', type: 'seed' }),
                validateInput: jasmine.createSpy('validateInput').and.callFake((v: string) => v != null && v !== ''),
@@ -67,6 +69,8 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                removeValue: jasmine.createSpy('removeValue'),
                get: jasmine.createSpy('get').and.returnValue([]),
           };
+
+          xrplMock = jasmine.createSpyObj('xrpl', ['isValidAddress', 'isValidSecret', 'isValidClassicAddress']);
 
           renderUiComponentsServiceMock = {
                renderAccountDetails: jasmine.createSpy('renderAccountDetails'),
@@ -160,9 +164,6 @@ describe('AccountConfiguratorComponent (isolated)', () => {
 
                component.ngAfterViewInit();
                tick();
-
-               // expect(component.onAccountChange).toHaveBeenCalled();
-               // Note: detectChanges may not be called depending on component implementation
           }));
      });
 
@@ -225,7 +226,6 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                component.validateQuorum();
 
                expect(component.signerQuorum).toBe(5);
-               // Note: detectChanges may not be called
           });
 
           it('does not change quorum if within bounds', () => {
@@ -238,7 +238,6 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                component.validateQuorum();
 
                expect(component.signerQuorum).toBe(4);
-               // Note: detectChanges may not be called
           });
      });
 
@@ -249,7 +248,6 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                await component.toggleMultiSign();
 
                expect(utilsServiceMock.clearSignerList).toHaveBeenCalledWith(component.signers);
-               // Note: detectChanges may not be called
           });
 
           it('loads signers when enabling', async () => {
@@ -258,7 +256,7 @@ describe('AccountConfiguratorComponent (isolated)', () => {
 
                // Mock getWallet() to return the expected wallet
                spyOn(component as any, 'getWallet').and.resolveTo({
-                    classicAddress: 'rMLX8SSCrvjus2sZU6CK2FtW8versts9QB',
+                    classicAddress: validAddr,
                });
 
                // Spy on the component's own loadSignerList method
@@ -266,7 +264,7 @@ describe('AccountConfiguratorComponent (isolated)', () => {
 
                await component.toggleMultiSign();
 
-               expect(component.loadSignerList).toHaveBeenCalledWith('rMLX8SSCrvjus2sZU6CK2FtW8versts9QB');
+               expect(component.loadSignerList).toHaveBeenCalledWith(validAddr);
 
                // Optional: check if signers were updated by loadSignerList correctly
                // This depends on your storage mock returning data or not
@@ -344,24 +342,24 @@ describe('AccountConfiguratorComponent (isolated)', () => {
      });
 
      describe('onAccountChange', () => {
-          it('updates current wallet and calls getAccountDetails for valid address', () => {
+          it('updates current wallet and calls getAccountDetails for valid address', async () => {
                spyOn(component, 'getAccountDetails').and.stub();
                component.wallets = [{ name: 'Wallet1', address: validAddr, seed: validSeed, balance: '0', isIssuer: false }];
                component.selectedWalletIndex = 0;
 
-               component.onAccountChange();
+               await component.onAccountChange();
 
                expect(component.currentWallet).toEqual({ name: 'Wallet1', address: validAddr, seed: validSeed, balance: '0', isIssuer: false });
                expect(component.getAccountDetails).toHaveBeenCalled();
                // Note: detectChanges may not be called
           });
 
-          it('sets error for invalid address', () => {
+          it('sets error for invalid address', async () => {
                spyOn(component as any, 'setError').and.callThrough();
                component.wallets = [{ name: 'Wallet1', address: 'invalid', seed: validSeed, balance: '0', isIssuer: false }];
                component.selectedWalletIndex = 0;
 
-               component.onAccountChange();
+               await component.onAccountChange();
 
                expect((component as any).setError).toHaveBeenCalledWith('Invalid XRP address');
                // Note: detectChanges may not be called
@@ -693,16 +691,16 @@ describe('AccountConfiguratorComponent (isolated)', () => {
           //      xrplServiceMock.checkTicketExists.and.resolveTo(false);
           //      const client = setupXrplClient();
           //      const tx = { TransactionType: 'TicketCreate' };
-          //      const wallet = { classicAddress: 'rMLX8SSCrvjus2sZU6CK2FtW8versts9QB' };
+          //      const wallet = { classicAddress: validAddr };
           //      const accountInfo = {
-          //           result: { account_data: { Account: 'rMLX8SSCrvjus2sZU6CK2FtW8versts9QB', Sequence: 1 } },
+          //           result: { account_data: { Account: validAddr, Sequence: 1 } },
           //           id: '1',
           //           type: 'response',
           //      } as unknown as xrpl.AccountObjectsResponse;
 
           //      await (component as any).setTxOptionalFields(client, tx, wallet, accountInfo, 'create');
 
-          //      expect(xrplServiceMock.checkTicketExists).toHaveBeenCalledWith(client, 'rMLX8SSCrvjus2sZU6CK2FtW8versts9QB', 101);
+          //      expect(xrplServiceMock.checkTicketExists).toHaveBeenCalledWith(client, validAddr, 101);
           //      expect(component.setError).toHaveBeenCalledWith('ERROR: Ticket Sequence 101 not found for account rMLX8SSCrvjus2sZU6CK2FtW8versts9QB');
           //      expect(utilsServiceMock.setTicketSequence).not.toHaveBeenCalled();
           // });
@@ -857,36 +855,35 @@ describe('AccountConfiguratorComponent (isolated)', () => {
      });
 
      describe('refreshUiAccountObjects', () => {
-          // it('updates ticketArray and signer info with signers', () => {
-          //      spyOn(component as any, 'getAccountTickets').and.returnValue(['101']);
-          //      const accountObjects = {
-          //           result: {
-          //                account_objects: [
-          //                     { LedgerEntryType: 'Ticket', TicketSequence: 101 },
-          //                     { LedgerEntryType: 'SignerList', SignerEntries: [{ SignerEntry: { Account: 'addr1', SignerWeight: 2 } }], SignerQuorum: 3 },
-          //                ],
-          //           },
-          //           id: '1',
-          //           type: 'response',
-          //      } as xrpl.AccountObjectsResponse;
-          //      const accountInfo = {
-          //           result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: { disableMasterKey: true } },
-          //           id: '1',
-          //           type: 'response',
-          //      } as xrpl.AccountInfoResponse;
-          //      const wallet = { classicAddress: validAddr };
-          //      storageServiceMock.get.and.returnValue([{ Account: 'addr1', seed: 'seed1' }]);
+          it('updates signer info with signers', () => {
+               spyOn(component as any, 'getAccountTickets').and.returnValue(['101']);
+               const accountObjects = {
+                    result: {
+                         account_objects: [
+                              { LedgerEntryType: 'Ticket', TicketSequence: 101 },
+                              { LedgerEntryType: 'SignerList', SignerEntries: [{ SignerEntry: { Account: 'addr1', SingnerSeed: 'seed1', SignerWeight: 2 } }], SignerQuorum: 3 },
+                         ],
+                    },
+                    id: '1',
+                    type: 'response',
+               } as xrpl.AccountObjectsResponse;
+               const accountInfo = {
+                    result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: { disableMasterKey: true } },
+                    id: '1',
+                    type: 'response',
+               } as xrpl.AccountInfoResponse;
+               const wallet = { classicAddress: validAddr };
+               storageServiceMock.get.and.returnValue([{ Account: 'addr1', seed: 'seed1' }]);
 
-          //      (component as any).refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+               (component as any).refreshUiAccountObjects(accountObjects, accountInfo, wallet);
 
-          //      expect(component.ticketArray).toEqual(['101']);
-          //      expect(component.multiSignAddress).toBe('addr1');
-          //      expect(component.multiSignSeeds).toBe('seed1');
-          //      expect(component.signerQuorum).toBe(3);
-          //      expect(component.masterKeyDisabled).toBeTrue();
-          //      expect(component.multiSigningEnabled).toBeTrue();
-          //      expect(storageServiceMock.removeValue).not.toHaveBeenCalled();
-          // });
+               expect(component.multiSignAddress.trim()).toBe('addr1,');
+               expect(component.multiSignSeeds.trim()).toBe('seed1,');
+               expect(component.signerQuorum).toBe(3);
+               expect(component.masterKeyDisabled).toBeTrue();
+               expect(component.multiSigningEnabled).toBeTrue();
+               expect(storageServiceMock.removeValue).not.toHaveBeenCalled();
+          });
 
           it('handles no signers', () => {
                spyOn(component as any, 'getAccountTickets').and.returnValue([]);
@@ -955,91 +952,232 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                utilsServiceMock.validateInput.and.callFake((v: string) => v === validAddr || v === validSeed);
           });
 
-          it('validates getAccountDetails inputs', () => {
-               const inputs = { seed: validSeed };
-               const errors = (component as any).validateInputs(inputs, 'getAccountDetails');
+          it('should pass validation for getAccountDetails with valid seed and account_info', async () => {
+               utilsServiceMock.validateInput.and.returnValue(true);
+               utilsServiceMock.detectXrpInputType.and.returnValue({ type: 'familySeed' });
 
+               const inputs = {
+                    seed: 'sEd7...123',
+                    account_info: { result: { account_data: {}, account_flags: {} } },
+               };
+
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
                expect(errors).toEqual([]);
           });
 
-          it('returns error for invalid seed in getAccountDetails', () => {
-               const inputs = { seed: 'invalid' };
-               const errors = (component as any).validateInputs(inputs, 'getAccountDetails');
-               console.log(`errors:`, errors);
+          it('validates getAccountDetails inputs', async () => {
+               const accountInfo = {
+                    result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: {} },
+                    id: '1',
+                    type: 'response',
+               } as xrpl.AccountInfoResponse;
+               const inputs = { seed: validSeed, account_info: accountInfo };
 
-               expect(errors).toContain('Seed cannot be empty');
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
+               expect(errors).toEqual([]);
           });
 
-          // it('validates createTicket inputs', () => {
-          //      const inputs = { seed: validSeed, ticketCount: '2' };
-          //      console.log(`inputs:`, inputs);
-          //      const errors = (component as any).validateInputs(inputs, 'createTicket');
-          //      console.log(`errors:`, errors);
-
-          //      expect(errors).toEqual([]);
-          // });
-
-          it('returns errors for invalid getAccountDetails inputs', () => {
-               const inputs = { seed: '', ticketCount: '' };
-               const errors = (component as any).validateInputs(inputs, 'getAccountDetails');
-               console.log(`errors:`, errors);
-
-               expect(errors).toContain('Seed cannot be empty');
-               expect(errors).toContain('TicketCount cannot be empty');
-          });
-
-          // it('validates multi-sign inputs', () => {
-          //      const inputs = {
-          //           seed: validSeed,
-          //           ticketCount: '2',
-          //           useMultiSign: true,
-          //           multiSignAddresses: validAddr,
-          //           multiSignSeeds: validSeed,
-          //      };
-          //      utilsServiceMock.getMultiSignAddress.and.returnValue([validAddr]);
-          //      utilsServiceMock.getMultiSignSeeds.and.returnValue([validSeed]);
-          //      utilsServiceMock.validateInput.and.returnValue(true);
-
-          //      const errors = (component as any).validateInputs(inputs, 'createTicket');
-
-          //      expect(errors).toEqual([]);
-          // });
-
-          it('returns error for mismatched multi-sign addresses and seeds', () => {
-               const inputs = {
-                    seed: validSeed,
-                    ticketCount: '',
-                    useMultiSign: true,
-                    multiSignAddresses: 'addr1,addr2',
-                    multiSignSeeds: validSeed,
-               };
-               utilsServiceMock.getMultiSignAddress.and.returnValue(['addr1', 'addr2']);
-               utilsServiceMock.getMultiSignSeeds.and.returnValue([validSeed]);
+          it('should return error when seed is missing for getAccountDetails', async () => {
                utilsServiceMock.validateInput.and.returnValue(false);
 
-               const errors = (component as any).validateInputs(inputs, 'createTicket');
+               const inputs = { seed: '' };
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
 
-               expect(errors).toContain('TicketCount cannot be empty');
+               expect(errors).toContain('Seed cannot be empty');
+          });
+
+          it('should return error for invalid seed format', async () => {
+               utilsServiceMock.validateInput.and.returnValue(true);
+               utilsServiceMock.detectXrpInputType.and.returnValue({ type: 'unknown' });
+
+               const inputs = {
+                    seed: 'badseed',
+                    account_info: { result: { account_data: {}, account_flags: {} } },
+               };
+
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
+               expect(errors).toContain('Account seed or mnemonic is invalid');
+          });
+
+          it('returns error for invalid seed in getAccountDetails', async () => {
+               const accountInfo = {
+                    result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: {} },
+                    id: '1',
+                    type: 'response',
+               } as xrpl.AccountInfoResponse;
+               const inputs = { seed: 'invalid', account_info: accountInfo };
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
+               expect(errors).toContain('Seed cannot be empty');
+          });
+
+          it('should return error when account_info is missing', async () => {
+               utilsServiceMock.validateInput.and.returnValue(true);
+               utilsServiceMock.detectXrpInputType.and.returnValue({ type: 'familySeed' });
+
+               const inputs = { seed: 'sEd7...123' };
+
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
+               expect(errors).toContain('No account data found');
+          });
+
+          it('returns errors for invalid getAccountDetails inputs', async () => {
+               const accountInfo = {
+                    result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: {} },
+                    id: '1',
+                    type: 'response',
+               } as xrpl.AccountInfoResponse;
+               const inputs = { seed: '', account_info: accountInfo };
+               const errors = await (component as any).validateInputs(inputs, 'getAccountDetails');
+               console.log(`errors:`, errors);
+
+               expect(errors).toContain('Seed cannot be empty');
+          });
+     });
+
+     describe('validateInputs multi-sign', () => {
+          //  fit('returns error for mismatched multi-sign addresses and seeds', async () => {
+          beforeEach(() => {
+               utilsServiceMock.validateInput.and.returnValue(true);
+               utilsServiceMock.getMultiSignAddress.and.callFake((str: string) => str.split(','));
+               utilsServiceMock.getMultiSignSeeds.and.callFake((str: string) => str.split(','));
+               utilsServiceMock.validateSeed.and.returnValue(true);
+               xrplMock.isValidAddress.and.returnValue(true);
+          });
+
+          const mockAccountInfo = {
+               result: {
+                    account_data: {
+                         Account: validAddr,
+                         Balance: '100000000', // 100 XRP
+                         RegularKey: null,
+                    },
+                    account_flags: {
+                         disableMasterKey: true,
+                    },
+               },
+          };
+
+          it('returns error for mismatched multi-sign addresses and seeds', async () => {
+               const inputs = {
+                    seed: 'sEd7...123',
+                    account_info: mockAccountInfo,
+                    multiSignAddresses: 'addr1,addr2',
+                    multiSignSeeds: 'seed1',
+                    isMultiSign: true,
+                    isRegularKeyAddress: false,
+                    flags: {
+                         disableMasterKey: true,
+                    },
+                    setFlags: {
+                         setFlags: '12',
+                    },
+                    clearFlags: {
+                         clearFlags: '12',
+                    },
+               };
+
+               const errors = await (component as any).validateInputs(inputs, 'updateFlags');
                expect(errors).toContain('Number of signer addresses must match number of signer seeds');
           });
 
-          // it('returns error for mismatched multi-sign addresses and seeds', () => {
-          //      const inputs = {
-          //           seed: validSeed,
-          //           ticketCount: '',
-          //           useMultiSign: true,
-          //           multiSignAddresses: 'addr1,addr2',
-          //           multiSignSeeds: 'validSeed,validSeed',
-          //      };
-          //      utilsServiceMock.getMultiSignAddress.and.returnValue(['addr1', 'addr2']);
-          //      utilsServiceMock.getMultiSignSeeds.and.returnValue([validSeed]);
-          //      utilsServiceMock.validateInput.and.returnValue(false);
+          it('returns error if multi-sign addresses are empty', async () => {
+               const inputs = {
+                    seed: 'sEd7...123',
+                    account_info: mockAccountInfo,
+                    multiSignAddresses: 'df',
+                    multiSignSeeds: 'seed1',
+                    isMultiSign: true,
+                    isRegularKeyAddress: false,
+                    flags: {
+                         disableMasterKey: true,
+                    },
+                    setFlags: {
+                         setFlags: '12',
+                    },
+                    clearFlags: {
+                         clearFlags: '12',
+                    },
+               };
 
-          //      const errors = (component as any).validateInputs(inputs, 'createTicket');
+               debugger;
+               const errors = await (component as any).validateInputs(inputs, 'updateFlags');
+               console.log(`errors:`, errors);
+               expect(errors).toContain('Invalid signer address: df');
+          });
 
-          //      expect(errors).toContain('TicketCount cannot be empty');
-          //      expect(errors).toContain('One or more signer seeds are invalid');
-          // });
+          it('returns error if a multi-sign seed is invalid', async () => {
+               utilsServiceMock.validateSeed.and.returnValue(false);
+
+               const inputs = {
+                    seed: 'sEd7...123',
+                    account_info: mockAccountInfo,
+                    multiSignAddresses: validAddr,
+                    multiSignSeeds: 'badseed',
+                    isMultiSign: true,
+                    isRegularKeyAddress: false,
+                    flags: {
+                         disableMasterKey: true,
+                    },
+                    setFlags: {
+                         setFlags: '12',
+                    },
+                    clearFlags: {
+                         clearFlags: '12',
+                    },
+               };
+
+               const errors = await (component as any).validateInputs(inputs, 'updateFlags');
+               expect(errors).toContain(`One or more signer seeds are invalid`);
+          });
+
+          it('passes validation for correct multi-sign inputs', async () => {
+               const inputs = {
+                    seed: 'sEd7...123',
+                    account_info: mockAccountInfo,
+                    multiSignAddresses: validAddr,
+                    multiSignSeeds: validSeed,
+                    isMultiSign: true,
+                    isRegularKeyAddress: false,
+                    flags: {
+                         disableMasterKey: true,
+                    },
+                    setFlags: {
+                         setFlags: '12',
+                    },
+                    clearFlags: {
+                         clearFlags: '12',
+                    },
+               };
+
+               const errors = await (component as any).validateInputs(inputs, 'updateFlags');
+               expect(errors.length).toBe(0);
+          });
+
+          it('returns error if a multi-sign seed is invalid', async () => {
+               utilsServiceMock.validateSeed.and.returnValue(false);
+
+               const inputs = {
+                    seed: 'sEd7...123',
+                    account_info: mockAccountInfo,
+                    multiSignAddresses: validAddr,
+                    multiSignSeeds: 'badseed',
+                    isMultiSign: true,
+                    isRegularKeyAddress: false,
+                    flags: {
+                         disableMasterKey: true,
+                    },
+                    setFlags: {
+                         setFlags: '12',
+                    },
+                    clearFlags: {
+                         clearFlags: '12',
+                    },
+               };
+
+               const errors = await (component as any).validateInputs(inputs, 'updateFlags');
+               console.log(`errors:`, errors);
+               expect(errors.length).toBe(1);
+          });
      });
 
      describe('getWallet', () => {
@@ -1065,6 +1203,11 @@ describe('AccountConfiguratorComponent (isolated)', () => {
 
      describe('clearFields', () => {
           it('clears all fields when clearAllFields is true', () => {
+               component.ticketSequence = '123';
+               component.isAuthorizedNFTokenMinter = true;
+               component.isdepositAuthAddress = true;
+               component.isUpdateMetaData = true;
+               component.isSetRegularKey = true;
                component.isSimulateEnabled = true;
                component.useMultiSign = true;
                component.isTicketEnabled = true;
@@ -1075,6 +1218,12 @@ describe('AccountConfiguratorComponent (isolated)', () => {
 
                (component as any).clearFields(true);
 
+               expect(component.ticketSequence).toBe('');
+               expect(component.isAuthorizedNFTokenMinter).toBeFalse();
+               expect(component.isdepositAuthAddress).toBeFalse();
+               expect(component.isUpdateMetaData).toBeFalse();
+               expect(component.isSetRegularKey).toBeFalse();
+               expect(component.isSimulateEnabled).toBeFalse();
                expect(component.useMultiSign).toBeFalse();
                expect(component.isTicketEnabled).toBeFalse();
                expect(component.isTicket).toBeFalse();
@@ -1084,22 +1233,33 @@ describe('AccountConfiguratorComponent (isolated)', () => {
           });
 
           it('clears partial fields when clearAllFields is false', () => {
+               component.ticketSequence = '123';
+               component.isAuthorizedNFTokenMinter = true;
+               component.isdepositAuthAddress = true;
+               component.isUpdateMetaData = true;
+               component.isSetRegularKey = true;
+               component.isSimulateEnabled = true;
+               component.selectedTicket = '101';
+               component.useMultiSign = true;
                component.isTicketEnabled = true;
                component.isTicket = true;
-               component.selectedTicket = '101';
-               // component.ticketCountField = '2';
                component.isMemoEnabled = true;
                component.memoField = 'memo';
 
                (component as any).clearFields(false);
 
+               expect(component.ticketSequence).toBe('123');
+               expect(component.isAuthorizedNFTokenMinter).toBeTrue();
+               expect(component.isdepositAuthAddress).toBeTrue();
+               expect(component.isUpdateMetaData).toBeTrue();
+               expect(component.isSetRegularKey).toBeTrue();
+               expect(component.isSimulateEnabled).toBeFalse();
+               expect(component.useMultiSign).toBeTrue();
                expect(component.isTicketEnabled).toBeFalse();
                expect(component.isTicket).toBeFalse();
-               // expect(component.selectedTicket).toBe('');
-               // expect(component.ticketCountField).toBe('');
+               expect(component.selectedTicket).toBe('');
                expect(component.isMemoEnabled).toBeFalse();
                expect(component.memoField).toBe('');
-               // Note: detectChanges may not be called
           });
      });
 

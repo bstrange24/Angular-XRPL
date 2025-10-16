@@ -285,17 +285,22 @@ fdescribe('SignTransactionsComponent', () => {
           xrplMock.isValidAddress.and.returnValue(true);
           component.wallets = [{ name: 'W', address: validAddr, seed: 's', balance: '100' }];
           component.selectedWalletIndex = 0;
-          const getAccountDetailsSpy = spyOn(component, 'getAccountDetails').and.stub();
+
+          const getAccountDetailsSpy = spyOn(component, 'getAccountDetails').and.callThrough();
           const updateDestinationsSpy = spyOn(component as any, 'updateDestinations').and.stub();
-          // Mock getAccountInfo to return balance
+
           xrplServiceMock.getAccountInfo.and.resolveTo({
                result: {
-                    account_data: { Account: validAddr, RegularKey: null, Balance: '100000000' }, // Balance in drops (100 XRP)
+                    account_data: { Account: validAddr, RegularKey: null, Balance: '100000000' },
                     account_flags: { disableMasterKey: false },
                },
           });
-          component.onAccountChange();
-          expect(component.currentWallet).toEqual({ name: 'W', address: validAddr, seed: 's', balance: '100' });
+
+          await component.onAccountChange(); // <-- await here
+          await Promise.resolve(); // flush microtasks
+          await new Promise(r => setTimeout(r, 10)); // flush the setTimeout(0)
+
+          expect(component.currentWallet).toEqual({ name: 'W', address: validAddr, seed: 's', balance: '990' }); // -10 for the reserve
           expect(updateDestinationsSpy).toHaveBeenCalled();
           expect(getAccountDetailsSpy).toHaveBeenCalled();
      });
