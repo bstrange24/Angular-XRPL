@@ -784,6 +784,12 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.cdr.markForCheck();
      }
 
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+     }
+
      private setErrorProperties() {
           this.isSuccess = false;
           this.isError = true;
