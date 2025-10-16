@@ -178,7 +178,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
           },
           // ➕ Add more as needed
      ];
-     // Dynamic wallets
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
@@ -189,7 +188,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.showSendXrpOptions = true;
           this.selectedTransaction = 'sendXrp';
           this.enableTransaction();
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      ngAfterViewInit() {}
@@ -222,7 +221,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      onAccountChange() {
@@ -237,7 +236,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address', null);
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      validateQuorum() {
@@ -245,7 +244,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           if (this.signerQuorum > totalWeight) {
                this.signerQuorum = totalWeight;
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      async toggleMultiSign() {
@@ -260,7 +259,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                return this.setError('ERROR getting wallet in toggleMultiSign', null);
           } finally {
-               this.cdr.detectChanges();
+               this.cdr.markForCheck();
           }
      }
 
@@ -268,14 +267,14 @@ export class SignTransactionsComponent implements AfterViewChecked {
           if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
                this.multiSignSeeds = '';
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      toggleTicketSequence() {
           if (!this.isTicketEnabled) {
                this.enableTransaction();
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      onTicketToggle(event: any, ticket: string) {
@@ -312,7 +311,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.errorMessage = null;
           }
 
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      // setTransaction(type: string, event: Event) {
@@ -428,7 +427,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     console.warn(`Unknown transaction type: ${this.selectedTransaction}`);
           }
 
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      async unsignedTransaction() {
@@ -800,7 +799,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           if (this.destinations.length > 0 && !this.destinationFields) {
                this.destinationFields = this.destinations[0];
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      toggleGroup(groupKey: string, event: Event) {
@@ -824,7 +823,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           if (this.hashField) this.hashField.nativeElement.innerText = '';
           if (this.resultField) this.resultField.nativeElement.innerText = '';
 
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      private resetToggles(exceptFor?: string) {
@@ -1048,7 +1047,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.isTicket = false;
           this.memoField = '';
           this.isMemoEnabled = false;
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      private renderTransactionResult(response: any): void {
@@ -1062,7 +1061,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
           console.log('Spinner message updated:', message);
      }
 
@@ -1082,7 +1081,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.setErrorProperties();
           this.outputField = ''; // Ensure hash field is empty
           this.errorMessage = message;
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      private setSuccessProperties() {
@@ -1096,6 +1095,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.setSuccessProperties();
           this.errorMessage = null; // Clear error
           this.txJson = message; // Set the success message/JSON
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 }

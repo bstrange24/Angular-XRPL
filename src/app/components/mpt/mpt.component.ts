@@ -146,16 +146,16 @@ export class MptComponent implements AfterViewChecked {
      }
 
      ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange(); // Load initial
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.detectChanges();
-               }
-          })();
+          // (async () => {
+          //      try {
+          //           this.onAccountChange(); // Load initial
+          //      } catch (error: any) {
+          //           console.error(`Error loading initial wallet: ${error.message}`);
+          //           this.setError('ERROR: Could not load initial wallet');
+          //      } finally {
+          //           this.cdr.detectChanges();
+          //      }
+          // })();
      }
 
      ngAfterViewChecked() {
@@ -185,14 +185,19 @@ export class MptComponent implements AfterViewChecked {
 
      onAccountChange() {
           if (this.wallets.length === 0) return;
-          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+
+          this.currentWallet = {
+               ...this.wallets[this.selectedWalletIndex],
+               balance: this.currentWallet.balance || '0',
+          };
+
           this.updateDestinations();
+
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
                this.getMptDetails();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
-          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -232,10 +237,8 @@ export class MptComponent implements AfterViewChecked {
 
      onTicketToggle(event: any, ticket: string) {
           if (event.target.checked) {
-               // Add to selection
                this.selectedTickets = [...this.selectedTickets, ticket];
           } else {
-               // Remove from selection
                this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
@@ -245,12 +248,10 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.currentWallet.address,
-               seed: this.currentWallet.seed,
-          };
-
           try {
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage('Getting MPT Details...');
 
                const client = await this.xrplService.getClient();
@@ -258,16 +259,19 @@ export class MptComponent implements AfterViewChecked {
 
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`accountObjects:`, accountObjects.result);
+
+               const inputs: ValidationInputs = {
+                    seed: this.currentWallet.seed,
+                    account_info: accountInfo,
+               };
 
                const errors = await this.validateInputs(inputs, 'get');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`account info:`, accountInfo.result);
-               console.debug(`accountObjects:`, accountObjects.result);
 
                // Prepare data structure
                const data = {
@@ -321,14 +325,15 @@ export class MptComponent implements AfterViewChecked {
                     });
                }
 
-               // CRITICAL: Render immediately
+               // Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
+
+               this.refreshUIData(wallet, accountInfo, accountObjects);
 
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.clearFields(false);
                          this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
@@ -351,7 +356,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
@@ -382,14 +387,15 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'generate');
                if (errors.length > 0) {
@@ -412,7 +418,7 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenIssuanceCreateTx, wallet, accountInfo, 'create');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceCreateTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceCreateTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -425,8 +431,7 @@ export class MptComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -441,10 +446,9 @@ export class MptComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -478,7 +482,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
@@ -509,14 +513,15 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'generate');
                if (errors.length > 0) {
@@ -540,7 +545,7 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenMintTx, wallet, accountInfo, 'mint');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenMintTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenMintTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -553,8 +558,7 @@ export class MptComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenMintTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenMintTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -569,10 +573,9 @@ export class MptComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -606,7 +609,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
@@ -634,14 +637,15 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'authorize');
                if (errors.length > 0) {
@@ -663,7 +667,7 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenAuthorizeTx, wallet, accountInfo, 'generate');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenAuthorizeTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenAuthorizeTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -674,11 +678,9 @@ export class MptComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, mPTokenAuthorizeTx);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenAuthorizeTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenAuthorizeTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -693,10 +695,9 @@ export class MptComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -730,7 +731,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
@@ -760,14 +761,15 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'generate');
                if (errors.length > 0) {
@@ -789,7 +791,7 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mptTransferTx, wallet, accountInfo, 'transfer');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mptTransferTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mptTransferTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -802,8 +804,7 @@ export class MptComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mptTransferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mptTransferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -818,10 +819,9 @@ export class MptComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -855,7 +855,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
@@ -885,16 +885,24 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, accountObjects, destObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, destObjects, fee, currentLedger, serverInfo] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
+               ]);
 
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
                console.debug(`destObjects for ${this.destinationFields}:`, destObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'send');
                if (errors.length > 0) {
@@ -944,7 +952,7 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, sendMptPaymentTx, wallet, accountInfo, 'send');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, sendMptPaymentTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, sendMptPaymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -957,8 +965,7 @@ export class MptComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, sendMptPaymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, sendMptPaymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -966,24 +973,24 @@ export class MptComponent implements AfterViewChecked {
 
                     response = await this.xrplTransactions.submitTransaction(client, signedTx);
                }
+
                const isSuccess = this.utilsService.isTxSuccessful(response);
                if (!isSuccess) {
                     const resultMsg = this.utilsService.getTransactionResultMessage(response);
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
-               const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-               this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
                if (!this.isSimulateEnabled) {
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
                     setTimeout(async () => {
                          try {
                               this.clearFields(false);
@@ -1009,7 +1016,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
@@ -1032,15 +1039,16 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, mptokenObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, mptokenObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`mptokenObjects for ${wallet.classicAddress}:`, mptokenObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'setMptLocked');
                if (errors.length > 0) {
@@ -1070,7 +1078,7 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenIssuanceSetTx, wallet, accountInfo, 'generate');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceSetTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceSetTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -1083,8 +1091,7 @@ export class MptComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1099,10 +1106,9 @@ export class MptComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1136,7 +1142,7 @@ export class MptComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                mptIssuanceIdField: this.mptIssuanceIdField,
@@ -1158,15 +1164,16 @@ export class MptComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, destObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, destObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
                console.debug(`destObjects for ${wallet.classicAddress}:`, destObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'delete');
                if (errors.length > 0) {
@@ -1198,6 +1205,10 @@ export class MptComponent implements AfterViewChecked {
 
                await this.setTxOptionalFields(client, mPTokenIssuanceDestroyTx, wallet, accountInfo, 'generate');
 
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceDestroyTx, fee)) {
+                    return this.setError('ERROR: Insufficient XRP to complete transaction');
+               }
+
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Deleting MPT (no changes will be made)...' : 'Submitting to Ledger...');
 
                let response: any;
@@ -1207,8 +1218,7 @@ export class MptComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceDestroyTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceDestroyTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1223,10 +1233,9 @@ export class MptComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1608,12 +1617,12 @@ export class MptComponent implements AfterViewChecked {
                }
           > = {
                get: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                     asyncValidators: [],
                },
                generate: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.assetScaleField, 'Asset scale', 0, 15),
@@ -1633,7 +1642,7 @@ export class MptComponent implements AfterViewChecked {
                     asyncValidators: [checkDestinationTagRequirement],
                },
                authorize: {
-                    required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
+                    required: ['seed', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
@@ -1653,7 +1662,7 @@ export class MptComponent implements AfterViewChecked {
                     asyncValidators: [checkDestinationTagRequirement],
                },
                send: {
-                    required: ['selectedAccount', 'seed', 'amount', 'destination', 'mptIssuanceIdField'],
+                    required: ['seed', 'amount', 'destination', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.amount, 'Amount', 0),
@@ -1675,7 +1684,7 @@ export class MptComponent implements AfterViewChecked {
                     asyncValidators: [checkDestinationTagRequirement],
                },
                delete: {
-                    required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
+                    required: ['seed', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
@@ -1693,7 +1702,7 @@ export class MptComponent implements AfterViewChecked {
                     asyncValidators: [],
                },
                setMptLocked: {
-                    required: ['selectedAccount', 'seed', 'mptIssuanceIdField'],
+                    required: ['seed', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
@@ -1747,11 +1756,6 @@ export class MptComponent implements AfterViewChecked {
 
           if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
                errors.push('At least one signer address is required for multi-signing');
-          }
-
-          // Selected account check (common to most)
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
           }
 
           return errors;

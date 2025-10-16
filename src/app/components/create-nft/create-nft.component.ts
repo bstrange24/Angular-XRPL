@@ -189,16 +189,16 @@ export class CreateNftComponent implements AfterViewChecked {
      }
 
      ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange(); // Load initial
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.detectChanges();
-               }
-          })();
+          // (async () => {
+          //      try {
+          //           this.onAccountChange(); // Load initial
+          //      } catch (error: any) {
+          //           console.error(`Error loading initial wallet: ${error.message}`);
+          //           this.setError('ERROR: Could not load initial wallet');
+          //      } finally {
+          //           this.cdr.detectChanges();
+          //      }
+          // })();
      }
 
      ngOnDestroy(): void {
@@ -232,14 +232,19 @@ export class CreateNftComponent implements AfterViewChecked {
 
      onAccountChange() {
           if (this.wallets.length === 0) return;
-          this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
+
+          this.currentWallet = {
+               ...this.wallets[this.selectedWalletIndex],
+               balance: this.currentWallet.balance || '0',
+          };
+
           this.updateDestinations();
+
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
                this.getNFT();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
-          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -279,10 +284,8 @@ export class CreateNftComponent implements AfterViewChecked {
 
      onTicketToggle(event: any, ticket: string) {
           if (event.target.checked) {
-               // Add to selection
                this.selectedTickets = [...this.selectedTickets, ticket];
           } else {
-               // Remove from selection
                this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
@@ -298,18 +301,15 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.currentWallet.address,
-               seed: this.currentWallet.seed,
-          };
-
           try {
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                this.updateSpinnerMessage('Getting NFT Details...');
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE all independent API calls
                const [accountNfts, accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
@@ -317,7 +317,10 @@ export class CreateNftComponent implements AfterViewChecked {
                console.debug(`account objects:`, accountObjects.result);
                console.debug(`Account NFTs:`, accountNfts.result);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               const inputs: ValidationInputs = {
+                    seed: this.currentWallet.seed,
+                    account_info: accountInfo,
+               };
 
                const errors = this.validateInputs(inputs, 'getNFTs');
                if (errors.length > 0) {
@@ -930,11 +933,6 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.currentWallet.address,
-               seed: this.currentWallet.seed,
-          };
-
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
@@ -946,7 +944,10 @@ export class CreateNftComponent implements AfterViewChecked {
                console.debug(`sellOffersResponse for ${wallet.classicAddress}:`, sellOffersResponse);
                console.debug(`buyOffersResponse for ${wallet.classicAddress}:`, buyOffersResponse);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               const inputs: ValidationInputs = {
+                    seed: this.currentWallet.seed,
+                    account_info: accountInfo,
+               };
 
                const errors = this.validateInputs(inputs, 'getNFTOffers');
                if (errors.length > 0) {
@@ -1110,7 +1111,7 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                nftIdField: this.nftIdField,
@@ -1129,26 +1130,21 @@ export class CreateNftComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '')]);
+               const [accountInfo, sellOffersResponse, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getNFTSellOffers(client, this.nftIdField), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`sellOffersResponse for ${wallet.classicAddress}:`, sellOffersResponse.result);
+               console.debug(`fee :`, fee);
+               console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = this.validateInputs(inputs, 'buyNFT');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
-
-               const [sellOffersResponse, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getNFTSellOffers(client, this.nftIdField), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`sellOffersResponse for ${wallet.classicAddress}:`, sellOffersResponse.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
 
                const sellOffer = sellOffersResponse.result?.offers || [];
                if (!Array.isArray(sellOffer) || sellOffer.length === 0) {
@@ -1214,8 +1210,7 @@ export class CreateNftComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenAcceptOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenAcceptOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1230,7 +1225,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -1266,7 +1261,7 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                nftIdField: this.nftIdField,
@@ -1295,7 +1290,7 @@ export class CreateNftComponent implements AfterViewChecked {
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = this.validateInputs(inputs, 'sellNFT');
                if (errors.length > 0) {
@@ -1327,8 +1322,7 @@ export class CreateNftComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCreateOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCreateOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1343,7 +1337,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -1379,7 +1373,7 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                nftIdField: this.nftIdField,
@@ -1408,7 +1402,7 @@ export class CreateNftComponent implements AfterViewChecked {
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = this.validateInputs(inputs, 'sellNFT');
                if (errors.length > 0) {
@@ -1440,8 +1434,7 @@ export class CreateNftComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCreateOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCreateOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1492,7 +1485,7 @@ export class CreateNftComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                nftIdField: this.nftIdField,
@@ -1521,7 +1514,7 @@ export class CreateNftComponent implements AfterViewChecked {
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = this.validateInputs(inputs, 'sellNFT');
                if (errors.length > 0) {
@@ -1553,8 +1546,7 @@ export class CreateNftComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCreateOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCreateOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1569,7 +1561,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -2500,49 +2492,49 @@ export class CreateNftComponent implements AfterViewChecked {
           // Action-specific config: required fields and custom rules
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => string | null)[] }> = {
                getNFTs: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                },
                mintNFT: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.issuerAddressField, 'Issuer address')],
                },
                batchNFT: {
-                    required: ['selectedAccount', 'seed', 'nftCountField'],
+                    required: ['seed', 'nftCountField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.nftCountField, 'NFT count', 0), () => isRequired(inputs.uri, 'URI'), () => isBatchCountValid(inputs.nftCountField, 'NFT Count'), () => isRequired(inputs.batchMode, 'Batch Mode')],
                },
                batchBurnNFT: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isBatchCountValid(inputs.nftCountField, 'NFT Count')],
                },
                burnNFT: {
-                    required: ['selectedAccount', 'seed', 'nftIdField'],
+                    required: ['seed', 'nftIdField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
                },
                getNFTOffers: {
-                    // required: ['selectedAccount', 'seed', 'nftIdField'],
-                    required: ['selectedAccount', 'seed'],
+                    // required: [ 'seed', 'nftIdField'],
+                    required: ['seed'],
                     // customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
                     customValidators: [() => isValidSeed(inputs.seed)],
                },
                buyNFT: {
-                    required: ['selectedAccount', 'seed', 'nftIdField'],
+                    required: ['seed', 'nftIdField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
                },
                sellNFT: {
-                    required: ['selectedAccount', 'seed', 'nftIdField', 'amount'],
+                    required: ['seed', 'nftIdField', 'amount'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID'), () => isValidNumber(inputs.amount, 'Amount', 0)],
                },
                cancelBuyNFT: {
-                    required: ['selectedAccount', 'seed', 'nftIndexField'],
+                    required: ['seed', 'nftIndexField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIndexField, 'NFT Offer Index')],
                },
                cancelSellNFT: {
-                    required: ['selectedAccount', 'seed', 'nftIndexField'],
+                    required: ['seed', 'nftIndexField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIndexField, 'NFT Offer Index')],
                },
                updateMetadata: {
-                    required: ['selectedAccount', 'seed', 'nftIdField', 'uri'],
+                    required: ['seed', 'nftIdField', 'uri'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID'), () => isRequired(inputs.uri, 'URI'), () => nftExistOnAccountAndMutable(inputs.nft_info, inputs.nftIdField)],
                },
                default: { required: [], customValidators: [] },
@@ -2574,11 +2566,6 @@ export class CreateNftComponent implements AfterViewChecked {
 
           if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
                errors.push('At least one signer address is required for multi-signing');
-          }
-
-          // Selected account check (common to most)
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
           }
 
           return errors;

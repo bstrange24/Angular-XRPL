@@ -15,7 +15,9 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
      let storageServiceMock: any;
      let renderUiComponentsServiceMock: any;
      let xrplTransactionServiceMock: any;
+
      const validAddr = 'rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe';
+     const validSeed = 'ssgapRpEdpZA9VUmbghGEvUqLkJYg';
 
      beforeEach(async () => {
           xrplServiceMock = {
@@ -100,7 +102,6 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
 
           fixture = TestBed.createComponent(CreateTimeEscrowComponent);
           component = fixture.componentInstance;
-          // Avoid detectChanges
      });
 
      it('should create', () => {

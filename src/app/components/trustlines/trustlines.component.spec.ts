@@ -54,6 +54,7 @@ fdescribe('TrustlinesComponent', () => {
                attachSearchListener: jasmine.createSpy('attachSearchListener'),
                renderDetails: jasmine.createSpy('renderDetails'),
           };
+
           xrplTransactionServiceMock = {
                simulateTransaction: jasmine.createSpy('simulateTransaction').and.resolveTo({ result: {} }),
           };

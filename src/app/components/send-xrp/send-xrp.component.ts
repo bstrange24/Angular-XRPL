@@ -515,7 +515,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
+     public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
           const regularKey = accountInfo?.result?.account_data?.RegularKey;
           if (regularKey) {
                this.regularKeyAddress = regularKey;
