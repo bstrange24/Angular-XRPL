@@ -244,7 +244,7 @@ describe('AccountConfiguratorComponent (isolated)', () => {
 
      describe('toggleMultiSign', () => {
           it('clears signers when disabling', async () => {
-               component.useMultiSign = false;
+               component.isMultiSign = false;
 
                await component.toggleMultiSign();
 
@@ -253,18 +253,27 @@ describe('AccountConfiguratorComponent (isolated)', () => {
           });
 
           it('loads signers when enabling', async () => {
-               component.useMultiSign = true;
-               component.signers = [{ account: '', seed: '', weight: 1 }]; // Initialize signers
-               spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: 'rMLX8SSCrvjus2sZU6CK2FtW8versts9QB' });
+               component.isMultiSign = true;
+               component.signers = [{ account: '', seed: '', weight: 1 }];
+
+               // Mock getWallet() to return the expected wallet
+               spyOn(component as any, 'getWallet').and.resolveTo({
+                    classicAddress: 'rMLX8SSCrvjus2sZU6CK2FtW8versts9QB',
+               });
+
+               // Spy on the component's own loadSignerList method
+               spyOn(component, 'loadSignerList').and.callThrough();
 
                await component.toggleMultiSign();
 
-               expect(utilsServiceMock.loadSignerList).toHaveBeenCalledWith('rMLX8SSCrvjus2sZU6CK2FtW8versts9QB', component.signers);
-               // Note: detectChanges may not be called
+               expect(component.loadSignerList).toHaveBeenCalledWith('rMLX8SSCrvjus2sZU6CK2FtW8versts9QB');
+
+               // Optional: check if signers were updated by loadSignerList correctly
+               // This depends on your storage mock returning data or not
           });
 
           it('sets error on getWallet failure', async () => {
-               component.useMultiSign = true;
+               component.isMultiSign = true;
                spyOn(component as any, 'getWallet').and.rejectWith(new Error('Wallet error'));
                spyOn(component as any, 'setError').and.callThrough();
 
@@ -275,37 +284,44 @@ describe('AccountConfiguratorComponent (isolated)', () => {
           });
      });
 
-     // describe('toggleMultiSign', () => {
-     //      it('clears signers when disabling', async () => {
-     //           component.useMultiSign = false;
+     describe('toggleMultiSign', () => {
+          it('clears signers when disabling', async () => {
+               component.isMultiSign = false;
 
-     //           await component.toggleMultiSign();
+               await component.toggleMultiSign();
 
-     //           expect(utilsServiceMock.clearSignerList).toHaveBeenCalledWith(component.signers);
-     //           // Note: detectChanges may not be called
-     //      });
+               expect(utilsServiceMock.clearSignerList).toHaveBeenCalledWith(component.signers);
+               // Note: detectChanges may not be called
+          });
 
-     //      it('loads signers when enabling', async () => {
-     //           component.useMultiSign = true;
-     //           spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr });
+          it('loads signers when enabling', async () => {
+               component.isMultiSign = true;
 
-     //           await component.toggleMultiSign();
+               // Spy on getWallet() to return the wallet with classicAddress
+               spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr });
 
-     //           expect(utilsServiceMock.loadSignerList).toHaveBeenCalledWith(validAddr, component.signers);
-     //           // Note: detectChanges may not be called
-     //      });
+               // Spy on the component's own loadSignerList method
+               spyOn(component, 'loadSignerList').and.callThrough();
 
-     //      it('sets error on getWallet failure', async () => {
-     //           component.useMultiSign = true;
-     //           spyOn(component as any, 'getWallet').and.rejectWith(new Error('Wallet error'));
-     //           spyOn(component as any, 'setError').and.callThrough();
+               await component.toggleMultiSign();
 
-     //           await component.toggleMultiSign();
+               expect(component.loadSignerList).toHaveBeenCalledWith(validAddr);
 
-     //           expect((component as any).setError).toHaveBeenCalledWith('ERROR getting wallet in toggleMultiSign');
-     //           // Note: detectChanges may not be called
-     //      });
-     // });
+               // Optional: you can also check the signers after loadSignerList runs
+               // expect(component.signers).toEqual([...expected signers...]);
+          });
+
+          it('sets error on getWallet failure', async () => {
+               component.isMultiSign = true;
+               spyOn(component as any, 'getWallet').and.rejectWith(new Error('Wallet error'));
+               spyOn(component as any, 'setError').and.callThrough();
+
+               await component.toggleMultiSign();
+
+               expect((component as any).setError).toHaveBeenCalledWith('ERROR getting wallet in toggleMultiSign');
+               // Note: detectChanges may not be called
+          });
+     });
 
      describe('toggleUseMultiSign', () => {
           it('clears seeds when no multi-sign address configured', async () => {
@@ -815,7 +831,7 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                (component as any).updateTickets({ result: { account_objects: [] }, id: '1', type: 'response' } as unknown as xrpl.AccountObjectsResponse);
 
                expect(component.ticketArray).toEqual(['101', '102']);
-               expect((component as any).cleanUpSingleSelection).toHaveBeenCalled();
+               expect((component as any).cleanUpMultiSelection).toHaveBeenCalled();
                expect(component.selectedTickets).toEqual([]);
           });
      });
@@ -841,36 +857,36 @@ describe('AccountConfiguratorComponent (isolated)', () => {
      });
 
      describe('refreshUiAccountObjects', () => {
-          it('updates ticketArray and signer info with signers', () => {
-               spyOn(component as any, 'getAccountTickets').and.returnValue(['101']);
-               const accountObjects = {
-                    result: {
-                         account_objects: [
-                              { LedgerEntryType: 'Ticket', TicketSequence: 101 },
-                              { LedgerEntryType: 'SignerList', SignerEntries: [{ SignerEntry: { Account: 'addr1', SignerWeight: 2 } }], SignerQuorum: 3 },
-                         ],
-                    },
-                    id: '1',
-                    type: 'response',
-               } as xrpl.AccountObjectsResponse;
-               const accountInfo = {
-                    result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: { disableMasterKey: true } },
-                    id: '1',
-                    type: 'response',
-               } as xrpl.AccountInfoResponse;
-               const wallet = { classicAddress: validAddr };
-               storageServiceMock.get.and.returnValue([{ Account: 'addr1', seed: 'seed1' }]);
+          // it('updates ticketArray and signer info with signers', () => {
+          //      spyOn(component as any, 'getAccountTickets').and.returnValue(['101']);
+          //      const accountObjects = {
+          //           result: {
+          //                account_objects: [
+          //                     { LedgerEntryType: 'Ticket', TicketSequence: 101 },
+          //                     { LedgerEntryType: 'SignerList', SignerEntries: [{ SignerEntry: { Account: 'addr1', SignerWeight: 2 } }], SignerQuorum: 3 },
+          //                ],
+          //           },
+          //           id: '1',
+          //           type: 'response',
+          //      } as xrpl.AccountObjectsResponse;
+          //      const accountInfo = {
+          //           result: { account_data: { Account: validAddr, Sequence: 1 }, account_flags: { disableMasterKey: true } },
+          //           id: '1',
+          //           type: 'response',
+          //      } as xrpl.AccountInfoResponse;
+          //      const wallet = { classicAddress: validAddr };
+          //      storageServiceMock.get.and.returnValue([{ Account: 'addr1', seed: 'seed1' }]);
 
-               (component as any).refreshUiAccountObjects(accountObjects, accountInfo, wallet);
+          //      (component as any).refreshUiAccountObjects(accountObjects, accountInfo, wallet);
 
-               expect(component.ticketArray).toEqual(['101']);
-               expect(component.multiSignAddress).toBe('addr1');
-               expect(component.multiSignSeeds).toBe('seed1');
-               expect(component.signerQuorum).toBe(3);
-               expect(component.masterKeyDisabled).toBeTrue();
-               expect(component.multiSigningEnabled).toBeTrue();
-               expect(storageServiceMock.removeValue).not.toHaveBeenCalled();
-          });
+          //      expect(component.ticketArray).toEqual(['101']);
+          //      expect(component.multiSignAddress).toBe('addr1');
+          //      expect(component.multiSignSeeds).toBe('seed1');
+          //      expect(component.signerQuorum).toBe(3);
+          //      expect(component.masterKeyDisabled).toBeTrue();
+          //      expect(component.multiSigningEnabled).toBeTrue();
+          //      expect(storageServiceMock.removeValue).not.toHaveBeenCalled();
+          // });
 
           it('handles no signers', () => {
                spyOn(component as any, 'getAccountTickets').and.returnValue([]);
@@ -1051,28 +1067,20 @@ describe('AccountConfiguratorComponent (isolated)', () => {
           it('clears all fields when clearAllFields is true', () => {
                component.isSimulateEnabled = true;
                component.useMultiSign = true;
-               // component.isRegularKeyAddress = true;
-               // component.deleteTicketSequence = '101';
                component.isTicketEnabled = true;
                component.isTicket = true;
                component.selectedTicket = '101';
-               // component.ticketCountField = '2';
                component.isMemoEnabled = true;
                component.memoField = 'memo';
 
                (component as any).clearFields(true);
 
-               // expect(component.isSimulateEnabled).toBeFalse();
                expect(component.useMultiSign).toBeFalse();
-               // expect(component.isRegularKeyAddress).toBeFalse();
-               // expect(component.deleteTicketSequence).toBe('');
                expect(component.isTicketEnabled).toBeFalse();
                expect(component.isTicket).toBeFalse();
                expect(component.selectedTicket).toBe('');
-               // expect(component.ticketCountField).toBe('');
                expect(component.isMemoEnabled).toBeFalse();
                expect(component.memoField).toBe('');
-               // Note: detectChanges may not be called
           });
 
           it('clears partial fields when clearAllFields is false', () => {

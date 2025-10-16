@@ -72,6 +72,8 @@ cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include
 
 cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-tickets/create-tickets.component.spec.ts
 
+cd xrpl-app && npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/send-checks/send-checks.component.spec.ts
+
 Run proxy-server.js and Angular at the same time
 npm install --save-dev concurrently
 Modify package.json

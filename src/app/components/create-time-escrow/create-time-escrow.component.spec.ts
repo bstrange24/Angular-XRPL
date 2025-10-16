@@ -277,7 +277,7 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
                spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr });
                spyOn(component as any, 'validateInputs').and.resolveTo([]);
 
-               zrplBasicClient();
+               xrplBasicClient();
                xrplServiceMock.getAccountInfo.and.resolveTo({ result: { account_data: { Sequence: 1 }, account_flags: {} } });
                xrplServiceMock.getAccountObjects.and.callFake((_c: any, _a: any, _s: any, type?: string) => {
                     if (type === 'escrow') return Promise.resolve({ result: { account_objects: [] } });
@@ -302,7 +302,7 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
           it('sets error on validation failure', async () => {
                spyOn(component as any, 'validateInputs').and.resolveTo(['e']);
                xrplServiceMock.getNet.and.returnValue({ environment: 'test' });
-               zrplBasicClient();
+               xrplBasicClient();
                spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr, address: validAddr });
                const setErrorSpy = spyOn(component as any, 'setError').and.stub();
 
@@ -313,7 +313,7 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
           it('simulates when isSimulateEnabled', async () => {
                spyOn(component as any, 'validateInputs').and.resolveTo([]);
                component.isSimulateEnabled = true;
-               zrplBasicClient();
+               xrplBasicClient();
                spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr, address: validAddr });
                const renderSpy = spyOn<any>(component, 'renderTransactionResult').and.stub();
 
@@ -326,7 +326,7 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
           it('sets error on sign failure', async () => {
                spyOn(component as any, 'validateInputs').and.resolveTo([]);
                component.isSimulateEnabled = false;
-               zrplBasicClient();
+               xrplBasicClient();
                spyOn(component as any, 'getWallet').and.resolveTo({ classicAddress: validAddr, address: validAddr });
                xrplTransactionServiceMock.signTransaction.and.resolveTo(null);
                const setErrorSpy = spyOn(component as any, 'setError').and.stub();
@@ -418,7 +418,7 @@ describe('CreateTimeEscrowComponent (isolated)', () => {
      });
 
      // helper to provide minimal typed client and server info when needed elsewhere
-     function zrplBasicClient() {
+     function xrplBasicClient() {
           xrplServiceMock.getClient.and.returnValue(
                Promise.resolve({
                     connection: {} as any,

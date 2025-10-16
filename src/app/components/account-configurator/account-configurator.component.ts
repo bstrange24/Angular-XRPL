@@ -2044,6 +2044,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                this.isSetRegularKey = false;
           }
 
+          this.selectedTicket = '';
           this.isTicket = false;
           this.isTicketEnabled = false;
           this.multiSelectMode = false;
