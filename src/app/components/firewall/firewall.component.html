@@ -192,8 +192,18 @@
                     </div>
 
                     <div class="button-container">
-                         <table style="text-align: left; width: 100%">
-                              <fieldset>
+                         <tr>
+                              <td colspan="2" style="display: flex; align-items: center; gap: 5px; margin-left: 5px">
+                                   <label>Show Manage Tokens</label>
+                                   <label class="switch" style="margin-left: 10px">
+                                        <input type="checkbox" [(ngModel)]="showManageTokens" name="showManageTokens" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                         </tr>
+
+                         <tr *ngIf="showManageTokens">
+                              <fieldset style="margin-top: 10px">
                                    <legend style="color: white">Manage Whitelist Address</legend>
                                    <div style="margin-bottom: 10px">
                                         <label>Add Whitelist Address: </label>
@@ -209,9 +219,11 @@
                                         <button type="button" (click)="removeWhitelistAddress()">Remove</button>
                                    </div>
                               </fieldset>
+                         </tr>
+
+                         <table style="text-align: left; width: 100%">
                               <th></th>
-                              <th></th>
-                              <tr style="vertical-align: top">
+                              <tr>
                                    <td colspan="2">
                                         <button type="button" (click)="getFirewallDetails()">Get Firewall Info</button>
                                         <button type="button" (click)="createFirewall()">Create Firewall</button>
@@ -222,13 +234,13 @@
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
-
                               <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
                                    </td>
                               </tr>
                          </table>
+
                          <details class="account-flag-info">
                               <summary>MPT Token Info</summary>
                               <fieldset class="flag-fieldset">

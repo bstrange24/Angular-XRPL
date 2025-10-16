@@ -127,6 +127,7 @@ export class FirewallComponent implements AfterViewChecked {
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
      destinations: { name?: string; address: string }[] = [];
+     showManageTokens: boolean = false;
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
