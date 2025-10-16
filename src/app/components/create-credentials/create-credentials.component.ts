@@ -526,7 +526,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                };
 
                // Optional fields
-               await this.setTxOptionalFields(client, credentialDeleteTx, wallet, accountInfo, 'setCredentials');
+               await this.setTxOptionalFields(client, credentialDeleteTx, wallet, accountInfo, 'removeCredentials');
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, credentialDeleteTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -646,6 +646,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     return;
                }
                console.debug(`credentialFound for ${wallet.classicAddress} ${credentialFound}`);
+               console.debug(`credentialFound:`, credentialFound);
 
                const credentialAcceptTx: CredentialAccept = {
                     TransactionType: 'CredentialAccept',
@@ -656,7 +657,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               await this.setTxOptionalFields(client, credentialAcceptTx, wallet, accountInfo, 'setCredentials');
+               await this.setTxOptionalFields(client, credentialAcceptTx, wallet, accountInfo, 'acceptCredentials');
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, credentialAcceptTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
