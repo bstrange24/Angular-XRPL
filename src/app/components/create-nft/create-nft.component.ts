@@ -188,18 +188,7 @@ export class CreateNftComponent implements AfterViewChecked {
           this.currencyFieldDropDownValue = 'XRP'; // Set default to XRP
      }
 
-     ngAfterViewInit() {
-          // (async () => {
-          //      try {
-          //           this.onAccountChange(); // Load initial
-          //      } catch (error: any) {
-          //           console.error(`Error loading initial wallet: ${error.message}`);
-          //           this.setError('ERROR: Could not load initial wallet');
-          //      } finally {
-          //           this.cdr.detectChanges();
-          //      }
-          // })();
-     }
+     ngAfterViewInit() {}
 
      ngOnDestroy(): void {
           document.removeEventListener('change', this.burnCheckboxHandlerBound);

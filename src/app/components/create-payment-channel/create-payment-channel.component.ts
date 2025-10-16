@@ -138,18 +138,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
 
      async ngOnInit() {}
 
-     ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange(); // Load initial
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.detectChanges();
-               }
-          })();
-     }
+     ngAfterViewInit() {}
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {

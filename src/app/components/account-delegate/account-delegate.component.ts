@@ -137,18 +137,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           this.rightActions = this.actions.slice(Math.ceil(this.actions.length / 2));
      }
 
-     ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange();
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.markForCheck();
-               }
-          })();
-     }
+     ngAfterViewInit() {}
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {

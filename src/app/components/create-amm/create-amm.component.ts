@@ -195,18 +195,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.weWantCurrencyField = 'CTZ'; // BOB Set default selected currency if available
      }
 
-     ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange(); // Load initial
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.detectChanges();
-               }
-          })();
-     }
+     ngAfterViewInit() {}
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {

@@ -225,19 +225,19 @@ export class CreateOfferComponent implements AfterViewChecked {
      }
 
      ngAfterViewInit() {
-          (async () => {
-               try {
-                    this.onAccountChange(); // Load initial
-                    this.dataSource.paginator = this.paginator;
-                    this.dataSource.sort = this.sort;
-                    this.startPriceRefresh(); // Start polling for price
-               } catch (error: any) {
-                    console.error(`Error loading initial wallet: ${error.message}`);
-                    this.setError('ERROR: Could not load initial wallet');
-               } finally {
-                    this.cdr.detectChanges();
-               }
-          })();
+          // (async () => {
+          //      try {
+          //           this.onAccountChange(); // Load initial
+          //           this.dataSource.paginator = this.paginator;
+          //           this.dataSource.sort = this.sort;
+          //           this.startPriceRefresh(); // Start polling for price
+          //      } catch (error: any) {
+          //           console.error(`Error loading initial wallet: ${error.message}`);
+          //           this.setError('ERROR: Could not load initial wallet');
+          //      } finally {
+          //           this.cdr.detectChanges();
+          //      }
+          // })();
      }
 
      ngAfterViewChecked() {

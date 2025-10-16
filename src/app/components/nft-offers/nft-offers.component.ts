@@ -89,6 +89,7 @@ export class NftOffersComponent implements AfterViewChecked {
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
+     destinationTagField: string = '';
      useMultiSign: boolean = false;
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
@@ -109,7 +110,7 @@ export class NftOffersComponent implements AfterViewChecked {
      newDestination: string = '';
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
-     destinations: string[] = [];
+     // destinations: string[] = [];
      currencyFieldDropDownValue: string = 'XRP';
      private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
      currencies: string[] = [];
@@ -167,7 +168,10 @@ export class NftOffersComponent implements AfterViewChecked {
           asfDisallowIncomingTrustline: false,
           asfAllowTrustLineLocking: false,
      };
-     spinner = false;
+     spinner: boolean = false;
+     private knownDestinations: { [key: string]: string } = {};
+     // destinations: string[] = [];
+     destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      private burnCheckboxHandlerBound!: (e: Event) => void;
      // Dynamic wallets
@@ -188,18 +192,7 @@ export class NftOffersComponent implements AfterViewChecked {
           this.currencyFieldDropDownValue = 'XRP'; // Set default to XRP
      }
 
-     ngAfterViewInit() {
-          // (async () => {
-          //      try {
-          //           this.onAccountChange(); // Load initial
-          //      } catch (error: any) {
-          //           console.error(`Error loading initial wallet: ${error.message}`);
-          //           this.setError('ERROR: Could not load initial wallet');
-          //      } finally {
-          //           this.cdr.detectChanges();
-          //      }
-          // })();
-     }
+     ngAfterViewInit() {}
 
      ngOnDestroy(): void {
           document.removeEventListener('change', this.burnCheckboxHandlerBound);
@@ -1887,12 +1880,6 @@ export class NftOffersComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-          //      this.useMultiSign = true; // Force to true if master key is disabled
-          // } else {
-          //      this.useMultiSign = false;
-          // }
-
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
@@ -1931,12 +1918,6 @@ export class NftOffersComponent implements AfterViewChecked {
           } else {
                this.masterKeyDisabled = false;
           }
-
-          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          // } else {
-          //      this.isRegularKeyAddress = false;
-          // }
 
           if (regularKey) {
                this.regularKeySigningEnabled = true;
@@ -2150,21 +2131,32 @@ export class NftOffersComponent implements AfterViewChecked {
      }
 
      updateDestinations() {
-          this.destinations = this.wallets.map(w => w.address);
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
           if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0];
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
+     }
+
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
           }
           this.cdr.detectChanges();
      }
 
-     addDestination() {
-          if (this.newDestination && !this.destinations.includes(this.newDestination)) {
-               this.destinations.push(this.newDestination);
-               localStorage.setItem('destinations', JSON.stringify(this.destinations));
-               this.destinationFields = this.newDestination; // auto-select the new one
-               this.newDestination = ''; // clear input
-          }
-     }
+     // addDestination() {
+     //      if (this.newDestination && !this.destinations.includes(this.newDestination)) {
+     //           this.destinations.push(this.newDestination);
+     //           localStorage.setItem('destinations', JSON.stringify(this.destinations));
+     //           this.destinationFields = this.newDestination; // auto-select the new one
+     //           this.newDestination = ''; // clear input
+     //      }
+     // }
 
      onBurnToggle(checked: boolean, nftId: string) {
           // normalize current ids
@@ -2224,10 +2216,9 @@ export class NftOffersComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
                const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
 
-               // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
                const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
-               // PHASE 2: Calculate total balance for selected currency
+               // Calculate total balance for selected currency
                let balanceTotal: number = 0;
                const relevantIssuers: string[] = []; // New array for issuers of this currency
 
@@ -2245,7 +2236,7 @@ export class NftOffersComponent implements AfterViewChecked {
                     this.gatewayBalance = '0';
                }
 
-               // PHASE 3: Update destination field
+               // Update destination field
                if (this.currencyFieldDropDownValue === 'XRP') {
                     this.destinationFields = this.wallets[0]?.address || ''; // Default to first wallet address for XRP
                } else {
