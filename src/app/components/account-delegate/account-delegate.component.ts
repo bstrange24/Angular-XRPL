@@ -125,7 +125,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
      spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      destinations: { name?: string; address: string }[] = [];
-     // Dynamic wallets
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
@@ -143,7 +142,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.markForCheck();
+               this.cdr.detectChanges();
           }
      }
 
@@ -161,7 +160,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
@@ -173,7 +172,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -312,7 +311,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     this.leftActions = this.actions.slice(0, Math.ceil(this.actions.length / 2));
                     this.rightActions = this.actions.slice(Math.ceil(this.actions.length / 2));
 
-                    this.cdr.markForCheck();
+                    this.cdr.detectChanges();
 
                     // Build delegate items
                     const delegateItems = delegateObjects.map((delegate: any, index: number) => {
@@ -450,7 +449,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Delegate Action (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Delegate Action (no changes will be made)...' : 'Submitting Delegating Actions to the Ledger...');
 
                let response: any;
 
@@ -535,8 +534,8 @@ export class AccountDelegateComponent implements AfterViewChecked {
      }
 
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
-          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
-          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+          console.debug(`updatedAccountInfo:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects:`, updatedAccountObjects.result);
 
           this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
           this.refreshUiAccountInfo(updatedAccountInfo);
@@ -807,12 +806,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-          //      this.useMultiSign = true; // Force to true if master key is disabled
-          // } else {
-          //      this.useMultiSign = false;
-          // }
-
           if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
@@ -870,7 +863,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                     this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
                }
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      private async getWallet() {
@@ -892,7 +885,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
           }
           this.memoField = '';
           this.isMemoEnabled = false;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      clearDelegateActions() {
@@ -905,7 +898,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
 
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      private setErrorProperties() {
@@ -937,6 +930,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 }
