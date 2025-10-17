@@ -831,17 +831,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                               console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                          }
 
-                         // Render result
                          this.renderTransactionResult(simulation);
-
                          this.resultField.nativeElement.classList.add('success');
                          this.setSuccess(this.result);
                     } else {
-                         // PHASE 5: Get regular key wallet
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1165,22 +1161,18 @@ export class CreateOfferComponent implements AfterViewChecked {
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
-                    // Render result
                     this.renderTransactionResult(simulation);
-
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, offerCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, offerCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    // PHASE 7: Submit or Simulate
                     this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create AMM (no changes will be made)...' : 'Submitting to Ledger...');
 
                     const response = await this.xrplTransactions.submitTransaction(client, signedTx);
@@ -1725,17 +1717,14 @@ export class CreateOfferComponent implements AfterViewChecked {
                                    result: simulation,
                               });
                          } else {
-                              // PHASE 5: Get regular key wallet
                               const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                              // Sign transaction
-                              let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, offerCancelTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                              const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, offerCancelTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                               if (!signedTx) {
                                    return this.setError('ERROR: Failed to sign Payment transaction.');
                               }
 
-                              // PHASE 7: Submit or Simulate
                               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Swap via AMM (no changes will be made)...' : 'Submitting to Ledger...');
 
                               response = await this.xrplTransactions.submitTransaction(client, signedTx);

@@ -333,9 +333,6 @@ export class CreateTicketsComponent implements AfterViewChecked {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               if (1 == 1) {
-                    this.setError('Crap');
-               }
                let ticketCreateTx: xrpl.TicketCreate = {
                     TransactionType: 'TicketCreate',
                     Account: wallet.classicAddress,

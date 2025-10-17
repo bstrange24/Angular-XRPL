@@ -434,8 +434,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -467,8 +466,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelFundTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelFundTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -525,8 +523,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -594,8 +591,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     } else {
                          const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');

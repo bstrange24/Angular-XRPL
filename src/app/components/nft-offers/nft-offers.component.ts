@@ -1168,8 +1168,7 @@ export class NftOffersComponent implements AfterViewChecked {
      //                // PHASE 5: Get regular key wallet
      //                const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-     //                // Sign transaction
-     //                let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCancelOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+     //                const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCancelOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
      //                if (!signedTx) {
      //                     return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1304,8 +1303,7 @@ export class NftOffersComponent implements AfterViewChecked {
      //                // PHASE 5: Get regular key wallet
      //                const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-     //                // Sign transaction
-     //                let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCancelOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+     //                const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCancelOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
      //                if (!signedTx) {
      //                     return this.setError('ERROR: Failed to sign Payment transaction.');

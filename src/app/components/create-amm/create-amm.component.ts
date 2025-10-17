@@ -565,10 +565,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                          tx_json: ammCreateTx,
                     });
                } else {
-                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
                     const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -758,10 +756,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                          tx_json: ammDepositTx,
                     });
                } else {
-                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
                     const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammDepositTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -984,10 +980,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                          tx_json: ammWithdrawTx,
                     });
                } else {
-                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
                     const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammWithdrawTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -1149,7 +1143,6 @@ export class CreateAmmComponent implements AfterViewChecked {
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
                     const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammClawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
@@ -1296,15 +1289,12 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                     // Render result
                     this.renderTransactionResult(simulation);
-
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
-                    // Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammClawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, ammClawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -1429,16 +1419,13 @@ export class CreateAmmComponent implements AfterViewChecked {
                          console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
                     }
 
-                    // Render result
                     this.renderTransactionResult(simulation);
-
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, swapPaymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, swapPaymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
