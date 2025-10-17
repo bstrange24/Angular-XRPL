@@ -56,6 +56,7 @@ interface SignerEntry {
 export class DeleteAccountComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
+     @ViewChild(AppWalletDynamicInputComponent) appWalletDynamicInputComponent!: AppWalletDynamicInputComponent;
      private lastResult: string = '';
      result: string = '';
      isError: boolean = false;
@@ -105,7 +106,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.markForCheck();
+               this.cdr.detectChanges();
           }
      }
 
@@ -123,7 +124,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      async onAccountChange() {
@@ -337,16 +338,28 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
+               if (this.appWalletDynamicInputComponent) {
+                    const index = this.getWalletIndexByAddress(wallet.classicAddress);
+                    if (index !== -1) {
+                         console.log(`Wallet found at index: ${index}`);
+                         this.appWalletDynamicInputComponent.removeWallet(index);
+                    } else {
+                         console.warn('Wallet not found.');
+                    }
+               } else {
+                    console.warn('appWalletDynamicInputComponent not available at this time');
+               }
+
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+                    // const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    // this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
                          try {
-                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                              // this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
-                              this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              // this.updateTickets(updatedAccountObjects);
+                              // await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -360,6 +373,10 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving deleteAccount in ${this.executionTime}ms`);
           }
+     }
+
+     private getWalletIndexByAddress(address: string): number {
+          return this.wallets.findIndex(wallet => wallet.address === address);
      }
 
      private renderTransactionResult(response: any): void {

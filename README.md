@@ -60,6 +60,10 @@ For more information on using the Angular CLI, including detailed command refere
 
 ## Run Test individually
 
+Run test on Ubuntu
+export CHROME_BIN=$(which chromium)
+npx karma start
+
 cd xrpl-app &&
 npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
 ng test --watch --browsers=Chrome --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts

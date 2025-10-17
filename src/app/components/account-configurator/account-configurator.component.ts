@@ -413,14 +413,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
-               regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
-               regularKeySeed: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
+               regularKeyAddress: this.regularKeyAccount || undefined,
+               regularKeySeed: this.regularKeyAccountSeed || undefined,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
-               signers: this.signers ? this.signers : undefined,
-               signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
+               signers: this.signers || undefined,
+               signerQuorum: this.signerQuorum || undefined,
           };
 
           this.clearUiIAccountMetaData();
@@ -576,14 +576,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                domain: this.domain,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
-               regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
-               regularKeySeed: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
+               regularKeyAddress: this.regularKeyAccount || undefined,
+               regularKeySeed: this.regularKeyAccountSeed || undefined,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
-               signers: this.signers ? this.signers : undefined,
-               signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
+               signers: this.signers || undefined,
+               signerQuorum: this.signerQuorum || undefined,
           };
 
           try {
@@ -647,7 +647,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Updating Meta Data (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Updating Meta Data (no changes will be made)...' : 'Submitting Updated Meta Data to Ledger...');
 
                let response: any;
 
@@ -717,14 +717,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                depositAuthAddress: this.depositAuthAddress,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
-               regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
-               regularKeySeed: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
+               regularKeyAddress: this.regularKeyAccount || undefined,
+               regularKeySeed: this.regularKeyAccountSeed || undefined,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
-               signers: this.signers ? this.signers : undefined,
-               signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
+               signers: this.signers || undefined,
+               signerQuorum: this.signerQuorum || undefined,
           };
 
           // Split and validate deposit auth addresses
@@ -747,8 +747,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'deposit_preauth'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`accountInfo:`, accountInfo.result);
+               console.debug(`accountObjects:`, accountObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
@@ -788,7 +788,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                          this.utilsService.setMemoField(depositPreauthTx, this.memoField);
                     }
 
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Deposit Auth (no changes will be made)...' : 'Submitting to Ledger...');
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Deposit Auth (no changes will be made)...' : 'Submitting Deposit Auth Accounts to Ledger...');
 
                     let response: any;
 
@@ -892,7 +892,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountInfo:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
@@ -932,7 +932,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficent XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Multi Sign (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Multi Sign (no changes will be made)...' : 'Submitting Multi-Sign to Ledger...');
 
                let response: any;
 
@@ -976,6 +976,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
+                              this.loadSignerList(wallet.classicAddress);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -1004,14 +1005,14 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                seed: this.currentWallet.seed,
                isRegularKeyAddress: this.isSetRegularKey,
                isMultiSign: this.useMultiSign,
-               regularKeyAddress: this.regularKeyAccount ? this.regularKeyAccount : undefined,
-               regularKeySeed: this.regularKeyAccountSeed ? this.regularKeyAccountSeed : undefined,
+               regularKeyAddress: this.regularKeyAccount || undefined,
+               regularKeySeed: this.regularKeyAccountSeed || undefined,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
                selectedSingleTicket: this.isTicket ? this.selectedSingleTicket : undefined,
-               signers: this.signers ? this.signers : undefined,
-               signerQuorum: this.signerQuorum ? this.signerQuorum : undefined,
+               signers: this.signers || undefined,
+               signerQuorum: this.signerQuorum || undefined,
           };
 
           try {
@@ -1028,7 +1029,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountInfo:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
@@ -1061,7 +1062,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Regular Key (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Regular Key (no changes will be made)...' : 'Submitting Regular Key Set to Ledger...');
 
                let response: any;
 
@@ -1166,7 +1167,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountInfo:`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
 
@@ -1260,6 +1261,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
+                              this.loadSignerList(wallet.classicAddress);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -1513,8 +1515,8 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
      }
 
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
-          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
-          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+          console.debug(`updatedAccountInfo:`, updatedAccountInfo.result);
+          console.debug(`updatedAccountObjects:`, updatedAccountObjects.result);
 
           this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
           this.refreshUiAccountInfo(updatedAccountInfo);

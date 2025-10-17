@@ -111,7 +111,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
      destinationFields: string = '';
      destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-
      errorMessage: string | null = null;
      selectedTransaction: string | null = null;
      editedTxJson: any = {};
@@ -188,7 +187,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.showSendXrpOptions = true;
           this.selectedTransaction = 'sendXrp';
           this.enableTransaction();
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      ngAfterViewInit() {}
@@ -221,7 +220,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      onAccountChange() {
@@ -236,7 +235,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address', null);
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      validateQuorum() {
@@ -337,11 +336,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.currentWallet.seed,
-          };
-
           try {
                this.showSpinnerWithDelay('Getting Account Details ...', 100);
 
@@ -350,7 +344,14 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               console.debug(`accountInfo:`, accountInfo.result);
+               console.debug(`accountObjects:`, accountObjects.result);
+
+               const inputs: ValidationInputs = {
+                    selectedAccount: this.selectedAccount,
+                    seed: this.currentWallet.seed,
+                    account_info: accountInfo,
+               };
 
                const errors = await this.validateInputs(inputs, 'getAccountDetails');
                if (errors.length > 0) {

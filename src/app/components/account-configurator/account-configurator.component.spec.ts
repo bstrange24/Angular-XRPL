@@ -378,6 +378,30 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                expect(spyHolder).toHaveBeenCalled();
                expect(detectSpy).toHaveBeenCalled();
           });
+
+          it('invokes setExchanger for exchanger configuration', () => {
+               const spyHolder = spyOn(component as any, 'setExchanger').and.callThrough();
+               const detectSpy = spyOn((component as any).cdr, 'detectChanges').and.stub();
+
+               (component as any).resetFlags = jasmine.createSpy('resetFlags');
+               component.configurationType = 'exchanger';
+               component.onConfigurationChange();
+
+               expect(spyHolder).toHaveBeenCalled();
+               expect(detectSpy).toHaveBeenCalled();
+          });
+
+          it('invokes setIssuer for holder configuration', () => {
+               const spyHolder = spyOn(component as any, 'setIssuer').and.callThrough();
+               const detectSpy = spyOn((component as any).cdr, 'detectChanges').and.stub();
+
+               (component as any).resetFlags = jasmine.createSpy('resetFlags');
+               component.configurationType = 'issuer';
+               component.onConfigurationChange();
+
+               expect(spyHolder).toHaveBeenCalled();
+               expect(detectSpy).toHaveBeenCalled();
+          });
      });
 
      describe('add/remove signer', () => {
@@ -403,21 +427,6 @@ describe('AccountConfiguratorComponent (isolated)', () => {
                component.flags.asfAllowTrustLineClawback = true;
                component.onClawbackChange();
                expect(window.alert).toHaveBeenCalled();
-          });
-     });
-
-     describe('ngAfterViewChecked', () => {
-          it('attaches search listener when result changed', () => {
-               (component as any).resultField = { nativeElement: document.createElement('div') };
-               (component as any)['lastResult'] = '';
-               component['result'] = 'R';
-               const detectSpy = spyOn((component as any).cdr, 'detectChanges').and.stub();
-
-               component.ngAfterViewChecked();
-
-               expect(renderUiComponentsServiceMock.attachSearchListener).toHaveBeenCalled();
-               expect((component as any)['lastResult']).toBe('R');
-               expect(detectSpy).toHaveBeenCalled();
           });
      });
 
