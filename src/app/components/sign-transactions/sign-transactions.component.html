@@ -113,6 +113,17 @@
                                         </tr>
                                    </thead>
                                    <tbody>
+                                        <!-- Batch -->
+                                        <tr>
+                                             <td><label>Batch</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'batch'" (change)="setTransaction('batch', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
                                         <!-- Send XRP -->
                                         <tr>
                                              <td><label>Send XRP</label></td>

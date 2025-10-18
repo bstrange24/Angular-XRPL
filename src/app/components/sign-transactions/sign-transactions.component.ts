@@ -384,6 +384,9 @@ export class SignTransactionsComponent implements AfterViewChecked {
           const wallet = await this.getWallet();
 
           switch (this.selectedTransaction) {
+               case 'batch':
+                    this.txJson = await this.signTransactionUtilService.createBatchpRequestText({ client, wallet });
+                    break;
                case 'sendXrp':
                     this.txJson = await this.signTransactionUtilService.createSendXrpRequestText({ client, wallet, isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;

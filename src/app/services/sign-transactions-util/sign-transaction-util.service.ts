@@ -17,6 +17,63 @@ interface SignTransactionOptions {
 export class SignTransactionUtilService {
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService) {}
 
+     async createBatchpRequestText({ client, wallet }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let batchRequest: any = {
+               TransactionType: 'Batch',
+               Account: wallet.classicAddress,
+               Flags: 65536,
+               RawTransactions: [
+                    {
+                         RawTransaction: {
+                              TransactionType: 'Payment',
+                              Flags: 1073741824,
+                              Account: wallet.classicAddress,
+                              Destination: 'rskBKJYGVpTDNfTWV9qmM8smPJnNXEkSYH',
+                              Amount: '0.00001',
+                              Sequence: accountInfo.result.account_data.Sequence + 1,
+                              Fee: '0',
+                              SigningPubKey: '',
+                         },
+                    },
+                    {
+                         RawTransaction: {
+                              TransactionType: 'Payment',
+                              Flags: 1073741824,
+                              Account: wallet.classicAddress,
+                              Destination: 'r9KUJAJUbLpVeVd8zs78tbHnNroW38vbAq',
+                              Amount: '0.00001',
+                              Sequence: accountInfo.result.account_data.Sequence + 2,
+                              Fee: '0',
+                              SigningPubKey: '',
+                         },
+                    },
+               ],
+               Sequence: accountInfo.result.account_data.Sequence,
+               Fee: '40',
+               SigningPubKey: '',
+               TxnSignature: '',
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          const txString = JSON.stringify(batchRequest, null, 2);
+          return txString;
+     }
+
      async createSendXrpRequestText({ client, wallet, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
           const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
 

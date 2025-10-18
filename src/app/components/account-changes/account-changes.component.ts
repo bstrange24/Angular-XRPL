@@ -398,12 +398,15 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                     return '#f0874bff';
 
                case 'TicketCreate':
+               case 'Batch':
                     return '#79BDD8';
 
                case 'SignerListSet':
                case 'DIDSet':
                case 'AccountSet':
                     return '#BAD47B';
+               case 'NFTokenMint':
+                    return '#ac7bd4ff';
 
                default:
                     return 'white'; // fallback color
