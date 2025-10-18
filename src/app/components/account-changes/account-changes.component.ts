@@ -25,6 +25,7 @@ interface BalanceChange {
      date: Date;
      hash: string;
      type: string;
+     fee: string;
      change: number;
      fees: number;
      currency: string;
@@ -260,6 +261,8 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
           for (const txWrapper of transactions) {
                console.debug(`txWrapper`, txWrapper);
                const tx = txWrapper.tx_json || txWrapper.transaction;
+               console.log(`tx`, tx);
+               const fee = xrpl.dropsToXrp(tx.Fee).toString();
                const meta = txWrapper.meta;
                const fees = tx.Fee;
                console.log(`Fee 2`, xrpl.dropsToXrp(fees));
@@ -402,6 +405,8 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'CredentialCreate':
                case 'CredentialAccept':
                case 'DepositPreauth':
+               case 'EscrowFinish':
+               case 'EscrowCreate':
                     return '#f0874bff';
 
                case 'TicketCreate':
@@ -411,6 +416,8 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'SignerListSet':
                case 'DIDSet':
                case 'AccountSet':
+               case 'AccountDelete':
+               case 'SetRegularKey':
                     return '#BAD47B';
                case 'NFTokenMint':
                     return '#ac7bd4ff';
