@@ -25,7 +25,6 @@ interface BalanceChange {
      date: Date;
      hash: string;
      type: string;
-     fee: string;
      change: number;
      fees: number;
      currency: string;
