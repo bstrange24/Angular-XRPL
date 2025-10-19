@@ -1,16 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 
-import { BatchServiceService } from './batch-service.service';
+import { BatchService } from './batch-service.service';
 
-describe('BatchServiceService', () => {
-  let service: BatchServiceService;
+describe('BatchService', () => {
+     let service: BatchService;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(BatchServiceService);
-  });
+     beforeEach(() => {
+          TestBed.configureTestingModule({});
+          service = TestBed.inject(BatchService);
+     });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
+     it('should be created', () => {
+          expect(service).toBeTruthy();
+     });
 });

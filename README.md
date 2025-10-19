@@ -58,6 +58,36 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 
+## Run Test individually
+
+Run test on Ubuntu
+export CHROME_BIN=$(which chromium)
+npx karma start
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-conditional-escrow/create-conditional-escrow.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/create-conditional-escrow/create-conditional-escrow.component.spec.ts
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-tickets/create-tickets.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/create-tickets/create-tickets.component.spec.ts
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/send-checks/send-checks.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/send-checks/send-checks.component.spec.ts
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/account-configurator/account-configurator.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/account-configurator/account-configurator.component.spec.ts
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/sign-transactions/sign-transactions.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/sign-transactions/sign-transactions.component.spec.ts
+
 Run proxy-server.js and Angular at the same time
 npm install --save-dev concurrently
 Modify package.json

@@ -2,93 +2,101 @@
      <app-navbar></app-navbar>
 </div>
 <form id="theForm">
-     <app-wallet-multi-input (walletChange)="onWalletInputChange($any($event))" (transactionResult)="handleTransactionResult($event, null)"></app-wallet-multi-input>
+     <app-app-wallet-dynamic-input (walletListChange)="onWalletListChange($any($event))" (transactionResult)="handleTransactionResult($event, null)"></app-app-wallet-dynamic-input>
 
      <fieldset>
           <legend style="color: white">Transaction Information</legend>
 
           <div class="transaction-layout">
-               <div class="left-column">
-                    <div class="flags-layout">
-                         <table id="flags">
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Name of the currently selected account.">
-                                             <label for="accountName1Field">Name</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="accountName1Field" [(ngModel)]="account1.name" name="accountName1Field" />
-                                        <input type="radio" id="account1" name="accounts" value="account1" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="account1">Account 1</label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Address of the currently selected account.">
-                                             <label for="accountAddress1Field">Address</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="accountAddress1Field" [(ngModel)]="account1.address" name="accountAddress1Field" />
-                                        <input type="radio" id="account2" name="accounts" value="account2" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="account2">Account 2</label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Seed of the currently selected account.">
-                                             <label for="accountSeed1Field">Seed</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="accountSeed1Field" [(ngModel)]="account1.seed" name="accountSeed1Field" />
-                                        <input type="radio" id="accountIssuer" name="accounts" value="accountIssuer" [(ngModel)]="selectedAccount" (ngModelChange)="onAccountChange()" />
-                                        <label for="accountIssuer">Account 3</label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
-                                             <label for="xrpBalance1Field">Spendable XRP Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="xrpBalance1Field" [(ngModel)]="account1.balance" readonly name="xrpBalance1Field" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
-                                             <label for="ownerCountField">Owner Count</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="ownerCountField" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
-                                             <label for="totalXrpReservesField">Total XRP Reserves</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="totalXrpReservesField" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
-                                             <label for="totalExecutionTime">Total Execution Time in ms</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="totalExecutionTime" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
-                                   </td>
-                              </tr>
-                         </table>
-
+               <div class="top-section-left">
+                    <div class="top-sections-wrapper">
+                         <div class="top-section-left">
+                              <table id="accountSelection">
+                                   <th></th>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Select the account to use for the transaction.">
+                                                  <label for="selectedWalletField">Select Account</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <select id="selectedWalletField" class="dropdownWallet" [(ngModel)]="selectedWalletIndex" (ngModelChange)="onAccountChange()" name="selectedWalletField">
+                                                  <option *ngFor="let wallet of wallets; let i = index" [value]="i">{{ wallet.name || 'Wallet ' + (i + 1) }} ({{ wallet.address | slice : 0 : 6 }}...{{ wallet.address | slice : -4 }})</option>
+                                             </select>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Name of the currently selected account.">
+                                                  <label for="accountNameField">Name</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="accountNameField" [(ngModel)]="currentWallet.name" name="accountNameField" readonly />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Address of the currently selected account.">
+                                                  <label for="accountAddressField">Address</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="accountAddressField" [(ngModel)]="currentWallet.address" name="accountAddressField" readonly />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Seed of the currently selected account.">
+                                                  <label for="accountSeedField">Seed</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="accountSeedField" [(ngModel)]="currentWallet.seed" name="accountSeedField" readonly />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
+                                                  <label for="xrpBalanceField">Spendable XRP Balance</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="xrpBalanceField" [(ngModel)]="currentWallet.balance" readonly name="xrpBalanceField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Total account objects that require an XRP reserve.">
+                                                  <label for="ownerCountField">Owner Count</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="ownerCountField" [(ngModel)]="ownerCount" readonly name="ownerCountField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Total number of XRP reserves. This includes the base reserve and any account objects that require a reserve.">
+                                                  <label for="totalXrpReservesField">Total XRP Reserves</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="totalXrpReservesField" [(ngModel)]="totalXrpReserves" readonly name="totalXrpReservesField" />
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Total Execution time in milli seconds.">
+                                                  <label for="totalExecutionTime">Total Execution Time</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="totalExecutionTime" [(ngModel)]="executionTime" readonly name="totalExecutionTime" />
+                                        </td>
+                                   </tr>
+                              </table>
+                         </div>
                          <!-- <div class="tx-grid">
                               <div *ngFor="let tx of transactionTypes" class="tx-card" [class.active]="selectedTransaction === tx.value" (click)="selectTransaction(tx.value)">
                                    <div class="tx-icon">{{ tx.icon }}</div>
@@ -97,103 +105,213 @@
                               </div>
                          </div> -->
 
-                         <table id="flags">
-                              <tr>
-                                   <td><label>Send XRP</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'sendXrp'" (change)="setTransaction('sendXrp', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
+                         <div class="top-section-right">
+                              <table id="xrpDetails">
+                                   <thead>
+                                        <tr>
+                                             <th colspan="2"></th>
+                                        </tr>
+                                   </thead>
+                                   <tbody>
+                                        <!-- Batch -->
+                                        <tr>
+                                             <td><label>Batch</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'batch'" (change)="setTransaction('batch', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
 
-                              <tr>
-                                   <td><label>Set Trustline</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'setTrustline'" (change)="setTransaction('setTrustline', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
+                                        <!-- Send XRP -->
+                                        <tr>
+                                             <td><label>Send XRP</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'sendXrp'" (change)="setTransaction('sendXrp', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
 
-                              <tr>
-                                   <td><label>Remove Trustline</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'removeTrustline'" (change)="setTransaction('removeTrustline', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
+                                        <!-- Trustline Options -->
+                                        <tr>
+                                             <td><label>TrustLine Options</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="showTrustlineOptions" [checked]="showTrustlineOptions" (change)="toggleGroup('showTrustlineOptions', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
 
-                              <tr>
-                                   <td><label>Account Flag Set</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'accountFlagSet'" (change)="setTransaction('accountFlagSet', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td><label>Account Flag Clear</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'accountFlagClear'" (change)="setTransaction('accountFlagClear', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                         </table>
-                         <table id="flags">
-                              <tr>
-                                   <td><label>Create Time Escrow</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'createTimeEscrow'" (change)="setTransaction('createTimeEscrow', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td><label>Finish Time Escrow</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'finishTimeEscrow'" (change)="setTransaction('finishTimeEscrow', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td><label>Create Condition Escrow</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'createConditionEscrow'" (change)="setTransaction('createConditionEscrow', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td><label>Finish Condition Escrow</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'finishConditionEscrow'" (change)="setTransaction('finishConditionEscrow', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                              <tr>
-                                   <td><label>Cancel Escrow</label></td>
-                                   <td>
-                                        <label class="switch">
-                                             <input type="checkbox" [checked]="selectedTransaction === 'cancelEscrow'" (change)="setTransaction('cancelEscrow', $event)" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
-                         </table>
+                                        <tr *ngIf="showTrustlineOptions">
+                                             <td><label>Set Trustline</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'setTrustline'" (change)="setTransaction('setTrustline', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showTrustlineOptions">
+                                             <td><label>Remove Trustline</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'removeTrustline'" (change)="setTransaction('removeTrustline', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <!-- Account Flag Options -->
+                                        <tr>
+                                             <td><label>Account Flag Options</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="showAccountOptions" [checked]="showAccountOptions" (change)="toggleGroup('showAccountOptions', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showAccountOptions">
+                                             <td><label>Account Flag Set</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'accountFlagSet'" (change)="setTransaction('accountFlagSet', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showAccountOptions">
+                                             <td><label>Account Flag Clear</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'accountFlagClear'" (change)="setTransaction('accountFlagClear', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+                                   </tbody>
+                              </table>
+                         </div>
+
+                         <div class="top-section-right">
+                              <table id="xrpDetails">
+                                   <thead>
+                                        <tr>
+                                             <th colspan="2"></th>
+                                        </tr>
+                                   </thead>
+                                   <tbody>
+                                        <!-- Escrow Options -->
+                                        <tr>
+                                             <td><label>Escrow Options</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="showEscrowOptions" [checked]="showEscrowOptions" (change)="toggleGroup('showEscrowOptions', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showEscrowOptions">
+                                             <td><label>Create Time Escrow</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'createTimeEscrow'" (change)="setTransaction('createTimeEscrow', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showEscrowOptions">
+                                             <td><label>Finish Time Escrow</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'finishTimeEscrow'" (change)="setTransaction('finishTimeEscrow', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showEscrowOptions">
+                                             <td><label>Create Condition Escrow</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'createConditionEscrow'" (change)="setTransaction('createConditionEscrow', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showEscrowOptions">
+                                             <td><label>Finish Condition Escrow</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'finishConditionEscrow'" (change)="setTransaction('finishConditionEscrow', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showEscrowOptions">
+                                             <td><label>Cancel Escrow</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'cancelEscrow'" (change)="setTransaction('cancelEscrow', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <!-- Check Options -->
+                                        <tr>
+                                             <td><label>Check Options</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="showCheckOptions" [checked]="showCheckOptions" (change)="toggleGroup('showCheckOptions', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showCheckOptions">
+                                             <td><label>Check Create</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'createCheck'" (change)="setTransaction('createCheck', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showCheckOptions">
+                                             <td><label>Check Cash</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'cashCheck'" (change)="setTransaction('cashCheck', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showCheckOptions">
+                                             <td><label>Check Cancel</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'cancelCheck'" (change)="setTransaction('cancelCheck', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+                                   </tbody>
+                              </table>
+                         </div>
                     </div>
 
                     <div class="spinner-container">
@@ -235,11 +353,11 @@
                                    <div class="transaction-results">
                                         <div class="transaction-column">
                                              <h4>Transaction JSON</h4>
-                                             <div #resultField id="resultField" *ngIf="selectedTransaction || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()">
-                                                  <!-- Error message -->
+                                             <!-- <div #resultField id="resultField" *ngIf="selectedTransaction || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()"> -->
+                                             <div #resultField id="resultField" *ngIf="(selectedTransaction && txJson) || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()">
+                                                  <!-- <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div> -->
                                                   <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div>
-
-                                                  <!-- JSON -->
+                                                  <!-- <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div> -->
                                                   <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div>
                                              </div>
                                         </div>
@@ -254,8 +372,9 @@
                     </div>
                </div>
 
-               <div class="right-column">
-                    <table id="meta">
+               <div class="right-section">
+                    <table id="flags">
+                         <th></th>
                          <!-- <tr>
                               <td>
                                    <label>Use Ticket Sequence</label>

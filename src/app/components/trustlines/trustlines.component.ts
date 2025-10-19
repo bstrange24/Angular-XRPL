@@ -1,20 +1,19 @@
 import { Component, ElementRef, ViewChild, AfterViewChecked, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import { StorageService } from '../../services/storage.service';
 import * as xrpl from 'xrpl';
-import { TrustSetFlags } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
-import { WalletMultiInputComponent } from '../wallet-multi-input/wallet-multi-input.component';
-import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
+import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
+import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 
 interface ValidationInputs {
-     selectedAccount?: 'account1' | 'account2' | 'issuer' | null;
+     selectedAccount?: string;
      senderAddress?: string;
      account_info?: any;
      seed?: string;
@@ -34,20 +33,6 @@ interface ValidationInputs {
      signers?: { account: string; weight: number }[];
 }
 
-interface TrustLine {
-     currency: string;
-     issuer?: string; // Optional, as some currencies (e.g., XRP) may not have an issuer
-     account: string;
-     balance: string;
-     limit: string;
-     limit_peer: string;
-     flags: number;
-     no_ripple: boolean | undefined;
-     no_ripple_peer: boolean | undefined;
-     quality_in: number;
-     quality_out: number;
-}
-
 interface SignerEntry {
      Account: string;
      SignerWeight: number;
@@ -63,35 +48,31 @@ interface SignerEntry {
 @Component({
      selector: 'app-trustlines',
      standalone: true,
-     imports: [CommonModule, FormsModule, WalletMultiInputComponent, NavbarComponent, SanitizeHtmlPipe],
+     imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe],
      templateUrl: './trustlines.component.html',
      styleUrl: './trustlines.component.css',
 })
 export class TrustlinesComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
-     selectedAccount: 'account1' | 'account2' | 'issuer' | null = 'account1';
+     @ViewChild('accountForm') accountForm!: NgForm;
      private lastResult: string = '';
-     transactionInput: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
-     currencyField: string = '';
+     currencyField: string = 'CTZ';
      destinationFields: string = '';
+     issuerFields: string = '';
      currencyBalanceField: string = '';
      gatewayBalance: string = '';
      amountField: string = '';
      ticketSequence: string = '';
-     isTicket = false;
-     isTicketEnabled = false;
+     isTicket: boolean = false;
      ticketArray: string[] = [];
      selectedTickets: string[] = []; // For multiple selection
      selectedSingleTicket: string = ''; // For single selection
      multiSelectMode: boolean = false; // Toggle between modes
      selectedTicket: string = ''; // The currently selected ticket
-     account1 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     account2 = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
-     issuer = { name: '', address: '', seed: '', mnemonic: '', secretNumbers: '', balance: '0' };
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -112,59 +93,25 @@ export class TrustlinesComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
-     private knownDestinations: { [key: string]: string } = {};
      currencies: string[] = [];
-     destinations: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
      showTrustlineOptions: boolean = false; // default off
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-
-     conflicts: { [key: string]: string[] } = {
-          tfSetNoRipple: ['tfClearNoRipple'],
-          tfClearNoRipple: ['tfSetNoRipple'],
-          tfSetFreeze: ['tfClearFreeze'],
-          tfClearFreeze: ['tfSetFreeze'],
-     };
-
-     trustlineFlags: Record<string, boolean> = {
-          tfSetfAuth: false,
-          tfSetNoRipple: false,
-          tfClearNoRipple: false,
-          tfSetFreeze: false,
-          tfClearFreeze: false,
-     };
-
-     trustlineFlagList = [
-          { key: 'tfSetfAuth', label: 'Require Authorization (tfSetfAuth)' },
-          { key: 'tfSetNoRipple', label: 'Set No Ripple (tfSetNoRipple)' },
-          { key: 'tfClearNoRipple', label: 'Clear No Ripple (tfClearNoRipple)' },
-          { key: 'tfSetFreeze', label: 'Set Freeze (tfSetFreeze)' },
-          { key: 'tfClearFreeze', label: 'Clear Freeze (tfClearFreeze)' },
-     ];
-
-     flagMap: { [key: string]: number } = {
-          tfSetfAuth: TrustSetFlags.tfSetfAuth,
-          tfSetNoRipple: TrustSetFlags.tfSetNoRipple,
-          tfClearNoRipple: TrustSetFlags.tfClearNoRipple,
-          tfSetFreeze: TrustSetFlags.tfSetFreeze,
-          tfClearFreeze: TrustSetFlags.tfClearFreeze,
-     };
-
-     ledgerFlagMap: { [key: string]: number } = {
-          lsfLowAuth: 0x00010000,
-          lsfHighAuth: 0x00040000,
-          lsfNoRipple: 0x00020000,
-          lsfLowFreeze: 0x00400000,
-          lsfHighFreeze: 0x00800000,
-     };
-
-     decodeRippleStateFlags(flags: number): string[] {
-          return Object.entries(this.ledgerFlagMap)
-               .filter(([_, bit]) => (flags & bit) !== 0)
-               .map(([name]) => name);
-     }
+     selectedAccount: string = '';
+     destinations: { name?: string; address: string }[] = [];
+     issuers: { name?: string; address: string }[] = [];
+     wallets: any[] = [];
+     selectedWalletIndex: number = 0;
+     currentWallet = { name: '', address: '', seed: '', balance: '' };
+     private lastCurrency: string = '';
+     private lastIssuer: string = '';
+     trustlineFlags: Record<string, boolean> = { ...AppConstants.TRUSTLINE.FLAGS };
+     trustlineFlagList = AppConstants.TRUSTLINE.FLAG_LIST;
+     flagMap = AppConstants.TRUSTLINE.FLAG_MAP;
+     ledgerFlagMap = AppConstants.TRUSTLINE.LEDGER_FLAG_MAP;
+     showManageTokens = false;
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -173,47 +120,25 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (storedIssuers) {
                this.knownTrustLinesIssuers = storedIssuers;
           }
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               this.knownDestinations = storedDestinations;
-          }
           this.updateCurrencies();
-          this.currencyField = 'CTZ'; // Set default selected currency if available
      }
 
-     ngAfterViewInit() {
-          (async () => {
-               try {
-                    const wallet = await this.getWallet();
-                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                    let storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
-                    if (storedIssuers) {
-                         this.storageService.removeValue('knownIssuers');
-                         this.knownTrustLinesIssuers = this.utilsService.normalizeAccounts(storedIssuers, this.issuer.address);
-                         this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
-                    }
-                    this.updateDestinations();
-               } catch (error: any) {
-                    console.error(`No wallet could be created or is undefined ${error.message}`);
-                    this.setError('ERROR: Wallet could not be created or is undefined');
-               } finally {
-                    this.cdr.detectChanges();
-               }
-          })();
-     }
+     ngAfterViewInit() {}
 
      ngAfterViewChecked() {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.detectChanges();
+               this.cdr.markForCheck();
           }
      }
 
-     onWalletInputChange(event: { account1: any; account2: any; issuer: any }) {
-          this.account1 = { ...event.account1, balance: '0' };
-          this.account2 = { ...event.account2, balance: '0' };
-          this.issuer = { ...event.issuer, balance: '0' };
+     onWalletListChange(event: any[]) {
+          this.wallets = event;
+          if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
+               this.selectedWalletIndex = 0;
+          }
+          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -222,16 +147,24 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
-     onAccountChange() {
-          const accountHandlers: Record<string, () => void> = {
-               account1: () => this.displayDataForAccount1(),
-               account2: () => this.displayDataForAccount2(),
-               issuer: () => this.displayDataForAccount3(),
+     async onAccountChange() {
+          if (this.wallets.length === 0) return;
+
+          this.currentWallet = {
+               ...this.wallets[this.selectedWalletIndex],
+               balance: this.currentWallet.balance || '0',
           };
-          (accountHandlers[this.selectedAccount ?? 'issuer'] || accountHandlers['issuer'])();
+
+          this.updateDestinations();
+
+          if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               await Promise.all([this.onCurrencyChange(), this.getTrustlinesForAccount()]);
+          } else if (this.currentWallet.address) {
+               this.setError('Invalid XRP address');
+          }
      }
 
      validateQuorum() {
@@ -239,7 +172,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (this.signerQuorum > totalWeight) {
                this.signerQuorum = totalWeight;
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      async toggleMultiSign() {
@@ -254,7 +187,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
-               this.cdr.detectChanges();
+               this.cdr.markForCheck();
           }
      }
 
@@ -262,26 +195,24 @@ export class TrustlinesComponent implements AfterViewChecked {
           if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
                this.multiSignSeeds = '';
           }
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      toggleTicketSequence() {
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      onTicketToggle(event: any, ticket: string) {
           if (event.target.checked) {
-               // Add to selection
                this.selectedTickets = [...this.selectedTickets, ticket];
           } else {
-               // Remove from selection
                this.selectedTickets = this.selectedTickets.filter(t => t !== ticket);
           }
      }
 
      onFlagChange(flag: string) {
           if (this.trustlineFlags[flag]) {
-               this.conflicts[flag]?.forEach(conflict => {
+               AppConstants.TRUSTLINE.CONFLICTS[flag]?.forEach((conflict: string | number) => {
                     this.trustlineFlags[conflict] = false;
                });
           }
@@ -292,29 +223,26 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
-          };
-
           try {
-               this.resultField.nativeElement.innerHTML = '';
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Getting Trustlines (${mode})...`);
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
+               this.updateSpinnerMessage(`Getting Trustlines`);
 
-               // Get client + wallet
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // Fetch account info + credential objects in PARALLEL
                const [accountInfo, accountObjects, accountCurrencies] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountCurrencies(client, wallet.classicAddress, 'validated', '')]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
-               console.debug(`accountCurrencies for ${wallet.classicAddress}:`, accountCurrencies.result);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`account info:`, accountInfo.result);
+               console.debug(`account objects:`, accountObjects.result);
+               console.debug(`account currencies:`, accountCurrencies.result);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               const inputs: ValidationInputs = {
+                    seed: this.currentWallet.seed,
+                    account_info: accountInfo,
+               };
 
                const errors = await this.validateInputs(inputs, 'getTrustlinesForAccount');
                if (errors.length > 0) {
@@ -324,6 +252,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                const trustLinesFromObjects = accountObjects.result.account_objects.filter(obj => obj.LedgerEntryType === 'RippleState');
 
                // Filter by selected currency
+               // const activeTrustLines = trustLinesFromObjects.filter((line: any) => {
+               //      const decodedCurrency = this.utilsService.decodeIfNeeded(line.Balance.currency);
+               //      // Determine which side is the issuer
+               //      const issuerAddress = line.HighLimit.issuer === wallet.classicAddress ? line.LowLimit.issuer : line.HighLimit.issuer;
+               //      return decodedCurrency === this.currencyField && issuerAddress === this.issuerFields;
+               // });
                const activeTrustLines = trustLinesFromObjects.filter((line: any) => {
                     const decodedCurrency = this.utilsService.decodeIfNeeded(line.Balance.currency);
                     return decodedCurrency === this.currencyField;
@@ -428,7 +362,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                          }),
                     });
 
-                    // Render trust lines immediately
                     this.renderUiComponentsService.renderDetails(data);
                     this.setSuccess(this.result);
 
@@ -436,6 +369,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
+                              console.debug('Token Balance:', tokenBalance.result);
 
                               // --- Add Obligations Section ---
                               if (tokenBalance.result.obligations && Object.keys(tokenBalance.result.obligations).length > 0) {
@@ -505,12 +439,19 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    });
                               }
 
+                              console.debug(`parseAllGatewayBalances:`, this.parseAllGatewayBalances(tokenBalance, wallet));
+                              const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
+                              if (parsedBalances && Object.keys(parsedBalances).length > 0) {
+                                   this.currencyBalanceField = parsedBalances?.[this.currencyField]?.[this.issuerFields] ?? '0';
+                              } else {
+                                   this.currencyBalanceField = '0';
+                              }
+
                               // RENDER FULL DATA — Trust Lines + Obligations + Balances
                               this.renderUiComponentsService.renderDetails(data);
 
                               // --- Final UI Updates ---
-                              this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                              this.refreshUiAccountInfo(accountInfo);
+                              this.refreshUIData(wallet, accountInfo, accountObjects);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(true);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
@@ -545,6 +486,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
+                              console.log(`tokenBalance`, tokenBalance);
 
                               // Add Obligations
                               if (tokenBalance.result.obligations && Object.keys(tokenBalance.result.obligations).length > 0) {
@@ -588,12 +530,19 @@ export class TrustlinesComponent implements AfterViewChecked {
                                    data.sections.push(balancesSection);
                               }
 
+                              console.debug(`parseAllGatewayBalances`, this.parseAllGatewayBalances(tokenBalance, wallet));
+                              const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
+                              if (parsedBalances && Object.keys(parsedBalances).length > 0) {
+                                   this.currencyBalanceField = parsedBalances?.[this.currencyField]?.[this.issuerFields] ?? '0';
+                              } else {
+                                   this.currencyBalanceField = '0';
+                              }
+
                               // Re-render with all sections
                               this.renderUiComponentsService.renderDetails(data);
 
                               // Final UI updates
-                              this.refreshUiAccountObjects(accountObjects, accountInfo, wallet);
-                              this.refreshUiAccountInfo(accountInfo);
+                              this.refreshUIData(wallet, accountInfo, accountObjects);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTrustLineFlagsInUI(accountObjects, wallet);
@@ -601,6 +550,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                               await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Failed to load token balances:', err);
+                              // Don't break main flow — account details are already rendered
                          }
                     }, 0);
                }
@@ -609,7 +559,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
-               this.cdr.detectChanges();
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving getTrustlinesForAccount in ${this.executionTime}ms`);
           }
@@ -620,9 +569,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+          const inputs: ValidationInputs = {
+               seed: this.currentWallet.seed,
+               selectedAccount: this.currentWallet.address,
                amount: this.amountField,
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
@@ -638,7 +587,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
                this.updateSpinnerMessage(`Preparing Trustline (${mode})...`);
 
@@ -646,23 +597,21 @@ export class TrustlinesComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger, accountLines, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               // Optional: Avoid heavy stringify — log only if needed
+               console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`accountLines :`, accountLines);
 
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'setTrustLine');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // PHASE 2: Validate flags + currency
                if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
                     return this.setError('ERROR: Cannot set both tfSetNoRipple and tfClearNoRipple');
                }
@@ -677,19 +626,18 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                // Calculate flags
                let flags = 0;
-               Object.keys(this.trustlineFlags).forEach(key => {
-                    if (this.trustlineFlags[key]) {
-                         flags |= this.flagMap[key];
+               Object.entries(this.trustlineFlags).forEach(([key, value]) => {
+                    if (value) {
+                         flags |= AppConstants.TRUSTLINE.FLAG_MAP[key as keyof typeof AppConstants.TRUSTLINE.FLAG_MAP];
                     }
                });
 
-               // PHASE 3: Prepare TrustSet transaction
                let trustSetTx: xrpl.TrustSet = {
                     TransactionType: 'TrustSet',
                     Account: wallet.classicAddress,
                     LimitAmount: {
                          currency: currencyFieldTemp,
-                         issuer: this.destinationFields,
+                         issuer: this.issuerFields,
                          value: this.amountField,
                     },
                     Flags: flags,
@@ -697,7 +645,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               // Optional fields
                await this.setTxOptionalFields(client, trustSetTx, wallet, accountInfo);
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, trustSetTx, fee)) {
@@ -706,58 +653,39 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         simulation['result'].errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         response.result.errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
-                    // PARALLELIZE
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -784,9 +712,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
+               seed: this.currentWallet.seed,
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
                destination: this.destinationFields,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
@@ -800,7 +728,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating removal' : 'removing';
                this.updateSpinnerMessage(`Preparing Trustline Removal (${mode})...`);
 
@@ -808,22 +738,21 @@ export class TrustlinesComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, serverInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getXrplServerInfo(client, 'current', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
-               inputs = { ...inputs, account_info: accountInfo };
-
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
+
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'removeTrustline');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // PHASE 2: Validate flags
                if (this.trustlineFlags['tfSetNoRipple'] && this.trustlineFlags['tfClearNoRipple']) {
                     return this.setError('ERROR: Cannot set both tfSetNoRipple and tfClearNoRipple');
                }
@@ -831,12 +760,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                     return this.setError('ERROR: Cannot set both tfSetFreeze and tfClearFreeze');
                }
 
-               // PHASE 3: Fetch and validate trustline
                const trustLines = await this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', '');
 
                const trustLine = trustLines.result.lines.find((line: any) => {
                     const lineCurrency = this.utilsService.decodeIfNeeded(line.currency);
-                    return line.account === this.destinationFields && lineCurrency === this.currencyField;
+                    return line.account === this.issuerFields && lineCurrency === this.currencyField;
                });
 
                if (!trustLine) {
@@ -854,12 +782,11 @@ export class TrustlinesComponent implements AfterViewChecked {
                     }
                }
 
-               // PHASE 4: Prepare TrustSet transaction
                let currencyFieldTemp = this.utilsService.encodeIfNeeded(this.currencyField);
                let flags = 0;
-               Object.keys(this.trustlineFlags).forEach(key => {
-                    if (this.trustlineFlags[key]) {
-                         flags |= this.flagMap[key];
+               Object.entries(this.trustlineFlags).forEach(([key, value]) => {
+                    if (value) {
+                         flags |= AppConstants.TRUSTLINE.FLAG_MAP[key as keyof typeof AppConstants.TRUSTLINE.FLAG_MAP];
                     }
                });
 
@@ -886,58 +813,39 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Removing Trustline (no changes will be made)...' : 'Submitting to Ledger...');
 
+               let response: any;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, trustSetTx);
                } else {
-                    // PHASE 5: Get regular key wallet
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, trustSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign transaction.');
                     }
 
-                    const response = await this.xrplTransactions.submitTransaction(client, signedTx);
+                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
 
-                    // Render result
-                    this.renderTransactionResult(response);
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
-
-                    // PARALLELIZE
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -964,10 +872,10 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
+               seed: this.currentWallet.seed,
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
-               senderAddress: this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
+               senderAddress: this.currentWallet.address,
                destinationTag: this.destinationTagField,
                amount: this.amountField,
                destination: this.destinationFields,
@@ -983,7 +891,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'issuing';
                this.updateSpinnerMessage(`Preparing Currency Issuance (${mode})...`);
 
@@ -991,33 +901,24 @@ export class TrustlinesComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index + trust lines
-               let [accountInfo, accountObjects, fee, lastLedgerIndex, trustLines, serverInfo] = await Promise.all([
-                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.calculateTransactionFee(client),
-                    this.xrplService.getLastLedgerIndex(client),
-                    this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''),
-                    this.xrplService.getXrplServerInfo(client, 'current', ''),
-               ]);
+               let [accountInfo, fee, lastLedgerIndex, trustLines, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               inputs = { ...inputs, account_info: accountInfo };
-
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`lastLedgerIndex :`, lastLedgerIndex);
                console.debug(`trustLines :`, trustLines);
+               console.debug(`serverInfo :`, serverInfo);
+
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'issueCurrency');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // PHASE 2: Get regular key wallet
                const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-               // PHASE 3: Check if DefaultRipple needs to be enabled
                const accountFlags = accountInfo.result.account_data.Flags;
                const asfDefaultRipple = 0x00800000;
                let data: { sections: any[] } = { sections: [] };
@@ -1037,51 +938,29 @@ export class TrustlinesComponent implements AfterViewChecked {
                     if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, accountSetTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
-                    console.log('Sufficient XRP balance, good to go');
+
+                    let response: any;
 
                     if (this.isSimulateEnabled) {
-                         const simulation = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
-
-                         const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                         if (!isSuccess) {
-                              const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                              (simulation['result'] as any).errorMessage = userMessage;
-                              console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                         }
-
-                         // Render result
-                         this.renderTransactionResult(simulation);
-
-                         this.resultField.nativeElement.classList.add('success');
-                         this.setSuccess(this.result);
+                         response = await this.xrplTransactions.simulateTransaction(client, accountSetTx);
                     } else {
-                         // Sign transaction
-                         let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, accountSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, accountSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign AccountSet transaction.');
                          }
 
-                         // Submit or Simulate
                          const response = await this.xrplTransactions.submitTransaction(client, signedTx);
 
-                         // Render result
                          this.renderTransactionResult(response);
 
                          const isSuccess = this.utilsService.isTxSuccessful(response);
                          if (!isSuccess) {
                               const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                              let userMessage = 'Transaction failed.\n';
-                              userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+                              const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                               console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-
-                              // Optional: Set user-friendly error
-                              this.setError(`ERROR: Transaction failed with result: ${userMessage}`);
-                              return;
+                              (response.result as any).errorMessage = userMessage;
                          }
 
                          data.sections.push({
@@ -1109,7 +988,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     Amount: {
                          currency: curr,
                          value: this.amountField,
-                         issuer: this.issuer.address,
+                         issuer: this.destinationFields,
                     },
                     Fee: fee,
                     LastLedgerSequence: lastLedgerIndex + AppConstants.LAST_LEDGER_ADD_TIME,
@@ -1128,47 +1007,30 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Currency Issuance (no changes will be made)...' : 'Submitting Currency Issuance to Ledger...');
 
                let response;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, paymentTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, paymentTx);
                } else {
-                    // Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
                     }
 
                     response = await this.xrplTransactions.submitTransaction(client, signedTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
                }
+
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
+
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
                // Only fetch additional data and update UI if not in simulation mode
                if (!this.isSimulateEnabled) {
@@ -1177,7 +1039,7 @@ export class TrustlinesComponent implements AfterViewChecked {
 
                     // Add New Balance section
                     const decodedCurrency = this.utilsService.decodeIfNeeded(this.currencyField);
-                    const newTrustLine = updatedTrustLines.result.lines.find((line: any) => line.currency === decodedCurrency && (line.account === this.issuer.address || line.account === this.destinationFields));
+                    const newTrustLine = updatedTrustLines.result.lines.find((line: any) => line.currency === decodedCurrency && (line.account === this.destinationFields || line.account === this.destinationFields));
 
                     // Optional: Avoid heavy stringify in logs
                     console.debug(`updatedTrustLines :`, updatedTrustLines.result);
@@ -1234,15 +1096,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 
-                    // PARALLELIZE
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
-                              await this.updateCurrencyBalance(wallet, updatedAccountObjects);
-                              this.updateGatewayBalance(gatewayBalances, wallet);
+                              await this.updateCurrencyBalance(gatewayBalances, wallet);
+                              // this.updateGatewayBalance(gatewayBalances, wallet);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -1266,9 +1126,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           const startTime = Date.now();
           this.setSuccessProperties();
 
-          let inputs: ValidationInputs = {
+          const inputs: ValidationInputs = {
+               seed: this.currentWallet.seed,
                selectedAccount: this.selectedAccount,
-               seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount || '', this.account1, this.account2, this.issuer),
                amount: this.amountField,
                destination: this.destinationFields,
                isRegularKeyAddress: this.isRegularKeyAddress,
@@ -1283,7 +1143,9 @@ export class TrustlinesComponent implements AfterViewChecked {
           };
 
           try {
-               this.resultField.nativeElement.innerHTML = '';
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
                const mode = this.isSimulateEnabled ? 'simulating' : 'clawing back';
                this.updateSpinnerMessage(`Preparing Token Clawback (${mode})...`);
 
@@ -1291,7 +1153,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, accountObjects, trustLines, serverInfo, fee, currentLedger] = await Promise.all([
                     this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
@@ -1301,27 +1162,26 @@ export class TrustlinesComponent implements AfterViewChecked {
                     this.xrplService.getLastLedgerIndex(client),
                ]);
 
-               inputs = { ...inputs, account_info: accountInfo };
-
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`accountObjects :`, accountObjects.result);
                console.debug(`trustLines :`, trustLines.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
+
+               inputs.account_info = accountInfo;
 
                const errors = await this.validateInputs(inputs, 'clawbackTokens');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // PHASE 2: Validate currency
                const currencyFieldTemp = this.utilsService.encodeIfNeeded(this.currencyField);
                if (!/^[A-Z0-9]{3}$|^[0-9A-Fa-f]{40}$/.test(currencyFieldTemp)) {
                     throw new Error('Invalid currency code. Must be a 3-character code (e.g., USDC) or 40-character hex.');
                }
 
-               // PHASE 4: Prepare Clawback transaction
                let clawbackTx: xrpl.Clawback = {
                     TransactionType: 'Clawback',
                     Account: wallet.classicAddress,
@@ -1347,58 +1207,42 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Token Clawback (no tokens will be moved)...' : 'Submitting Clawback to Ledger...');
 
                let response;
+
                if (this.isSimulateEnabled) {
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, clawbackTx);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+                    response = await this.xrplTransactions.simulateTransaction(client, clawbackTx);
                } else {
                     const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    // PHASE 5: Sign transaction
-                    let signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, clawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, clawbackTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign transaction.');
                     }
 
                     response = await this.xrplTransactions.submitTransaction(client, signedTx);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
 
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.result);
+               this.renderTransactionResult(response);
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.result);
 
-                    // PARALLELIZE
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects, gatewayBalancePromise] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
-                    //DEFER: Non-critical UI updates (skip for simulation)
                     setTimeout(async () => {
                          try {
-                              this.updateCurrencyBalance(wallet, updatedAccountObjects);
-                              this.updateGatewayBalance(gatewayBalancePromise, wallet);
+                              await this.updateCurrencyBalance(gatewayBalancePromise, wallet);
+                              // this.updateGatewayBalance(gatewayBalancePromise, wallet);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -1417,7 +1261,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           }
      }
 
-     async onCurrencyChange() {
+     async onCurrencyChange(): Promise<void> {
           console.log('Entering onCurrencyChange');
           const startTime = Date.now();
           this.setSuccessProperties();
@@ -1425,34 +1269,97 @@ export class TrustlinesComponent implements AfterViewChecked {
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
 
-               // PHASE 1: PARALLELIZE — update balance + fetch gateway balances
-               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+               const [gatewayBalances] = await Promise.all([this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
-               // PHASE 2: Calculate total balance for selected currency
-               let balanceTotal: number = 0;
+               let balanceTotal = 0;
+               const currency = this.utilsService.formatCurrencyForDisplay(this.currencyField);
 
-               if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+               if (gatewayBalances.result.assets) {
                     for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
-                         for (const { currency, value } of currencies) {
-                              if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyField) {
+                         for (const { currency: cur, value } of currencies) {
+                              if (this.utilsService.formatCurrencyForDisplay(cur) === currency) {
                                    balanceTotal += Number(value);
                               }
                          }
                     }
-                    this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
-               } else {
-                    this.gatewayBalance = '0';
                }
 
-               // PHASE 3: Update destination field
-               this.destinationFields = this.knownTrustLinesIssuers[this.currencyField];
+               this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
 
-               // PHASE 4: Defer getTrustlinesForAccount — don't block UI
-               setTimeout(() => {
-                    this.getTrustlinesForAccount();
-               }, 0);
+               const encodedCurr = this.utilsService.encodeIfNeeded(this.currencyField);
+               const issuerPromises = this.wallets
+                    .filter(w => xrpl.isValidAddress(w.address))
+                    .map(async w => {
+                         try {
+                              const tokenBalance = await this.xrplService.getTokenBalance(client, w.address, 'validated', '');
+                              const hasObligation = tokenBalance.result.obligations?.[encodedCurr];
+
+                              if (hasObligation && hasObligation !== '0') {
+                                   return { name: w.name, address: w.address };
+                              } else if (w.isIssuer === true) {
+                                   return { name: w.name, address: w.address };
+                              }
+                         } catch (err) {
+                              console.warn(`Issuer check failed for ${w.address}:`, err);
+                         }
+                         return null;
+                    });
+
+               const issuerResults = await Promise.all(issuerPromises);
+               // let uniqueIssuers = issuerResults.filter((i): i is { name: string; address: string } => i !== null).filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
+
+               // Step 1: filter out nulls
+               const nonNullIssuers = issuerResults.filter((i): i is { name: string; address: string } => {
+                    const isValid = i !== null;
+                    console.log('Filtering null:', i, '->', isValid);
+                    return isValid;
+               });
+
+               // Step 2: remove duplicates by address
+               const uniqueIssuers = nonNullIssuers.filter((candidate, index, self) => {
+                    const firstIndex = self.findIndex(c => c.address === candidate.address);
+                    const isUnique = index === firstIndex;
+                    console.log('Checking uniqueness:', candidate, 'Index:', index, 'First index:', firstIndex, 'Unique?', isUnique);
+                    return isUnique;
+               });
+
+               console.log('Unique issuers:', uniqueIssuers);
+
+               // Always include the current wallet in issuers
+               // if (!uniqueIssuers.some(i => i.address === wallet.classicAddress)) {
+               //      uniqueIssuers.push({ name: this.currentWallet.name || 'Current Account', address: wallet.classicAddress });
+               // }
+
+               this.issuers = uniqueIssuers;
+
+               const knownIssuer = this.knownTrustLinesIssuers[this.currencyField];
+               if (!this.issuerFields || !this.issuers.some(iss => iss.address === this.issuerFields)) {
+                    let newIssuer = '';
+                    if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
+                         newIssuer = knownIssuer;
+                    } else if (this.issuers.length > 0) {
+                         newIssuer = this.issuers[0].address;
+                    } else {
+                         newIssuer = '';
+                    }
+                    this.issuerFields = newIssuer;
+               }
+
+               if (this.issuers.length === 0) {
+                    console.warn(`No issuers found among wallets for currency: ${this.currencyField}`);
+               }
+
+               this.ensureDefaultNotSelected();
+
+               await this.updateCurrencyBalance(gatewayBalances, wallet);
+
+               const currencyChanged = this.lastCurrency !== this.currencyField;
+               const issuerChanged = this.lastIssuer !== this.issuerFields;
+               if (currencyChanged || issuerChanged) {
+                    this.lastCurrency = this.currencyField;
+                    this.lastIssuer = this.issuerFields;
+               }
           } catch (error: any) {
                this.currencyBalanceField = '0';
                this.gatewayBalance = '0';
@@ -1460,8 +1367,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
+               console.log(`Leaving onCurrencyChange in ${(Date.now() - startTime).toString()}ms`);
           }
      }
 
@@ -1551,7 +1457,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.selectedTickets = this.selectedTickets.filter(ticket => this.ticketArray.includes(ticket));
      }
 
-     updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
+     private updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
           this.ticketArray = this.getAccountTickets(accountObjects);
 
           // Clean up selections based on current mode
@@ -1569,7 +1475,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.totalXrpReserves = totalXrpReserves;
 
           const balance = (await client.getXrpBalance(wallet.classicAddress)) - parseFloat(this.totalXrpReserves || '0');
-          this.account1.balance = balance.toString();
+          this.currentWallet.balance = balance.toString();
      }
 
      private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
@@ -1603,12 +1509,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && signerAccounts && signerAccounts.length > 0) {
-          //      this.useMultiSign = true; // Force to true if master key is disabled
-          // } else {
-          //      this.useMultiSign = false;
-          // }
-
           if (signerAccounts && signerAccounts.length > 0) {
                this.multiSigningEnabled = true;
           } else {
@@ -1637,12 +1537,6 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.masterKeyDisabled = false;
           }
 
-          // if (isMasterKeyDisabled && xrpl.isValidAddress(this.regularKeyAddress)) {
-          //      this.isRegularKeyAddress = true; // Force to true if master key is disabled
-          // } else {
-          //      this.isRegularKeyAddress = false;
-          // }
-
           if (regularKey) {
                this.regularKeySigningEnabled = true;
           } else {
@@ -1651,7 +1545,7 @@ export class TrustlinesComponent implements AfterViewChecked {
      }
 
      private updateTrustLineFlagsInUI(accountObjects: xrpl.AccountObjectsResponse, wallet: xrpl.Wallet) {
-          const currency = this.utilsService.decodeIfNeeded(this.currencyField ? this.currencyField : '');
+          const currency = this.utilsService.encodeIfNeeded(this.currencyField ? this.currencyField : '');
 
           const rippleState = accountObjects.result.account_objects.find(obj => obj.LedgerEntryType === 'RippleState' && obj.Balance && obj.Balance.currency === currency) as xrpl.LedgerEntry.RippleState | undefined;
 
@@ -1663,13 +1557,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                const isLowAddress = wallet.classicAddress === rippleState.LowLimit.issuer;
 
                if (isLowAddress) {
-                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & this.ledgerFlagMap['lsfLowAuth']);
-                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & this.ledgerFlagMap['lsfLowNoRipple']);
-                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & this.ledgerFlagMap['lsfLowFreeze']);
+                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & AppConstants.TRUSTLINE.LEDGER_FLAG_MAP.lsfLowAuth);
+                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & AppConstants.TRUSTLINE.LEDGER_FLAG_MAP.lsfNoRipple); // Adjusted key
+                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & AppConstants.TRUSTLINE.LEDGER_FLAG_MAP.lsfLowFreeze);
                } else {
-                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & this.ledgerFlagMap['lsfHighAuth']);
-                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & this.ledgerFlagMap['lsfHighNoRipple']);
-                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & this.ledgerFlagMap['lsfHighFreeze']);
+                    this.trustlineFlags['tfSetfAuth'] = !!(flagsNumber & AppConstants.TRUSTLINE.LEDGER_FLAG_MAP.lsfHighAuth);
+                    this.trustlineFlags['tfSetNoRipple'] = !!(flagsNumber & AppConstants.TRUSTLINE.LEDGER_FLAG_MAP.lsfNoRipple); // Adjusted for high (note: constants may need lsfHighNoRipple: 0x00200000)
+                    this.trustlineFlags['tfSetFreeze'] = !!(flagsNumber & AppConstants.TRUSTLINE.LEDGER_FLAG_MAP.lsfHighFreeze);
                }
 
                // Clear flags are just inverses
@@ -1684,9 +1578,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.showTrustlineOptions = true;
           } else {
                // No trustline → reset UI
-               Object.keys(this.trustlineFlags).forEach(key => {
-                    this.trustlineFlags[key as keyof typeof this.trustlineFlags] = false;
-               });
+               this.trustlineFlags = { ...AppConstants.TRUSTLINE.FLAGS };
                this.showTrustlineOptions = false;
           }
      }
@@ -1694,22 +1586,29 @@ export class TrustlinesComponent implements AfterViewChecked {
      private debugTrustlineFlags(rippleState: xrpl.LedgerEntry.RippleState, wallet: xrpl.Wallet) {
           const flagsNumber: number = rippleState.Flags ?? 0;
           const isLowAddress = wallet.classicAddress === rippleState.LowLimit.issuer;
+          const ledgerMap = AppConstants.TRUSTLINE.LEDGER_FLAG_MAP;
 
-          console.log('🔍 Trustline Debug\n -----------------------------------------');
-          console.log('Currency:', rippleState.Balance.currency);
-          console.log('You are the', isLowAddress ? 'LOW side' : 'HIGH side');
-          console.log('Flags (decimal):', flagsNumber, ' hex:', '0x' + flagsNumber.toString(16));
+          console.debug('Trustline Debug\n -----------------------------------------');
+          console.debug('Currency:', rippleState.Balance.currency);
+          console.debug('You are the', isLowAddress ? 'LOW side' : 'HIGH side');
+          console.debug('Flags (decimal):', flagsNumber, ' hex:', '0x' + flagsNumber.toString(16));
 
           if (isLowAddress) {
-               console.log('LowAuth:', !!(flagsNumber & this.ledgerFlagMap['lsfLowAuth']));
-               console.log('LowNoRipple:', !!(flagsNumber & this.ledgerFlagMap['lsfLowNoRipple']));
-               console.log('LowFreeze:', !!(flagsNumber & this.ledgerFlagMap['lsfLowFreeze']));
+               console.debug('LowAuth:', !!(flagsNumber & ledgerMap.lsfLowAuth));
+               console.debug('LowNoRipple:', !!(flagsNumber & ledgerMap.lsfNoRipple)); // Adjusted
+               console.debug('LowFreeze:', !!(flagsNumber & ledgerMap.lsfLowFreeze));
           } else {
-               console.log('HighAuth:', !!(flagsNumber & this.ledgerFlagMap['lsfHighAuth']));
-               console.log('HighNoRipple:', !!(flagsNumber & this.ledgerFlagMap['lsfHighNoRipple']));
-               console.log('HighFreeze:', !!(flagsNumber & this.ledgerFlagMap['lsfHighFreeze']));
+               console.debug('HighAuth:', !!(flagsNumber & ledgerMap.lsfHighAuth));
+               console.debug('HighNoRipple:', !!(flagsNumber & ledgerMap.lsfNoRipple)); // Adjusted
+               console.debug('HighFreeze:', !!(flagsNumber & ledgerMap.lsfHighFreeze));
           }
-          console.log('-----------------------------------------');
+          console.debug('-----------------------------------------');
+     }
+
+     private decodeRippleStateFlags(flags: number): string[] {
+          return Object.entries(AppConstants.TRUSTLINE.LEDGER_FLAG_MAP)
+               .filter(([_, bit]) => (flags & bit) !== 0)
+               .map(([name]) => name);
      }
 
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
@@ -1746,7 +1645,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                // Skip number validation if value is empty — required() will handle it
                if (shouldSkipNumericValidation(value) || (allowEmpty && value === '')) return null;
 
-               // ✅ Type-safe parse
+               // Type-safe parse
                const num = parseFloat(value as string);
 
                if (isNaN(num) || !isFinite(num)) {
@@ -1822,12 +1721,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
           > = {
                getTrustlinesForAccount: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                setTrustLine: {
-                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    required: ['seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.amount, 'Amount', 0),
@@ -1845,7 +1744,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     asyncValidators: [],
                },
                removeTrustline: {
-                    required: ['selectedAccount', 'seed', 'destination'],
+                    required: ['seed', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
@@ -1863,7 +1762,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     asyncValidators: [],
                },
                issueCurrency: {
-                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    required: ['seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.amount, 'Amount', 0),
@@ -1883,12 +1782,12 @@ export class TrustlinesComponent implements AfterViewChecked {
                     asyncValidators: [checkDestinationTagRequirement],
                },
                onCurrencyChange: {
-                    required: ['selectedAccount', 'seed'],
+                    required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
                },
                clawbackTokens: {
-                    required: ['selectedAccount', 'seed', 'amount', 'destination'],
+                    required: ['seed', 'amount', 'destination'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.amount, 'Amount', 0),
@@ -1946,19 +1845,31 @@ export class TrustlinesComponent implements AfterViewChecked {
                errors.push('At least one signer address is required for multi-signing');
           }
 
-          // Selected account check (common to most)
-          if (inputs.selectedAccount === undefined || inputs.selectedAccount === null) {
-               errors.push('Please select an account');
-          }
-
           return errors;
      }
 
-     private updateDestinations() {
-          const knownDestinationsTemp = this.utilsService.populateKnownDestinations(this.knownDestinations, this.account1.address, this.account2.address, this.issuer.address);
-          this.destinations = Object.values(this.knownDestinations).filter((d): d is string => typeof d === 'string' && d.trim() !== '' && d !== 'XRP');
-          this.storageService.setKnownIssuers('destinations', knownDestinationsTemp);
-          this.destinationFields = this.issuer.address;
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
+          }
+          if (currentAddress && this.issuers.length > 0) {
+               if (!this.issuerFields) {
+                    const nonSelectedIss = this.issuers.find(i => i.address !== currentAddress);
+                    this.issuerFields = nonSelectedIss ? nonSelectedIss.address : this.issuers[0].address;
+               }
+          }
+          this.cdr.detectChanges();
+     }
+
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          this.issuers = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          this.ensureDefaultNotSelected();
+          this.cdr.detectChanges();
      }
 
      get currencyOptions(): string[] {
@@ -1967,73 +1878,12 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      private async getWallet() {
           const environment = this.xrplService.getNet().environment;
-          const seed = this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer);
+          const seed = this.currentWallet.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
           return wallet;
-     }
-
-     private async displayDataForAccount(accountKey: 'account1' | 'account2' | 'issuer') {
-          const isIssuer = accountKey === 'issuer';
-          const prefix = isIssuer ? 'issuer' : accountKey;
-
-          // Define casing differences in keys
-          const formatKey = (key: string) => (isIssuer ? `${prefix}${key.charAt(0).toUpperCase()}${key.slice(1)}` : `${prefix}${key}`);
-
-          // Fetch stored values
-          const name = this.storageService.getInputValue(formatKey('name')) || AppConstants.EMPTY_STRING;
-          const address = this.storageService.getInputValue(formatKey('address')) || AppConstants.EMPTY_STRING;
-          const seed = this.storageService.getInputValue(formatKey('seed')) || this.storageService.getInputValue(formatKey('mnemonic')) || this.storageService.getInputValue(formatKey('secretNumbers')) || AppConstants.EMPTY_STRING;
-
-          // Update account object
-          const accountMap = {
-               account1: this.account1,
-               account2: this.account2,
-               issuer: this.issuer,
-          };
-          const account = accountMap[accountKey];
-          account.name = name;
-          account.address = address;
-          account.seed = seed;
-
-          // DOM manipulation (map field IDs instead of repeating)
-          const fieldMap: Record<'name' | 'address' | 'seed', string> = {
-               name: 'accountName1Field',
-               address: 'accountAddress1Field',
-               seed: 'accountSeed1Field',
-          };
-
-          (Object.entries(fieldMap) as [keyof typeof fieldMap, string][]).forEach(([key, id]) => {
-               const el = document.getElementById(id) as HTMLInputElement | null;
-               if (el) el.value = account[key];
-          });
-
-          this.cdr.detectChanges(); // sync with ngModel
-
-          // Fetch account details
-          try {
-               if (address && xrpl.isValidAddress(address)) {
-                    await Promise.all([this.onCurrencyChange()]);
-               } else if (address) {
-                    this.setError('Invalid XRP address');
-               }
-          } catch (error: any) {
-               this.setError(`Error fetching account details: ${error.message}`);
-          }
-     }
-
-     private displayDataForAccount1() {
-          this.displayDataForAccount('account1');
-     }
-
-     private displayDataForAccount2() {
-          this.displayDataForAccount('account2');
-     }
-
-     private displayDataForAccount3() {
-          this.displayDataForAccount('issuer');
      }
 
      clearFields(clearAllFields: boolean) {
@@ -2053,47 +1903,95 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
-     }
-
-     private async updateCurrencyBalance(wallet: xrpl.Wallet, accountObjects: any) {
-          let balance: string;
-          const currencyCode = this.utilsService.encodeIfNeeded(this.currencyField);
-          if (wallet.classicAddress) {
-               const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
-               balance = balanceResult !== null ? balanceResult.toString() : '0';
-               this.currencyBalanceField = this.utilsService.formatTokenBalance(balance, 18);
+     private async updateCurrencyBalance(gatewayBalance: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
+          const parsedBalances = this.parseAllGatewayBalances(gatewayBalance, wallet);
+          if (parsedBalances && Object.keys(parsedBalances).length > 0) {
+               this.currencyBalanceField = parsedBalances[this.currencyField]?.[wallet.classicAddress] ?? parsedBalances[this.currencyField]?.[this.issuerFields] ?? '0';
           } else {
                this.currencyBalanceField = '0';
           }
      }
 
-     private updateGatewayBalance(gatewayBalances: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
-          if (gatewayBalances.result.obligations && Object.keys(gatewayBalances.result.obligations).length > 0) {
-               const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
-               this.gatewayBalance = this.utilsService.formatTokenBalance(gatewayBalances.result.obligations[displayCurrency], 18);
-          } else if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
-               const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
-               let foundBalance = null;
+     private updateGatewayBalance(gatewayBalances: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet, issuer?: string) {
+          const result = gatewayBalances.result;
+          const displayCurrency = this.utilsService.encodeIfNeeded(this.currencyField);
+          let balance = '0';
 
-               // Iterate through all assets arrays
-               Object.values(gatewayBalances.result.assets).forEach(assetArray => {
-                    assetArray.forEach(asset => {
-                         if (asset.currency === displayCurrency) {
-                              foundBalance = asset.value;
-                         }
-                    });
-               });
-
-               if (foundBalance !== null) {
-                    this.gatewayBalance = this.utilsService.formatTokenBalance(foundBalance, 18);
-               } else {
-                    this.gatewayBalance = '0';
+          // --- Case 1: This account is the gateway (it issues IOUs)
+          if (result.obligations && Object.keys(result.obligations).length > 0) {
+               if (result.obligations[displayCurrency]) {
+                    // Obligations do NOT have an issuer field (they’re from this gateway)
+                    balance = this.utilsService.formatTokenBalance(result.obligations[displayCurrency], 18);
                }
           }
+
+          // --- Case 2: This account holds assets issued BY someone else
+          else if (result.assets && Object.keys(result.assets).length > 0) {
+               let foundBalance: string | null = null;
+
+               // result.assets looks like: { [issuer]: [{ currency, value }, ...] }
+               for (const [issuerAddress, assetArray] of Object.entries(result.assets)) {
+                    assetArray.forEach(asset => {
+                         if (asset.currency === displayCurrency) {
+                              // If an issuer filter is provided, match it
+                              if (!issuer || issuerAddress === issuer) {
+                                   foundBalance = asset.value;
+                              }
+                         }
+                    });
+               }
+
+               if (foundBalance !== null) {
+                    balance = this.utilsService.formatTokenBalance(foundBalance, 18);
+               }
+          }
+
+          this.gatewayBalance = balance;
+     }
+
+     private parseAllGatewayBalances(gatewayBalances: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
+          const result = gatewayBalances.result;
+          const grouped: Record<string, Record<string, string>> = {};
+          // structure: { [currency]: { [issuer]: balance } }
+
+          // --- Case 1: Obligations (this account is the gateway/issuer)
+          if (result.obligations && Object.keys(result.obligations).length > 0) {
+               for (const [currencyCode, value] of Object.entries(result.obligations)) {
+                    const decodedCurrency = this.utilsService.normalizeCurrencyCode(currencyCode);
+
+                    if (!grouped[decodedCurrency]) grouped[decodedCurrency] = {};
+
+                    // Obligations are what the gateway owes → negative
+                    const formatted = '-' + this.utilsService.formatTokenBalance(value, 18);
+                    grouped[decodedCurrency][wallet.address] = formatted;
+               }
+          }
+
+          // --- Case 2: Assets (tokens issued by others, held by this account)
+          if (result.assets && Object.keys(result.assets).length > 0) {
+               for (const [issuer, assetArray] of Object.entries(result.assets)) {
+                    assetArray.forEach(asset => {
+                         const decodedCurrency = this.utilsService.normalizeCurrencyCode(asset.currency);
+
+                         if (!grouped[decodedCurrency]) grouped[decodedCurrency] = {};
+                         grouped[decodedCurrency][issuer] = this.utilsService.formatTokenBalance(asset.value, 18);
+                    });
+               }
+          }
+
+          // --- Case 3: Balances (owed TO this account)
+          if (result.balances && Object.keys(result.balances).length > 0) {
+               for (const [issuer, balanceArray] of Object.entries(result.balances)) {
+                    balanceArray.forEach(balanceObj => {
+                         const decodedCurrency = this.utilsService.normalizeCurrencyCode(balanceObj.currency);
+
+                         if (!grouped[decodedCurrency]) grouped[decodedCurrency] = {};
+                         grouped[decodedCurrency][issuer] = this.utilsService.formatTokenBalance(balanceObj.value, 18);
+                    });
+               }
+          }
+
+          return grouped;
      }
 
      addToken() {
@@ -2140,6 +2038,8 @@ export class TrustlinesComponent implements AfterViewChecked {
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+          this.currencies.sort((a, b) => a.localeCompare(b));
+          this.currencyField = 'CZT';
      }
 
      private processAccountCurrencies(accountCurrencies: any) {

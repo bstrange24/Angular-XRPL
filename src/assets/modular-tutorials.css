@@ -233,7 +233,10 @@ input:read-only {
 #regularKeyAccount,
 #depositAuthAddress,
 #destinationFields,
-#backupAccountField {
+#backupAccountField,
+#selectedWalletField,
+#authorizedWalletField,
+#issuerFields {
      color: #4CAF50;
 }
 
@@ -472,16 +475,6 @@ summary {
      background-color: #2a2c31;
      /* Ensure block-level for margin auto to work */
 }
-
-/* #transactionField {
-     height: 35px;
-     padding: 10px;
-     font-size: 16px;
-     line-height: 1.5;
-     color: #4CAF50;
-     margin-left: 500px;
-     width: 1000px;
-} */
 
 .wallet-info {
      margin: 20px 0;

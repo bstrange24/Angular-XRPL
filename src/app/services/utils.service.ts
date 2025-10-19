@@ -913,28 +913,61 @@ export class UtilsService {
      detectXrpInputType(input: string): { type: InputType; value: string } {
           const trimmed = input.trim();
 
-          // Check for seed (starts with 's' and is base58)
-          const seedRegex = /^s[0-9a-zA-Z]{20,}$/;
-          if (seedRegex.test(trimmed)) {
+          // Check for valid XRPL seed (family seed)
+          const seedRegex = /^s[0-9A-Za-z]{20,}$/;
+          if (seedRegex.test(trimmed) && xrpl.isValidSecret(trimmed)) {
                return { type: 'seed', value: trimmed };
           }
 
-          // Check for mnemonic (space-separated lowercase words, usually 12-24)
+          // Check for mnemonic (12-24 lowercase words)
           const mnemonicWords = trimmed.split(/\s+/);
           const isAllWords = mnemonicWords.every(word => /^[a-z]+$/.test(word));
           if (isAllWords && [12, 15, 18, 21, 24].includes(mnemonicWords.length)) {
                return { type: 'mnemonic', value: trimmed };
           }
 
-          // Check for secret numbers (comma-separated 6-digit numbers)
+          // Check for "secret numbers" (comma-separated 6-digit parts)
           const numberParts = trimmed.split(',');
           const isAllNumbers = numberParts.every(num => /^\d{6}$/.test(num.trim()));
           if (isAllNumbers && numberParts.length > 1) {
                return { type: 'secret_numbers', value: trimmed };
           }
 
+          // Final fallback
           return { type: 'unknown', value: trimmed };
      }
+
+     // detectXrpInputType(input: string): { type: InputType; value: string } {
+     //      const trimmed = input.trim();
+
+     //      // Check for seed (starts with 's' and is base58)
+     //      const seedRegex = /^s[0-9a-zA-Z]{20,}$/;
+     //      if (seedRegex.test(trimmed)) {
+     //           return { type: 'seed', value: trimmed };
+     //      }
+
+     //      // Check for mnemonic (space-separated lowercase words, usually 12-24)
+     //      const mnemonicWords = trimmed.split(/\s+/);
+     //      const isAllWords = mnemonicWords.every(word => /^[a-z]+$/.test(word));
+     //      if (isAllWords && [12, 15, 18, 21, 24].includes(mnemonicWords.length)) {
+     //           return { type: 'mnemonic', value: trimmed };
+     //      }
+
+     //      // Check for secret numbers (comma-separated 6-digit numbers)
+     //      const numberParts = trimmed.split(',');
+     //      const isAllNumbers = numberParts.every(num => /^\d{6}$/.test(num.trim()));
+     //      if (isAllNumbers && numberParts.length > 1) {
+     //           return { type: 'secret_numbers', value: trimmed };
+     //      }
+
+     //      if (!xrpl.isValidSecret(trimmed)) {
+     //           console.error(`Invalid seed:`, trimmed);
+     //           return { type: 'unknown', value: 'Invalid seed' };
+     //      }
+
+     //      console.error(`Invalid seed:`, trimmed);
+     //      return { type: 'unknown', value: 'Invalid seed' };
+     // }
 
      checkTimeBasedEscrowStatus(escrow: { FinishAfter?: number; CancelAfter?: number; owner: string }, currentRippleTime: number, callerAddress: string, operation: string): { canFinish: boolean; canCancel: boolean; reasonFinish: string; reasonCancel: string } {
           const now = currentRippleTime;
@@ -1851,6 +1884,38 @@ export class UtilsService {
                const total = matchingObjects.reduce((sum, obj) => {
                     return sum + parseFloat(obj.Balance.value);
                }, 0);
+
+               return total;
+          } catch (error) {
+               console.error('Error fetching balance:', error);
+               return null;
+          }
+     }
+
+     async getCurrencyBalanceWithIssuer(currency: string, issuer: string, accountObjects: xrpl.AccountObjectsResponse, account: string): Promise<number | null> {
+          try {
+               let account_objects: any[] = [];
+               if (accountObjects && !Array.isArray(accountObjects) && accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
+                    account_objects = accountObjects.result.account_objects;
+               }
+
+               const matchingObjects: any[] = account_objects.filter((obj: any) => {
+                    if (!obj.Balance || obj.Balance.currency !== currency.toUpperCase()) return false;
+
+                    const lowIssuer = obj.LowLimit?.issuer;
+                    const highIssuer = obj.HighLimit?.issuer;
+
+                    // Check if this trustline is between the account and the specified issuer
+                    return (lowIssuer === account && highIssuer === issuer) || (highIssuer === account && lowIssuer === issuer);
+               });
+
+               let total = 0;
+               for (const obj of matchingObjects) {
+                    const balanceValue = parseFloat(obj.Balance.value);
+                    // Sign the balance from the account's perspective
+                    const signedBalance = account === obj.HighLimit?.issuer ? balanceValue : -balanceValue;
+                    total += signedBalance;
+               }
 
                return total;
           } catch (error) {
