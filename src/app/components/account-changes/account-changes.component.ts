@@ -26,6 +26,7 @@ interface BalanceChange {
      hash: string;
      type: string;
      change: number;
+     fees: number;
      currency: string;
      balanceBefore: number;
      balanceAfter: number;
@@ -46,7 +47,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
      @ViewChild(MatSort) sort!: MatSort;
      @ViewChild(MatPaginator) paginator!: MatPaginator;
      selectedAccount: 'account1' | 'account2' | null = 'account1';
-     displayedColumns: string[] = ['date', 'hash', 'type', 'change', 'currency', 'balanceBefore', 'balanceAfter', 'counterparty'];
+     displayedColumns: string[] = ['date', 'hash', 'type', 'change', 'currency', 'fees', 'balanceBefore', 'balanceAfter', 'counterparty'];
      balanceChanges: BalanceChange[] = [];
      balanceChangesDataSource = new MatTableDataSource<BalanceChange>(this.balanceChanges);
      loadingMore: boolean = false;
@@ -257,8 +258,11 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
           const processed: BalanceChange[] = [];
 
           for (const txWrapper of transactions) {
+               console.debug(`txWrapper`, txWrapper);
                const tx = txWrapper.tx_json || txWrapper.transaction;
                const meta = txWrapper.meta;
+               const fees = tx.Fee;
+               console.log(`Fee 2`, xrpl.dropsToXrp(fees));
 
                if (typeof meta !== 'object' || !meta.AffectedNodes) {
                     continue;
@@ -275,7 +279,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                     }
                }
 
-               const changes: { change: number; currency: string; balanceBefore: number; balanceAfter: number }[] = [];
+               const changes: { fees: number; change: number; currency: string; balanceBefore: number; balanceAfter: number }[] = [];
                const date = new Date((tx.date + 946684800) * 1000);
                const hash = txWrapper.hash;
 
@@ -292,6 +296,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                          const delta = this.utilsService.roundToEightDecimals(finalXrp - prevXrp);
 
                          changes.push({
+                              fees: xrpl.dropsToXrp(fees),
                               change: delta,
                               currency: 'XRP',
                               balanceBefore: this.utilsService.roundToEightDecimals(prevXrp),
@@ -332,6 +337,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
 
                          if (tokenCurrency && tokenChange !== 0) {
                               changes.push({
+                                   fees: xrpl.dropsToXrp(fees),
                                    change: tokenChange,
                                    currency: tokenCurrency,
                                    balanceBefore: tokenBalanceBefore,
@@ -346,6 +352,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                          date,
                          hash,
                          type,
+                         fees: xrpl.dropsToXrp(fees),
                          change: changeItem.change,
                          currency: changeItem.currency,
                          balanceBefore: changeItem.balanceBefore,
