@@ -101,7 +101,7 @@
                          <div class="top-section-right">
                               <table id="xrpDetails">
                                    <th></th>
-                                   <tr>
+                                   <!-- <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Asset Scale for MPT token.">
                                                   <label for="assetScaleField">Asset Scale</label>
@@ -130,7 +130,7 @@
                                         <td>
                                              <input type="text" id="transferFeeField" size="41" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
                                         </td>
-                                   </tr>
+                                   </tr> -->
                                    <!-- <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Numbner of MPT to send.">
@@ -140,7 +140,7 @@
                                         <td>
                                              <input type="text" id="amountField" size="41" [(ngModel)]="amountField" name="amountField" />
                                         </td>
-                                   </tr>
+                                   </tr> -->
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Destination account address where tokens will be sent.">
@@ -154,7 +154,7 @@
                                         </td>
                                    </tr>
 
-                                   <tr>
+                                   <!-- <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Destination tag to be used when sending to an exchange (i.e. Coinbase).">
                                                   <label for="destinationTagField">Destination Tag</label>
@@ -166,6 +166,44 @@
                                    </tr> -->
                                    <tr>
                                         <td>
+                                             <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
+                                                  <label for="mptIssuanceIdField">MPT Issuance ID</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <textarea class="memoField" style="width: 300px; height: 100px" id="mptIssuanceIdField" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField"></textarea>
+                                        </td>
+                                   </tr>
+                                   <!-- <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="">
+                                                  <label>Self Authorize</label>
+                                             </span>
+                                        </td>
+                                        <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                             <label class="switch">
+                                                  <input type="checkbox" id="isSelfAuthorize" [(ngModel)]="isSelfAuthorize" (ngModelChange)="toggleTicketSequence()" name="isSelfAuthorize" />
+                                                  <span class="slider round"></span>
+                                             </label>
+                                             <label for="isSelfAuthorize"></label>
+                                        </td>
+                                   </tr>
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="">
+                                                  <label>Unauthorize</label>
+                                             </span>
+                                        </td>
+                                        <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                             <label class="switch">
+                                                  <input type="checkbox" id="isUnauthorize" [(ngModel)]="isUnauthorize" (ngModelChange)="toggleTicketSequence()" name="isUnauthorize" />
+                                                  <span class="slider round"></span>
+                                             </label>
+                                             <label for="isUnauthorize"></label>
+                                        </td>
+                                   </tr> -->
+                                   <!-- <tr>
+                                        <td>
                                              <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
                                                   <label for="metaDataField">Token Meta Data</label>
                                              </span>
@@ -173,7 +211,7 @@
                                         <td>
                                              <textarea style="width: 300px; height: 200px" class="memoField" id="metaDataField" placeholder="Token Meta Data" [(ngModel)]="metaDataField" name="metaDataField"></textarea>
                                         </td>
-                                   </tr>
+                                   </tr> -->
                               </table>
                          </div>
                     </div>
@@ -189,13 +227,13 @@
                               <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <button type="button" (click)="getMptDetails()">Get MPT Info</button>
-                                        <button type="button" (click)="createMpt()">Create MPT</button>
+                                        <!-- <button type="button" (click)="createMpt()">Create MPT</button> -->
                                         <!-- <button type="button" (click)="mintMpt()">Mint MPT</button> -->
                                         <!-- <button type="button" (click)="authorizeMpt()">Authorize MPT</button> -->
                                         <!-- <button type="button" (click)="transferMpt()">Transfer MPT</button> -->
                                         <!-- <button type="button" (click)="sendMpt()">Send MPT</button> -->
-                                        <!-- <button type="button" (click)="setMptLocked()">Set MPT Lock</button> -->
-                                        <!-- <button type="button" (click)="destroyMpt()">Destroy MPT</button> -->
+                                        <button type="button" (click)="setMptLocked()">Set MPT Lock</button>
+                                        <button type="button" (click)="destroyMpt()">Destroy MPT</button>
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
@@ -328,7 +366,7 @@
                </div>
 
                <div class="right-section">
-                    <table id="flags">
+                    <!-- <table id="flags">
                          <th></th>
                          <tr>
                               <td>
@@ -414,7 +452,7 @@
                                    </label>
                               </td>
                          </tr>
-                    </table>
+                    </table> -->
 
                     <table id="flags">
                          <th></th>
