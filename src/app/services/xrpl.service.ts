@@ -7,6 +7,15 @@ import { BehaviorSubject, firstValueFrom } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { TokenCacheService } from './token-cache/token-cache.service';
 
+interface MptInfoRequest {
+     command: 'mpt_info';
+     issuance_id: string;
+}
+
+interface MptInfoResponse {
+     result: any; // or define proper structure if known
+}
+
 interface Token {
      transactionType: string;
      createdDate: Date;
@@ -885,6 +894,22 @@ export class XrplService {
           } catch (error: any) {
                console.error('Error fetching account trustlines:', error);
                throw new Error(`Failed to fetch account trustlines: ${error.message || 'Unknown error'}`);
+          }
+     }
+
+     async getMptByIssuanceId(client: Client, issuanceId: string, ledgerIndex: xrpl.LedgerIndex): Promise<MptInfoResponse> {
+          try {
+               // Cast to any to bypass xrpl's strict Request constraint
+               const response = (await client.request({
+                    command: 'mpt_holders',
+                    mpt_issuance_id: issuanceId,
+                    ledger_index: ledgerIndex,
+               } as any)) as MptInfoResponse;
+
+               return response;
+          } catch (error: any) {
+               console.error('Error fetching MPT info:', error);
+               throw new Error(`Failed to fetch MPT info: ${error.message || 'Unknown error'}`);
           }
      }
 

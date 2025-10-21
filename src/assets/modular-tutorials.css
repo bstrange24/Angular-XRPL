@@ -236,7 +236,8 @@ input:read-only {
 #backupAccountField,
 #selectedWalletField,
 #authorizedWalletField,
-#issuerFields {
+#issuerFields,
+#holderAccount {
      color: #4CAF50;
 }
 
