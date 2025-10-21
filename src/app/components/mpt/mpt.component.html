@@ -131,7 +131,7 @@
                                              <input type="text" id="transferFeeField" size="41" placeholder="This will be a percentage" [(ngModel)]="transferFeeField" name="transferFeeField" />
                                         </td>
                                    </tr>
-                                   <tr>
+                                   <!-- <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Numbner of MPT to send.">
                                                   <label for="amountField">Amount</label>
@@ -149,7 +149,6 @@
                                         </td>
                                         <td>
                                              <select class="timeUnit" id="destinationFields" style="width: 300px; height: 28px" [(ngModel)]="destinationFields" name="destinationFields">
-                                                  <!-- <option *ngFor="let dest of destinations" [value]="dest">{{dest}}</option> -->
                                                   <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
                                              </select>
                                         </td>
@@ -164,7 +163,7 @@
                                         <td>
                                              <input type="text" id="destinationTagField" [(ngModel)]="destinationTagField" name="destinationTagField" />
                                         </td>
-                                   </tr>
+                                   </tr> -->
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Optional Memo to be sent with the payment.">
@@ -192,11 +191,11 @@
                                         <button type="button" (click)="getMptDetails()">Get MPT Info</button>
                                         <button type="button" (click)="createMpt()">Create MPT</button>
                                         <!-- <button type="button" (click)="mintMpt()">Mint MPT</button> -->
-                                        <button type="button" (click)="authorizeMpt()">Authorize MPT</button>
+                                        <!-- <button type="button" (click)="authorizeMpt()">Authorize MPT</button> -->
                                         <!-- <button type="button" (click)="transferMpt()">Transfer MPT</button> -->
-                                        <button type="button" (click)="sendMpt()">Send MPT</button>
-                                        <button type="button" (click)="setMptLocked()">Set MPT Lock</button>
-                                        <button type="button" (click)="destroyMpt()">Destroy MPT</button>
+                                        <!-- <button type="button" (click)="sendMpt()">Send MPT</button> -->
+                                        <!-- <button type="button" (click)="setMptLocked()">Set MPT Lock</button> -->
+                                        <!-- <button type="button" (click)="destroyMpt()">Destroy MPT</button> -->
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
@@ -419,7 +418,7 @@
 
                     <table id="flags">
                          <th></th>
-                         <tr>
+                         <!-- <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="">
                                         <label>Self Authorize</label>
@@ -446,7 +445,7 @@
                                    </label>
                                    <label for="isUnauthorize"></label>
                               </td>
-                         </tr>
+                         </tr> -->
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
