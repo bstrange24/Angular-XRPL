@@ -47,4 +47,5 @@ export const routes: Routes = [
      { path: 'create-amm', component: CreateAmmComponent, data: { title: 'AMM' } },
      { path: 'trustlines', component: TrustlinesComponent, data: { title: 'Trustlines' } },
      { path: 'mpt', component: MptComponent, data: { title: 'MPT' } },
+     { path: 'mpt-send', component: MptComponent, data: { title: 'Send MPT' } },
 ];

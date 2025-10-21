@@ -179,6 +179,10 @@ export class StorageService {
           return localStorage.getItem('activeNftLink') || '';
      }
 
+     getActiveMptLink(): string {
+          return localStorage.getItem('activeMptLink') || '';
+     }
+
      setActiveEscrowLink(link: string) {
           localStorage.setItem('activeEscrowLink', link);
           localStorage.removeItem('activeNavLink');

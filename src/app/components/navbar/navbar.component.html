@@ -59,7 +59,15 @@
                          </div>
                     </div>
 
-                    <a routerLink="/mpt" routerLinkActive="active" (click)="setActiveLink('/mpt')">MPT</a>
+                    <div class="dropdown escrows-dropdown" [ngClass]="{ active: isMptDropdownActive }">
+                         <a href="#" class="dropdown-toggle" aria-label="Toggle MPT dropdown" (click)="toggleMptDropdown($event)">MPTs ▾</a>
+                         <div class="dropdown-menu">
+                              <a routerLink="/mpt" routerLinkActive="active" (click)="setActiveLink('/mpt')">Create MPT</a>
+                              <a routerLink="/mpt-send" routerLinkActive="active" (click)="setActiveLink('/mpt-send')">Send MPT</a>
+                         </div>
+                    </div>
+
+                    <!-- <a routerLink="/mpt" routerLinkActive="active" (click)="setActiveLink('/mpt')">MPT</a> -->
                     <!-- <a routerLink="/fiat-on-off-ramp" routerLinkActive="active" (click)="setActiveLink('/fiat-on-off-ramp')"> Fiat On/Off Ramp </a> -->
 
                     <!-- <div class="dropdown utils-dropdown" [ngClass]="{ active: isUtilsDropdownOpen }">

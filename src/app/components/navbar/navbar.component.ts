@@ -29,9 +29,11 @@ export class NavbarComponent implements OnInit {
      isEscrowsDropdownOpen: boolean = false;
      isAccountDropdownOpen: boolean = false;
      isNftDropdownOpen: boolean = false;
+     isMptDropdownOpen: boolean = false;
      isUtilsDropdownOpen: boolean = false;
      isEscrowsDropdownActive: boolean = false;
      isNftDropdownActive: boolean = false;
+     isMptDropdownActive: boolean = false;
      isAccountsDropdownActive: boolean = false;
      currentDateTime: string = ''; // Store formatted date/time
      private timerSubscription: Subscription | null = null; // For real-time updates
@@ -51,28 +53,39 @@ export class NavbarComponent implements OnInit {
           const activeNavLink = this.storageService.getActiveNavLink();
           const activeEscrowLink = this.storageService.getActiveEscrowLink();
           const activeNftLink = this.storageService.getActiveNftLink();
+          const activeMptLink = this.storageService.getActiveMptLink();
           this.isEscrowsDropdownActive = !!activeEscrowLink;
           const activeAccountLink = this.storageService.getActiveAccountsLink();
           this.isAccountDropdownOpen = !!activeAccountLink;
           this.isNftDropdownActive = !!activeNftLink;
+          this.isMptDropdownActive = !!activeMptLink;
 
           if (activeAccountLink) {
                this.isAccountsDropdownActive = true;
                this.isAccountDropdownOpen = true;
                this.isEscrowsDropdownActive = false;
                this.isNftDropdownActive = false;
+               this.isMptDropdownActive = false;
           } else if (activeEscrowLink) {
                this.isEscrowsDropdownActive = true;
                this.isAccountsDropdownActive = false;
                this.isNftDropdownActive = false;
+               this.isMptDropdownActive = false;
           } else if (activeNftLink) {
                this.isNftDropdownActive = true;
+               this.isAccountsDropdownActive = false;
+               this.isEscrowsDropdownActive = false;
+               this.isMptDropdownActive = false;
+          } else if (activeMptLink) {
+               this.isMptDropdownActive = true;
+               this.isNftDropdownActive = false;
                this.isAccountsDropdownActive = false;
                this.isEscrowsDropdownActive = false;
           } else {
                this.isEscrowsDropdownActive = !!activeNavLink && activeNavLink.includes('escrow');
                this.isAccountsDropdownActive = !!activeNavLink && activeNavLink.includes('account');
                this.isNftDropdownActive = !!activeNavLink && activeNavLink.includes('nft');
+               this.isMptDropdownActive = !!activeNavLink && activeNavLink.includes('mpt');
           }
 
           // Initialize date/time and set up timer for real-time updates
@@ -108,6 +121,7 @@ export class NavbarComponent implements OnInit {
           this.isUtilsDropdownOpen = false;
           this.isAccountDropdownOpen = false;
           this.isNftDropdownOpen = false;
+          this.isMptDropdownOpen = false;
      }
 
      toggleAccountsDropdown(event: Event) {
@@ -118,6 +132,7 @@ export class NavbarComponent implements OnInit {
           this.isNetworkDropdownOpen = false;
           this.isEscrowsDropdownOpen = false;
           this.isNftDropdownOpen = false;
+          this.isMptDropdownOpen = false;
           this.isEscrowsDropdownActive = false; // Explicitly reset Escrows active state
           this.isUtilsDropdownOpen = false;
           this.storageService.removeValue('activeEscrowLink'); // Clear escrow link from storage
@@ -130,12 +145,24 @@ export class NavbarComponent implements OnInit {
           this.isUtilsDropdownOpen = false;
           this.isAccountDropdownOpen = false;
           this.isNftDropdownOpen = false;
+          this.isMptDropdownOpen = false;
           this.storageService.removeValue('activeAccountLink'); // Clear escrow link from storage
      }
 
      toggleNftDropdown(event: Event) {
           event.preventDefault();
           this.isNftDropdownOpen = !this.isNftDropdownOpen;
+          this.isMptDropdownOpen = false;
+          this.isNetworkDropdownOpen = false;
+          this.isUtilsDropdownOpen = false;
+          this.isAccountDropdownOpen = false;
+          this.storageService.removeValue('activeAccountLink'); // Clear escrow link from storage
+     }
+
+     toggleMptDropdown(event: Event) {
+          event.preventDefault();
+          this.isMptDropdownOpen = !this.isMptDropdownOpen;
+          this.isNftDropdownOpen = false;
           this.isNetworkDropdownOpen = false;
           this.isUtilsDropdownOpen = false;
           this.isAccountDropdownOpen = false;
