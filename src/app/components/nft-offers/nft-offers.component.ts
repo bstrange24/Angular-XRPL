@@ -112,7 +112,8 @@ export class NftOffersComponent implements AfterViewChecked {
      gatewayBalance: string = '0';
      // destinations: string[] = [];
      currencyFieldDropDownValue: string = 'XRP';
-     private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
+     // private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
+     private knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
      currencies: string[] = [];
      selectedIssuer: string = '';
      currencyIssuers: string[] = [];

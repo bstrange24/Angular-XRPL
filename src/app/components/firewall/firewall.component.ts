@@ -132,18 +132,18 @@ export class FirewallComponent implements AfterViewChecked {
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
      ngOnInit() {
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress');
-               console.debug(`storedDestinations: `, storedDestinations);
-               console.debug(`knownWhitelistAddress: `, knownWhitelistAddress);
-               if (knownWhitelistAddress) {
-                    const combined = this.comineWhiteListDestiationAddresses(storedDestinations, knownWhitelistAddress);
-                    console.log(`combinedString: `, combined);
-                    this.knownDestinations = combined;
-                    this.updateWhitelistAddress();
-               }
-          }
+          // const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          // if (storedDestinations) {
+          //      const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress');
+          //      console.debug(`storedDestinations: `, storedDestinations);
+          //      console.debug(`knownWhitelistAddress: `, knownWhitelistAddress);
+          //      if (knownWhitelistAddress) {
+          //           const combined = this.comineWhiteListDestiationAddresses(storedDestinations, knownWhitelistAddress);
+          //           console.log(`combinedString: `, combined);
+          //           this.knownDestinations = combined;
+          //           this.updateWhitelistAddress();
+          //      }
+          // }
           this.onAccountChange();
      }
 

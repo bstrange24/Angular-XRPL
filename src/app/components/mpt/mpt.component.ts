@@ -125,7 +125,7 @@ export class MptComponent implements AfterViewChecked {
      // destinations: string[] = [];
      destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-     isSelfAuthorize: boolean = true; // New: toggle for self vs. issuer authorization
+     isSelfAuthorize: boolean = false; // New: toggle for self vs. issuer authorization
      isUnauthorize: boolean = false; // New: toggle for authorize vs. unauthorize
      // Dynamic wallets
      wallets: any[] = [];
@@ -139,10 +139,10 @@ export class MptComponent implements AfterViewChecked {
           // if (storedIssuers) {
           //      this.knownTrustLinesIssuers = storedIssuers;
           // }
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               this.knownDestinations = storedDestinations;
-          }
+          // const storedDestinations = this.storageService.getKnownIssuers('destinations');
+          // if (storedDestinations) {
+          //      this.knownDestinations = storedDestinations;
+          // }
      }
 
      ngAfterViewInit() {}

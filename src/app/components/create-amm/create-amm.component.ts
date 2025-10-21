@@ -171,12 +171,14 @@ export class CreateAmmComponent implements AfterViewChecked {
           firstPoolOnly: false,
           secondPoolOnly: false,
      };
-     private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
+     // private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
+     private knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
      xrpOnly: string[] = [];
      currencies: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
      tokenToRemove: string = '';
+     issuerToRemove: string = '';
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      private readonly priceRefreshInterval: any; // For polling
      // Dynamic wallets
@@ -1500,7 +1502,9 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.weWantIssuerField = '';
                } else {
                     const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-                    this.weWantIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
+                    // this.weWantIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
+                    const issuers = this.knownTrustLinesIssuers[this.weWantCurrencyField] || [];
+                    this.weWantIssuerField = issuers.length > 0 ? issuers[0] : '';
 
                     balance = (await this.getCurrencyBalance(balanceResponse, wallet.classicAddress, currencyCode)) ?? '0';
                     this.weWantTokenBalanceField = balance ?? '0';
@@ -1547,7 +1551,9 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.weSpendIssuerField = '';
                } else {
                     const currencyCode = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
-                    this.weSpendIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
+                    // this.weSpendIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
+                    const issuers = this.knownTrustLinesIssuers[this.weWantCurrencyField] || [];
+                    this.weSpendIssuerField = issuers.length > 0 ? issuers[0] : '';
 
                     balance = (await this.getCurrencyBalance(balanceResponse, wallet.classicAddress, currencyCode, this.weSpendIssuerField)) ?? '0';
                     this.weSpendTokenBalanceField = balance !== null ? balance : '0';
@@ -2172,44 +2178,125 @@ export class CreateAmmComponent implements AfterViewChecked {
      addToken() {
           if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
                const currency = this.newCurrency.trim();
-               if (this.knownTrustLinesIssuers[currency]) {
-                    this.setError(`Currency ${currency} already exists`);
-                    return;
-               }
+               const issuer = this.newIssuer.trim();
+
+               // Validate currency code
                if (!this.utilsService.isValidCurrencyCode(currency)) {
                     this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
                     return;
                }
-               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+
+               // Validate XRPL address
+               if (!xrpl.isValidAddress(issuer)) {
                     this.setError('Invalid issuer address');
                     return;
                }
-               this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+
+               // Initialize array if not present
+               if (!this.knownTrustLinesIssuers[currency]) {
+                    this.knownTrustLinesIssuers[currency] = [];
+               }
+
+               // Check for duplicates
+               if (this.knownTrustLinesIssuers[currency].includes(issuer)) {
+                    this.setError(`Issuer ${issuer} already exists for ${currency}`);
+                    return;
+               }
+
+               // Add new issuer
+               this.knownTrustLinesIssuers[currency].push(issuer);
+
+               // Persist and update
                this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                this.updateCurrencies();
+
                this.newCurrency = '';
                this.newIssuer = '';
-               this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+               this.setSuccess(`Added issuer ${issuer} for ${currency}`);
                this.cdr.detectChanges();
           } else {
                this.setError('Currency code and issuer address are required');
           }
+
           this.spinner = false;
      }
 
      removeToken() {
-          if (this.tokenToRemove) {
+          if (this.tokenToRemove && this.issuerToRemove) {
+               const currency = this.tokenToRemove;
+               const issuer = this.issuerToRemove;
+
+               if (this.knownTrustLinesIssuers[currency]) {
+                    this.knownTrustLinesIssuers[currency] = this.knownTrustLinesIssuers[currency].filter(addr => addr !== issuer);
+
+                    // Remove the currency entirely if no issuers remain
+                    if (this.knownTrustLinesIssuers[currency].length === 0) {
+                         delete this.knownTrustLinesIssuers[currency];
+                    }
+
+                    this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+                    this.updateCurrencies();
+                    this.setSuccess(`Removed issuer ${issuer} from ${currency}`);
+                    this.cdr.detectChanges();
+               } else {
+                    this.setError(`Currency ${currency} not found`);
+               }
+          } else if (this.tokenToRemove) {
+               // Remove entire token and all issuers
                delete this.knownTrustLinesIssuers[this.tokenToRemove];
                this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                this.updateCurrencies();
-               this.setSuccess(`Removed ${this.tokenToRemove}`);
+               this.setSuccess(`Removed all issuers for ${this.tokenToRemove}`);
                this.tokenToRemove = '';
                this.cdr.detectChanges();
           } else {
                this.setError('Select a token to remove');
           }
+
           this.spinner = false;
      }
+
+     // addToken() {
+     //      if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
+     //           const currency = this.newCurrency.trim();
+     //           if (this.knownTrustLinesIssuers[currency]) {
+     //                this.setError(`Currency ${currency} already exists`);
+     //                return;
+     //           }
+     //           if (!this.utilsService.isValidCurrencyCode(currency)) {
+     //                this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
+     //                return;
+     //           }
+     //           if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+     //                this.setError('Invalid issuer address');
+     //                return;
+     //           }
+     //           this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+     //           this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+     //           this.updateCurrencies();
+     //           this.newCurrency = '';
+     //           this.newIssuer = '';
+     //           this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+     //           this.cdr.detectChanges();
+     //      } else {
+     //           this.setError('Currency code and issuer address are required');
+     //      }
+     //      this.spinner = false;
+     // }
+
+     // removeToken() {
+     //      if (this.tokenToRemove) {
+     //           delete this.knownTrustLinesIssuers[this.tokenToRemove];
+     //           this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+     //           this.updateCurrencies();
+     //           this.setSuccess(`Removed ${this.tokenToRemove}`);
+     //           this.tokenToRemove = '';
+     //           this.cdr.detectChanges();
+     //      } else {
+     //           this.setError('Select a token to remove');
+     //      }
+     //      this.spinner = false;
+     // }
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];

@@ -406,10 +406,15 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'DepositPreauth':
                case 'EscrowFinish':
                case 'EscrowCreate':
+               case 'EscrowCancel':
+               case 'MPTokenIssuanceCreate':
                     return '#f0874bff';
 
                case 'TicketCreate':
                case 'Batch':
+               case 'NFTokenCreateOffer':
+               case 'TrustSet':
+               case 'MPTokenAuthorize':
                     return '#79BDD8';
 
                case 'SignerListSet':
@@ -417,10 +422,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'AccountSet':
                case 'AccountDelete':
                case 'SetRegularKey':
+               case 'MPTokenIssuanceDestroy':
                     return '#BAD47B';
                case 'NFTokenMint':
                     return '#ac7bd4ff';
-
+               case 'CheckCancel':
+               case 'CheckCash':
+               case 'CheckCreate':
+                    return '#9bc5a2ff';
                default:
                     return 'white'; // fallback color
           }
