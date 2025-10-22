@@ -103,7 +103,7 @@ export class CreateNftComponent implements AfterViewChecked {
      isNFTokenMinterEnabled: boolean = false;
      nfTokenMinterAddress: string = '';
      tickSize: string = '';
-     transferFeeField: string = '0';
+     transferFeeField: string = '';
      isMessageKey: boolean = false;
      destinationFields: string = '';
      newDestination: string = '';
@@ -134,7 +134,7 @@ export class CreateNftComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      multiSigningEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
-     taxonField: string = '0';
+     taxonField: string = '';
      burnableNft: { checked: any } | undefined;
      onlyXrpNft: { checked: any } | undefined;
      transferableNft: { checked: any } | undefined;
