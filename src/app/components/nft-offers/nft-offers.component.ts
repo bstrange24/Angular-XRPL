@@ -378,7 +378,7 @@ export class NftOffersComponent implements AfterViewChecked {
                               const isBurnable = (nft.Flags & TF_BURNABLE) !== 0;
                               const checkedAttr = idsSet.includes(nft.NFTokenID) ? 'checked' : '';
                               // const burnLabel = isBurnable ? 'Burn' : 'Not Burnable';
-                              const burnLabel = isBurnable ? 'Burn' : 'Burn';
+                              const burnLabel = isBurnable ? 'Copy' : 'Copy';
                               // const disabledAttr = isBurnable ? '' : 'disabled';
                               const disabledAttr = isBurnable ? '' : '';
 
@@ -719,7 +719,6 @@ export class NftOffersComponent implements AfterViewChecked {
                     TransactionType: 'NFTokenAcceptOffer',
                     Account: wallet.classicAddress,
                     NFTokenSellOffer: selectedOffer.nft_offer_index,
-                    // Flags: 0, // buy flag
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };

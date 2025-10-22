@@ -436,7 +436,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
 
                case 'TicketCreate':
                case 'Batch':
-               case 'NFTokenCreateOffer':
+
                case 'TrustSet':
                case 'MPTokenAuthorize':
                     return '#79BDD8';
@@ -448,8 +448,13 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'SetRegularKey':
                case 'MPTokenIssuanceDestroy':
                     return '#BAD47B';
+
                case 'NFTokenMint':
+               case 'NFTokenModify':
+               case 'NFTokenCancelOffer':
+               case 'NFTokenCreateOffer':
                     return '#ac7bd4ff';
+
                case 'CheckCancel':
                case 'CheckCash':
                case 'CheckCreate':

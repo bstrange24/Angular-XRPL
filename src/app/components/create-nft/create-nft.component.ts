@@ -586,7 +586,7 @@ export class CreateNftComponent implements AfterViewChecked {
                seed: this.currentWallet.seed,
                nftCountField: this.nftCountField,
                batchMode: this.batchMode ? this.batchMode : '',
-               uri: this.uriField,
+               uri: this.initialURIField,
           };
 
           if (!this.isBatchModeEnabled) {
