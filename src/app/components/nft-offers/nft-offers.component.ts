@@ -110,13 +110,10 @@ export class NftOffersComponent implements AfterViewChecked {
      newDestination: string = '';
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
-     // destinations: string[] = [];
      currencyFieldDropDownValue: string = 'XRP';
-     // private knownTrustLinesIssuers: { [key: string]: string } = { XRP: '' };
      private knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
      currencies: string[] = [];
      selectedIssuer: string = '';
-     currencyIssuers: string[] = [];
      domain: string = '';
      memo: string = '';
      memoField: string = '';
@@ -146,7 +143,8 @@ export class NftOffersComponent implements AfterViewChecked {
      issuerAddressField: string = '';
      expirationField: string = '';
      // uriField: string = 'https://ipfs.io/ipfs/bafybeigjro2d2tc43bgv7e4sxqg7f5jga7kjizbk7nnmmyhmq35dtz6deq';
-     uriField: string = 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjhubGpubms0bXl5ZzM0cWE4azE5aTlyOHRyNmVhd2prcDc1am43ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NxwglXLqMeOuRF3FHv/giphy.gif';
+     // uriField: string = 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjhubGpubms0bXl5ZzM0cWE4azE5aTlyOHRyNmVhd2prcDc1am43ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NxwglXLqMeOuRF3FHv/giphy.gif';
+     uriField: string = '';
      nftIdField: string = '';
      nftIndexField: string = '';
      nftCountField: string = '';
@@ -170,15 +168,16 @@ export class NftOffersComponent implements AfterViewChecked {
           asfAllowTrustLineLocking: false,
      };
      spinner: boolean = false;
-     private knownDestinations: { [key: string]: string } = {};
-     // destinations: string[] = [];
-     destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      private burnCheckboxHandlerBound!: (e: Event) => void;
-     // Dynamic wallets
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
+     destinations: { name?: string; address: string }[] = [];
+     currencyIssuers: { name?: string; address: string }[] = [];
+     private lastCurrency: string = '';
+     private lastIssuer: string = '';
+     showManageTokens: boolean = false;
 
      constructor(private readonly ngZone: NgZone, private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly batchService: BatchService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {
           this.burnCheckboxHandlerBound = (e: Event) => this.burnCheckboxHandler(e);
@@ -235,6 +234,7 @@ export class NftOffersComponent implements AfterViewChecked {
           this.updateDestinations();
 
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.ensureDefaultNotSelected();
                this.getNFT();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
@@ -402,6 +402,19 @@ export class NftOffersComponent implements AfterViewChecked {
                               };
                          }),
                     });
+               }
+
+               if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedIssuer !== '') {
+                    const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
+                    console.debug('Token Balance:', tokenBalance.result);
+
+                    console.debug(`parseAllGatewayBalances:`, this.parseAllGatewayBalances(tokenBalance, wallet));
+                    const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
+                    if (parsedBalances && Object.keys(parsedBalances).length > 0) {
+                         this.tokenBalance = parsedBalances?.[this.currencyFieldDropDownValue]?.[this.selectedIssuer] ?? '0';
+                    } else {
+                         this.tokenBalance = '0';
+                    }
                }
 
                // CRITICAL: Render immediately
@@ -611,6 +624,19 @@ export class NftOffersComponent implements AfterViewChecked {
                     }
                }
 
+               if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedIssuer !== '') {
+                    const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
+                    console.debug('Token Balance:', tokenBalance.result);
+
+                    console.debug(`parseAllGatewayBalances:`, this.parseAllGatewayBalances(tokenBalance, wallet));
+                    const parsedBalances = this.parseAllGatewayBalances(tokenBalance, wallet);
+                    if (parsedBalances && Object.keys(parsedBalances).length > 0) {
+                         this.tokenBalance = parsedBalances?.[this.currencyFieldDropDownValue]?.[this.selectedIssuer] ?? '0';
+                    } else {
+                         this.tokenBalance = '0';
+                    }
+               }
+
                // CRITICAL: Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
@@ -620,6 +646,7 @@ export class NftOffersComponent implements AfterViewChecked {
                     try {
                          this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.clearFields(false);
+                         this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for NFT offers:', err);
@@ -761,14 +788,18 @@ export class NftOffersComponent implements AfterViewChecked {
                this.setSuccess(this.result);
 
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(gatewayBalances, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -776,7 +807,7 @@ export class NftOffersComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -809,7 +840,6 @@ export class NftOffersComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
@@ -905,14 +935,18 @@ export class NftOffersComponent implements AfterViewChecked {
                this.setSuccess(this.result);
 
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(gatewayBalances, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -920,7 +954,7 @@ export class NftOffersComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -953,7 +987,6 @@ export class NftOffersComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger, serverInfo, nftInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', ''), this.xrplService.getNFTSellOffers(client, this.nftIdField)]);
 
                // Optional: Avoid heavy stringify in logs
@@ -1056,14 +1089,18 @@ export class NftOffersComponent implements AfterViewChecked {
                this.setSuccess(this.result);
 
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(gatewayBalances, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -1071,283 +1108,13 @@ export class NftOffersComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving createBuyOffer in ${this.executionTime}ms`);
           }
      }
-
-     // async cancelBuyOffer() {
-     //      console.log('Entering cancelBuyOffer');
-     //      const startTime = Date.now();
-     //      this.setSuccessProperties();
-
-     //      let inputs: ValidationInputs = {
-     //           selectedAccount: this.selectedAccount,
-     //           seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-     //           nftIndexField: this.nftIndexField,
-     //      };
-
-     //      try {
-     //           if (this.resultField?.nativeElement) {
-     // this.resultField.nativeElement.innerHTML = '';
-     // }
-     //           const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-     //           this.updateSpinnerMessage(`Preparing Cancel Buy NFT Offer (${mode})...`);
-
-     //           const environment = this.xrplService.getNet().environment;
-     //           const client = await this.xrplService.getClient();
-     //           const wallet = await this.getWallet();
-
-     //           // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-     //           const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-     //           // Optional: Avoid heavy stringify in logs
-     //           console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-     //           console.debug(`fee :`, fee);
-     //           console.debug(`currentLedger :`, currentLedger);
-     //           console.debug(`serverInfo :`, serverInfo);
-
-     //           inputs = {
-     //                ...inputs,
-     //                account_info: accountInfo,
-     //           };
-
-     //           const errors = this.validateInputs(inputs, 'cancelBuy');
-     //           if (errors.length > 0) {
-     //                return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-     //           }
-
-     //           const nFTokenCancelOfferTx: NFTokenCancelOffer = {
-     //                TransactionType: 'NFTokenCancelOffer',
-     //                Account: wallet.classicAddress,
-     //                NFTokenOffers: [this.nftIndexField],
-     //                Fee: fee,
-     //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //           };
-
-     //           if (this.ticketSequence) {
-     //                const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-     //                if (!ticketExists) {
-     //                     return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-     //                }
-     //                this.utilsService.setTicketSequence(nFTokenCancelOfferTx, this.ticketSequence, true);
-     //           } else {
-     //                this.utilsService.setTicketSequence(nFTokenCancelOfferTx, accountInfo.result.account_data.Sequence, false);
-     //           }
-
-     //           if (this.memoField) {
-     //                this.utilsService.setMemoField(nFTokenCancelOfferTx, this.memoField);
-     //           }
-
-     //           if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, nFTokenCancelOfferTx, fee)) {
-     //                return this.setError('ERROR: Insufficient XRP to complete transaction');
-     //           }
-
-     //           if (this.isSimulateEnabled) {
-     //                const simulation = await this.xrplTransactions.simulateTransaction(client, nFTokenCancelOfferTx);
-
-     //                const isSuccess = this.utilsService.isTxSuccessful(simulation);
-     //                if (!isSuccess) {
-     //                     const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-     //                     let userMessage = 'Transaction failed.\n';
-     //                     userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-     //                     (simulation['result'] as any).errorMessage = userMessage;
-     //                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-     //                }
-
-     //                // Render result
-     //                this.renderTransactionResult(simulation);
-
-     //                this.resultField.nativeElement.classList.add('success');
-     //                this.setSuccess(this.result);
-     //           } else {
-     //                // PHASE 5: Get regular key wallet
-     //                const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-     //                const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCancelOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
-
-     //                if (!signedTx) {
-     //                     return this.setError('ERROR: Failed to sign Payment transaction.');
-     //                }
-
-     //                // PHASE 7: Submit or Simulate
-     //                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating NFT Cancel Buy Offer (no changes will be made)...' : 'Submitting to Ledger...');
-
-     //                const response = await this.xrplTransactions.submitTransaction(client, signedTx);
-
-     //                const isSuccess = this.utilsService.isTxSuccessful(response);
-     //                if (!isSuccess) {
-     //                     const resultMsg = this.utilsService.getTransactionResultMessage(response);
-     //                     let userMessage = 'Transaction failed.\n';
-     //                     userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-     //                     (response.result as any).errorMessage = userMessage;
-     //                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-     //                }
-
-     //                this.renderTransactionResult(response);
-     //                this.resultField.nativeElement.classList.add('success');
-     //                this.setSuccess(this.result);
-     //           }
-
-     //           if (!this.isSimulateEnabled) {
-     //                setTimeout(async () => {
-     //                     try {
-     //                          this.clearFields(false);
-     //                          await this.updateXrpBalance(client, accountInfo, wallet);
-     //                     } catch (err) {
-     //                          console.error('Error in post-tx cleanup:', err);
-     //                     }
-     //                }, 0);
-     //           }
-     //      } catch (error: any) {
-     //           console.error('Error:', error);
-     //           return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-     //      } finally {
-     //           this.spinner = false;
-     //           this.executionTime = (Date.now() - startTime).toString();
-     //           console.log(`Leaving cancelBuyOffer in ${this.executionTime}ms`);
-     //      }
-     // }
-
-     // async cancelSellOffer() {
-     //      console.log('Entering cancelSellOffer');
-     //      const startTime = Date.now();
-     //      this.setSuccessProperties();
-
-     //      let inputs: ValidationInputs = {
-     //           selectedAccount: this.selectedAccount,
-     //           seed: this.utilsService.getSelectedSeedWithIssuer(this.selectedAccount ? this.selectedAccount : '', this.account1, this.account2, this.issuer),
-     //           nftIndexField: this.nftIndexField,
-     //      };
-
-     //      try {
-     //           if (this.resultField?.nativeElement) {
-     // this.resultField.nativeElement.innerHTML = '';
-     // }
-     //           const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-     //           this.updateSpinnerMessage(`Preparing Cancel Sell NFT Offer (${mode})...`);
-
-     //           const environment = this.xrplService.getNet().environment;
-     //           const client = await this.xrplService.getClient();
-     //           const wallet = await this.getWallet();
-
-     //           // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-     //           const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-     //           // Optional: Avoid heavy stringify in logs
-     //           console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-     //           console.debug(`fee :`, fee);
-     //           console.debug(`currentLedger :`, currentLedger);
-     //           console.debug(`serverInfo :`, serverInfo);
-
-     //           inputs = {
-     //                ...inputs,
-     //                account_info: accountInfo,
-     //           };
-
-     //           const errors = this.validateInputs(inputs, 'cancelSell');
-     //           if (errors.length > 0) {
-     //                return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-     //           }
-
-     //           const nFTokenCancelOfferTx: NFTokenCancelOffer = {
-     //                TransactionType: 'NFTokenCancelOffer',
-     //                Account: wallet.classicAddress,
-     //                NFTokenOffers: [this.nftIndexField],
-     //                Fee: fee,
-     //                LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-     //           };
-
-     //           if (this.ticketSequence) {
-     //                const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-     //                if (!ticketExists) {
-     //                     return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-     //                }
-     //                this.utilsService.setTicketSequence(nFTokenCancelOfferTx, this.ticketSequence, true);
-     //           } else {
-     //                this.utilsService.setTicketSequence(nFTokenCancelOfferTx, accountInfo.result.account_data.Sequence, false);
-     //           }
-
-     //           if (this.memoField) {
-     //                this.utilsService.setMemoField(nFTokenCancelOfferTx, this.memoField);
-     //           }
-
-     //           if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, nFTokenCancelOfferTx, fee)) {
-     //                return this.setError('ERROR: Insufficient XRP to complete transaction');
-     //           }
-
-     //           if (this.isSimulateEnabled) {
-     //                const simulation = await this.xrplTransactions.simulateTransaction(client, nFTokenCancelOfferTx);
-
-     //                const isSuccess = this.utilsService.isTxSuccessful(simulation);
-     //                if (!isSuccess) {
-     //                     const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-     //                     let userMessage = 'Transaction failed.\n';
-     //                     userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-     //                     (simulation['result'] as any).errorMessage = userMessage;
-     //                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-     //                }
-
-     //                // Render result
-     //                this.renderTransactionResult(simulation);
-
-     //                this.resultField.nativeElement.classList.add('success');
-     //                this.setSuccess(this.result);
-     //           } else {
-     //                // PHASE 5: Get regular key wallet
-     //                const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-     //                const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, nFTokenCancelOfferTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
-
-     //                if (!signedTx) {
-     //                     return this.setError('ERROR: Failed to sign Payment transaction.');
-     //                }
-
-     //                // PHASE 7: Submit or Simulate
-     //                this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating NFT Cancel Sell Offer (no changes will be made)...' : 'Submitting to Ledger...');
-
-     //                const response = await this.xrplTransactions.submitTransaction(client, signedTx);
-
-     //                const isSuccess = this.utilsService.isTxSuccessful(response);
-     //                if (!isSuccess) {
-     //                     const resultMsg = this.utilsService.getTransactionResultMessage(response);
-     //                     let userMessage = 'Transaction failed.\n';
-     //                     userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-     //                     (response.result as any).errorMessage = userMessage;
-     //                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-     //                }
-
-     //                this.renderTransactionResult(response);
-     //                this.resultField.nativeElement.classList.add('success');
-     //                this.setSuccess(this.result);
-     //           }
-
-     //           if (!this.isSimulateEnabled) {
-     //                setTimeout(async () => {
-     //                     try {
-     //                          this.clearFields(false);
-     //                          await this.updateXrpBalance(client, accountInfo, wallet);
-     //                     } catch (err) {
-     //                          console.error('Error in post-tx cleanup:', err);
-     //                     }
-     //                }, 0);
-     //           }
-     //      } catch (error: any) {
-     //           console.error('Error:', error);
-     //           return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-     //      } finally {
-     //           this.spinner = false;
-     //           this.executionTime = (Date.now() - startTime).toString();
-     //           console.log(`Leaving cancelSellOffer in ${this.executionTime}ms`);
-     //      }
-     // }
 
      async cancelOffer() {
           console.log('Entering cancelOffer');
@@ -1373,7 +1140,6 @@ export class NftOffersComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify in logs
@@ -1430,19 +1196,24 @@ export class NftOffersComponent implements AfterViewChecked {
                     (response.result as any).errorMessage = userMessage;
                }
 
+               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
 
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
                          try {
+                              if (this.currencyFieldDropDownValue !== 'XRP') {
+                                   await this.updateCurrencyBalance(gatewayBalances, wallet);
+                                   await this.toggleIssuerField();
+                              }
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -1450,7 +1221,7 @@ export class NftOffersComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -2128,25 +1899,6 @@ export class NftOffersComponent implements AfterViewChecked {
           this.toggleFlags(); // optional: update your XRPL batch flags
      }
 
-     updateDestinations() {
-          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
-          if (this.destinations.length > 0 && !this.destinationFields) {
-               this.destinationFields = this.destinations[0].address;
-          }
-          this.ensureDefaultNotSelected();
-     }
-
-     private ensureDefaultNotSelected() {
-          const currentAddress = this.currentWallet.address;
-          if (currentAddress && this.destinations.length > 0) {
-               if (!this.destinationFields || this.destinationFields === currentAddress) {
-                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
-                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
-               }
-          }
-          this.cdr.detectChanges();
-     }
-
      // addDestination() {
      //      if (this.newDestination && !this.destinations.includes(this.newDestination)) {
      //           this.destinations.push(this.newDestination);
@@ -2212,20 +1964,20 @@ export class NftOffersComponent implements AfterViewChecked {
           try {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
 
-               const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+               const [gatewayBalances] = await Promise.all([this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
 
                // Calculate total balance for selected currency
                let balanceTotal: number = 0;
-               const relevantIssuers: string[] = []; // New array for issuers of this currency
+               const currency = this.utilsService.formatCurrencyForDisplay(this.currencyFieldDropDownValue);
+               // const relevantIssuers: string[] = []; // New array for issuers of this currency
 
                if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
                     for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
                          for (const { currency, value } of currencies) {
                               if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
                                    balanceTotal += Number(value);
-                                   relevantIssuers.push(issuer); // Collect issuers for this currency
+                                   // relevantIssuers.push(issuer); // Collect issuers for this currency
                               }
                          }
                     }
@@ -2234,13 +1986,102 @@ export class NftOffersComponent implements AfterViewChecked {
                     this.gatewayBalance = '0';
                }
 
-               // Update destination field
-               if (this.currencyFieldDropDownValue === 'XRP') {
-                    this.destinationFields = this.wallets[0]?.address || ''; // Default to first wallet address for XRP
-               } else {
-                    this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
-                    this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
+               const encodedCurr = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
+               const issuerPromises = this.wallets
+                    .filter(w => xrpl.isValidAddress(w.address))
+                    .map(async w => {
+                         try {
+                              const tokenBalance = await this.xrplService.getTokenBalance(client, w.address, 'validated', '');
+                              const hasObligation = tokenBalance.result.obligations?.[encodedCurr];
+
+                              if (hasObligation && hasObligation !== '0') {
+                                   return { name: w.name, address: w.address };
+                              } else if (w.isIssuer === true) {
+                                   return { name: w.name, address: w.address };
+                              }
+                         } catch (err) {
+                              console.warn(`Issuer check failed for ${w.address}:`, err);
+                         }
+                         return null;
+                    });
+
+               const issuerResults = await Promise.all(issuerPromises);
+               // let uniqueIssuers = issuerResults.filter((i): i is { name: string; address: string } => i !== null).filter((candidate, index, self) => index === self.findIndex(c => c.address === candidate.address));
+
+               // Step 1: filter out nulls
+               const nonNullIssuers = issuerResults.filter((i): i is { name: string; address: string } => {
+                    const isValid = i !== null;
+                    console.log('Filtering null:', i, '->', isValid);
+                    return isValid;
+               });
+
+               // Step 2: remove duplicates by address
+               const uniqueIssuers = nonNullIssuers.filter((candidate, index, self) => {
+                    const firstIndex = self.findIndex(c => c.address === candidate.address);
+                    const isUnique = index === firstIndex;
+                    console.log('Checking uniqueness:', candidate, 'Index:', index, 'First index:', firstIndex, 'Unique?', isUnique);
+                    return isUnique;
+               });
+
+               console.log('Unique issuers:', uniqueIssuers);
+
+               // Always include the current wallet in issuers
+               // if (!uniqueIssuers.some(i => i.address === wallet.classicAddress)) {
+               //      uniqueIssuers.push({ name: this.currentWallet.name || 'Current Account', address: wallet.classicAddress });
+               // }
+
+               this.currencyIssuers = uniqueIssuers;
+
+               const knownIssuers = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || [];
+
+               if (!this.selectedIssuer || !this.currencyIssuers.some(iss => iss.address === this.selectedIssuer)) {
+                    let newIssuer = '';
+
+                    // Find the first matching known issuer that exists in available issuers
+                    const matchedKnownIssuer = knownIssuers.find(known => this.currencyIssuers.some(iss => iss.address === known));
+
+                    if (matchedKnownIssuer) {
+                         newIssuer = matchedKnownIssuer;
+                    } else if (this.currencyIssuers.length > 0) {
+                         newIssuer = this.currencyIssuers[0].address;
+                    } else {
+                         newIssuer = '';
+                    }
+
+                    this.selectedIssuer = newIssuer;
                }
+
+               // this.issuers = uniqueIssuers;
+
+               // const knownIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
+               // if (!this.selectedIssuer || !this.issuers.some(iss => iss.address === this.selectedIssuer)) {
+               //      let newIssuer = '';
+               //      if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
+               //           newIssuer = knownIssuer;
+               //      } else if (this.issuers.length > 0) {
+               //           newIssuer = this.issuers[0].address;
+               //      } else {
+               //           newIssuer = '';
+               //      }
+               //      this.selectedIssuer = newIssuer;
+               // }
+
+               if (this.currencyIssuers.length === 0) {
+                    console.warn(`No issuers found among wallets for currency: ${this.currencyFieldDropDownValue}`);
+               }
+
+               if (this.currencyFieldDropDownValue === 'XRP') {
+                    this.destinationFields = this.wallets[1]?.address || ''; // Default to first wallet address for XRP
+               } else {
+                    const currencyChanged = this.lastCurrency !== this.currencyFieldDropDownValue;
+                    const issuerChanged = this.lastIssuer !== this.selectedIssuer;
+                    if (currencyChanged || issuerChanged) {
+                         this.lastCurrency = this.currencyFieldDropDownValue;
+                         this.lastIssuer = this.selectedIssuer;
+                    }
+                    await this.updateCurrencyBalance(gatewayBalances, wallet);
+               }
+               this.ensureDefaultNotSelected();
           } catch (error: any) {
                this.tokenBalance = '0';
                this.gatewayBalance = '0';
@@ -2253,16 +2094,133 @@ export class NftOffersComponent implements AfterViewChecked {
           }
      }
 
-     private async updateCurrencyBalance(wallet: xrpl.Wallet, accountObjects: any) {
-          let balance: string;
-          const currencyCode = this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue);
-          if (wallet.classicAddress) {
-               const balanceResult = await this.utilsService.getCurrencyBalance(currencyCode, accountObjects);
-               balance = balanceResult !== null ? balanceResult.toString() : '0';
-               this.tokenBalance = this.utilsService.formatTokenBalance(balance, 18);
+     // async toggleIssuerField() {
+     //      console.log('Entering onCurrencyChange');
+     //      const startTime = Date.now();
+     //      this.setSuccessProperties();
+     //      this.updateSpinnerMessage('Updating Currency...');
+
+     //      try {
+     //           const client = await this.xrplService.getClient();
+     //           const wallet = await this.getWallet();
+     //           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+
+     //           const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
+
+     //           // Calculate total balance for selected currency
+     //           let balanceTotal: number = 0;
+     //           const relevantIssuers: string[] = []; // New array for issuers of this currency
+
+     //           if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
+     //                for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
+     //                     for (const { currency, value } of currencies) {
+     //                          if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
+     //                               balanceTotal += Number(value);
+     //                               relevantIssuers.push(issuer); // Collect issuers for this currency
+     //                          }
+     //                     }
+     //                }
+     //                this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
+     //           } else {
+     //                this.gatewayBalance = '0';
+     //           }
+
+     //           // Update destination field
+     //           if (this.currencyFieldDropDownValue === 'XRP') {
+     //                this.destinationFields = this.wallets[0]?.address || ''; // Default to first wallet address for XRP
+     //           } else {
+     //                this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
+     //                this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
+     //           }
+     //      } catch (error: any) {
+     //           this.tokenBalance = '0';
+     //           this.gatewayBalance = '0';
+     //           console.error('Error in onCurrencyChange:', error);
+     //           this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
+     //      } finally {
+     //           this.spinner = false;
+     //           this.executionTime = (Date.now() - startTime).toString();
+     //           console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
+     //      }
+     // }
+
+     private async updateCurrencyBalance(gatewayBalance: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
+          const parsedBalances = this.parseAllGatewayBalances(gatewayBalance, wallet);
+          if (parsedBalances && Object.keys(parsedBalances).length > 0) {
+               this.tokenBalance = parsedBalances[this.currencyFieldDropDownValue]?.[wallet.classicAddress] ?? parsedBalances[this.currencyFieldDropDownValue]?.[this.selectedIssuer] ?? '0';
           } else {
                this.tokenBalance = '0';
           }
+     }
+
+     private parseAllGatewayBalances(gatewayBalances: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
+          const result = gatewayBalances.result;
+          const grouped: Record<string, Record<string, string>> = {};
+          // structure: { [currency]: { [issuer]: balance } }
+
+          // --- Case 1: Obligations (this account is the gateway/issuer)
+          if (result.obligations && Object.keys(result.obligations).length > 0) {
+               for (const [currencyCode, value] of Object.entries(result.obligations)) {
+                    const decodedCurrency = this.utilsService.normalizeCurrencyCode(currencyCode);
+
+                    if (!grouped[decodedCurrency]) grouped[decodedCurrency] = {};
+
+                    // Obligations are what the gateway owes → negative
+                    const formatted = '-' + this.utilsService.formatTokenBalance(value, 18);
+                    grouped[decodedCurrency][wallet.address] = formatted;
+               }
+          }
+
+          // --- Case 2: Assets (tokens issued by others, held by this account)
+          if (result.assets && Object.keys(result.assets).length > 0) {
+               for (const [issuer, assetArray] of Object.entries(result.assets)) {
+                    assetArray.forEach(asset => {
+                         const decodedCurrency = this.utilsService.normalizeCurrencyCode(asset.currency);
+
+                         if (!grouped[decodedCurrency]) grouped[decodedCurrency] = {};
+                         grouped[decodedCurrency][issuer] = this.utilsService.formatTokenBalance(asset.value, 18);
+                    });
+               }
+          }
+
+          // --- Case 3: Balances (owed TO this account)
+          if (result.balances && Object.keys(result.balances).length > 0) {
+               for (const [issuer, balanceArray] of Object.entries(result.balances)) {
+                    balanceArray.forEach(balanceObj => {
+                         const decodedCurrency = this.utilsService.normalizeCurrencyCode(balanceObj.currency);
+
+                         if (!grouped[decodedCurrency]) grouped[decodedCurrency] = {};
+                         grouped[decodedCurrency][issuer] = this.utilsService.formatTokenBalance(balanceObj.value, 18);
+                    });
+               }
+          }
+
+          return grouped;
+     }
+
+     private ensureDefaultNotSelected() {
+          const currentAddress = this.currentWallet.address;
+          if (currentAddress && this.destinations.length > 0) {
+               if (!this.destinationFields || this.destinationFields === currentAddress) {
+                    const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
+                    this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
+               }
+          }
+          if (currentAddress && this.currencyIssuers.length > 0) {
+               if (!this.selectedIssuer || this.selectedIssuer === currentAddress) {
+                    const nonSelectedIss = this.currencyIssuers.find(i => i.address !== currentAddress);
+                    this.selectedIssuer = nonSelectedIss ? nonSelectedIss.address : this.currencyIssuers[0].address;
+               }
+          }
+          this.cdr.detectChanges();
+     }
+
+     updateDestinations() {
+          this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
+          if (this.destinations.length > 0 && !this.destinationFields) {
+               this.destinationFields = this.destinations[0].address;
+          }
+          this.ensureDefaultNotSelected();
      }
 
      private async getWallet() {

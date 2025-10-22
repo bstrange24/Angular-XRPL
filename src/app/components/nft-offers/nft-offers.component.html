@@ -130,9 +130,9 @@
                                              </span>
                                         </td>
                                         <td>
-                                             <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
+                                             <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField" (ngModelChange)="this.toggleIssuerField()">
                                                   <option value="" disabled selected>Select an issuer</option>
-                                                  <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
+                                                  <option *ngFor="let iss of currencyIssuers; let i = index" [value]="iss.address">{{iss.name || 'Wallet ' + (i + 1)}} ({{iss.address | slice:0:6}}...{{iss.address | slice:-4}})</option>
                                              </select>
                                         </td>
                                    </tr>
