@@ -1066,7 +1066,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.markForCheck();
-          console.log('Spinner message updated:', message);
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {

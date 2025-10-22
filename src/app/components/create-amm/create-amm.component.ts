@@ -2097,7 +2097,6 @@ export class CreateAmmComponent implements AfterViewChecked {
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message);
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
