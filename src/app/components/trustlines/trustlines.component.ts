@@ -123,6 +123,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                this.knownTrustLinesIssuers = storedIssuers;
           }
           this.updateCurrencies();
+          this.onAccountChange();
      }
 
      ngAfterViewInit() {}
@@ -163,7 +164,8 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.updateDestinations();
 
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
-               await Promise.all([this.onCurrencyChange(), this.getTrustlinesForAccount()]);
+               // await Promise.all([this.onCurrencyChange(), this.getTrustlinesForAccount()]);
+               await this.onCurrencyChange(); // Only call onCurrencyChange
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
@@ -1571,6 +1573,7 @@ export class TrustlinesComponent implements AfterViewChecked {
                     await this.getTrustlinesForAccount();
                } else {
                     this.isInitialLoad = false; // mark that we've completed the first load
+                    await this.getTrustlinesForAccount(); // Explicitly call for initial load
                }
                // await this.getTrustlinesForAccount();
           } catch (error: any) {

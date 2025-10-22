@@ -361,52 +361,52 @@ export class SendChecksComponent implements AfterViewChecked {
                     data.sections.push(balancesSection);
                }
 
-               const mptokens = (mptAccountTokens.result.account_objects as any[]).filter((obj: any) => this.utilsService.isMPT(obj) && 'MPTAmount' in obj) as unknown as MPToken[];
+               // const mptokens = (mptAccountTokens.result.account_objects as any[]).filter((obj: any) => this.utilsService.isMPT(obj) && 'MPTAmount' in obj) as unknown as MPToken[];
 
-               if (mptokens.length <= 0) {
-                    data.sections.push({
-                         title: 'MPT Tokens',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
-                    });
-               } else {
-                    // Sort by Sequence (oldest first)
-                    const sortedMPT = [...mptokens].sort((a, b) => {
-                         const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
-                         const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
-                         return seqA - seqB;
-                    });
+               // if (mptokens.length <= 0) {
+               //      data.sections.push({
+               //           title: 'MPT Tokens',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
+               //      });
+               // } else {
+               //      // Sort by Sequence (oldest first)
+               //      const sortedMPT = [...mptokens].sort((a, b) => {
+               //           const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+               //           const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+               //           return seqA - seqB;
+               //      });
 
-                    data.sections.push({
-                         title: `MPT Token (${mptokens.length})`,
-                         openByDefault: true,
-                         subItems: sortedMPT.map((mpt, counter) => {
-                              const { LedgerEntryType, PreviousTxnID, index } = mpt;
-                              // TicketSequence and Flags may not exist on all AccountObject types
-                              const ticketSequence = (mpt as any).TicketSequence;
-                              const flags = (mpt as any).Flags;
-                              const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
-                              return {
-                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
-                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
-                                        ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
-                                        ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
-                                        // Optionally display custom fields if present
-                                        ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
-                                        ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
-                                        ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
-                                        ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
-                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
-                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
-                                   ],
-                              };
-                         }),
-                    });
-               }
+               //      data.sections.push({
+               //           title: `MPT Token (${mptokens.length})`,
+               //           openByDefault: true,
+               //           subItems: sortedMPT.map((mpt, counter) => {
+               //                const { LedgerEntryType, PreviousTxnID, index } = mpt;
+               //                // TicketSequence and Flags may not exist on all AccountObject types
+               //                const ticketSequence = (mpt as any).TicketSequence;
+               //                const flags = (mpt as any).Flags;
+               //                const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
+               //                return {
+               //                     key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+               //                     openByDefault: false,
+               //                     content: [
+               //                          { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
+               //                          { key: 'Ledger Entry Type', value: LedgerEntryType },
+               //                          { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+               //                          ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
+               //                          ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
+               //                          // Optionally display custom fields if present
+               //                          ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
+               //                          ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
+               //                          ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
+               //                          ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
+               //                          ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
+               //                          ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+               //                     ],
+               //                };
+               //           }),
+               //      });
+               // }
 
                if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedIssuer !== '') {
                     const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
