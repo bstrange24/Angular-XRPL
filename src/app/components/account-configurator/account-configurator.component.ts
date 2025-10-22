@@ -290,7 +290,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
 
      setIssuer() {
           // Update flags for Issuer configuration
-          this.flags.asfRequireDest = true;
+          this.flags.asfRequireDest = false;
           this.flags.asfRequireAuth = false;
           this.flags.asfDisallowXRP = false;
           this.flags.asfDisableMaster = false;
