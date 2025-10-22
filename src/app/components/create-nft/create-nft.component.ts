@@ -1683,6 +1683,8 @@ export class CreateNftComponent implements AfterViewChecked {
 
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
+               this.initialURIField = '';
+               this.uriField = '';
                this.isBatchModeEnabled = false;
                this.isNftFlagModeEnabled = false;
                this.isNftFlagModeEnabled = false;

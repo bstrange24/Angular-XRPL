@@ -426,8 +426,8 @@
                          </tr>
                          <tr>
                               <td>
-                                   <span class="tooltip" tooltip-data="Update NFT Meta Data.">
-                                        <label>Update NFT Meta Data</label>
+                                   <span class="tooltip" tooltip-data="Update NFT URI Data.">
+                                        <label>Update NFT URI Data</label>
                                    </span>
                               </td>
                               <td style="display: flex; gap: 10px; flex-wrap: wrap">
@@ -441,13 +441,13 @@
                          <tr class="multisignAddressClass" *ngIf="isUpdateNFTMetaData">
                               <td>
                                    <span class="tooltip" tooltip-data="">
-                                        <label for="memoField">URI Field</label>
+                                        <label for="memoField">URI</label>
                                    </span>
                               </td>
                               <td>
                                    <input style="width: auto" type="text" id="uriField" size="72" [(ngModel)]="uriField" name="uriField" />
                                    <br />
-                                   <button type="button" (click)="updateNFTMetadata()">Update NFT Metadata</button>
+                                   <button type="button" (click)="updateNFTMetadata()">Update URI</button>
                               </td>
                          </tr>
                          <tr>
