@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { StorageService } from './storage.service';
-import { Client } from 'xrpl';
+import { Client, GatewayBalancesResponse } from 'xrpl';
 import * as xrpl from 'xrpl';
 import { AppConstants } from '../core/app.constants';
 import { BehaviorSubject, firstValueFrom } from 'rxjs';
@@ -826,7 +826,7 @@ export class XrplService {
           }
      }
 
-     async getTokenBalance(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+     async getTokenBalance(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string): Promise<GatewayBalancesResponse> {
           try {
                const response = await client.request({
                     command: 'gateway_balances',
@@ -834,12 +834,60 @@ export class XrplService {
                     ledger_index: ledgerIndex,
                     // hotwallet: ['rLAm8JW7rmFhMNGW9AbviLh22Pn9oHdU3F'],
                });
-               return response;
+
+               const result = response.result;
+               const hasData = (result?.obligations && Object.keys(result.obligations).length > 0) || (result?.balances && Object.keys(result.balances).length > 0) || (result?.assets && Object.keys(result.assets).length > 0);
+
+               if (!hasData) {
+                    // Return an empty GatewayBalancesResponse instead of []
+                    return {
+                         id: 0,
+                         type: 'response',
+                         result: {
+                              account: address,
+                              ledger_hash: '',
+                              ledger_index: ledgerIndex,
+                              obligations: {},
+                              balances: {},
+                              assets: {},
+                         },
+                    } as GatewayBalancesResponse;
+               }
+
+               return response as GatewayBalancesResponse;
           } catch (error: any) {
                console.error('Error fetching gateway_balances:', error);
-               throw new Error(`Failed to fetch gateway_balances: ${error.message || 'Unknown error'}`);
+               // Still return a valid empty GatewayBalancesResponse
+               return {
+                    id: 0,
+                    type: 'response',
+                    result: {
+                         account: address,
+                         ledger_hash: '',
+                         ledger_index: ledgerIndex,
+                         obligations: {},
+                         balances: {},
+                         assets: {},
+                    },
+               } as GatewayBalancesResponse;
           }
      }
+
+     // async getTokenBalance(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
+     //      try {
+     //           const response = await client.request({
+     //                command: 'gateway_balances',
+     //                account: address,
+     //                ledger_index: ledgerIndex,
+     //                // hotwallet: ['rLAm8JW7rmFhMNGW9AbviLh22Pn9oHdU3F'],
+     //           });
+     //           return response;
+     //      } catch (error: any) {
+     //           console.error('Error fetching gateway_balances:', error);
+     //           // return [] as any;
+     //           throw new Error(`Failed to fetch gateway_balances: ${error.message || 'Unknown error'}`);
+     //      }
+     // }
 
      async getAccountOffers(client: Client, address: string, ledgerIndex: xrpl.LedgerIndex, type: string) {
           try {

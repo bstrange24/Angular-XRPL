@@ -408,6 +408,8 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'EscrowCreate':
                case 'EscrowCancel':
                case 'MPTokenIssuanceCreate':
+               case 'MPTokenIssuanceSet':
+               case 'NFTokenBurn':
                     return '#f0874bff';
 
                case 'TicketCreate':

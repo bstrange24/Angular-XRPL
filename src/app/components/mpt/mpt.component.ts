@@ -121,8 +121,6 @@ export class MptComponent implements AfterViewChecked {
      };
      spinner: boolean = false;
      destinationFields: string = '';
-     private knownDestinations: { [key: string]: string } = {};
-     // destinations: string[] = [];
      destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      isSelfAuthorize: boolean = false;

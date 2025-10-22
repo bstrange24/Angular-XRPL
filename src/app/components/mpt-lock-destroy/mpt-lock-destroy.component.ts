@@ -77,6 +77,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      metaDataField: string = '';
      mptIssuanceIdField: string = '';
+     lockedUnlock: string = '';
      holderAccount: string = '';
      isdepositAuthAddress: boolean = false;
      depositAuthAddress: string = '';
@@ -119,7 +120,6 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
                this.selectedWalletIndex = 0;
           }
-          // this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -138,8 +138,6 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                ...this.wallets[this.selectedWalletIndex],
                balance: this.currentWallet.balance || '0',
           };
-
-          // this.updateDestinations();
 
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
                this.getMptDetails();
@@ -301,7 +299,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           }
      }
 
-     async setMptLocked() {
+     async setMptLockUnlock(locked: 'Y' | 'N') {
           console.log('Entering setMptLocked');
           const startTime = Date.now();
           this.setSuccessProperties();
@@ -344,6 +342,8 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
+               this.lockedUnlock = locked;
+
                console.debug(`MPT Account Objects: `, mptokenObjects);
                const mptokens = mptokenObjects.result.account_objects.filter((o: any) => o.LedgerEntryType === 'MPTToken' || o.LedgerEntryType === 'MPTokenIssuance' || o.LedgerEntryType === 'MPToken');
                console.debug(`MPT Objects: `, mptokens);
@@ -359,8 +359,6 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                     TransactionType: 'MPTokenIssuanceSet',
                     Account: wallet.classicAddress,
                     MPTokenIssuanceID: this.mptIssuanceIdField,
-                    // AuthorizedAccounts: ['rPjuSWDPas1RdTc2AkHeqdGU3q3xrZ6o77', 'r3dVQPWtAc33XKd5SMRgjh2yGBsvo7PXgm'],
-                    Flags: MPTokenIssuanceSetFlags.tfMPTLock,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     Fee: fee,
                };
@@ -469,21 +467,6 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // Check if destination can hold the MPT
-               // const destObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-               // if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
-               //      return this.setError(`ERROR: Unable to fetch account objects for ${wallet.classicAddress}`);
-               // }
-               // const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
-               // console.debug('MPT Tokens:', mptTokens);
-               // console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
-
-               // const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
-
-               // if (!authorized) {
-               //      return this.setError(`ERROR: Destination ${wallet.classicAddress} is not authorized to delete this MPT (issuance ID ${this.mptIssuanceIdField}).`);
-               // }
-
                const mPTokenIssuanceDestroyTx: xrpl.MPTokenIssuanceDestroy = {
                     TransactionType: 'MPTokenIssuanceDestroy',
                     Account: wallet.classicAddress,
@@ -553,26 +536,6 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           }
      }
 
-     decodeMPTFlags(flags: number) {
-          const MPT_FLAGS = {
-               tfMPTCanLock: 0x00000002,
-               tfMPTCanEscrow: 0x00000004,
-               tfMPTCanTrade: 0x00000008,
-               tfMPTCanClawback: 0x00000010,
-               tfMPTRequireAuth: 0x00000020,
-               tfMPTImmutable: 0x00000040,
-               tfMPTDisallowIncoming: 0x00000080,
-          };
-
-          const activeFlags = [];
-          for (const [name, value] of Object.entries(MPT_FLAGS)) {
-               if ((flags & value) !== 0) {
-                    activeFlags.push(name);
-               }
-          }
-          return activeFlags;
-     }
-
      private renderTransactionResult(response: any): void {
           if (this.isSimulateEnabled) {
                this.renderUiComponentsService.renderSimulatedTransactionsResults(response, this.resultField.nativeElement);
@@ -602,6 +565,14 @@ export class MptLockDestroyComponent implements AfterViewChecked {
 
           if (this.holderAccount) {
                mptTx.Holder = this.holderAccount;
+          }
+
+          if (this.lockedUnlock) {
+               if (this.lockedUnlock === 'Y') {
+                    mptTx.Flags = MPTokenIssuanceSetFlags.tfMPTLock;
+               } else if (this.lockedUnlock === 'N') {
+                    mptTx.Flags = MPTokenIssuanceSetFlags.tfMPTUnlock;
+               }
           }
      }
 
@@ -951,6 +922,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                this.isSimulateEnabled = false;
           }
 
+          this.holderAccount = '';
           this.isMemoEnabled = false;
           this.memoField = '';
           this.useMultiSign = false;
