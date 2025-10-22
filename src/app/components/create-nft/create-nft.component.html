@@ -101,59 +101,6 @@
                          <div class="top-section-right">
                               <table id="xrpDetails">
                                    <th></th>
-                                   <!-- <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Currency code for the check.">
-                                             <label for="currencyFieldDropDownValue">Currency Code</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="currencyField" style="width: 300px; height: 28px" [(ngModel)]="currencyFieldDropDownValue" (ngModelChange)="toggleIssuerField()" name="currencyField">
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                                        </select>
-                                   </td>
-                              </tr> -->
-                                   <!-- <tr>
-                                        <td>
-                                             <span class="tooltip" tooltip-data="Amount of currency to send.">
-                                                  <label for="amountField">Amount</label>
-                                             </span>
-                                        </td>
-                                        <td>
-                                             <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
-                                        </td>
-                                   </tr> -->
-                                   <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Issuer address for non-XRP currencies.">
-                                             <label for="issuerField">Issuer</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="issuerField" style="width: 300px; height: 28px" [(ngModel)]="selectedIssuer" name="issuerField">
-                                             <option value="" disabled selected>Select an issuer</option>
-                                             <option *ngFor="let issuer of currencyIssuers" [value]="issuer">{{ issuer }}</option>
-                                        </select>
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="tokenBalanceRow">
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Amounts of currencies held by the account">
-                                             <label for="tokenBalance">Currency Balance</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
-                                   </td>
-                              </tr>
-                              <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
-                                   <td>
-                                        <label for="gatewayBalance">Gateway Balance</label>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
-                                   </td>
-                              </tr> -->
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="">
@@ -174,34 +121,14 @@
                                              <input type="text" id="transferFeeField" [(ngModel)]="transferFeeField" name="transferFeeField" />
                                         </td>
                                    </tr>
-                                   <!-- <tr>
-                                        <td>
-                                             <span class="tooltip" tooltip-data="The NFT offer will expire after the expiration date. This is in hours.">
-                                                  <label for="expirationField">Offer Expiration Date (Hours)</label>
-                                             </span>
-                                        </td>
-                                        <td>
-                                             <input type="text" id="expirationField" [(ngModel)]="expirationField" name="expirationField" />
-                                        </td>
-                                   </tr> -->
-                                   <!-- <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="NFT offer index used to cancel sell offers.">
-                                             <label for="nftIndexField">Offer Index</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="nftIndexField" [(ngModel)]="nftIndexField" name="nftIndexField" />
-                                   </td>
-                              </tr> -->
                                    <tr>
                                         <td>
-                                             <span class="tooltip" tooltip-data="Number of NFT's to mint at one time.">
-                                                  <label for="nftCountField">Batch Nft Count</label>
+                                             <span class="tooltip" tooltip-data="The NFT offer will expire after the expiration date. This is in hours.">
+                                                  <label for="expirationField">Offer Expiration</label>
                                              </span>
                                         </td>
                                         <td>
-                                             <input type="text" id="nftCountField" [(ngModel)]="nftCountField" name="nftCountField" />
+                                             <input type="text" id="expirationField" placeholder="Amount in hours" [(ngModel)]="expirationField" name="expirationField" />
                                         </td>
                                    </tr>
                                    <tr class="multisignAddressClass">
@@ -214,29 +141,26 @@
                                              <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIdField" name="nftIdField"></textarea>
                                         </td>
                                    </tr>
-                                   <!-- <tr>
-                                   <td>
-                                        <span class="tooltip" tooltip-data="Address authorized mint NFT's">
-                                             <label for="issuerAddressField">NFT Issuer</label>
-                                        </span>
-                                   </td>
-                                   <td>
-                                        <input type="text" id="issuerAddressField" [(ngModel)]="issuerAddressField" name="issuerAddressField" />
-                                   </td>
-                              </tr> -->
-                                   <!-- <tr>
-                                   <td>
-                                        <label for="destinationFields">Destination</label>
-                                   </td>
-                                   <td>
-                                        <select class="timeUnit" id="destinationFields" [(ngModel)]="destinationFields" name="destinationFields">
-                                             <option *ngFor="let dest of destinations" [value]="dest">{{ dest }}</option>
-                                        </select>
-                                        <br />
-                                        <input type="text" placeholder="Enter new destination" [(ngModel)]="newDestination" name="newDestination" />
-                                        <button type="button" (click)="addDestination()">Add</button>
-                                   </td>
-                              </tr> -->
+                                   <tr>
+                                        <td>
+                                             <span class="tooltip" tooltip-data="Amount of currency to send.">
+                                                  <label for="amountField">Amount</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" />
+                                        </td>
+                                   </tr>
+                                   <tr class="multisignAddressClass">
+                                        <td>
+                                             <span class="tooltip" tooltip-data="">
+                                                  <label for="memoField">URI</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="initialURIField" name="initialURIField"></textarea>
+                                        </td>
+                                   </tr>
                               </table>
                          </div>
                     </div>
@@ -259,16 +183,6 @@
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
-                              <!-- <tr>
-                                   <td colspan="2">
-                                        <button type="button" (click)="getNFTOffers()">Get NFT Offers</button>
-                                        <button type="button" (click)="buyNFT()">Create Buy Offer NFT</button>
-                                        <button type="button" (click)="cancelBuyOffer()">Cancel Buy Offer NFT</button>
-                                        <button type="button" (click)="sellNFT()">Create Sell Offer NFT</button>
-                                        <button type="button" (click)="cancelSellOffer()">Cancel Sell Offer NFT</button>
-                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
-                                   </td>
-                              </tr> -->
                               <tr>
                                    <td colspan="2">
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
@@ -447,6 +361,16 @@
 
                     <table id="flags">
                          <th></th>
+                         <tr class="multisignAddressClass" *ngIf="isBatchModeEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Number of NFT's to mint at one time.">
+                                        <label for="nftCountField">Batch Nft Count</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <input type="text" id="nftCountField" size="10px" [(ngModel)]="nftCountField" name="nftCountField" />
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Enable to allow another account to mint non-fungible tokens (NFTokens) on this account's behalf.">
@@ -468,7 +392,6 @@
                                    </span>
                               </td>
                               <td>
-                                   <!-- <textarea class="memoField" style="width: 300px; height: 100px" id="nfTokenMinterAddress" placeholder="Comma seperated list of address for authorized NFT minters." [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress"></textarea> -->
                                    <input type="text" id="nfTokenMinterAddress" id="nfTokenMinterAddress" placeholder="" [(ngModel)]="nfTokenMinterAddress" name="nfTokenMinterAddress" />
                               </td>
                          </tr>
