@@ -336,7 +336,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                                    tokenChange = this.utilsService.roundToEightDecimals(-Number.parseFloat(balanceField.value));
                                    tokenBalanceBefore = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
                                    tokenBalanceAfter = 0;
-                                   const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                                   const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
                                    tokenCurrency = curr;
                               }
                          } else if (modified.FinalFields?.Balance) {
@@ -345,14 +345,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                               tokenChange = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value) - Number.parseFloat(prevBalanceField.value));
                               tokenBalanceBefore = this.utilsService.roundToEightDecimals(Number.parseFloat(prevBalanceField.value));
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
                               tokenCurrency = curr;
                          } else if (modified.NewFields?.Balance) {
                               const balanceField = modified.NewFields.Balance;
                               tokenChange = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
                               tokenBalanceBefore = 0;
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
                               tokenCurrency = curr;
                          }
 
@@ -412,10 +412,6 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
           }
      }
 
-     shortCurrencyDisplay(code: string): string {
-          return code.length > 3 ? `SHORT(${code.slice(0, 3)})` : code;
-     }
-
      getTypeColor(type: string): string {
           switch (type) {
                case 'Payment Sent':
@@ -453,6 +449,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'NFTokenModify':
                case 'NFTokenCancelOffer':
                case 'NFTokenCreateOffer':
+               case 'NFTokenAcceptOffer':
                     return '#ac7bd4ff';
 
                case 'CheckCancel':
