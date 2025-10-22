@@ -79,10 +79,10 @@ export class MptComponent implements AfterViewChecked {
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
-     selectedTickets: string[] = []; // For multiple selection
-     selectedSingleTicket: string = ''; // For single selection
-     multiSelectMode: boolean = false; // Toggle between modes
-     selectedTicket: string = ''; // The currently selected ticket
+     selectedTickets: string[] = [];
+     selectedSingleTicket: string = '';
+     multiSelectMode: boolean = false;
+     selectedTicket: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -121,29 +121,17 @@ export class MptComponent implements AfterViewChecked {
      };
      spinner: boolean = false;
      destinationFields: string = '';
-     private knownDestinations: { [key: string]: string } = {};
-     // destinations: string[] = [];
      destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-     isSelfAuthorize: boolean = true; // New: toggle for self vs. issuer authorization
-     isUnauthorize: boolean = false; // New: toggle for authorize vs. unauthorize
-     // Dynamic wallets
+     isSelfAuthorize: boolean = false;
+     isUnauthorize: boolean = false;
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
-     ngOnInit() {
-          // const storedIssuers = this.storageService.getKnownIssuers('knownIssuers');
-          // if (storedIssuers) {
-          //      this.knownTrustLinesIssuers = storedIssuers;
-          // }
-          const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          if (storedDestinations) {
-               this.knownDestinations = storedDestinations;
-          }
-     }
+     ngOnInit() {}
 
      ngAfterViewInit() {}
 
@@ -269,6 +257,7 @@ export class MptComponent implements AfterViewChecked {
 
                // Filter MPT-related objects
                const mptObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPTokenIssuance' || obj.LedgerEntryType === 'MPToken');
+               console.debug(`mptObjects:`, mptObjects);
                if (mptObjects.length <= 0) {
                     data.sections.push({
                          title: 'MPT Tokens',
@@ -293,12 +282,12 @@ export class MptComponent implements AfterViewChecked {
                               const flags = (mpt as any).Flags;
                               const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
                               return {
-                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+                                   key: `MPT ${counter + 1} (ID: ${mptIssuanceId.slice(0, 10)}...)`,
                                    openByDefault: false,
                                    content: [
-                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
                                         { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
+                                        // { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
                                         ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
                                         ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
                                         // Optionally display custom fields if present
@@ -306,8 +295,8 @@ export class MptComponent implements AfterViewChecked {
                                         ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
                                         ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
                                         ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
-                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
-                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: (Number((mpt as any)['TransferFee']) / 1000).toFixed(3) + ' %' }] : []),
+                                        // ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
                                    ],
                               };
                          }),
@@ -317,7 +306,6 @@ export class MptComponent implements AfterViewChecked {
                // Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
-
                this.refreshUIData(wallet, accountInfo, accountObjects);
 
                // DEFER: Non-critical UI updates — let main render complete first

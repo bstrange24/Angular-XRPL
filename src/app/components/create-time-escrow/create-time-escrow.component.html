@@ -120,7 +120,7 @@
                                              </span>
                                         </td>
                                         <td>
-                                             <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                             <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops) or MPT' : 'Currency amount'" />
                                         </td>
                                    </tr>
                                    <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">

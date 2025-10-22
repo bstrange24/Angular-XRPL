@@ -21,6 +21,8 @@ import { AccountDelegateComponent } from './components/account-delegate/account-
 import { FirewallComponent } from './components/firewall/firewall.component';
 import { NftOffersComponent } from './components/nft-offers/nft-offers.component';
 import { SignTransactionsComponent } from './components/sign-transactions/sign-transactions.component';
+import { MptSendComponent } from './components/mpt-send/mpt-send.component';
+import { MptLockDestroyComponent } from './components/mpt-lock-destroy/mpt-lock-destroy.component';
 
 export const routes: Routes = [
      { path: '', redirectTo: '/account-configurator', pathMatch: 'full' },
@@ -47,4 +49,6 @@ export const routes: Routes = [
      { path: 'create-amm', component: CreateAmmComponent, data: { title: 'AMM' } },
      { path: 'trustlines', component: TrustlinesComponent, data: { title: 'Trustlines' } },
      { path: 'mpt', component: MptComponent, data: { title: 'MPT' } },
+     { path: 'mpt-send', component: MptSendComponent, data: { title: 'Send MPT' } },
+     { path: 'mpt-lock-destroy', component: MptLockDestroyComponent, data: { title: 'Lock-Destroy MPT' } },
 ];

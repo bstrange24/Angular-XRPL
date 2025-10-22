@@ -47,6 +47,20 @@ interface SignerEntry {
      weight: number;
 }
 
+interface MPToken {
+     LedgerEntryType: 'MPToken';
+     index: string;
+     mpt_issuance_id?: string;
+     MPTokenIssuanceID?: string;
+     PreviousTxnID: string;
+     Flags?: number;
+     MPTAmount?: string | number;
+     MaximumAmount?: string | number;
+     OutstandingAmount?: string | number;
+     TransferFee?: string | number;
+     MPTokenMetadata?: string;
+}
+
 @Component({
      selector: 'app-send-checks',
      standalone: true,
@@ -79,6 +93,8 @@ export class SendChecksComponent implements AfterViewChecked {
      executionTime: string = '';
      amountField: string = '';
      destinationTagField: string = '';
+     mptIssuanceIdField: string = '';
+     isMptEnabled: boolean = false;
      memoField: string = '';
      isMemoEnabled: boolean = false;
      multiSignAddress: string = '';
@@ -97,9 +113,9 @@ export class SendChecksComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
-     private knownTrustLinesIssuers: { [key: string]: string } = {
-          XRP: '',
-     };
+     // private knownTrustLinesIssuers: { [key: string]: string } = {XRP: '',};
+     private knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
+     issuerToRemove: string = '';
      currencies: string[] = [];
      // currencyIssuers: string[] = [];
      newCurrency: string = '';
@@ -230,7 +246,7 @@ export class SendChecksComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, checkObjects, allAccountObjects, tokenBalance, mptAccountTokens] = await Promise.all([
+               const [accountInfo, checkObjects, accountObjects, tokenBalance, mptAccountTokens] = await Promise.all([
                     this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'check'),
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
@@ -240,7 +256,7 @@ export class SendChecksComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
-               console.debug(`account objects:`, allAccountObjects.result);
+               console.debug(`account objects:`, accountObjects.result);
                console.debug(`check objects:`, checkObjects.result);
                console.debug(`tokenBalance:`, tokenBalance.result);
                console.debug(`mptTokens:`, mptAccountTokens.result);
@@ -281,7 +297,7 @@ export class SendChecksComponent implements AfterViewChecked {
                               const index = (check as any)['index'];
                               const sendMax = (check as any).SendMax;
                               const amountValue = Amount || sendMax;
-                              const amountDisplay = amountValue ? (typeof amountValue === 'string' ? `${xrpl.dropsToXrp(amountValue)} XRP` : `${amountValue.value} ${amountValue.currency} (<code>${amountValue.issuer}</code>)`) : 'N/A';
+                              const amountDisplay = amountValue ? (typeof amountValue === 'string' ? `${xrpl.dropsToXrp(amountValue)} XRP` : `${this.utilsService.formatTokenBalance(amountValue.value.toString(), 18)} ${amountValue.currency} (<code>${amountValue.issuer}</code>)`) : 'N/A';
                               return {
                                    key: `Check ${counter + 1} (ID: ${PreviousTxnID?.slice(0, 8) || ''}...)`,
                                    openByDefault: false,
@@ -332,7 +348,7 @@ export class SendChecksComponent implements AfterViewChecked {
                                    content: [
                                         { key: 'Currency', value: displayCurrency },
                                         { key: 'Issuer', value: `<code>${issuer}</code>` },
-                                        { key: 'Amount', value: value },
+                                        { key: 'Amount', value: this.utilsService.formatTokenBalance(value.toString(), 18) },
                                    ],
                               });
                          }
@@ -345,52 +361,52 @@ export class SendChecksComponent implements AfterViewChecked {
                     data.sections.push(balancesSection);
                }
 
-               const mptokens = mptAccountTokens.result.account_objects;
+               // const mptokens = (mptAccountTokens.result.account_objects as any[]).filter((obj: any) => this.utilsService.isMPT(obj) && 'MPTAmount' in obj) as unknown as MPToken[];
 
-               if (mptokens.length <= 0) {
-                    data.sections.push({
-                         title: 'MPT Tokens',
-                         openByDefault: true,
-                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
-                    });
-               } else {
-                    // Sort by Sequence (oldest first)
-                    const sortedMPT = [...mptokens].sort((a, b) => {
-                         const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
-                         const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
-                         return seqA - seqB;
-                    });
+               // if (mptokens.length <= 0) {
+               //      data.sections.push({
+               //           title: 'MPT Tokens',
+               //           openByDefault: true,
+               //           content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
+               //      });
+               // } else {
+               //      // Sort by Sequence (oldest first)
+               //      const sortedMPT = [...mptokens].sort((a, b) => {
+               //           const seqA = (a as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+               //           const seqB = (b as any).Sequence ?? Number.MAX_SAFE_INTEGER;
+               //           return seqA - seqB;
+               //      });
 
-                    data.sections.push({
-                         title: `MPT Token (${mptokens.length})`,
-                         openByDefault: true,
-                         subItems: sortedMPT.map((mpt, counter) => {
-                              const { LedgerEntryType, PreviousTxnID, index } = mpt;
-                              // TicketSequence and Flags may not exist on all AccountObject types
-                              const ticketSequence = (mpt as any).TicketSequence;
-                              const flags = (mpt as any).Flags;
-                              const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
-                              return {
-                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
-                                   openByDefault: false,
-                                   content: [
-                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
-                                        { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
-                                        ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
-                                        ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
-                                        // Optionally display custom fields if present
-                                        ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
-                                        ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
-                                        ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
-                                        ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
-                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
-                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
-                                   ],
-                              };
-                         }),
-                    });
-               }
+               //      data.sections.push({
+               //           title: `MPT Token (${mptokens.length})`,
+               //           openByDefault: true,
+               //           subItems: sortedMPT.map((mpt, counter) => {
+               //                const { LedgerEntryType, PreviousTxnID, index } = mpt;
+               //                // TicketSequence and Flags may not exist on all AccountObject types
+               //                const ticketSequence = (mpt as any).TicketSequence;
+               //                const flags = (mpt as any).Flags;
+               //                const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
+               //                return {
+               //                     key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+               //                     openByDefault: false,
+               //                     content: [
+               //                          { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
+               //                          { key: 'Ledger Entry Type', value: LedgerEntryType },
+               //                          { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+               //                          ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
+               //                          ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
+               //                          // Optionally display custom fields if present
+               //                          ...((mpt as any)['MPTAmount'] ? [{ key: 'MPTAmount', value: String((mpt as any)['MPTAmount']) }] : []),
+               //                          ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
+               //                          ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
+               //                          ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
+               //                          ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
+               //                          ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+               //                     ],
+               //                };
+               //           }),
+               //      });
+               // }
 
                if (this.currencyFieldDropDownValue !== 'XRP' && this.selectedIssuer !== '') {
                     const tokenBalance = await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '');
@@ -411,7 +427,7 @@ export class SendChecksComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.refreshUIData(wallet, accountInfo, allAccountObjects);
+                         this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
 
                          // await this.toggleIssuerField();
@@ -419,13 +435,12 @@ export class SendChecksComponent implements AfterViewChecked {
                          //      await this.updateCurrencyBalance(gatewayBalances, wallet);
                          // }
 
-                         this.updateTickets(allAccountObjects);
+                         this.updateTickets(accountObjects);
                          // this.updateGatewayBalance(await this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', ''));
                          await this.updateXrpBalance(client, accountInfo, wallet);
                          this.clearFields(false);
                     } catch (err) {
-                         console.error('Error in deferred UI updates for payment channels:', err);
-                         // Don't break main render — payment channels are already shown
+                         console.error('Error in deferred UI updates:', err);
                     }
                }, 0);
           } catch (error: any) {
@@ -520,14 +535,23 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // Build SendMax amount
+               const curr: xrpl.MPTAmount = {
+                    mpt_issuance_id: this.mptIssuanceIdField,
+                    value: this.amountField,
+               };
+
                let sendMax;
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    // if (this.isMptEnabled) {
+                    // sendMax = curr;
+                    // } else {
                     sendMax = xrpl.xrpToDrops(this.amountField);
+                    // }
                } else {
                     sendMax = {
                          currency: this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue),
                          value: this.amountField,
-                         issuer: wallet.address,
+                         issuer: this.selectedIssuer,
                     };
                }
 
@@ -969,18 +993,39 @@ export class SendChecksComponent implements AfterViewChecked {
 
                this.issuers = uniqueIssuers;
 
-               const knownIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
+               const knownIssuers = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue] || [];
+
                if (!this.selectedIssuer || !this.issuers.some(iss => iss.address === this.selectedIssuer)) {
                     let newIssuer = '';
-                    if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
-                         newIssuer = knownIssuer;
+
+                    // Find the first matching known issuer that exists in available issuers
+                    const matchedKnownIssuer = knownIssuers.find(known => this.issuers.some(iss => iss.address === known));
+
+                    if (matchedKnownIssuer) {
+                         newIssuer = matchedKnownIssuer;
                     } else if (this.issuers.length > 0) {
                          newIssuer = this.issuers[0].address;
                     } else {
                          newIssuer = '';
                     }
+
                     this.selectedIssuer = newIssuer;
                }
+
+               // this.issuers = uniqueIssuers;
+
+               // const knownIssuer = this.knownTrustLinesIssuers[this.currencyFieldDropDownValue];
+               // if (!this.selectedIssuer || !this.issuers.some(iss => iss.address === this.selectedIssuer)) {
+               //      let newIssuer = '';
+               //      if (knownIssuer && this.issuers.some(iss => iss.address === knownIssuer)) {
+               //           newIssuer = knownIssuer;
+               //      } else if (this.issuers.length > 0) {
+               //           newIssuer = this.issuers[0].address;
+               //      } else {
+               //           newIssuer = '';
+               //      }
+               //      this.selectedIssuer = newIssuer;
+               // }
 
                if (this.issuers.length === 0) {
                     console.warn(`No issuers found among wallets for currency: ${this.currencyFieldDropDownValue}`);
@@ -1487,44 +1532,125 @@ export class SendChecksComponent implements AfterViewChecked {
      addToken() {
           if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
                const currency = this.newCurrency.trim();
-               if (this.knownTrustLinesIssuers[currency]) {
-                    this.setError(`Currency ${currency} already exists`);
-                    return;
-               }
+               const issuer = this.newIssuer.trim();
+
+               // Validate currency code
                if (!this.utilsService.isValidCurrencyCode(currency)) {
                     this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
                     return;
                }
-               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+
+               // Validate XRPL address
+               if (!xrpl.isValidAddress(issuer)) {
                     this.setError('Invalid issuer address');
                     return;
                }
-               this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+
+               // Initialize array if not present
+               if (!this.knownTrustLinesIssuers[currency]) {
+                    this.knownTrustLinesIssuers[currency] = [];
+               }
+
+               // Check for duplicates
+               if (this.knownTrustLinesIssuers[currency].includes(issuer)) {
+                    this.setError(`Issuer ${issuer} already exists for ${currency}`);
+                    return;
+               }
+
+               // Add new issuer
+               this.knownTrustLinesIssuers[currency].push(issuer);
+
+               // Persist and update
                this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                this.updateCurrencies();
+
                this.newCurrency = '';
                this.newIssuer = '';
-               this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+               this.setSuccess(`Added issuer ${issuer} for ${currency}`);
                this.cdr.detectChanges();
           } else {
                this.setError('Currency code and issuer address are required');
           }
+
           this.spinner = false;
      }
 
      removeToken() {
-          if (this.tokenToRemove) {
+          if (this.tokenToRemove && this.issuerToRemove) {
+               const currency = this.tokenToRemove;
+               const issuer = this.issuerToRemove;
+
+               if (this.knownTrustLinesIssuers[currency]) {
+                    this.knownTrustLinesIssuers[currency] = this.knownTrustLinesIssuers[currency].filter(addr => addr !== issuer);
+
+                    // Remove the currency entirely if no issuers remain
+                    if (this.knownTrustLinesIssuers[currency].length === 0) {
+                         delete this.knownTrustLinesIssuers[currency];
+                    }
+
+                    this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+                    this.updateCurrencies();
+                    this.setSuccess(`Removed issuer ${issuer} from ${currency}`);
+                    this.cdr.detectChanges();
+               } else {
+                    this.setError(`Currency ${currency} not found`);
+               }
+          } else if (this.tokenToRemove) {
+               // Remove entire token and all issuers
                delete this.knownTrustLinesIssuers[this.tokenToRemove];
                this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
                this.updateCurrencies();
-               this.setSuccess(`Removed ${this.tokenToRemove}`);
+               this.setSuccess(`Removed all issuers for ${this.tokenToRemove}`);
                this.tokenToRemove = '';
                this.cdr.detectChanges();
           } else {
                this.setError('Select a token to remove');
           }
+
           this.spinner = false;
      }
+
+     // addToken() {
+     //      if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
+     //           const currency = this.newCurrency.trim();
+     //           if (this.knownTrustLinesIssuers[currency]) {
+     //                this.setError(`Currency ${currency} already exists`);
+     //                return;
+     //           }
+     //           if (!this.utilsService.isValidCurrencyCode(currency)) {
+     //                this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
+     //                return;
+     //           }
+     //           if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+     //                this.setError('Invalid issuer address');
+     //                return;
+     //           }
+     //           this.knownTrustLinesIssuers[currency] = this.newIssuer.trim();
+     //           this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+     //           this.updateCurrencies();
+     //           this.newCurrency = '';
+     //           this.newIssuer = '';
+     //           this.setSuccess(`Added ${currency} with issuer ${this.knownTrustLinesIssuers[currency]}`);
+     //           this.cdr.detectChanges();
+     //      } else {
+     //           this.setError('Currency code and issuer address are required');
+     //      }
+     //      this.spinner = false;
+     // }
+
+     // removeToken() {
+     //      if (this.tokenToRemove) {
+     //           delete this.knownTrustLinesIssuers[this.tokenToRemove];
+     //           this.storageService.setKnownIssuers('knownIssuers', this.knownTrustLinesIssuers);
+     //           this.updateCurrencies();
+     //           this.setSuccess(`Removed ${this.tokenToRemove}`);
+     //           this.tokenToRemove = '';
+     //           this.cdr.detectChanges();
+     //      } else {
+     //           this.setError('Select a token to remove');
+     //      }
+     //      this.spinner = false;
+     // }
 
      getIssuerForCheck(checks: any[], checkIndex: string): string | null {
           const check = checks.find(c => c.index === checkIndex);

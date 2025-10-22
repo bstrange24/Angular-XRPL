@@ -1,145 +1,8 @@
-/* trustline Info Section */
-.trustline-info {
-     margin: 20px 0;
-     border-radius: 10px;
-     overflow: hidden;
-}
-
-.trustline-info summary {
-     color: white;
-     font-weight: bold;
-     font-size: 14px;
-     padding: 10px;
-     cursor: pointer;
-     transition: background 0.3s ease;
-}
-
-.trustline-info summary:hover {
-     background: #3a3c41;
-}
-
-.trustline-info summary::marker {
-     content: '▶ ';
-}
-
-.trustline-info[open] summary::marker {
-     content: '▼ ';
-}
-
-.trustline-fieldset {
-     border: 1px solid #686868;
-     border-radius: 10px;
-     padding: 20px;
-     background: #1a1c21;
-     margin: 0;
-}
-
-.trustline-fieldset legend {
-     color: white;
-     font-size: 14px;
-     padding: 0 10px;
-     font-weight: bold;
-}
-
-.trustline-table {
-     display: flex;
-     flex-direction: column;
-     gap: 0;
-     background: #2a2c31;
-     border-radius: 8px;
-     overflow: hidden;
-     margin-bottom: 20px;
-}
-
-.trustline-row {
-     display: flex;
-     width: 100%;
-     transition: background 0.3s ease;
-}
-
-.trustline-row:hover:not(.trustline-header) {
-     background: #3a3c41;
-}
-
-.trustline-header {
-     font-weight: bold;
-     background: #1a1c21;
-     color: #4caf50;
-}
-
-.trustline-cell {
-     flex: 1;
-     padding: 12px;
-     color: white;
-     font-size: 13px;
-     text-align: left;
-     border-bottom: 1px solid #686868;
-}
-
-.trustline-header .trustline-cell {
-     border-bottom: 2px solid #4caf50;
-}
-
-.trustline-cell code {
-     background: #3a3c41;
-     padding: 2px 4px;
-     border-radius: 4px;
-     font-family: monospace;
-     color: #4caf50;
-}
-
-@media (max-width: 768px) {
-     .trustline-table {
-          display: block;
-     }
-
-     .trustline-row {
-          flex-direction: column;
-          border-bottom: 1px solid #686868;
-          margin-bottom: 10px;
-     }
-
-     .trustline-cell {
-          flex: none;
-          padding: 8px;
-          border-bottom: none;
-     }
-
-     .trustline-header .trustline-cell {
-          border-bottom: none;
-     }
-
-     .trustline-cell::before {
-          content: attr(data-label);
-          font-weight: bold;
-          display: inline-block;
-          width: 120px;
-          color: #4caf50;
-     }
-}
-
-.trustline-subdetails {
-     margin: 20px 0;
-     border-radius: 10px;
-     overflow: hidden;
-}
-
-.trustline-subdetails summary {
-     color: white;
-     font-weight: bold;
-     font-size: 14px;
-     padding: 10px;
-     cursor: pointer;
-     transition: background 0.3s ease;
-}
-
-summary::marker {
-     color: white;
-}
-
-.trustline-subdetails[open] summary::marker {
-     content: '▼ ';
-     color: white;
+.transaction-layout {
+     display: grid;
+     grid-template-columns: 1.5fr 1fr;
+     gap: 20px;
+     align-items: start;
 }
 
 .transaction-layout {
@@ -208,6 +71,15 @@ table textarea {
      height: 0;
 }
 
+
+.flag-row {
+     display: flex;
+     align-items: center;
+     justify-content: space-between;
+     margin: 6px 0;
+     padding: 4px 0;
+}
+
 #flags {
      border-collapse: collapse;
 }
@@ -237,36 +109,27 @@ table textarea {
 
 #meta td:first-child {
      width: 180px;
-     /* consistent width for label cells */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
      vertical-align: top;
-     /* keeps labels aligned to top if multiple controls in same row */
 }
 
 #meta .form-row-td {
      width: 150px;
-     /* consistent label cell width */
      text-align: right;
-     /* align label text to the right */
      padding-right: 10px;
-     /* space between label and input */
 }
 
 #meta input[type="text"],
 #meta select {
      width: 300px;
-     /* consistent input/dropdown width */
      height: 28px;
 }
 
 .trustline-option {
      display: flex;
      justify-content: space-between;
-     /* text left, slider right */
      align-items: center;
-     /* vertical centering */
      width: 100%;
      margin: 6px 0;
      padding: 4px 0;
@@ -383,7 +246,9 @@ table textarea {
 #selectedWalletField,
 #destinationFields,
 #currencyField,
-#issuerFields {
+#escrowFinishTimeUnit,
+#escrowCancelTimeUnit,
+#checkExpirationTime {
      background-color: #1a1c21;
      border-radius: 10px;
      margin-bottom: 10px;
@@ -427,62 +292,3 @@ table textarea {
      /* Remove extra left padding on input cells */
      width: auto;
 }
-
-
-/* .manage-tokens {
-     margin-top: 10px;
-     border: 1px solid #666;
-     border-radius: 8px;
-     padding: 12px 16px;
-     color: white;
-}
-
-.manage-tokens legend {
-     color: white;
-     font-weight: 600;
-     padding: 0 6px;
-}
-
-.token-row {
-     display: flex;
-     align-items: center;
-     gap: 10px;
-     margin-bottom: 10px;
-}
-
-.token-row label {
-     width: 120px;
-     text-align: right;
-     margin-right: 5px;
-     font-weight: 500;
-}
-
-.token-row input,
-.token-row select {
-     height: 28px;
-     border-radius: 8px;
-     border: 1px solid white;
-     background: #1a1c21;
-     color: #4CAF50;
-     padding: 0 8px;
-     width: 200px;
-}
-
-.token-row select:nth-of-type(2) {
-     width: 330px;
-}
-
-.token-row button {
-     height: 30px;
-     padding: 0 16px;
-     border: none;
-     border-radius: 4px;
-     background: #007bff;
-     color: white;
-     cursor: pointer;
-     transition: background 0.2s ease-in-out;
-}
-
-.token-row button:hover {
-     background: #0056b3;
-} */

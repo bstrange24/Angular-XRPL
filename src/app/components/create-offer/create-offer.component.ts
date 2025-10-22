@@ -193,10 +193,12 @@ export class CreateOfferComponent implements AfterViewChecked {
      memeTokens$ = this.memeTokensSubject.asObservable(); // Use Observable for UI binding
      private readonly maxTokens = 20; // Limit to 20 tokens
      // Add a map of known issuers for tokens
-     private knownIssuers: { [key: string]: string } = {
-          RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
-          XRP: '',
-     };
+     // private knownIssuers: { [key: string]: string } = {
+     //      RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+     //      XRP: '',
+     // };
+     private knownIssuers: { [key: string]: string[] } = { XRP: [] };
+     issuerToRemove: string = '';
      currencies: string[] = [];
      newCurrency: string = '';
      newIssuer: string = '';
@@ -2317,7 +2319,9 @@ export class CreateOfferComponent implements AfterViewChecked {
           }
 
           // Set default issuer for the selected currency
-          this.weWantIssuerField = this.knownIssuers[this.weWantCurrencyField] || '';
+          // this.weWantIssuerField = this.knownIssuers[this.weWantCurrencyField] || '';
+          const known = this.knownIssuers[this.weWantCurrencyField] || [];
+          this.weWantIssuerField = known.length > 0 ? known[0] : '';
 
           const client = await this.xrplService.getClient();
           const wallet = await this.getWallet();
@@ -2358,7 +2362,9 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           // Set default issuer for the selected currency
-          this.weSpendIssuerField = this.knownIssuers[this.weSpendCurrencyField] || '';
+          // this.weSpendIssuerField = this.knownIssuers[this.weSpendCurrencyField] || '';
+          const known = this.knownIssuers[this.weSpendCurrencyField] || [];
+          this.weSpendIssuerField = known.length > 0 ? known[0] : '';
 
           const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
@@ -3584,56 +3590,137 @@ export class CreateOfferComponent implements AfterViewChecked {
      addToken() {
           if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
                const currency = this.newCurrency.trim();
-               if (this.knownIssuers[currency]) {
-                    this.setError(`Currency ${currency} already exists`);
-                    return;
-               }
+               const issuer = this.newIssuer.trim();
+
+               // Validate currency code
                if (!this.utilsService.isValidCurrencyCode(currency)) {
                     this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
                     return;
                }
-               if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+
+               // Validate XRPL address
+               if (!xrpl.isValidAddress(issuer)) {
                     this.setError('Invalid issuer address');
                     return;
                }
-               this.knownIssuers[currency] = this.newIssuer.trim();
+
+               // Initialize array if not present
+               if (!this.knownIssuers[currency]) {
+                    this.knownIssuers[currency] = [];
+               }
+
+               // Check for duplicates
+               if (this.knownIssuers[currency].includes(issuer)) {
+                    this.setError(`Issuer ${issuer} already exists for ${currency}`);
+                    return;
+               }
+
+               // Add new issuer
+               this.knownIssuers[currency].push(issuer);
+
+               // Persist and update
                this.storageService.setKnownIssuers('knownIssuers', this.knownIssuers);
                this.updateCurrencies();
+
                this.newCurrency = '';
                this.newIssuer = '';
-               this.setSuccess(`Added ${currency} with issuer ${this.knownIssuers[currency]}`);
+               this.setSuccess(`Added issuer ${issuer} for ${currency}`);
                this.cdr.detectChanges();
           } else {
                this.setError('Currency code and issuer address are required');
           }
+
           this.spinner = false;
      }
 
      removeToken() {
-          if (this.tokenToRemove) {
-               if (this.tokenToRemove === 'XRP') {
-                    this.setError('Cannot remove XRP');
-                    return;
+          if (this.tokenToRemove && this.issuerToRemove) {
+               const currency = this.tokenToRemove;
+               const issuer = this.issuerToRemove;
+
+               if (this.knownIssuers[currency]) {
+                    this.knownIssuers[currency] = this.knownIssuers[currency].filter(addr => addr !== issuer);
+
+                    // Remove the currency entirely if no issuers remain
+                    if (this.knownIssuers[currency].length === 0) {
+                         delete this.knownIssuers[currency];
+                    }
+
+                    this.storageService.setKnownIssuers('knownIssuers', this.knownIssuers);
+                    this.updateCurrencies();
+                    this.setSuccess(`Removed issuer ${issuer} from ${currency}`);
+                    this.cdr.detectChanges();
+               } else {
+                    this.setError(`Currency ${currency} not found`);
                }
+          } else if (this.tokenToRemove) {
+               // Remove entire token and all issuers
                delete this.knownIssuers[this.tokenToRemove];
                this.storageService.setKnownIssuers('knownIssuers', this.knownIssuers);
                this.updateCurrencies();
-               if (this.weWantCurrencyField === this.tokenToRemove) {
-                    this.weWantCurrencyField = 'XRP';
-                    this.weWantIssuerField = '';
-               }
-               if (this.weSpendCurrencyField === this.tokenToRemove) {
-                    this.weSpendCurrencyField = 'XRP';
-                    this.weSpendIssuerField = '';
-               }
-               this.setSuccess(`Removed ${this.tokenToRemove}`);
+               this.setSuccess(`Removed all issuers for ${this.tokenToRemove}`);
                this.tokenToRemove = '';
                this.cdr.detectChanges();
           } else {
                this.setError('Select a token to remove');
           }
+
           this.spinner = false;
      }
+
+     // addToken() {
+     //      if (this.newCurrency && this.newCurrency.trim() && this.newIssuer && this.newIssuer.trim()) {
+     //           const currency = this.newCurrency.trim();
+     //           if (this.knownIssuers[currency]) {
+     //                this.setError(`Currency ${currency} already exists`);
+     //                return;
+     //           }
+     //           if (!this.utilsService.isValidCurrencyCode(currency)) {
+     //                this.setError('Invalid currency code: Must be 3-20 characters or valid hex');
+     //                return;
+     //           }
+     //           if (!xrpl.isValidAddress(this.newIssuer.trim())) {
+     //                this.setError('Invalid issuer address');
+     //                return;
+     //           }
+     //           this.knownIssuers[currency] = this.newIssuer.trim();
+     //           this.storageService.setKnownIssuers('knownIssuers', this.knownIssuers);
+     //           this.updateCurrencies();
+     //           this.newCurrency = '';
+     //           this.newIssuer = '';
+     //           this.setSuccess(`Added ${currency} with issuer ${this.knownIssuers[currency]}`);
+     //           this.cdr.detectChanges();
+     //      } else {
+     //           this.setError('Currency code and issuer address are required');
+     //      }
+     //      this.spinner = false;
+     // }
+
+     // removeToken() {
+     //      if (this.tokenToRemove) {
+     //           if (this.tokenToRemove === 'XRP') {
+     //                this.setError('Cannot remove XRP');
+     //                return;
+     //           }
+     //           delete this.knownIssuers[this.tokenToRemove];
+     //           this.storageService.setKnownIssuers('knownIssuers', this.knownIssuers);
+     //           this.updateCurrencies();
+     //           if (this.weWantCurrencyField === this.tokenToRemove) {
+     //                this.weWantCurrencyField = 'XRP';
+     //                this.weWantIssuerField = '';
+     //           }
+     //           if (this.weSpendCurrencyField === this.tokenToRemove) {
+     //                this.weSpendCurrencyField = 'XRP';
+     //                this.weSpendIssuerField = '';
+     //           }
+     //           this.setSuccess(`Removed ${this.tokenToRemove}`);
+     //           this.tokenToRemove = '';
+     //           this.cdr.detectChanges();
+     //      } else {
+     //           this.setError('Select a token to remove');
+     //      }
+     //      this.spinner = false;
+     // }
 
      private updateCurrencies() {
           this.currencies = ['XRP', ...Object.keys(this.knownIssuers).filter(c => c !== 'XRP')];

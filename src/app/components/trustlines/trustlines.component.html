@@ -182,23 +182,32 @@
                          </tr>
 
                          <tr *ngIf="showManageTokens">
-                              <fieldset style="margin-top: 10px">
-                                   <legend style="color: white">Manage Tokens</legend>
-                                   <div style="margin-bottom: 10px">
-                                        <label>Add Token: </label>
-                                        <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
-                                        <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
-                                        <button type="button" (click)="addToken()">Add</button>
-                                   </div>
-                                   <div>
-                                        <label>Remove Token: </label>
-                                        <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
-                                             <option value="">Select a token</option>
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                                        </select>
-                                        <button type="button" (click)="removeToken()">Remove</button>
-                                   </div>
-                              </fieldset>
+                              <td colspan="2">
+                                   <fieldset class="manage-tokens">
+                                        <legend>Manage Tokens</legend>
+                                        <!-- Add Token Row -->
+                                        <div class="token-row">
+                                             <label style="padding-bottom: 12px">Add Token:</label>
+                                             <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" />
+                                             <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" />
+                                             <button style="margin-bottom: 20px" type="button" (click)="addToken()">Add</button>
+                                        </div>
+                                        <!-- Delete Token Row -->
+                                        <div class="token-row">
+                                             <label>Delete Token:</label>
+                                             <select [(ngModel)]="tokenToRemove" name="tokenToRemove" (change)="onTokenChange()">
+                                                  <option value="">Select a token</option>
+                                                  <option *ngFor="let curr of currencies" [value]="curr">{{ curr }}</option>
+                                             </select>
+
+                                             <select [(ngModel)]="issuerToRemove" name="issuerToRemove" [disabled]="!tokenToRemove">
+                                                  <option value="">{{ ((knownTrustLinesIssuers[tokenToRemove] || []).length) > 0 ? 'Select Issuer' : 'No issuers found' }}</option>
+                                                  <option *ngFor="let issuer of knownTrustLinesIssuers[tokenToRemove] || []" [value]="issuer">{{ issuer }}</option>
+                                             </select>
+                                             <button type="button" (click)="removeToken()">Remove</button>
+                                        </div>
+                                   </fieldset>
+                              </td>
                          </tr>
 
                          <table style="text-align: left; width: 100%">

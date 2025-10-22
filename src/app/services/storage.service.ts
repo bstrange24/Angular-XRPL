@@ -91,17 +91,50 @@ export class StorageService {
           return value ? JSON.parse(value) : null;
      }
 
-     // Store knownIssuers object
-     setKnownIssuers(key: string, knownIssuers: { [key: string]: string }): void {
-          knownIssuers['XRP'] = '';
+     setKnownIssuers(key: string, knownIssuers: { [key: string]: string[] }): void {
+          // Ensure XRP always exists (as an empty array)
+          if (!knownIssuers['XRP']) {
+               knownIssuers['XRP'] = [];
+          }
+
           localStorage.setItem(key, JSON.stringify(knownIssuers));
      }
 
-     // Retrieve knownIssuers object
-     getKnownIssuers(key: string): { [key: string]: string } | null {
+     getKnownIssuers(key: string): { [key: string]: string[] } | null {
           const value = localStorage.getItem(key);
-          return value ? JSON.parse(value) : null;
+          if (!value) return null;
+
+          try {
+               const parsed = JSON.parse(value);
+
+               // Validate structure (make sure all values are arrays)
+               Object.keys(parsed).forEach(currency => {
+                    if (!Array.isArray(parsed[currency])) {
+                         parsed[currency] = parsed[currency] ? [parsed[currency]] : [];
+                    }
+               });
+
+               // Ensure XRP key exists
+               if (!parsed['XRP']) parsed['XRP'] = [];
+
+               return parsed;
+          } catch (err) {
+               console.error('Error parsing known issuers from storage:', err);
+               return null;
+          }
      }
+
+     // Store knownIssuers object
+     // setKnownIssuers(key: string, knownIssuers: { [key: string]: string }): void {
+     //      knownIssuers['XRP'] = '';
+     //      localStorage.setItem(key, JSON.stringify(knownIssuers));
+     // }
+
+     // // Retrieve knownIssuers object
+     // getKnownIssuers(key: string): { [key: string]: string } | null {
+     //      const value = localStorage.getItem(key);
+     //      return value ? JSON.parse(value) : null;
+     // }
 
      // Store knownIssuers object
      setKnownWhitelistAddress(key: string, knownWhitelistAddress: { [key: string]: string }): void {
@@ -144,6 +177,10 @@ export class StorageService {
 
      getActiveNftLink(): string {
           return localStorage.getItem('activeNftLink') || '';
+     }
+
+     getActiveMptLink(): string {
+          return localStorage.getItem('activeMptLink') || '';
      }
 
      setActiveEscrowLink(link: string) {

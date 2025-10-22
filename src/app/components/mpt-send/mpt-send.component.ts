@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { MPTokenIssuanceCreate } from 'xrpl';
+import { MPTokenIssuanceCreate, MPTokenIssuanceCreateFlags, MPTokenIssuanceSetFlags } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -16,8 +16,8 @@ import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-
 interface ValidationInputs {
      selectedAccount?: string;
      senderAddress?: string;
-     seed?: string;
      account_info?: any;
+     seed?: string;
      amount?: string;
      destination?: string;
      mptIssuanceIdField?: string;
@@ -60,16 +60,17 @@ interface SignerEntry {
 }
 
 @Component({
-     selector: 'app-firewall',
+     selector: 'app-mpt-send',
      standalone: true,
      imports: [CommonModule, FormsModule, AppWalletDynamicInputComponent, NavbarComponent, SanitizeHtmlPipe],
-     templateUrl: './firewall.component.html',
-     styleUrl: './firewall.component.css',
+     templateUrl: './mpt-send.component.html',
+     styleUrl: './mpt-send.component.css',
 })
-export class FirewallComponent implements AfterViewChecked {
+export class MptSendComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      private lastResult: string = '';
+     transactionInput: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -78,11 +79,10 @@ export class FirewallComponent implements AfterViewChecked {
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
-     selectedTickets: string[] = []; // For multiple selection
-     selectedSingleTicket: string = ''; // For single selection
-     multiSelectMode: boolean = false; // Toggle between modes
-     selectedTicket: string = ''; // The currently selected ticket
-     selectedAccount: string = '';
+     selectedTickets: string[] = [];
+     selectedSingleTicket: string = '';
+     multiSelectMode: boolean = false;
+     selectedTicket: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -91,16 +91,15 @@ export class FirewallComponent implements AfterViewChecked {
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
-     timePeriodStartField: string = '';
-     timePeriodStartUnit: string = 'seconds';
-     timePeriodField: string = '';
-     timePeriodUnit: string = 'seconds';
-     backupAccountField: string = '';
-     totalOutField: string = '';
+     metaDataField: string = '';
+     mptIssuanceIdField: string = '';
+     tokenCountField: string = '';
+     assetScaleField: string = '';
      isdepositAuthAddress: boolean = false;
      isMptFlagModeEnabled: boolean = false;
      depositAuthAddress: string = '';
      isMessageKey: boolean = false;
+     transferFeeField: string = '';
      memoField: string = '';
      isMemoEnabled: boolean = false;
      isRegularKeyAddress: boolean = false;
@@ -112,40 +111,27 @@ export class FirewallComponent implements AfterViewChecked {
      spinnerMessage: string = '';
      isSimulateEnabled: boolean = false;
      masterKeyDisabled: boolean = false;
+     flags: AccountFlags = {
+          isClawback: false,
+          isLock: false,
+          isRequireAuth: false,
+          isTransferable: false,
+          isTradable: false,
+          isEscrow: false,
+     };
      spinner: boolean = false;
      destinationFields: string = '';
-     private knownDestinations: { [key: string]: string } = {};
-     private whitelistAddress: { [key: string]: string } = {};
-     xrpOnly: string[] = [];
-     // destinations: string[] = [];
-     whitelistAddresses: string[] = [];
-     newWhitelistAddress: string = '';
-     whitelistAddressToRemove: string = '';
+     destinations: { name?: string; address: string }[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
-     // Dynamic wallets
+     isAuthorized: boolean = false;
+     isUnauthorize: boolean = false;
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
-     destinations: { name?: string; address: string }[] = [];
-     showManageTokens: boolean = false;
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
-     ngOnInit() {
-          // const storedDestinations = this.storageService.getKnownIssuers('destinations');
-          // if (storedDestinations) {
-          //      const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress');
-          //      console.debug(`storedDestinations: `, storedDestinations);
-          //      console.debug(`knownWhitelistAddress: `, knownWhitelistAddress);
-          //      if (knownWhitelistAddress) {
-          //           const combined = this.comineWhiteListDestiationAddresses(storedDestinations, knownWhitelistAddress);
-          //           console.log(`combinedString: `, combined);
-          //           this.knownDestinations = combined;
-          //           this.updateWhitelistAddress();
-          //      }
-          // }
-          this.onAccountChange();
-     }
+     ngOnInit() {}
 
      ngAfterViewInit() {}
 
@@ -153,7 +139,7 @@ export class FirewallComponent implements AfterViewChecked {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.markForCheck();
+               this.cdr.detectChanges();
           }
      }
 
@@ -171,10 +157,10 @@ export class FirewallComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
-     async onAccountChange() {
+     onAccountChange() {
           if (this.wallets.length === 0) return;
 
           this.currentWallet = {
@@ -185,7 +171,7 @@ export class FirewallComponent implements AfterViewChecked {
           this.updateDestinations();
 
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
-               this.getFirewallDetails();
+               this.getMptDetails();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
@@ -196,7 +182,7 @@ export class FirewallComponent implements AfterViewChecked {
           if (this.signerQuorum > totalWeight) {
                this.signerQuorum = totalWeight;
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      async toggleMultiSign() {
@@ -211,7 +197,7 @@ export class FirewallComponent implements AfterViewChecked {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                return this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
-               this.cdr.markForCheck();
+               this.cdr.detectChanges();
           }
      }
 
@@ -219,11 +205,11 @@ export class FirewallComponent implements AfterViewChecked {
           if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
                this.multiSignSeeds = '';
           }
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      toggleTicketSequence() {
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      onTicketToggle(event: any, ticket: string) {
@@ -234,8 +220,8 @@ export class FirewallComponent implements AfterViewChecked {
           }
      }
 
-     async getFirewallDetails() {
-          console.log('Entering getFirewallDetails');
+     async getMptDetails() {
+          console.log('Entering getMptDetails');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -243,7 +229,7 @@ export class FirewallComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               this.updateSpinnerMessage(`Getting Firewall Details`);
+               this.updateSpinnerMessage('Getting MPT Details...');
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
@@ -252,39 +238,17 @@ export class FirewallComponent implements AfterViewChecked {
 
                // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
-               console.debug(`account objects:`, accountObjects.result);
+               console.debug(`accountObjects:`, accountObjects.result);
 
                const inputs: ValidationInputs = {
                     seed: this.currentWallet.seed,
                     account_info: accountInfo,
                };
 
-               const errors = await this.validateInputs(inputs, 'getFirewallDetails');
+               const errors = await this.validateInputs(inputs, 'get');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
-
-               // const firewallTx: Firewall = {
-               //      TransactionType: 'Firewall',
-               //      Account: wallet.classicAddress,
-               //      PublicKey: '',
-               //      BackupAccount: this.destinationFields,
-               //      TimePeriod: '',
-               //      TimePeriodStart: '',
-               //      Amount: '',
-               //      TotalOut: '',
-               //      Fee: fee,
-               //      Flags: v_flags,
-               //      LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               // };
-
-               // const firewallWhitelistTx: FirewallWhitelist = {
-               //      TransactionType: 'FirewallWhitelist',
-               //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-               //      OwnerNode: '',
-               //      PreviousTxnID: '',
-               //      PreviousTxnLgrSeq: '',
-               // };
 
                // Prepare data structure
                const data = {
@@ -293,11 +257,12 @@ export class FirewallComponent implements AfterViewChecked {
 
                // Filter MPT-related objects
                const mptObjects = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPTokenIssuance' || obj.LedgerEntryType === 'MPToken');
+               console.debug(`mptObjects:`, mptObjects);
                if (mptObjects.length <= 0) {
                     data.sections.push({
-                         title: 'Firewall Details',
+                         title: 'MPT Tokens',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No Firewall found for <code>${wallet.classicAddress}</code>` }],
+                         content: [{ key: 'Status', value: `No MPT tokens found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Sort by Sequence (oldest first)
@@ -308,7 +273,7 @@ export class FirewallComponent implements AfterViewChecked {
                     });
 
                     data.sections.push({
-                         title: `Firewall (${mptObjects.length})`,
+                         title: `MPT Token (${mptObjects.length})`,
                          openByDefault: true,
                          subItems: sortedMPT.map((mpt, counter) => {
                               const { LedgerEntryType, PreviousTxnID, index } = mpt;
@@ -317,12 +282,12 @@ export class FirewallComponent implements AfterViewChecked {
                               const flags = (mpt as any).Flags;
                               const mptIssuanceId = (mpt as any).mpt_issuance_id || (mpt as any).MPTokenIssuanceID;
                               return {
-                                   key: `MPT ${counter + 1} (ID: ${index.slice(0, 8)}...)`,
+                                   key: `MPT ${counter + 1} (ID: ${mptIssuanceId.slice(0, 10)}...)`,
                                    openByDefault: false,
                                    content: [
-                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
                                         { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+                                        { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
+                                        // { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
                                         ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
                                         ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
                                         // Optionally display custom fields if present
@@ -330,8 +295,8 @@ export class FirewallComponent implements AfterViewChecked {
                                         ...((mpt as any)['MPTokenMetadata'] ? [{ key: 'MPTokenMetadata', value: xrpl.convertHexToString((mpt as any)['MPTokenMetadata']) }] : []),
                                         ...((mpt as any)['MaximumAmount'] ? [{ key: 'MaximumAmount', value: String((mpt as any)['MaximumAmount']) }] : []),
                                         ...((mpt as any)['OutstandingAmount'] ? [{ key: 'OutstandingAmount', value: String((mpt as any)['OutstandingAmount']) }] : []),
-                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: String((mpt as any)['TransferFee']) }] : []),
-                                        ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
+                                        ...((mpt as any)['TransferFee'] ? [{ key: 'TransferFee', value: (Number((mpt as any)['TransferFee']) / 1000).toFixed(3) + ' %' }] : []),
+                                        // ...((mpt as any)['MPTIssuanceID'] ? [{ key: 'MPTIssuanceID', value: String((mpt as any)['MPTIssuanceID']) }] : []),
                                    ],
                               };
                          }),
@@ -347,26 +312,25 @@ export class FirewallComponent implements AfterViewChecked {
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
-                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
-                         console.error('Error in deferred UI updates:', err);
+                         console.error('Error in deferred UI updates for MPT:', err);
                     }
                }, 0);
           } catch (error: any) {
-               console.error('Error in getFirewallDetails:', error);
+               console.error('Error in getMptDetails:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving getFirewallDetails in ${this.executionTime}ms`);
+               console.log(`Leaving getMptDetails in ${this.executionTime}ms`);
           }
      }
 
-     async createFirewall() {
-          console.log('Entering createFirewall');
+     async authorizeMpt(authorizeFlag: 'Y' | 'N') {
+          console.log('Entering authorizeMpt');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -374,151 +338,8 @@ export class FirewallComponent implements AfterViewChecked {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
-               destination: this.destinationFields,
-               isRegularKeyAddress: this.isRegularKeyAddress,
-               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
-               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               useMultiSign: this.useMultiSign,
-               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
-               isTicket: this.isTicket,
-               selectedTicket: this.selectedTicket,
-               selectedSingleTicket: this.selectedSingleTicket,
-          };
-
-          try {
-               if (this.resultField?.nativeElement) {
-                    this.resultField.nativeElement.innerHTML = '';
-               }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Create Firewall (${mode})...`);
-
-               const environment = this.xrplService.getNet().environment;
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
-               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo :`, accountInfo.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
-
-               inputs.account_info = accountInfo;
-
-               const errors = await this.validateInputs(inputs, 'createFirewall');
-               if (errors.length > 0) {
-                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-               }
-
-               const timePeriod = this.utilsService.addTime(this.timePeriodField, this.timePeriodUnit as 'seconds' | 'minutes' | 'hours' | 'days');
-               const timePeriodStart = this.utilsService.addTime(this.timePeriodStartField, this.timePeriodStartUnit as 'seconds' | 'minutes' | 'hours' | 'days');
-               console.log(`timePeriodUnit: ${this.timePeriodUnit} timePeriodStartUnit: ${this.timePeriodStartUnit}`);
-               console.log(`timePeriod: ${this.utilsService.convertXRPLTime(timePeriod)} timePeriodStart: ${this.utilsService.convertXRPLTime(timePeriodStart)}`);
-               console.log(`Total Out: `, this.totalOutField);
-               console.log(`Amount: `, this.amountField);
-               console.log(`Backup account: `, this.backupAccountField);
-               console.log(`Wallet pubkey: `, wallet.publicKey);
-
-               if (1 == 1) {
-                    return this.setError('Poopy');
-               }
-
-               let v_flags = 0;
-
-               const mPTokenIssuanceCreateTx: MPTokenIssuanceCreate = {
-                    TransactionType: 'MPTokenIssuanceCreate',
-                    Account: wallet.classicAddress,
-                    // AssetClass: 'CTZMPT',
-                    MaximumAmount: '0',
-                    Fee: fee,
-                    Flags: v_flags,
-                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-               };
-
-               // const firewallSetTx: FirewallSet = {
-               //      TransactionType: 'FirewallSet',
-               //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-               //      PublicKey: 'EDPUBLICKEY',
-               //      BackupAccount: 'rY6CEmcZiJXp5L4LDJq3gZFujU6Wwn7xH3',
-               //      TimePeriod: 86400,
-               //      Amount: '1000000000',
-               // };
-
-               // Optional fields
-               await this.setTxOptionalFields(client, mPTokenIssuanceCreateTx, wallet, accountInfo);
-
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceCreateTx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
-               }
-
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Generate MPT (no changes will be made)...' : 'Submitting to Ledger...');
-
-               let response: any;
-
-               if (this.isSimulateEnabled) {
-                    response = await this.xrplTransactions.simulateTransaction(client, mPTokenIssuanceCreateTx);
-               } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign Payment transaction.');
-                    }
-
-                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
-               }
-
-               const isSuccess = this.utilsService.isTxSuccessful(response);
-               if (!isSuccess) {
-                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    (response.result as any).errorMessage = userMessage;
-               }
-
-               this.renderTransactionResult(response);
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
-                    setTimeout(async () => {
-                         try {
-                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                              this.clearFields(false);
-                              this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
-               }
-          } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving createFirewall in ${this.executionTime}ms`);
-          }
-     }
-
-     async updateFirewall() {
-          console.log('Entering updateFirewall');
-          const startTime = Date.now();
-          this.setSuccessProperties();
-
-          const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.currentWallet.seed,
-               senderAddress: this.currentWallet.address,
-               destination: this.destinationFields,
+               destination: this.isAuthorized ? undefined : this.destinationFields,
+               mptIssuanceIdField: this.mptIssuanceIdField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
@@ -541,16 +362,17 @@ export class FirewallComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               const [accountInfo, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
+               console.debug(`accountInfo :`, accountInfo.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
+               console.debug(`serverInfo :`, serverInfo);
 
                inputs.account_info = accountInfo;
 
-               const errors = await this.validateInputs(inputs, 'updateFirewall');
+               const errors = await this.validateInputs(inputs, 'authorize');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
@@ -558,23 +380,18 @@ export class FirewallComponent implements AfterViewChecked {
                const mPTokenAuthorizeTx: xrpl.MPTokenAuthorize = {
                     TransactionType: 'MPTokenAuthorize',
                     Account: wallet.address,
-                    MPTokenIssuanceID: '',
+                    MPTokenIssuanceID: this.mptIssuanceIdField,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     Fee: fee,
                };
 
-               // const firewallSetUpdateTx: FirewallSet = {
-               //      TransactionType: 'FirewallSet',
-               //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-               //      TimePeriod: 86400,
-               //      Amount: '1000000000',
-               //      Signature: '',
-               // };
+               if (authorizeFlag === 'N') {
+                    mPTokenAuthorizeTx.Flags = xrpl.MPTokenAuthorizeFlags.tfMPTUnauthorize;
+               }
 
-               // Optional fields
-               await this.setTxOptionalFields(client, mPTokenAuthorizeTx, wallet, accountInfo);
+               await this.setTxOptionalFields(client, mPTokenAuthorizeTx, wallet, accountInfo, 'generate');
 
-               if (await this.utilsService.isInsufficientXrpBalance(client, accountInfo, '0', wallet.classicAddress, mPTokenAuthorizeTx, fee)) {
+               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenAuthorizeTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
@@ -602,7 +419,7 @@ export class FirewallComponent implements AfterViewChecked {
                     const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
                     console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
+                    (response.result as any).errorMessage = userMessage;
                }
 
                this.renderTransactionResult(response);
@@ -615,10 +432,9 @@ export class FirewallComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
-                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                              await this.updateXrpBalance(client, accountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -630,12 +446,12 @@ export class FirewallComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving updateFirewall in ${this.executionTime}ms`);
+               console.log(`Leaving authorizeMpt in ${this.executionTime}ms`);
           }
      }
 
-     async authorizeFirewall(authorizeFlag: 'Y' | 'N') {
-          console.log('Entering authorizeFirewall');
+     async sendMpt() {
+          console.log('Entering sendMpt');
           const startTime = Date.now();
           this.setSuccessProperties();
 
@@ -646,6 +462,7 @@ export class FirewallComponent implements AfterViewChecked {
                amount: this.amountField,
                destination: this.destinationFields,
                destinationTag: this.destinationTagField,
+               mptIssuanceIdField: this.mptIssuanceIdField,
                isRegularKeyAddress: this.isRegularKeyAddress,
                regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
                regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
@@ -668,41 +485,64 @@ export class FirewallComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               // PHASE 1: PARALLELIZE — fetch account info + fee + ledger index
-               const [accountInfo, destObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
+               const [accountInfo, accountObjects, destObjects, fee, currentLedger, serverInfo] = await Promise.all([
+                    this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''),
+                    this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''),
+                    this.xrplService.calculateTransactionFee(client),
+                    this.xrplService.getLastLedgerIndex(client),
+                    this.xrplService.getXrplServerInfo(client, 'current', ''),
+               ]);
 
-               // Optional: Avoid heavy stringify in logs
+               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`destObjects for ${wallet.classicAddress}:`, destObjects.result);
+               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
+               console.debug(`destObjects for ${this.destinationFields}:`, destObjects.result);
                console.debug(`fee :`, fee);
                console.debug(`currentLedger :`, currentLedger);
                console.debug(`serverInfo :`, serverInfo);
 
                inputs.account_info = accountInfo;
 
-               const errors = await this.validateInputs(inputs, 'authorizeFirewall');
+               const errors = await this.validateInputs(inputs, 'send');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
                // Check if destination can hold the MPT
-               if (!destObjects || !destObjects.result || !destObjects.result.account_objects) {
+               if (!destObjects?.result?.account_objects) {
                     return this.setError(`ERROR: Unable to fetch account objects for destination ${this.destinationFields}`);
                }
+
+               const walletMptTokens = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPTokenIssuance');
+               console.debug(`Wallet MPT Tokens:`, walletMptTokens);
+               console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
+               const walletMptToken = walletMptTokens.find((obj: any) => obj.mpt_issuance_id === this.mptIssuanceIdField);
+
                const mptTokens = destObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
                console.debug(`Destination MPT Tokens:`, mptTokens);
-
-               const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === '');
+               console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
+               const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
 
                if (!authorized) {
-                    return this.setError(`ERROR: Destination ${this.destinationFields} is not authorized to receive this MPT (issuance ID ${''}).`);
+                    return this.setError(`ERROR: Destination ${this.destinationFields} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}). Please ensure authorization has been completed.`);
+               }
+
+               if (walletMptToken) {
+                    const decodedFlags = this.decodeMPTFlags((walletMptToken as any).Flags);
+                    const authorized = decodedFlags.some((obj: any) => obj.MPTokenIssuanceID === 'tfMPTRequireAuth');
+                    if (authorized) {
+                         // Since no specific authorized flag on MPToken, assume existence after proper auth process suffices
+                         // If needed, user can rely on simulation or submission error
+                         console.warn('MPT requires authorization; assuming existence of MPToken entry indicates approval.');
+                    }
                }
 
                const sendMptPaymentTx: xrpl.Payment = {
                     TransactionType: 'Payment',
                     Account: wallet.classicAddress,
                     Amount: {
-                         mpt_issuance_id: '',
+                         mpt_issuance_id: this.mptIssuanceIdField,
                          value: this.amountField,
                     },
                     Destination: this.destinationFields,
@@ -710,25 +550,7 @@ export class FirewallComponent implements AfterViewChecked {
                     Fee: fee,
                };
 
-               // let firewallWhitelistSetAuthorizeTx:FirewallWhitelistSet;
-               if (authorizeFlag === 'Y') {
-                    // firewallWhitelistSetAuthorizeTx = {
-                    //      TransactionType: 'FirewallWhitelistSet',
-                    //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-                    //      Authorize: '',
-                    //      Signature: '',
-                    // };
-               } else {
-                    // firewallWhitelistSetAuthorizeTx = {
-                    //      TransactionType: 'FirewallWhitelistSet',
-                    //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-                    //      Unauthorize: '',
-                    //      Signature: '',
-                    // };
-               }
-
-               // Optional fields
-               await this.setTxOptionalFields(client, sendMptPaymentTx, wallet, accountInfo);
+               await this.setTxOptionalFields(client, sendMptPaymentTx, wallet, accountInfo, 'send');
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, sendMptPaymentTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -771,7 +593,6 @@ export class FirewallComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
-                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, accountInfo, wallet);
@@ -786,131 +607,51 @@ export class FirewallComponent implements AfterViewChecked {
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving authorizeFirewall in ${this.executionTime}ms`);
+               console.log(`Leaving sendMpt in ${this.executionTime}ms`);
           }
      }
 
-     async deleteFirewall() {
-          console.log('Entering deleteFirewall');
-          const startTime = Date.now();
-          this.setSuccessProperties();
+     private getFlagsValue(flags: AccountFlags): number {
+          let v_flags = 0;
+          if (flags.isLock) {
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanLock; // 2
+          }
+          if (flags.isRequireAuth) {
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTRequireAuth; // 4;
+          }
+          if (flags.isEscrow) {
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanEscrow; // 8;
+          }
+          if (flags.isTradable) {
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanTrade; // 16;
+          }
+          if (flags.isTransferable) {
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanTransfer; // 32;
+          }
+          if (flags.isClawback) {
+               v_flags |= MPTokenIssuanceCreateFlags.tfMPTCanClawback; // 64;
+          }
+          return v_flags;
+     }
 
-          const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
-               seed: this.currentWallet.seed,
-               isRegularKeyAddress: this.isRegularKeyAddress,
-               regularKeyAddress: this.isRegularKeyAddress ? this.regularKeyAddress : undefined,
-               regularKeySeed: this.isRegularKeyAddress ? this.regularKeySeed : undefined,
-               useMultiSign: this.useMultiSign,
-               multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
-               multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
-               isTicket: this.isTicket,
-               selectedTicket: this.selectedTicket,
-               selectedSingleTicket: this.selectedSingleTicket,
+     decodeMPTFlags(flags: number) {
+          const MPT_FLAGS = {
+               tfMPTCanLock: 0x00000002,
+               tfMPTCanEscrow: 0x00000004,
+               tfMPTCanTrade: 0x00000008,
+               tfMPTCanClawback: 0x00000010,
+               tfMPTRequireAuth: 0x00000020,
+               tfMPTImmutable: 0x00000040,
+               tfMPTDisallowIncoming: 0x00000080,
           };
 
-          try {
-               if (this.resultField?.nativeElement) {
-                    this.resultField.nativeElement.innerHTML = '';
+          const activeFlags = [];
+          for (const [name, value] of Object.entries(MPT_FLAGS)) {
+               if ((flags & value) !== 0) {
+                    activeFlags.push(name);
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'sending';
-               this.updateSpinnerMessage(`Preparing Firewall Delete (${mode})...`);
-
-               const environment = this.xrplService.getNet().environment;
-               const client = await this.xrplService.getClient();
-               const wallet = await this.getWallet();
-
-               const [accountInfo, destObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`destObjects for ${wallet.classicAddress}:`, destObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
-
-               inputs.account_info = accountInfo;
-
-               const errors = await this.validateInputs(inputs, 'deleteFirewall');
-               if (errors.length > 0) {
-                    return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
-               }
-
-               const mPTokenIssuanceDestroyTx: xrpl.MPTokenIssuanceDestroy = {
-                    TransactionType: 'MPTokenIssuanceDestroy',
-                    Account: wallet.classicAddress,
-                    MPTokenIssuanceID: '',
-                    LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
-                    Fee: fee,
-               };
-
-               // const firewallDeleteTx: FirewallDelete = {
-               //      TransactionType: 'FirewallDelete',
-               //      Account: 'rU9XRmcZiJXp5J1LDJq8iZFujU6Wwn9cV9',
-               //      Signature: '',
-               // };
-
-               // Optional fields
-               await this.setTxOptionalFields(client, mPTokenIssuanceDestroyTx, wallet, accountInfo);
-
-               if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, mPTokenIssuanceDestroyTx, fee)) {
-                    return this.setError('ERROR: Insufficient XRP to complete transaction');
-               }
-
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Deleting MPT (no changes will be made)...' : 'Submitting to Ledger...');
-
-               let response: any;
-
-               if (this.isSimulateEnabled) {
-                    response = await this.xrplTransactions.simulateTransaction(client, mPTokenIssuanceDestroyTx);
-               } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
-
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceDestroyTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
-
-                    if (!signedTx) {
-                         return this.setError('ERROR: Failed to sign Payment transaction.');
-                    }
-
-                    response = await this.xrplTransactions.submitTransaction(client, signedTx);
-               }
-
-               const isSuccess = this.utilsService.isTxSuccessful(response);
-               if (!isSuccess) {
-                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    response.result.errorMessage = userMessage;
-               }
-
-               this.renderTransactionResult(response);
-               this.resultField.nativeElement.classList.add('success');
-               this.setSuccess(this.result);
-
-               if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
-
-                    setTimeout(async () => {
-                         try {
-                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                              this.clearFields(false);
-                              this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
-                         } catch (err) {
-                              console.error('Error in post-tx cleanup:', err);
-                         }
-                    }, 0);
-               }
-          } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
-          } finally {
-               this.spinner = false;
-               this.executionTime = (Date.now() - startTime).toString();
-               console.log(`Leaving deleteFirewall in ${this.executionTime}ms`);
           }
+          return activeFlags;
      }
 
      private renderTransactionResult(response: any): void {
@@ -922,26 +663,22 @@ export class FirewallComponent implements AfterViewChecked {
           }
      }
 
-     private async setTxOptionalFields(client: xrpl.Client, firewallTx: any, wallet: xrpl.Wallet, accountInfo: any) {
+     private async setTxOptionalFields(client: xrpl.Client, mptTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
           if (this.selectedSingleTicket) {
                const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.selectedSingleTicket));
                if (!ticketExists) {
                     return this.setError(`ERROR: Ticket Sequence ${this.selectedSingleTicket} not found for account ${wallet.classicAddress}`);
                }
-               this.utilsService.setTicketSequence(firewallTx, this.selectedSingleTicket, true);
+               this.utilsService.setTicketSequence(mptTx, this.selectedSingleTicket, true);
           } else {
                if (this.multiSelectMode && this.selectedTickets.length > 0) {
                     console.log('Setting multiple tickets:', this.selectedTickets);
-                    this.utilsService.setTicketSequence(firewallTx, accountInfo.result.account_data.Sequence, false);
+                    this.utilsService.setTicketSequence(mptTx, accountInfo.result.account_data.Sequence, false);
                }
           }
 
-          if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-               this.utilsService.setDestinationTag(firewallTx, this.destinationTagField);
-          }
-
           if (this.memoField) {
-               this.utilsService.setMemoField(firewallTx, this.memoField);
+               this.utilsService.setMemoField(mptTx, this.memoField);
           }
      }
 
@@ -1085,16 +822,6 @@ export class FirewallComponent implements AfterViewChecked {
      private async validateInputs(inputs: ValidationInputs, action: string): Promise<string[]> {
           const errors: string[] = [];
 
-          // Early return for empty inputs
-          if (!inputs || Object.keys(inputs).length === 0) {
-               return ['No inputs provided'];
-          }
-
-          // --- Shared skip helper ---
-          const shouldSkipNumericValidation = (value: string | undefined): boolean => {
-               return value === undefined || value === null || value.trim() === '';
-          };
-
           // --- Common validators ---
           const isRequired = (value: string | null | undefined, fieldName: string): string | null => {
                if (value == null || !this.utilsService.validateInput(value)) {
@@ -1195,18 +922,38 @@ export class FirewallComponent implements AfterViewChecked {
                     asyncValidators?: (() => Promise<string | null>)[];
                }
           > = {
-               getFirewallDetails: {
+               get: {
                     required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                     asyncValidators: [],
                },
-               createFirewall: {
+               generate: {
                     required: ['seed'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
                          () => isValidNumber(inputs.assetScaleField, 'Asset scale', 0, 15),
-                         () => isValidNumber(inputs.transferFeeField, 'Transfer fee', 0, 1000000),
+                         () => isValidNumber(inputs.transferFeeField, 'Transfer fee', 0, 50000),
                          () => isValidNumber(inputs.tokenCountField, 'Token count', 0),
+                         // () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
+                    asyncValidators: [checkDestinationTagRequirement],
+               },
+               authorize: {
+                    required: ['seed', 'mptIssuanceIdField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
+                         () => (!this.isAuthorized ? isRequired(inputs.destination, 'Holder Address') : null),
+                         () => (!this.isAuthorized ? isValidXrpAddress(inputs.destination, 'Holder Address') : null),
                          () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
                          () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
                          () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
@@ -1220,25 +967,7 @@ export class FirewallComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               updateFirewall: {
-                    required: ['seed', 'mptIssuanceIdField'],
-                    customValidators: [
-                         () => isValidSeed(inputs.seed),
-                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                    ],
-                    asyncValidators: [],
-               },
-               authorizeFirewall: {
+               send: {
                     required: ['seed', 'amount', 'destination', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1260,7 +989,25 @@ export class FirewallComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [checkDestinationTagRequirement],
                },
-               deleteFirewall: {
+               delete: {
+                    required: ['seed', 'mptIssuanceIdField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isRequired(inputs.mptIssuanceIdField, 'MPT Issuance ID'),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
+                    asyncValidators: [],
+               },
+               setMptLocked: {
                     required: ['seed', 'mptIssuanceIdField'],
                     customValidators: [
                          () => isValidSeed(inputs.seed),
@@ -1303,19 +1050,19 @@ export class FirewallComponent implements AfterViewChecked {
                }
           }
 
-          // --- Always validate optional fields ---
+          // Always validate optional fields if provided (e.g., multi-sign, regular key)
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
-
-          if (errors.length === 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
-               errors.push('At least one signer address is required for multi-signing');
-          }
 
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
           if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
+
+          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
 
           return errors;
      }
@@ -1346,83 +1093,25 @@ export class FirewallComponent implements AfterViewChecked {
                     this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
                }
           }
-          this.cdr.markForCheck();
-     }
-
-     addWhitelistAddress() {
-          if (this.newWhitelistAddress && this.newWhitelistAddress.trim()) {
-               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
-               if (knownWhitelistAddress[this.newWhitelistAddress]) {
-                    this.setError(`Whitelist Address ${this.newWhitelistAddress} already exists`);
-                    return;
-               }
-
-               if (!xrpl.isValidAddress(this.newWhitelistAddress.trim())) {
-                    this.setError('Invalid issuer address');
-                    return;
-               }
-
-               knownWhitelistAddress[this.newWhitelistAddress] = this.newWhitelistAddress;
-               this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownWhitelistAddress);
-
-               this.updateWhitelistAddress();
-               this.setSuccess(`Added ${this.newWhitelistAddress} to Whitelist accounts`);
-               this.newWhitelistAddress = '';
-               this.cdr.markForCheck();
-          } else {
-               this.setError('Currency code and issuer address are required');
-          }
-          this.spinner = false;
-     }
-
-     removeWhitelistAddress() {
-          if (this.whitelistAddressToRemove) {
-               const knownWhitelistAddress = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
-
-               if (knownWhitelistAddress && knownWhitelistAddress[this.whitelistAddressToRemove]) {
-                    delete knownWhitelistAddress[this.whitelistAddressToRemove];
-                    this.storageService.setKnownWhitelistAddress('knownWhitelistAddress', knownWhitelistAddress);
-               }
-               this.setSuccess(`Removed ${this.whitelistAddressToRemove} from the Whitelist accounts`);
-               this.updateWhitelistAddress();
-               this.whitelistAddressToRemove = '';
-               this.cdr.markForCheck();
-          } else {
-               this.setError('Select a whitelist address to remove');
-          }
-          this.spinner = false;
-     }
-
-     private updateWhitelistAddress() {
-          const t = this.storageService.getKnownWhitelistAddress('knownWhitelistAddress') || {};
-          this.whitelistAddresses = t ? Object.keys(t) : [];
-          this.setSuccess(`whitelistAddresses ${this.whitelistAddresses}`);
-
-          // merge whitelist into destinations
-          this.destinations = [...new Set([...Object.values(this.knownDestinations), ...this.whitelistAddresses])].map(address => ({ address }));
-     }
-
-     private comineWhiteListDestiationAddresses(storedDestinations: { [key: string]: string }, knownWhitelistAddress: { [key: string]: string }) {
-          const convertedDestinations = Object.entries(storedDestinations)
-               .filter(([_, value]) => value && value.trim() !== '') // Remove "XRP": ""
-               .reduce((acc, [_, value]) => {
-                    acc[value] = value;
-                    return acc;
-               }, {} as { [key: string]: string });
-
-          // Merge both objects
-          const combined = {
-               ...convertedDestinations,
-               ...knownWhitelistAddress,
-          };
-          return combined;
+          this.cdr.detectChanges();
      }
 
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
                this.isRegularKeyAddress = false;
                this.isMptFlagModeEnabled = false;
+               this.tokenCountField = '';
+               this.assetScaleField = '';
+               this.transferFeeField = '';
+               this.mptIssuanceIdField = '';
+               this.metaDataField = '';
                this.amountField = '';
+               this.flags.isClawback = false;
+               this.flags.isLock = false;
+               this.flags.isRequireAuth = false;
+               this.flags.isTransferable = false;
+               this.flags.isTradable = false;
+               this.flags.isEscrow = false;
                this.destinationTagField = '';
                this.isSimulateEnabled = false;
           }
@@ -1434,12 +1123,19 @@ export class FirewallComponent implements AfterViewChecked {
           this.isTicket = false;
           this.isTicketEnabled = false;
           this.ticketSequence = '';
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
+          console.log('Spinner message updated:', message);
+     }
+
+     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+          this.spinner = true;
+          this.updateSpinnerMessage(message);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      private setErrorProperties() {
@@ -1471,6 +1167,6 @@ export class FirewallComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
-          this.cdr.markForCheck();
+          this.cdr.detectChanges();
      }
 }
