@@ -120,7 +120,7 @@
                                         </span>
                                    </td>
                                    <td>
-                                        <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops)' : 'Currency amount'" />
+                                             <input type="text" id="amountField" [(ngModel)]="amountField" name="amountField" [placeholder]="currencyFieldDropDownValue === 'XRP' ? 'Amount in XRP (not drops) or MPT' : 'Currency amount'" />
                                    </td>
                               </tr>
                               <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="issuerRow">
@@ -339,6 +339,30 @@
                <div class="right-section">
                     <table id="flags">
                          <th></th>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Only applies to AMM/DEX issuers. Controls how precisely prices are rounded in the DEX.">
+                                        <label>MPT Issuance ID</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="isMptEnabled" [(ngModel)]="isMptEnabled" name="isMptEnabled" />
+                                        <span class="slider round"></span>
+                                   </label>
+                                   <label for="isMptEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr class="multisignAddressClass" *ngIf="isMptEnabled">
+                              <td>
+                                   <span class="tooltip" tooltip-data="">
+                                        <label for="mptIssuanceIdField"></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <textarea class="memoField" style="width: 300px; height: 100px" id="mptIssuanceIdField" [(ngModel)]="mptIssuanceIdField" name="mptIssuanceIdField"></textarea>
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">

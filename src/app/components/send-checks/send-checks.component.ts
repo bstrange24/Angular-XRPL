@@ -93,6 +93,8 @@ export class SendChecksComponent implements AfterViewChecked {
      executionTime: string = '';
      amountField: string = '';
      destinationTagField: string = '';
+     mptIssuanceIdField: string = '';
+     isMptEnabled: boolean = false;
      memoField: string = '';
      isMemoEnabled: boolean = false;
      multiSignAddress: string = '';
@@ -533,9 +535,18 @@ export class SendChecksComponent implements AfterViewChecked {
                }
 
                // Build SendMax amount
+               const curr: xrpl.MPTAmount = {
+                    mpt_issuance_id: this.mptIssuanceIdField,
+                    value: this.amountField,
+               };
+
                let sendMax;
                if (this.currencyFieldDropDownValue === AppConstants.XRP_CURRENCY) {
+                    // if (this.isMptEnabled) {
+                    // sendMax = curr;
+                    // } else {
                     sendMax = xrpl.xrpToDrops(this.amountField);
+                    // }
                } else {
                     sendMax = {
                          currency: this.utilsService.encodeIfNeeded(this.currencyFieldDropDownValue),
