@@ -78,6 +78,8 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
      private readonly filterCache = new Map<string, BalanceChange[]>();
      private readonly CACHE_EXPIRY = 30000;
      private scrollDebounce: any = null;
+     private hasInitialized = false;
+     private loadingInitial = false;
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
 
@@ -88,7 +90,10 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
      }
 
      ngAfterViewInit() {
-          console.log('ngAfterViewInit: Viewport initialized:', this.viewport);
+          if (this.hasInitialized) return;
+          this.hasInitialized = true;
+
+          console.debug('ngAfterViewInit: Viewport initialized:', this.viewport);
           this.balanceChangesDataSource.sort = this.sort;
           this.balanceChangesDataSource.paginator = this.paginator;
           (this.balanceChangesDataSource as any).trackByFunction = this.trackByFunction;
@@ -167,6 +172,17 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
      }
 
      async loadBalanceChanges(reset = true) {
+          // ---- Prevent overlapping loads ----
+          if (reset && this.loadingInitial) {
+               console.log('loadBalanceChanges skipped (initial load in progress)');
+               return;
+          }
+          if (!reset && this.loadingMore) {
+               console.log('loadBalanceChanges skipped (pagination load in progress)');
+               return;
+          }
+
+          reset ? (this.loadingInitial = true) : (this.loadingMore = true);
           console.log('Entering loadBalanceChanges');
           const startTime = Date.now();
 
@@ -206,13 +222,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                     this.setFilterPredicate();
                }
 
-               if (!this.hasMoreData || this.loadingMore) return;
-
-               this.loadingMore = true;
+               if (!this.hasMoreData) {
+                    console.log('No more data to load.');
+                    return;
+               }
 
                const txResponse = await this.xrplService.getAccountTransactions(client, address, 20, this.marker);
 
-               if (txResponse.result.transactions.length === 0) {
+               if (!txResponse.result.transactions || txResponse.result.transactions.length === 0) {
                     this.hasMoreData = false;
                     return;
                }
@@ -228,7 +245,9 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                console.error('Error loading tx:', error);
                this.setError('Failed to load balance changes');
           } finally {
-               this.loadingMore = false;
+               if (reset) this.loadingInitial = false;
+               else this.loadingMore = false;
+
                this.cdr.detectChanges();
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving loadBalanceChanges in ${this.executionTime}ms`);
@@ -260,11 +279,11 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
           for (const txWrapper of transactions) {
                console.debug(`txWrapper`, txWrapper);
                const tx = txWrapper.tx_json || txWrapper.transaction;
-               console.log(`tx`, tx);
+               console.debug(`tx`, tx);
                const fee = xrpl.dropsToXrp(tx.Fee).toString();
                const meta = txWrapper.meta;
                const fees = tx.Fee;
-               console.log(`Fee 2`, xrpl.dropsToXrp(fees));
+               console.debug(`Fee 2`, xrpl.dropsToXrp(fees));
 
                if (typeof meta !== 'object' || !meta.AffectedNodes) {
                     continue;
@@ -317,7 +336,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                                    tokenChange = this.utilsService.roundToEightDecimals(-Number.parseFloat(balanceField.value));
                                    tokenBalanceBefore = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
                                    tokenBalanceAfter = 0;
-                                   const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                                   const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
                                    tokenCurrency = curr;
                               }
                          } else if (modified.FinalFields?.Balance) {
@@ -326,14 +345,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                               tokenChange = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value) - Number.parseFloat(prevBalanceField.value));
                               tokenBalanceBefore = this.utilsService.roundToEightDecimals(Number.parseFloat(prevBalanceField.value));
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
                               tokenCurrency = curr;
                          } else if (modified.NewFields?.Balance) {
                               const balanceField = modified.NewFields.Balance;
                               tokenChange = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
                               tokenBalanceBefore = 0;
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.shortCurrencyDisplay(balanceField.currency) : balanceField.currency || '';
+                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
                               tokenCurrency = curr;
                          }
 
@@ -374,24 +393,23 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                return;
           }
 
-          if (this.loadingMore) return;
+          // ---- Prevent new load if one is active ----
+          if (this.loadingInitial || this.loadingMore) return;
 
-          const viewportHeight = this.viewport.elementRef.nativeElement.clientHeight;
-          const nearEnd = index >= this.balanceChangesDataSource.data.length - 5 || (this.balanceChangesDataSource.data.length === 0 && this.hasMoreData);
+          const total = this.balanceChangesDataSource.data.length;
+          const nearEnd = index >= total - 5 || (total === 0 && this.hasMoreData);
 
           if (nearEnd && this.hasMoreData) {
                console.log('Triggering load more on scroll');
-               if (this.scrollDebounce) {
-                    clearTimeout(this.scrollDebounce);
-               }
-               this.scrollDebounce = setTimeout(() => {
-                    this.loadBalanceChanges(false);
-               }, 100);
-          }
-     }
+               if (this.scrollDebounce) clearTimeout(this.scrollDebounce);
 
-     shortCurrencyDisplay(code: string): string {
-          return code.length > 3 ? `SHORT(${code.slice(0, 3)})` : code;
+               // Debounce to prevent rapid triggers while scrolling
+               this.scrollDebounce = setTimeout(() => {
+                    if (!this.loadingMore && this.hasMoreData) {
+                         this.loadBalanceChanges(false);
+                    }
+               }, 300);
+          }
      }
 
      getTypeColor(type: string): string {
@@ -414,7 +432,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
 
                case 'TicketCreate':
                case 'Batch':
-               case 'NFTokenCreateOffer':
+
                case 'TrustSet':
                case 'MPTokenAuthorize':
                     return '#79BDD8';
@@ -426,8 +444,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'SetRegularKey':
                case 'MPTokenIssuanceDestroy':
                     return '#BAD47B';
+
                case 'NFTokenMint':
+               case 'NFTokenModify':
+               case 'NFTokenCancelOffer':
+               case 'NFTokenCreateOffer':
+               case 'NFTokenAcceptOffer':
                     return '#ac7bd4ff';
+
                case 'CheckCancel':
                case 'CheckCash':
                case 'CheckCreate':

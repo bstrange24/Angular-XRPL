@@ -1197,10 +1197,16 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                     const accountSetTx: xrpl.AccountSet = await client.autofill({
                          TransactionType: 'AccountSet',
                          Account: wallet.classicAddress,
-                         NFTokenMinter: enableNftMinter === 'Y' ? authorizedAddress : '',
                          Fee: fee,
                          LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                     });
+
+                    if (enableNftMinter === 'Y') {
+                         accountSetTx.NFTokenMinter = authorizedAddress;
+                         accountSetTx.SetFlag = xrpl.AccountSetAsfFlags.asfAuthorizedNFTokenMinter;
+                    } else {
+                         accountSetTx.ClearFlag = xrpl.AccountSetAsfFlags.asfAuthorizedNFTokenMinter;
+                    }
 
                     // Optional fields
                     if (this.memoField) {

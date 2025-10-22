@@ -3572,7 +3572,6 @@ export class CreateOfferComponent implements AfterViewChecked {
      updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-          console.log('Spinner message updated:', message);
      }
 
      async showSpinnerWithDelay(message: string, delayMs: number = 200) {
