@@ -856,7 +856,7 @@ export class XrplService {
 
                return response as GatewayBalancesResponse;
           } catch (error: any) {
-               console.error('Error fetching gateway_balances:', error);
+               console.warn('Error fetching gateway_balances:', error);
                // Still return a valid empty GatewayBalancesResponse
                return {
                     id: 0,

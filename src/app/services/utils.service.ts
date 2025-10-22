@@ -2123,4 +2123,28 @@ export class UtilsService {
                return amount.value;
           }
      }
+
+     logLedgerObjects(fee: string, currentLedger: number, serverInfo: xrpl.ServerInfoResponse) {
+          console.debug(`fee:`, fee);
+          console.debug(`currentLedger:`, currentLedger);
+          console.debug(`serverInfo:`, serverInfo);
+     }
+
+     logAccountInfoObjects(accountInfo: any) {
+          console.debug(`accountInfo:`, accountInfo.result);
+     }
+
+     logTrustlineObjects(trustLines: xrpl.AccountLinesResponse) {
+          console.debug(`trustLines:`, trustLines);
+     }
+
+     logEscrowObjects(escrowObjects: xrpl.AccountObjectsResponse, escrow: any) {
+          if (escrowObjects) {
+               console.debug(`escrowObjects:`, escrowObjects?.result);
+          }
+
+          if (escrow) {
+               console.debug(`escrow:`, escrow);
+          }
+     }
 }

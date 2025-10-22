@@ -394,7 +394,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                                         ...(escrow.DestinationTag ? [{ key: 'Destination Tag', value: String(escrow.DestinationTag) }] : []),
                                         ...(escrow.Memo ? [{ key: 'Memo', value: this.utilsService.decodeHex(escrow.Memo) }] : []),
                                         { key: 'Ticket Sequence', value: escrow.TicketSequence?.toString() ?? 'N/A' },
-                                        { key: 'Previous Txn ID', value: `<code>${escrow.PreviousTxnID ?? 'N/A'}</code>` },
+                                        // { key: 'Previous Txn ID', value: `<code>${escrow.PreviousTxnID ?? 'N/A'}</code>` },
                                         ...(escrow.SourceTag ? [{ key: 'Source Tag', value: String(escrow.SourceTag) }] : []),
                                    ],
                               };
@@ -454,7 +454,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                                    content: [
                                         { key: 'MPT Issuance ID', value: `<code>${mptIssuanceId}</code>` },
                                         { key: 'Ledger Entry Type', value: LedgerEntryType },
-                                        { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
+                                        // { key: 'Previous Txn ID', value: `<code>${PreviousTxnID}</code>` },
                                         ...(ticketSequence ? [{ key: 'Ticket Sequence', value: String(ticketSequence) }] : []),
                                         ...(flags !== undefined ? [{ key: 'Flags', value: this.utilsService.getMptFlagsReadable(Number(flags)) }] : []),
                                         // Optionally display custom fields if present
@@ -556,11 +556,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                const [accountInfo, trustLines, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
                // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`trustLines :`, trustLines);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.logCreateEscrowObjects(accountInfo, trustLines, fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
 
@@ -703,14 +699,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.xrplService.getXrplServerInfo(client, 'current', ''),
                ]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`escrowObjects for ${wallet.classicAddress}:`, escrowObjects.result);
-               console.debug(`escrow for ${wallet.classicAddress}:`, escrow);
-               console.debug(`trustLines:`, trustLines);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.logFinishEscrowObjects(accountInfo, escrowObjects, escrow, trustLines, fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
                inputs.escrow_objects = escrowObjects;
@@ -851,12 +840,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                const [accountInfo, escrowObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`escrowObjects for ${wallet.classicAddress}:`, escrowObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.logCancelEscrowObjects(accountInfo, escrowObjects, fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
                inputs.escrow_objects = escrowObjects;
@@ -1148,6 +1132,16 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
                if (txType === 'create') {
                     if (this.isMptEnabled) {
+                         const accountObjects = await this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', '');
+                         const mptTokens = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
+                         console.debug(`Destination MPT Tokens:`, mptTokens);
+                         console.debug('MPT Issuance ID:', this.mptIssuanceIdField);
+                         const authorized = mptTokens.some((obj: any) => obj.MPTokenIssuanceID === this.mptIssuanceIdField);
+
+                         if (!authorized) {
+                              throw new Error(`Destination ${this.destinationFields} is not authorized to receive this MPT (issuance ID ${this.mptIssuanceIdField}). Please ensure authorization has been completed.`);
+                         }
+
                          const curr: xrpl.MPTAmount = {
                               mpt_issuance_id: this.mptIssuanceIdField,
                               value: this.amountField,
@@ -1715,6 +1709,25 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.ticketSequence = '';
           this.isTicket = false;
           this.cdr.detectChanges();
+     }
+
+     private logCreateEscrowObjects(accountInfo: any, trustLines: xrpl.AccountLinesResponse, fee: string, currentLedger: number, serverInfo: xrpl.ServerInfoResponse) {
+          this.utilsService.logAccountInfoObjects(accountInfo.result);
+          this.utilsService.logTrustlineObjects(trustLines);
+          this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
+     }
+
+     private logFinishEscrowObjects(accountInfo: any, escrowObjects: xrpl.AccountObjectsResponse, escrow: any, trustLines: xrpl.AccountLinesResponse, fee: string, currentLedger: number, serverInfo: xrpl.ServerInfoResponse) {
+          this.utilsService.logAccountInfoObjects(accountInfo.result);
+          this.utilsService.logTrustlineObjects(trustLines);
+          this.utilsService.logEscrowObjects(escrowObjects, escrow);
+          this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
+     }
+
+     private logCancelEscrowObjects(accountInfo: any, escrowObjects: xrpl.AccountObjectsResponse, fee: string, currentLedger: number, serverInfo: xrpl.ServerInfoResponse) {
+          this.utilsService.logAccountInfoObjects(accountInfo.result);
+          this.utilsService.logEscrowObjects(escrowObjects, null);
+          this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
      }
 
      private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
