@@ -27,7 +27,6 @@ interface ValidationInputs {
      amount?: string;
      nftIndexField?: string;
      nftCountField?: string;
-     issuerAddressField?: string;
      isRegularKeyAddress?: boolean;
      regularKeyAddress?: string;
      regularKeySeed?: string;
@@ -105,7 +104,6 @@ export class NftOffersComponent implements AfterViewChecked {
      isNFTokenMinterEnabled: boolean = false;
      nfTokenMinterAddress: string = '';
      tickSize: string = '';
-     transferFeeField: string = '';
      isMessageKey: boolean = false;
      destinationFields: string = '';
      newDestination: string = '';
@@ -133,7 +131,7 @@ export class NftOffersComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      multiSigningEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
-     taxonField: string = '';
+     expirationDateTimeUnit: string = 'seconds';
      burnableNft: { checked: any } | undefined;
      onlyXrpNft: { checked: any } | undefined;
      transferableNft: { checked: any } | undefined;
@@ -141,7 +139,6 @@ export class NftOffersComponent implements AfterViewChecked {
      batchMode: 'allOrNothing' | 'onlyOne' | 'untilFailure' | 'independent' = 'allOrNothing';
      amountField: string = '';
      minterAddressField: string = '';
-     issuerAddressField: string = '';
      expirationField: string = '';
      // uriField: string = 'https://ipfs.io/ipfs/bafybeigjro2d2tc43bgv7e4sxqg7f5jga7kjizbk7nnmmyhmq35dtz6deq';
      // uriField: string = 'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjhubGpubms0bXl5ZzM0cWE4azE5aTlyOHRyNmVhd2prcDc1am43ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NxwglXLqMeOuRF3FHv/giphy.gif';
@@ -375,7 +372,7 @@ export class NftOffersComponent implements AfterViewChecked {
                               const isBurnable = (nft.Flags & TF_BURNABLE) !== 0;
                               const checkedAttr = idsSet.includes(nft.NFTokenID) ? 'checked' : '';
                               // const burnLabel = isBurnable ? 'Burn' : 'Not Burnable';
-                              const burnLabel = isBurnable ? 'Copy' : 'Copy';
+                              const burnLabel = isBurnable ? 'Sell' : 'Sell';
                               // const disabledAttr = isBurnable ? '' : 'disabled';
                               const disabledAttr = isBurnable ? '' : '';
 
@@ -418,15 +415,43 @@ export class NftOffersComponent implements AfterViewChecked {
                     }
                }
 
-               // CRITICAL: Render immediately
+               // Render UI
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
+
+               // --- Attach Burn Checkbox Logic ---
+               setTimeout(() => {
+                    const burnChecks = document.querySelectorAll<HTMLInputElement>('input.burn-check');
+
+                    burnChecks.forEach(checkbox => {
+                         checkbox.addEventListener('change', (e: Event) => {
+                              const target = e.target as HTMLInputElement;
+                              const nftId = target.getAttribute('data-id');
+                              const isChecked = target.checked;
+
+                              // Sync all checkboxes for same NFT ID
+                              document.querySelectorAll<HTMLInputElement>(`input.burn-check[data-id="${nftId}"]`).forEach(cb => {
+                                   if (cb !== target) {
+                                        cb.checked = isChecked;
+                                   }
+                              });
+
+                              // Update textarea or linked field
+                              if (nftId) this.updateNftTextField(nftId, isChecked);
+                         });
+                    });
+
+                    // Stop checkbox clicks from interfering with <code> copy
+                    document.querySelectorAll<HTMLInputElement>('input.burn-check').forEach(cb => {
+                         cb.addEventListener('click', (e: Event) => e.stopPropagation());
+                    });
+               }, 0);
+
                this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                // --- Deferred UI Updates ---
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched data — no redundant API calls!
                          this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
@@ -434,7 +459,6 @@ export class NftOffersComponent implements AfterViewChecked {
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for NFTs:', err);
-                         // Don't break main render — NFTs are already shown
                     }
                }, 0);
           } catch (error: any) {
@@ -513,7 +537,7 @@ export class NftOffersComponent implements AfterViewChecked {
                               subItems: sellOffers.map((offer: any, index: number) => ({
                                    key: `Sell Offer ${index + 1} (Index: ${offer.nft_offer_index.slice(0, 8)}...)`,
                                    openByDefault: false,
-                                   content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${this.utilsService.formatIOUXrpAmountUI(offer.amount)}` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
+                                   content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${this.utilsService.formatIOUXrpAmountUI(offer.amount)}` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: this.utilsService.convertXRPLTime(offer.expiration) }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
                               })),
                          });
                     }
@@ -532,7 +556,7 @@ export class NftOffersComponent implements AfterViewChecked {
                               subItems: buyOffers.map((offer: any, index: number) => ({
                                    key: `Buy Offer ${index + 1} (Index: ${offer.nft_offer_index.slice(0, 8)}...)`,
                                    openByDefault: false,
-                                   content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${this.utilsService.formatIOUXrpAmountUI(offer.amount)}` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
+                                   content: [{ key: 'Offer Index', value: `<code>${offer.nft_offer_index}</code>` }, { key: 'Amount', value: offer.amount ? `${this.utilsService.formatIOUXrpAmountUI(offer.amount)}` : 'Unknown' }, { key: 'Owner', value: `<code>${offer.owner}</code>` }, ...(offer.expiration ? [{ key: 'Expiration', value: this.utilsService.convertXRPLTime(offer.expiration) }] : []), ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination}</code>` }] : [])],
                               })),
                          });
                     }
@@ -562,7 +586,7 @@ export class NftOffersComponent implements AfterViewChecked {
                                         { key: 'Offer Index', value: `<code>${offer.nft_offer_index ? offer.nft_offer_index : offer.nftOfferIndex}</code>` },
                                         { key: 'Amount', value: offer.amount ? `${this.utilsService.formatIOUXrpAmountUI(offer.amount)}` : 'Unknown' },
                                         { key: 'Owner', value: `<code>${offer.owner ? offer.owner : 'N/A'}</code>` },
-                                        ...(offer.expiration ? [{ key: 'Expiration', value: new Date(offer.expiration * 1000).toISOString() }] : []),
+                                        ...(offer.expiration ? [{ key: 'Expiration', value: this.utilsService.convertXRPLTime(offer.expiration) }] : []),
                                         ...(offer.destination ? [{ key: 'Destination', value: `<code>${offer.destination ? offer.destination : 'N/A'}</code>` }] : []),
                                    ],
                               })),
@@ -617,6 +641,7 @@ export class NftOffersComponent implements AfterViewChecked {
                // CRITICAL: Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                // DEFER: Non-critical UI updates
                setTimeout(async () => {
@@ -763,6 +788,7 @@ export class NftOffersComponent implements AfterViewChecked {
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
@@ -853,28 +879,7 @@ export class NftOffersComponent implements AfterViewChecked {
                     nFTokenCreateOfferTx.Amount = xrpl.xrpToDrops(this.amountField);
                }
 
-               // await this.setTxOptionalFields(client, nFTokenCreateOfferTx, wallet, accountInfo, 'sell');
-
-               // Add expiration if provided
-               if (this.expirationField) {
-                    const expirationDate = new Date();
-                    expirationDate.setHours(expirationDate.getHours() + parseFloat(this.expirationField));
-                    nFTokenCreateOfferTx.Expiration = Math.floor(expirationDate.getTime() / 1000);
-               }
-
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(nFTokenCreateOfferTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(nFTokenCreateOfferTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(nFTokenCreateOfferTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, nFTokenCreateOfferTx, wallet, accountInfo, 'sell');
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, nFTokenCreateOfferTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -910,6 +915,7 @@ export class NftOffersComponent implements AfterViewChecked {
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
@@ -1003,28 +1009,7 @@ export class NftOffersComponent implements AfterViewChecked {
                     nFTokenCreateOfferTx.Amount = xrpl.xrpToDrops(this.amountField);
                }
 
-               // await this.setTxOptionalFields(client, nFTokenCreateOfferTx, wallet, accountInfo, 'createOffer');
-
-               // Add expiration if provided
-               if (this.expirationField) {
-                    const expirationDate = new Date();
-                    expirationDate.setHours(expirationDate.getHours() + parseFloat(this.expirationField));
-                    nFTokenCreateOfferTx.Expiration = Math.floor(expirationDate.getTime() / 1000);
-               }
-
-               if (this.ticketSequence) {
-                    const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(this.ticketSequence));
-                    if (!ticketExists) {
-                         return this.setError(`ERROR: Ticket Sequence ${this.ticketSequence} not found for account ${wallet.classicAddress}`);
-                    }
-                    this.utilsService.setTicketSequence(nFTokenCreateOfferTx, this.ticketSequence, true);
-               } else {
-                    this.utilsService.setTicketSequence(nFTokenCreateOfferTx, accountInfo.result.account_data.Sequence, false);
-               }
-
-               if (this.memoField) {
-                    this.utilsService.setMemoField(nFTokenCreateOfferTx, this.memoField);
-               }
+               await this.setTxOptionalFields(client, nFTokenCreateOfferTx, wallet, accountInfo, 'sell');
 
                if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, nFTokenCreateOfferTx, fee)) {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
@@ -1036,6 +1021,7 @@ export class NftOffersComponent implements AfterViewChecked {
                } else {
                     nFTokenCreateOfferTx.Flags = 1;
                }
+
                let response: any;
 
                if (this.isSimulateEnabled) {
@@ -1064,6 +1050,7 @@ export class NftOffersComponent implements AfterViewChecked {
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
@@ -1177,6 +1164,7 @@ export class NftOffersComponent implements AfterViewChecked {
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects, gatewayBalances] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
@@ -1467,8 +1455,9 @@ export class NftOffersComponent implements AfterViewChecked {
           // --- Helper: set expiration ---
           const setExpiration = (): boolean => {
                if (this.expirationField) {
-                    const expireTime = this.utilsService.addTime(this.expirationField, 'hours');
-                    this.utilsService.setExpiration(nftTx, expireTime);
+                    const offerExpirationDate = this.utilsService.addTime(this.expirationField, this.expirationDateTimeUnit as 'seconds' | 'minutes' | 'hours' | 'days');
+                    this.utilsService.setExpiration(nftTx, offerExpirationDate);
+                    console.log(`offerExpirationDate:`, offerExpirationDate);
                     return true;
                }
                return false;
@@ -1480,7 +1469,7 @@ export class NftOffersComponent implements AfterViewChecked {
           };
 
           // --- Common handling for multiple tx types ---
-          if (['mint', 'burn', 'buy', 'updateMetaData', 'sell', 'buyOffer', 'sellOffer', 'cancelBuyOffer', 'cancelSellOffer'].includes(txType)) {
+          if (['buy', 'sell', 'buyOffer', 'sellOffer', 'cancelBuyOffer', 'cancelSellOffer'].includes(txType)) {
                const ticket = this.selectedSingleTicket || this.ticketSequence || undefined;
                const ticketError = await setTicket(ticket);
                if (ticketError) return this.setError(ticketError);
@@ -1488,37 +1477,7 @@ export class NftOffersComponent implements AfterViewChecked {
                setMemo();
           }
 
-          // --- Type-specific logic ---
-          if (txType === 'mint') {
-               if (this.uriField) this.utilsService.setURI(nftTx, this.uriField);
-
-               if (this.transferFeeField) {
-                    if (!this.isNftFlagModeEnabled || !this.transferableNft) {
-                         return this.setError('ERROR: Transferable NFT flag must be enabled with transfer fee.');
-                    }
-                    this.utilsService.setTransferFee(nftTx, this.transferFeeField);
-               }
-
-               if (this.isAuthorizedNFTokenMinter && this.nfTokenMinterAddress) {
-                    if (!xrpl.isValidAddress(this.nfTokenMinterAddress)) {
-                         return this.setError('ERROR: Invalid Account address');
-                    }
-                    this.utilsService.setIssuerAddress(nftTx, this.nfTokenMinterAddress);
-               }
-
-               let needsAmount = setExpiration();
-
-               if (!this.nfTokenMinterAddress && this.isDestinationEnabled && this.destinationFields) {
-                    this.utilsService.setDestination(nftTx, this.destinationFields);
-                    needsAmount = true;
-               }
-
-               if (needsAmount && this.amountField) {
-                    this.utilsService.setAmount(nftTx, this.amountField);
-               }
-          }
-
-          if (['sell', 'buyOffer', 'sellOffer'].includes(txType)) {
+          if (['sell'].includes(txType)) {
                setExpiration();
           }
 
@@ -1796,10 +1755,6 @@ export class NftOffersComponent implements AfterViewChecked {
                     required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
                },
-               mintNFT: {
-                    required: ['seed'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isValidXrpAddress(inputs.issuerAddressField, 'Issuer address')],
-               },
                batchNFT: {
                     required: ['seed', 'nftCountField'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isValidNumber(inputs.nftCountField, 'NFT count', 0), () => isRequired(inputs.uri, 'URI'), () => isBatchCountValid(inputs.nftCountField, 'NFT Count'), () => isRequired(inputs.batchMode, 'Batch Mode')],
@@ -1808,12 +1763,7 @@ export class NftOffersComponent implements AfterViewChecked {
                     required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => isBatchCountValid(inputs.nftCountField, 'NFT Count')],
                },
-               burnNFT: {
-                    required: ['seed', 'nftIdField'],
-                    customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
-               },
                getNFTOffers: {
-                    // required: [ 'seed', 'nftIdField'],
                     required: ['seed'],
                     // customValidators: [() => isValidSeed(inputs.seed), () => isRequired(inputs.nftIdField, 'NFT ID')],
                     customValidators: [() => isValidSeed(inputs.seed)],
@@ -2072,56 +2022,6 @@ export class NftOffersComponent implements AfterViewChecked {
           }
      }
 
-     // async toggleIssuerField() {
-     //      console.log('Entering onCurrencyChange');
-     //      const startTime = Date.now();
-     //      this.setSuccessProperties();
-     //      this.updateSpinnerMessage('Updating Currency...');
-
-     //      try {
-     //           const client = await this.xrplService.getClient();
-     //           const wallet = await this.getWallet();
-     //           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
-
-     //           const [balanceUpdate, gatewayBalances] = await Promise.all([this.updateCurrencyBalance(wallet, accountObjects), this.xrplService.getTokenBalance(client, wallet.classicAddress, 'validated', '')]);
-
-     //           // Calculate total balance for selected currency
-     //           let balanceTotal: number = 0;
-     //           const relevantIssuers: string[] = []; // New array for issuers of this currency
-
-     //           if (gatewayBalances.result.assets && Object.keys(gatewayBalances.result.assets).length > 0) {
-     //                for (const [issuer, currencies] of Object.entries(gatewayBalances.result.assets)) {
-     //                     for (const { currency, value } of currencies) {
-     //                          if (this.utilsService.formatCurrencyForDisplay(currency) === this.currencyFieldDropDownValue) {
-     //                               balanceTotal += Number(value);
-     //                               relevantIssuers.push(issuer); // Collect issuers for this currency
-     //                          }
-     //                     }
-     //                }
-     //                this.gatewayBalance = this.utilsService.formatTokenBalance(balanceTotal.toString(), 18);
-     //           } else {
-     //                this.gatewayBalance = '0';
-     //           }
-
-     //           // Update destination field
-     //           if (this.currencyFieldDropDownValue === 'XRP') {
-     //                this.destinationFields = this.wallets[0]?.address || ''; // Default to first wallet address for XRP
-     //           } else {
-     //                this.currencyIssuers = relevantIssuers; // Use filtered issuers from gatewayBalances
-     //                this.destinationFields = this.wallets[1]?.address || ''; // Default to first for tokens
-     //           }
-     //      } catch (error: any) {
-     //           this.tokenBalance = '0';
-     //           this.gatewayBalance = '0';
-     //           console.error('Error in onCurrencyChange:', error);
-     //           this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
-     //      } finally {
-     //           this.spinner = false;
-     //           this.executionTime = (Date.now() - startTime).toString();
-     //           console.log(`Leaving onCurrencyChange in ${this.executionTime}ms`);
-     //      }
-     // }
-
      private async updateCurrencyBalance(gatewayBalance: xrpl.GatewayBalancesResponse, wallet: xrpl.Wallet) {
           const parsedBalances = this.parseAllGatewayBalances(gatewayBalance, wallet);
           if (parsedBalances && Object.keys(parsedBalances).length > 0) {
@@ -2220,7 +2120,6 @@ export class NftOffersComponent implements AfterViewChecked {
 
           this.amountField = '';
           this.minterAddressField = '';
-          this.issuerAddressField = '';
           this.expirationField = '';
           this.nftIdField = '';
           this.nftIndexField = '';

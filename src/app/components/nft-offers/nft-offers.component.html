@@ -146,42 +146,20 @@
                                              <input type="text" id="tokenBalance" [(ngModel)]="tokenBalance" readonly name="tokenBalance" />
                                         </td>
                                    </tr>
-                                   <!-- <tr *ngIf="currencyFieldDropDownValue !== 'XRP'" id="gatewayBalance">
-                                        <td>
-                                             <label for="gatewayBalance">Gateway Balance</label>
-                                        </td>
-                                        <td>
-                                             <input type="text" id="gatewayBalance" [(ngModel)]="gatewayBalance" name="gatewayBalance" readonly />
-                                        </td>
-                                   </tr> -->
-                                   <tr>
-                                        <td>
-                                             <span class="tooltip" tooltip-data="">
-                                                  <label for="taxonField">Taxon</label>
-                                             </span>
-                                        </td>
-                                        <td>
-                                             <input type="text" id="taxonField" [(ngModel)]="taxonField" name="taxonField" />
-                                        </td>
-                                   </tr>
-                                   <tr>
-                                        <td>
-                                             <span class="tooltip" tooltip-data="">
-                                                  <label for="transferFeeField">Transfer Fee</label>
-                                             </span>
-                                        </td>
-                                        <td>
-                                             <input type="text" id="transferFeeField" [(ngModel)]="transferFeeField" name="transferFeeField" />
-                                        </td>
-                                   </tr>
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="The NFT offer will expire after the expiration date. This is in hours.">
-                                                  <label for="expirationField">Offer Expiration Date (Hours)</label>
+                                                  <label for="expirationField">Offer Expiration</label>
                                              </span>
                                         </td>
                                         <td>
                                              <input type="text" id="expirationField" [(ngModel)]="expirationField" name="expirationField" />
+                                             <select class="timeUnit" style="width: 100px" id="expirationDateTimeUnit" [(ngModel)]="expirationDateTimeUnit" name="expirationDateTimeUnit">
+                                                  <option value="seconds">Seconds</option>
+                                                  <option value="minutes">Minutes</option>
+                                                  <option value="hours">Hours</option>
+                                                  <option value="days">Days</option>
+                                             </select>
                                         </td>
                                    </tr>
                                    <tr>
@@ -192,6 +170,16 @@
                                         </td>
                                         <td>
                                              <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIndexField" name="nftIndexField"></textarea>
+                                        </td>
+                                   </tr>
+                                   <tr class="multisignAddressClass">
+                                        <td>
+                                             <span class="tooltip" tooltip-data="NFT Id to use for transactions.">
+                                                  <label for="memoField">Nft Token Id</label>
+                                             </span>
+                                        </td>
+                                        <td>
+                                             <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIdField" name="nftIdField"></textarea>
                                         </td>
                                    </tr>
                               </table>
@@ -281,17 +269,7 @@
                     <table id="flags"></table>
                     <table id="meta">
                          <th></th>
-                         <tr class="multisignAddressClass">
-                              <td>
-                                   <span class="tooltip" tooltip-data="NFT Id to use for transactions.">
-                                        <label for="memoField">Nft Token Id</label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <textarea class="memoField" style="width: 300px; height: 100px" type="text" id="memoField" placeholder="" [(ngModel)]="nftIdField" name="nftIdField"></textarea>
-                              </td>
-                         </tr>
-                         <tr>
+                         <!-- <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Address authorized mint NFT's">
                                         <label for="issuerAddressField">NFT Issuer</label>
@@ -300,22 +278,20 @@
                               <td>
                                    <input type="text" id="issuerAddressField" [(ngModel)]="issuerAddressField" name="issuerAddressField" />
                               </td>
-                         </tr>
-                         <tr>
+                         </tr> -->
+                         <!-- <tr>
                               <td>
                                    <label for="destinationFields">Destination</label>
                               </td>
                               <td>
                                    <select class="timeUnit" id="destinationFields" [(ngModel)]="destinationFields" name="destinationFields">
-                                        <!-- <option *ngFor="let dest of destinations" [value]="dest">{{ dest }}</option> -->
                                         <option *ngFor="let dest of destinations; let i = index" [value]="dest.address" [disabled]="dest.address === currentWallet.address">{{dest.name || 'Wallet ' + (i + 1)}} ({{dest.address | slice:0:6}}...{{dest.address | slice:-4}})</option>
                                    </select>
                                    <br />
-                                   <!-- Manual input field -->
-                                   <!-- <input type="text" placeholder="Enter new destination" [(ngModel)]="newDestination" name="newDestination" /> -->
-                                   <!-- <button type="button" (click)="addDestination()">Add</button> -->
+                                   <input type="text" placeholder="Enter new destination" [(ngModel)]="newDestination" name="newDestination" />
+                                   <button type="button" (click)="addDestination()">Add</button>
                               </td>
-                         </tr>
+                         </tr> -->
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Add memo to transaction.">

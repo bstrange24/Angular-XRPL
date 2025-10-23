@@ -248,7 +248,9 @@ export class TrustlinesComponent implements AfterViewChecked {
                }
 
                const trustLines = accountObjects.result.account_objects.filter(obj => obj.LedgerEntryType === 'RippleState');
+               console.debug('trustLines:', trustLines);
                const activeTrustLines = trustLines.filter(line => this.utilsService.decodeIfNeeded(line.Balance.currency) === this.currencyField);
+               console.debug('activeTrustLines:', activeTrustLines);
 
                const data: { sections: any[] } = { sections: [] };
 

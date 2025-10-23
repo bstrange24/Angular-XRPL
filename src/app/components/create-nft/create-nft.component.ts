@@ -325,12 +325,7 @@ export class CreateNftComponent implements AfterViewChecked {
                     data.sections.push({
                          title: 'NFTs',
                          openByDefault: true,
-                         content: [
-                              {
-                                   key: 'Status',
-                                   value: `No NFTs found for <code>${wallet.classicAddress}</code>`,
-                              },
-                         ],
+                         content: [{ key: 'Status', value: `No NFTs found for <code>${wallet.classicAddress}</code>` }],
                     });
                } else {
                     // Define flags (you can move this to a constant outside the function if reused elsewhere)
@@ -340,7 +335,7 @@ export class CreateNftComponent implements AfterViewChecked {
                          .map(s => s.trim())
                          .filter(Boolean);
 
-                    // All NFTs section
+                    // Add all NFTs section
                     data.sections.push({
                          title: `NFTs (${nfts.length})`,
                          openByDefault: true,
@@ -379,6 +374,35 @@ export class CreateNftComponent implements AfterViewChecked {
                // Render UI
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
+
+               // --- Attach Burn Checkbox Logic ---
+               setTimeout(() => {
+                    const burnChecks = document.querySelectorAll<HTMLInputElement>('input.burn-check');
+
+                    burnChecks.forEach(checkbox => {
+                         checkbox.addEventListener('change', (e: Event) => {
+                              const target = e.target as HTMLInputElement;
+                              const nftId = target.getAttribute('data-id');
+                              const isChecked = target.checked;
+
+                              // Sync all checkboxes for same NFT ID
+                              document.querySelectorAll<HTMLInputElement>(`input.burn-check[data-id="${nftId}"]`).forEach(cb => {
+                                   if (cb !== target) {
+                                        cb.checked = isChecked;
+                                   }
+                              });
+
+                              // Update textarea or linked field
+                              if (nftId) this.updateNftTextField(nftId, isChecked);
+                         });
+                    });
+
+                    // Stop checkbox clicks from interfering with <code> copy
+                    document.querySelectorAll<HTMLInputElement>('input.burn-check').forEach(cb => {
+                         cb.addEventListener('click', (e: Event) => e.stopPropagation());
+                    });
+               }, 0);
+
                this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                // --- Deferred UI Updates ---
