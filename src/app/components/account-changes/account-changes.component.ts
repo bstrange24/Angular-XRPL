@@ -93,7 +93,6 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
           if (this.hasInitialized) return;
           this.hasInitialized = true;
 
-          console.debug('ngAfterViewInit: Viewport initialized:', this.viewport);
           this.balanceChangesDataSource.sort = this.sort;
           this.balanceChangesDataSource.paginator = this.paginator;
           (this.balanceChangesDataSource as any).trackByFunction = this.trackByFunction;
@@ -227,12 +226,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                     return;
                }
 
-               const txResponse = await this.xrplService.getAccountTransactions(client, address, 20, this.marker);
+               const txResponse = await this.xrplService.getAccountTransactions(client, address, 300, this.marker);
 
                if (!txResponse.result.transactions || txResponse.result.transactions.length === 0) {
                     this.hasMoreData = false;
                     return;
                }
+
+               console.log(`Total transactions:`, txResponse.result.transactions.length);
 
                const processedTx = this.processTransactionsForBalanceChanges(txResponse.result.transactions, address);
 
@@ -428,6 +429,8 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'MPTokenIssuanceCreate':
                case 'MPTokenIssuanceSet':
                case 'NFTokenBurn':
+               case 'PaymentChannelClaim':
+               case 'PaymentChannelCreate':
                     return '#f0874bff';
 
                case 'TicketCreate':
