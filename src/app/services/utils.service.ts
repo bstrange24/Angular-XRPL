@@ -2130,12 +2130,18 @@ export class UtilsService {
           console.debug(`serverInfo:`, serverInfo);
      }
 
-     logAccountInfoObjects(accountInfo: any) {
-          console.debug(`accountInfo:`, accountInfo.result);
+     logAccountInfoObjects(accountInfo: any, accountObject: any) {
+          if (accountInfo) {
+               console.debug(`accountInfo:`, accountInfo.result);
+          }
+
+          if (accountObject) {
+               console.debug(`accountObject:`, accountObject.result);
+          }
      }
 
-     logTrustlineObjects(trustLines: xrpl.AccountLinesResponse) {
-          console.debug(`trustLines:`, trustLines);
+     logObjects(type: string, object: any) {
+          console.debug(`${type}`, object.result);
      }
 
      logEscrowObjects(escrowObjects: xrpl.AccountObjectsResponse, escrow: any) {
