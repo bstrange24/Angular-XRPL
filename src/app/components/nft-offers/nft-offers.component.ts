@@ -5,7 +5,7 @@ import { XrplService } from '../../services/xrpl.service';
 import { UtilsService } from '../../services/utils.service';
 import * as xrpl from 'xrpl';
 import { StorageService } from '../../services/storage.service';
-import { NFTokenMint, TransactionMetadataBase, NFTokenBurn, NFTokenAcceptOffer, NFTokenCreateOffer, NFTokenCancelOffer, NFTokenModify } from 'xrpl';
+import { NFTokenAcceptOffer, NFTokenCreateOffer, NFTokenCancelOffer } from 'xrpl';
 import { NavbarComponent } from '../navbar/navbar.component';
 import { SanitizeHtmlPipe } from '../../pipes/sanitize-html.pipe';
 import { AppConstants } from '../../core/app.constants';
@@ -13,6 +13,7 @@ import { BatchService } from '../../services/batch/batch-service.service';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
+import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
 
 interface ValidationInputs {
      selectedAccount?: string;
@@ -179,7 +180,7 @@ export class NftOffersComponent implements AfterViewChecked {
      private lastIssuer: string = '';
      showManageTokens: boolean = false;
 
-     constructor(private readonly ngZone: NgZone, private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly batchService: BatchService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {
+     constructor(private readonly ngZone: NgZone, private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly batchService: BatchService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService, private readonly clickToCopyService: ClickToCopyService) {
           this.burnCheckboxHandlerBound = (e: Event) => this.burnCheckboxHandler(e);
      }
 
@@ -420,66 +421,7 @@ export class NftOffersComponent implements AfterViewChecked {
                // CRITICAL: Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
-
-               // --- Attach Burn Checkbox Logic ---
-               setTimeout(() => {
-                    const burnChecks = document.querySelectorAll<HTMLInputElement>('input.burn-check');
-
-                    burnChecks.forEach(checkbox => {
-                         checkbox.addEventListener('change', (e: Event) => {
-                              const target = e.target as HTMLInputElement;
-                              const nftId = target.getAttribute('data-id');
-                              const isChecked = target.checked;
-
-                              // Sync all checkboxes for same NFT ID
-                              document.querySelectorAll<HTMLInputElement>(`input.burn-check[data-id="${nftId}"]`).forEach(cb => {
-                                   if (cb !== target) {
-                                        cb.checked = isChecked;
-                                   }
-                              });
-
-                              // Update textarea or linked field
-                              if (nftId) this.updateNftTextField(nftId, isChecked);
-                         });
-                    });
-
-                    // Stop checkbox clicks from interfering with <code> copy
-                    document.querySelectorAll<HTMLInputElement>('input.burn-check').forEach(cb => {
-                         cb.addEventListener('click', (e: Event) => e.stopPropagation());
-                    });
-               }, 0);
-
-               // --- Attach Copy-to-Clipboard Logic ---
-               setTimeout(() => {
-                    const codeElements = document.querySelectorAll<HTMLElement>('code');
-                    codeElements.forEach(codeEl => {
-                         if (codeEl.dataset['copyBound']) return; // Prevent duplicate bindings
-                         codeEl.dataset['copyBound'] = 'true';
-                         codeEl.style.cursor = 'pointer';
-                         codeEl.title = 'Click to copy';
-
-                         codeEl.addEventListener('click', (event: MouseEvent) => {
-                              const target = event.target as HTMLElement;
-                              // Skip clicks on labels or inputs
-                              if (target.closest('input') || target.closest('label')) return;
-
-                              const text = codeEl.textContent?.trim() || '';
-                              if (!text) return;
-
-                              navigator.clipboard
-                                   .writeText(text)
-                                   .then(() => {
-                                        codeEl.classList.add('copied');
-                                        codeEl.title = 'Copied!';
-                                        setTimeout(() => {
-                                             codeEl.classList.remove('copied');
-                                             codeEl.title = 'Click to copy';
-                                        }, 800);
-                                   })
-                                   .catch(err => console.error('Failed to copy:', err));
-                         });
-                    });
-               }, 0);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                // --- Deferred UI Updates ---
                setTimeout(async () => {
@@ -1500,6 +1442,7 @@ export class NftOffersComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+          this.clickToCopyService.attachCopy(this.resultField.nativeElement);
      }
 
      private async setTxOptionalFields(client: xrpl.Client, nftTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string): Promise<string | void> {

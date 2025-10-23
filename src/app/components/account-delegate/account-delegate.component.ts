@@ -11,6 +11,7 @@ import { AppConstants } from '../../core/app.constants';
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-transaction.service';
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
+import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
 
 interface ValidationInputs {
      selectedAccount?: string;
@@ -129,7 +130,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService, private readonly clickToCopyService: ClickToCopyService) {}
 
      ngOnInit() {
           this.leftActions = this.actions.slice(0, Math.ceil(this.actions.length / 2));
@@ -342,6 +343,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                const sortedResult = this.utilsService.sortByLedgerEntryType(accountObjects);
                this.renderUiComponentsService.renderAccountDetails(accountInfo, sortedResult);
                this.setSuccess(this.result);
+               this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                this.refreshUIData(wallet, accountInfo, accountObjects);
 
@@ -512,6 +514,7 @@ export class AccountDelegateComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+          this.clickToCopyService.attachCopy(this.resultField.nativeElement);
      }
 
      private async setTxOptionalFields(client: xrpl.Client, credentialTx: any, wallet: xrpl.Wallet, accountInfo: any, txType: string) {
