@@ -104,7 +104,7 @@ export class NftOffersComponent implements AfterViewChecked {
      isNFTokenMinterEnabled: boolean = false;
      nfTokenMinterAddress: string = '';
      tickSize: string = '';
-     transferFeeField: string = '0';
+     transferFeeField: string = '';
      isMessageKey: boolean = false;
      destinationFields: string = '';
      newDestination: string = '';
@@ -132,7 +132,7 @@ export class NftOffersComponent implements AfterViewChecked {
      signerQuorum: number = 0;
      multiSigningEnabled: boolean = false;
      regularKeySigningEnabled: boolean = false;
-     taxonField: string = '0';
+     taxonField: string = '';
      burnableNft: { checked: any } | undefined;
      onlyXrpNft: { checked: any } | undefined;
      transferableNft: { checked: any } | undefined;
@@ -306,7 +306,6 @@ export class NftOffersComponent implements AfterViewChecked {
 
                const [accountNfts, accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
                console.debug(`account objects:`, accountObjects.result);
                console.debug(`Account NFTs:`, accountNfts.result);
@@ -322,10 +321,7 @@ export class NftOffersComponent implements AfterViewChecked {
                }
 
                // Prepare data structure
-               const data = {
-                    sections: [{}],
-               };
-
+               const data = { sections: [{}] };
                const nfts = accountNfts.result.account_nfts || [];
 
                if (nfts.length <= 0) {
@@ -394,8 +390,12 @@ export class NftOffersComponent implements AfterViewChecked {
                                         },
                                         { key: 'Taxon', value: String(NFTokenTaxon) },
                                         ...(Issuer ? [{ key: 'Issuer', value: `<code>${Issuer}</code>` }] : []),
-                                        ...(URI ? [{ key: 'URI', value: `<code>${this.utilsService.decodeHex(URI)}</code>` }] : []),
-                                        ...(URI ? [{ key: 'Image', value: `<img id="nftImage" src="${this.utilsService.decodeHex(URI)}" width="150" height="150">` }] : []),
+                                        ...(URI
+                                             ? [
+                                                    { key: 'URI', value: `<code>${this.utilsService.decodeHex(URI)}</code>` },
+                                                    { key: 'Image', value: `<img id="nftImage" src="${this.utilsService.decodeHex(URI)}" width="150" height="150">` },
+                                               ]
+                                             : []),
                                         { key: 'Flags', value: String(this.decodeNftFlags(Flags)) },
                                         ...(TransferFee ? [{ key: 'Transfer Fee', value: `${TransferFee / 1000}%` }] : []),
                                    ],
@@ -421,8 +421,8 @@ export class NftOffersComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
+               // --- Attach Burn Checkbox Logic ---
                setTimeout(() => {
-                    // Select all burn checkboxes
                     const burnChecks = document.querySelectorAll<HTMLInputElement>('input.burn-check');
 
                     burnChecks.forEach(checkbox => {
@@ -431,22 +431,57 @@ export class NftOffersComponent implements AfterViewChecked {
                               const nftId = target.getAttribute('data-id');
                               const isChecked = target.checked;
 
-                              // Find all checkboxes with the same NFT ID and sync them
+                              // Sync all checkboxes for same NFT ID
                               document.querySelectorAll<HTMLInputElement>(`input.burn-check[data-id="${nftId}"]`).forEach(cb => {
                                    if (cb !== target) {
                                         cb.checked = isChecked;
                                    }
                               });
 
-                              // Optional: keep your textarea in sync too
-                              if (nftId) {
-                                   this.updateNftTextField(nftId, isChecked);
-                              }
+                              // Update textarea or linked field
+                              if (nftId) this.updateNftTextField(nftId, isChecked);
+                         });
+                    });
+
+                    // Stop checkbox clicks from interfering with <code> copy
+                    document.querySelectorAll<HTMLInputElement>('input.burn-check').forEach(cb => {
+                         cb.addEventListener('click', (e: Event) => e.stopPropagation());
+                    });
+               }, 0);
+
+               // --- Attach Copy-to-Clipboard Logic ---
+               setTimeout(() => {
+                    const codeElements = document.querySelectorAll<HTMLElement>('code');
+                    codeElements.forEach(codeEl => {
+                         if (codeEl.dataset['copyBound']) return; // Prevent duplicate bindings
+                         codeEl.dataset['copyBound'] = 'true';
+                         codeEl.style.cursor = 'pointer';
+                         codeEl.title = 'Click to copy';
+
+                         codeEl.addEventListener('click', (event: MouseEvent) => {
+                              const target = event.target as HTMLElement;
+                              // Skip clicks on labels or inputs
+                              if (target.closest('input') || target.closest('label')) return;
+
+                              const text = codeEl.textContent?.trim() || '';
+                              if (!text) return;
+
+                              navigator.clipboard
+                                   .writeText(text)
+                                   .then(() => {
+                                        codeEl.classList.add('copied');
+                                        codeEl.title = 'Copied!';
+                                        setTimeout(() => {
+                                             codeEl.classList.remove('copied');
+                                             codeEl.title = 'Click to copy';
+                                        }, 800);
+                                   })
+                                   .catch(err => console.error('Failed to copy:', err));
                          });
                     });
                }, 0);
 
-               // DEFER: Non-critical UI updates — let main render complete first
+               // --- Deferred UI Updates ---
                setTimeout(async () => {
                     try {
                          // Use pre-fetched data — no redundant API calls!

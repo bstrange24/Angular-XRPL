@@ -169,7 +169,7 @@ export class CreateNftComponent implements AfterViewChecked {
           asfDisallowIncomingTrustline: false,
           asfAllowTrustLineLocking: false,
      };
-     spinner = false;
+     spinner: boolean = false;
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      private burnCheckboxHandlerBound!: (e: Event) => void;
      wallets: any[] = [];
@@ -302,7 +302,6 @@ export class CreateNftComponent implements AfterViewChecked {
 
                const [accountNfts, accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountNFTs(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               // Optional: Avoid heavy stringify — log only if needed
                console.debug(`account info:`, accountInfo.result);
                console.debug(`account objects:`, accountObjects.result);
                console.debug(`Account NFTs:`, accountNfts.result);
@@ -318,54 +317,29 @@ export class CreateNftComponent implements AfterViewChecked {
                }
 
                // Prepare data structure
-               const data = {
-                    sections: [{}],
-               };
-
+               const data = { sections: [{}] };
                const nfts = accountNfts.result.account_nfts || [];
 
                if (nfts.length <= 0) {
                     data.sections.push({
                          title: 'NFTs',
                          openByDefault: true,
-                         content: [{ key: 'Status', value: `No NFTs found for <code>${wallet.classicAddress}</code>` }],
+                         content: [
+                              {
+                                   key: 'Status',
+                                   value: `No NFTs found for <code>${wallet.classicAddress}</code>`,
+                              },
+                         ],
                     });
                } else {
                     // Define flags (you can move this to a constant outside the function if reused elsewhere)
                     const TF_BURNABLE = 0x00000001;
-
-                    // Filter burnable NFTs
-                    // const burnableNftIds = nfts.filter((nft: any) => (nft.Flags & TF_BURNABLE) !== 0).map((nft: any) => nft.NFTokenID);
                     const idsSet = (this.nftIdField || '')
                          .split(',')
                          .map(s => s.trim())
                          .filter(Boolean);
 
-                    // if (burnableNftIds.length > 0) {
-                    //      data.sections.push({
-                    //           title: `Burnable NFTs`,
-                    //           openByDefault: true,
-                    //           subItems: [
-                    //                {
-                    //                     key: `NFT ID's`,
-                    //                     openByDefault: false,
-                    //                     content: burnableNftIds.map((id: any) => ({
-                    //                          key: 'NFToken ID',
-                    //                          // value: `<code>${id}</code>`,
-                    //                          value: `<code>${id}</code><label class="burn-checkbox"><input type="checkbox" class="burn-check" data-id="${id}"/>Burn</label>`,
-                    //                     })),
-                    //                },
-                    //           ],
-                    //      });
-                    // } else {
-                    //      data.sections.push({
-                    //           title: `Burnable NFT IDs`,
-                    //           openByDefault: true,
-                    //           content: [{ key: 'Status', value: 'No burnable NFTs found' }],
-                    //      });
-                    // }
-
-                    // Add all NFTs section
+                    // All NFTs section
                     data.sections.push({
                          title: `NFTs (${nfts.length})`,
                          openByDefault: true,
@@ -373,9 +347,7 @@ export class CreateNftComponent implements AfterViewChecked {
                               const { NFTokenID, NFTokenTaxon, Issuer, URI, Flags, TransferFee } = nft;
                               const isBurnable = (nft.Flags & TF_BURNABLE) !== 0;
                               const checkedAttr = idsSet.includes(nft.NFTokenID) ? 'checked' : '';
-                              // const burnLabel = isBurnable ? 'Burn' : 'Not Burnable';
                               const burnLabel = isBurnable ? 'Burn' : 'Burn';
-                              // const disabledAttr = isBurnable ? '' : 'disabled';
                               const disabledAttr = isBurnable ? '' : '';
 
                               return {
@@ -385,13 +357,16 @@ export class CreateNftComponent implements AfterViewChecked {
                                    content: [
                                         {
                                              key: 'NFToken ID',
-                                             // value: `<code>${nft.NFTokenID}</code><label class="burn-checkbox"><input type="checkbox" class="burn-check" data-id="${nft.NFTokenID}" ${disabledAttr}/>${burnLabel}</label>`,
-                                             value: `<code>${nft.NFTokenID}</code><label class="burn-checkbox"><input type="checkbox" class="burn-check" data-id="${nft.NFTokenID}" ${disabledAttr}/>${burnLabel}</label>`,
+                                             value: `<code>${nft.NFTokenID}</code><label class="burn-checkbox"><input type="checkbox" class="burn-check" data-id="${nft.NFTokenID}" ${disabledAttr} ${checkedAttr}/>${burnLabel}</label>`,
                                         },
                                         { key: 'Taxon', value: String(NFTokenTaxon) },
                                         ...(Issuer ? [{ key: 'Issuer', value: `<code>${Issuer}</code>` }] : []),
-                                        ...(URI ? [{ key: 'URI', value: `<code>${this.utilsService.decodeHex(URI)}</code>` }] : []),
-                                        ...(URI ? [{ key: 'Image', value: `<img id="nftImage" src="${this.utilsService.decodeHex(URI)}" width="150" height="150">` }] : []),
+                                        ...(URI
+                                             ? [
+                                                    { key: 'URI', value: `<code>${this.utilsService.decodeHex(URI)}</code>` },
+                                                    { key: 'Image', value: `<img id="nftImage" src="${this.utilsService.decodeHex(URI)}" width="150" height="150">` },
+                                               ]
+                                             : []),
                                         { key: 'Flags', value: String(this.decodeNftFlags(Flags)) },
                                         ...(TransferFee ? [{ key: 'Transfer Fee', value: `${TransferFee / 1000}%` }] : []),
                                    ],
@@ -400,12 +375,12 @@ export class CreateNftComponent implements AfterViewChecked {
                     });
                }
 
-               // CRITICAL: Render immediately
+               // Render UI
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
 
+               // --- Attach Burn Checkbox Logic ---
                setTimeout(() => {
-                    // Select all burn checkboxes
                     const burnChecks = document.querySelectorAll<HTMLInputElement>('input.burn-check');
 
                     burnChecks.forEach(checkbox => {
@@ -414,25 +389,59 @@ export class CreateNftComponent implements AfterViewChecked {
                               const nftId = target.getAttribute('data-id');
                               const isChecked = target.checked;
 
-                              // Find all checkboxes with the same NFT ID and sync them
+                              // Sync all checkboxes for same NFT ID
                               document.querySelectorAll<HTMLInputElement>(`input.burn-check[data-id="${nftId}"]`).forEach(cb => {
                                    if (cb !== target) {
                                         cb.checked = isChecked;
                                    }
                               });
 
-                              // Optional: keep your textarea in sync too
-                              if (nftId) {
-                                   this.updateNftTextField(nftId, isChecked);
-                              }
+                              // Update textarea or linked field
+                              if (nftId) this.updateNftTextField(nftId, isChecked);
+                         });
+                    });
+
+                    // Stop checkbox clicks from interfering with <code> copy
+                    document.querySelectorAll<HTMLInputElement>('input.burn-check').forEach(cb => {
+                         cb.addEventListener('click', (e: Event) => e.stopPropagation());
+                    });
+               }, 0);
+
+               // --- Attach Copy-to-Clipboard Logic ---
+               setTimeout(() => {
+                    const codeElements = document.querySelectorAll<HTMLElement>('code');
+                    codeElements.forEach(codeEl => {
+                         if (codeEl.dataset['copyBound']) return; // Prevent duplicate bindings
+                         codeEl.dataset['copyBound'] = 'true';
+                         codeEl.style.cursor = 'pointer';
+                         codeEl.title = 'Click to copy';
+
+                         codeEl.addEventListener('click', (event: MouseEvent) => {
+                              const target = event.target as HTMLElement;
+                              // Skip clicks on labels or inputs
+                              if (target.closest('input') || target.closest('label')) return;
+
+                              const text = codeEl.textContent?.trim() || '';
+                              if (!text) return;
+
+                              navigator.clipboard
+                                   .writeText(text)
+                                   .then(() => {
+                                        codeEl.classList.add('copied');
+                                        codeEl.title = 'Copied!';
+                                        setTimeout(() => {
+                                             codeEl.classList.remove('copied');
+                                             codeEl.title = 'Click to copy';
+                                        }, 800);
+                                   })
+                                   .catch(err => console.error('Failed to copy:', err));
                          });
                     });
                }, 0);
 
-               // DEFER: Non-critical UI updates — let main render complete first
+               // --- Deferred UI Updates ---
                setTimeout(async () => {
                     try {
-                         // Use pre-fetched data — no redundant API calls!
                          this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
@@ -440,7 +449,6 @@ export class CreateNftComponent implements AfterViewChecked {
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates for NFTs:', err);
-                         // Don't break main render — NFTs are already shown
                     }
                }, 0);
           } catch (error: any) {
@@ -452,7 +460,6 @@ export class CreateNftComponent implements AfterViewChecked {
                console.log(`Leaving getNFT in ${this.executionTime}ms`);
           }
      }
-
      async mintNFT() {
           console.log('Entering mintNFT');
           const startTime = Date.now();
