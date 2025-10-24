@@ -322,3 +322,14 @@ table textarea {
      /* Remove extra left padding on input cells */
      width: auto;
 }
+
+#selectedWalletField,
+#destinationFields,
+#currencyField,
+#expirationTimeUnit {
+     background-color: #1a1c21;
+     border-radius: 10px;
+     margin-bottom: 10px;
+     height: 28px;
+     border: 1px solid white;
+}

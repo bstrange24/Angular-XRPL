@@ -128,7 +128,13 @@
                                              </span>
                                         </td>
                                         <td>
-                                             <input type="text" id="expirationField" placeholder="Amount in hours" [(ngModel)]="expirationField" name="expirationField" />
+                                             <input type="text" id="expirationField" placeholder="" [(ngModel)]="expirationField" name="expirationField" />
+                                             <select class="timeUnit" style="width: 80px" id="expirationTimeUnit" [(ngModel)]="expirationTimeUnit" name="expirationTimeUnit">
+                                                  <option value="seconds">Seconds</option>
+                                                  <option value="minutes">Minutes</option>
+                                                  <option value="hours">Hours</option>
+                                                  <option value="days">Days</option>
+                                             </select>
                                         </td>
                                    </tr>
                                    <tr class="multisignAddressClass">
