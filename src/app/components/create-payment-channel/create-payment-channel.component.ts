@@ -595,7 +595,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     // Optional fields
                     await this.setTxOptionalFields(client, paymentChannelClaimTx, wallet, accountInfo);
 
-                    if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, this.amountField, wallet.classicAddress, paymentChannelClaimTx, fee)) {
+                    if (this.utilsService.isInsufficientXrpBalance1(serverInfo, accountInfo, '0', wallet.classicAddress, paymentChannelClaimTx, fee)) {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 

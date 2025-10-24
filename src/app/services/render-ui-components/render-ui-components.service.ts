@@ -1308,12 +1308,21 @@ export class RenderUiComponentsService {
                                         objTable.appendChild(objHeader);
 
                                         for (const item of subItem.content) {
+                                             console.log(`item.key HEY:`, item.key);
+                                             console.log(`item.value:`, item.value);
                                              const row = document.createElement('div');
                                              row.className = 'result-row';
-                                             row.innerHTML = `
+                                             if (item.key === 'MPTokenMetadata' || item.key === 'Data' || item.key === 'URI') {
+                                                  row.innerHTML = `
+                                             <div class="result-cell key">${item.key}</div>
+                                             <div class="result-cell value">${this.utilsService.decodeHex(item.value)}</div>
+                                        `;
+                                             } else {
+                                                  row.innerHTML = `
                                              <div class="result-cell key">${item.key}</div>
                                              <div class="result-cell value">${item.value}</div>
                                         `;
+                                             }
                                              objTable.appendChild(row);
                                         }
                                         objDetails.appendChild(objTable);
@@ -1337,6 +1346,8 @@ export class RenderUiComponentsService {
                                         nestedTable.appendChild(nestedHeader);
 
                                         for (const nestedContent of nestedItem.content) {
+                                             console.log(`item.key:`, nestedContent.key);
+                                             console.log(`item.value:`, nestedContent.value);
                                              const nestedRow = document.createElement('div');
                                              nestedRow.className = 'result-row';
                                              nestedRow.innerHTML = `
