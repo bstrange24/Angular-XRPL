@@ -29,10 +29,10 @@ export class XrplTransactionService {
                const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
                tx.Fee = multiSignFee;
 
-               console.debug(`tx`, tx);
+               console.info(`tx`, tx);
                return result.signedTx;
           } else {
-               console.debug(`tx`, tx);
+               console.info(`tx`, tx);
                const preparedTx = await client.autofill(tx);
                return useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(preparedTx) : wallet.sign(preparedTx);
           }
@@ -58,10 +58,10 @@ export class XrplTransactionService {
                const multiSignFee = String((signerAddresses.length + 1) * Number(fee));
                tx.Fee = multiSignFee;
 
-               console.debug(`tx`, tx);
+               console.info(`tx`, tx);
                return result.signedTx;
           } else {
-               console.debug(`tx`, tx);
+               console.info(`tx`, tx);
                const txToSign = noAutofill ? tx : await client.autofill(tx);
                return useRegularKeyWalletSignTx ? regularKeyWalletSignTx.sign(txToSign) : wallet.sign(txToSign);
           }

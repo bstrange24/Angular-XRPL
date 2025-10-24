@@ -988,11 +988,13 @@ export class TrustlinesComponent implements AfterViewChecked {
                          issuer: this.issuerFields,
                          value: '0',
                     },
+                    Flags: 0,
                     Fee: fee,
                     LastLedgerSequence: currentLedger + AppConstants.LAST_LEDGER_ADD_TIME,
                };
 
-               trustSetTx.Flags = flags;
+               // trustSetTx.Flags = xrpl.TrustSetFlags.tfClearNoRipple | xrpl.TrustSetFlags.tfClearFreeze;
+               // trustSetTx.Flags = flags;
                // delete trustSetTx.Flags; // Removing trustline — no flags needed
 
                await this.setTxOptionalFields(client, trustSetTx, wallet, accountInfo);

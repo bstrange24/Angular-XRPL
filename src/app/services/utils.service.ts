@@ -431,8 +431,8 @@ export class UtilsService {
 
           const cancelAfterDate = new Date(cancelAfterUnix * 1000);
           const formatter1 = this.dateFormatter();
-          console.log('toUTCString: ', cancelAfterDate.toUTCString());
-          console.log('Formatter 1: ', formatter1.format(cancelAfterDate));
+          console.debug('toUTCString: ', cancelAfterDate.toUTCString());
+          console.debug('Formatter 1: ', formatter1.format(cancelAfterDate));
           return formatter1.format(cancelAfterDate);
 
           // Convert Ripple time (seconds since Jan 1, 2000) to UTC datetime
