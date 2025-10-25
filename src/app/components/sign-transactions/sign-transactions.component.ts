@@ -126,6 +126,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      showEscrowOptions: boolean = false;
      showCheckOptions: boolean = false;
      showSendXrpOptions: boolean = false;
+     showMPTOptions: boolean = false;
      transactionTypes = [
           {
                value: 'Payment',
@@ -425,6 +426,27 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     break;
                case 'cancelCheck':
                     this.txJson = await this.signTransactionUtilService.cancelCheckRequestText({ client, wallet, selectedTransaction: 'cancelCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'createMPT':
+                    this.txJson = await this.signTransactionUtilService.createMPTRequestText({ client, wallet, selectedTransaction: 'createMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'authorizeMPT':
+                    this.txJson = await this.signTransactionUtilService.authorizeMPTRequestText({ client, wallet, selectedTransaction: 'authorizeMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'unauthorizeMPT':
+                    this.txJson = await this.signTransactionUtilService.unauthorizeMPTRequestText({ client, wallet, selectedTransaction: 'unauthorizeMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'sendMPT':
+                    this.txJson = await this.signTransactionUtilService.sendMPTRequestText({ client, wallet, selectedTransaction: 'sendMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'lockMPT':
+                    this.txJson = await this.signTransactionUtilService.lockMPTRequestText({ client, wallet, selectedTransaction: 'lockMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'unlockMPT':
+                    this.txJson = await this.signTransactionUtilService.unlockMPTRequestText({ client, wallet, selectedTransaction: 'unlockMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    break;
+               case 'destroyMPT':
+                    this.txJson = await this.signTransactionUtilService.destroyMPTRequestText({ client, wallet, selectedTransaction: 'destroyMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
                     break;
                // add others as needed
                default:
@@ -851,6 +873,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           { key: 'showAccountOptions', transactions: ['accountFlagSet', 'accountFlagClear'] },
           { key: 'showEscrowOptions', transactions: ['createTimeEscrow', 'finishTimeEscrow', 'createConditionEscrow', 'finishConditionEscrow', 'cancelEscrow'] },
           { key: 'showCheckOptions', transactions: ['createCheck', 'cashCheck', 'cancelCheck'] },
+          { key: 'showMPTOptions', transactions: ['createMPT', 'authorizeMPT', 'unauthorizeMPT', 'sendMPT', 'lockMPT', 'unlockMPT', 'destroyMPT'] },
           // add more groups here if you add new submenu transaction names
      ];
 

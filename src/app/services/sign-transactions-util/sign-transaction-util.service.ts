@@ -6,7 +6,7 @@ import { UtilsService } from '../utils.service';
 interface SignTransactionOptions {
      client: xrpl.Client;
      wallet: xrpl.Wallet;
-     selectedTransaction?: 'accountFlagSet' | 'accountFlagClear' | 'setTrustline' | 'removeTrustline' | 'createTimeEscrow' | 'finishTimeEscrow' | 'createConditionEscrow' | 'finishConditionEscrow' | 'cancelEscrow' | 'createCheck' | 'cashCheck' | 'cancelCheck'; // Or string if more
+     selectedTransaction?: 'accountFlagSet' | 'accountFlagClear' | 'setTrustline' | 'removeTrustline' | 'createTimeEscrow' | 'finishTimeEscrow' | 'createConditionEscrow' | 'finishConditionEscrow' | 'cancelEscrow' | 'createCheck' | 'cashCheck' | 'cancelCheck' | 'createMPT' | 'authorizeMPT' | 'unauthorizeMPT' | 'sendMPT' | 'lockMPT' | 'unlockMPT' | 'destroyMPT';
      isTicketEnabled?: boolean;
      ticketSequence?: string;
 }
@@ -474,6 +474,301 @@ export class SignTransactionUtilService {
           }
 
           const txString = JSON.stringify(modifyTrustlineRequest, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async createMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let mPTokenIssuanceCreateTx: any = {
+               TransactionType: 'MPTokenIssuanceCreate',
+               Account: wallet.classicAddress,
+               MaximumAmount: '100',
+               Fee: '10',
+               Flags: '0',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               mPTokenIssuanceCreateTx.TicketSequence = Number(ticketSequence);
+               mPTokenIssuanceCreateTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(mPTokenIssuanceCreateTx, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async authorizeMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let mPTokenAuthorizeTx: any = {
+               TransactionType: 'MPTokenAuthorize',
+               Account: wallet.classicAddress,
+               MPTokenIssuanceID: '0',
+               Fee: '10',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               mPTokenAuthorizeTx.TicketSequence = Number(ticketSequence);
+               mPTokenAuthorizeTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(mPTokenAuthorizeTx, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async unauthorizeMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let mPTokenAuthorizeTx: any = {
+               TransactionType: 'MPTokenAuthorize',
+               Account: wallet.classicAddress,
+               MPTokenIssuanceID: '0',
+               Flags: xrpl.MPTokenAuthorizeFlags.tfMPTUnauthorize,
+               Fee: '10',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               mPTokenAuthorizeTx.TicketSequence = Number(ticketSequence);
+               mPTokenAuthorizeTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(mPTokenAuthorizeTx, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async sendMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let sendMptPaymentTx: any = {
+               TransactionType: 'Payment',
+               Account: wallet.classicAddress,
+               Amount: {
+                    mpt_issuance_id: '',
+                    value: '0',
+               },
+               Destination: '',
+               Fee: '10',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               sendMptPaymentTx.TicketSequence = Number(ticketSequence);
+               sendMptPaymentTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(sendMptPaymentTx, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async lockMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let mPTokenIssuanceSetTx: any = {
+               TransactionType: 'MPTokenIssuanceSet',
+               Account: wallet.classicAddress,
+               MPTokenIssuanceID: '0',
+               Flags: xrpl.MPTokenIssuanceSetFlags.tfMPTLock,
+               Fee: '10',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               mPTokenIssuanceSetTx.TicketSequence = Number(ticketSequence);
+               mPTokenIssuanceSetTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(mPTokenIssuanceSetTx, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async unlockMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let mPTokenIssuanceSetTx: any = {
+               TransactionType: 'MPTokenIssuanceSet',
+               Account: wallet.classicAddress,
+               MPTokenIssuanceID: '0',
+               Flags: xrpl.MPTokenIssuanceSetFlags.tfMPTUnlock,
+               Fee: '10',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               mPTokenIssuanceSetTx.TicketSequence = Number(ticketSequence);
+               mPTokenIssuanceSetTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(mPTokenIssuanceSetTx, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async destroyMPTRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let mPTokenIssuanceDestroyTx: any = {
+               TransactionType: 'MPTokenIssuanceDestroy',
+               Account: wallet.classicAddress,
+               MPTokenIssuanceID: '0',
+               Fee: '10',
+               LastLedgerSequence: currentLedger,
+               Sequence: accountInfo.result.account_data.Sequence,
+               Memos: [
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+                    {
+                         Memo: {
+                              MemoData: '',
+                              MemoType: '',
+                         },
+                    },
+               ],
+          };
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+
+               // Overwrite fields for ticketed tx
+               mPTokenIssuanceDestroyTx.TicketSequence = Number(ticketSequence);
+               mPTokenIssuanceDestroyTx.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(mPTokenIssuanceDestroyTx, null, 2);
           return txString; // Set property instead of DOM
      }
 }

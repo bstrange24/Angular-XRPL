@@ -309,6 +309,87 @@
                                                   </label>
                                              </td>
                                         </tr>
+
+                                        <!-- MPT Options -->
+                                        <tr>
+                                             <td><label>MPT Options</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" id="showMPTOptions" [checked]="showMPTOptions" (change)="toggleGroup('showMPTOptions', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>MPT Create</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'createMPT'" (change)="setTransaction('createMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>Authorize MPT</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'authorizeMPT'" (change)="setTransaction('authorizeMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>Unauthorize MPT</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'unauthorizeMPT'" (change)="setTransaction('unauthorizeMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>Send MPT</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'sendMPT'" (change)="setTransaction('sendMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>Lock MPT</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'lockMPT'" (change)="setTransaction('lockMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>Unlock MPT</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'unlockMPT'" (change)="setTransaction('unlockMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
+
+                                        <tr *ngIf="showMPTOptions">
+                                             <td><label>Destroy MPT</label></td>
+                                             <td>
+                                                  <label class="switch">
+                                                       <input type="checkbox" [checked]="selectedTransaction === 'destroyMPT'" (change)="setTransaction('destroyMPT', $event)" />
+                                                       <span class="slider round"></span>
+                                                  </label>
+                                             </td>
+                                        </tr>
                                    </tbody>
                               </table>
                          </div>
