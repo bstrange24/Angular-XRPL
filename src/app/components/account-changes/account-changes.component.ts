@@ -330,6 +330,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                          let tokenBalanceBefore = 0;
                          let tokenBalanceAfter = 0;
                          counterparty = modified.FinalFields?.HighLimit?.issuer || modified.FinalFields?.LowLimit?.issuer || counterparty;
+                         counterparty = `${counterparty.substring(0, 6)}...${counterparty.substring(counterparty.length - 4)}`;
 
                          if (node.DeletedNode) {
                               const balanceField = modified.FinalFields?.Balance;
@@ -337,7 +338,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                                    tokenChange = this.utilsService.roundToEightDecimals(-Number.parseFloat(balanceField.value));
                                    tokenBalanceBefore = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
                                    tokenBalanceAfter = 0;
-                                   const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
+                                   const curr = balanceField.currency.length > 3 ? this.utilsService.formatCurrencyForDisplay(balanceField.currency).slice(0, 8) : balanceField.currency || '';
                                    tokenCurrency = curr;
                               }
                          } else if (modified.FinalFields?.Balance) {
@@ -346,14 +347,14 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                               tokenChange = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value) - Number.parseFloat(prevBalanceField.value));
                               tokenBalanceBefore = this.utilsService.roundToEightDecimals(Number.parseFloat(prevBalanceField.value));
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
+                              const curr = balanceField.currency.length > 3 ? this.utilsService.formatCurrencyForDisplay(balanceField.currency).slice(0, 8) : balanceField.currency || '';
                               tokenCurrency = curr;
                          } else if (modified.NewFields?.Balance) {
                               const balanceField = modified.NewFields.Balance;
                               tokenChange = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
                               tokenBalanceBefore = 0;
                               tokenBalanceAfter = this.utilsService.roundToEightDecimals(Number.parseFloat(balanceField.value));
-                              const curr = balanceField.currency.length > 3 ? this.utilsService.decodeIfNeeded(balanceField.currency) : balanceField.currency || '';
+                              const curr = balanceField.currency.length > 3 ? this.utilsService.formatCurrencyForDisplay(balanceField.currency).slice(0, 8) : balanceField.currency || '';
                               tokenCurrency = curr;
                          }
 
@@ -438,6 +439,9 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
 
                case 'TrustSet':
                case 'MPTokenAuthorize':
+               case 'AMMWithdraw':
+               case 'AMMCreate':
+               case 'AMMDeposit':
                     return '#79BDD8';
 
                case 'SignerListSet':

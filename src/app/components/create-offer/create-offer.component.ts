@@ -194,11 +194,7 @@ export class CreateOfferComponent implements AfterViewChecked {
      memeTokens$ = this.memeTokensSubject.asObservable(); // Use Observable for UI binding
      private readonly maxTokens = 20; // Limit to 20 tokens
      // Add a map of known issuers for tokens
-     // private knownIssuers: { [key: string]: string } = {
-     //      RLUSD: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
-     //      XRP: '',
-     // };
-     private knownIssuers: { [key: string]: string[] } = { XRP: [] };
+     knownIssuers: { [key: string]: string[] } = { XRP: [] };
      issuerToRemove: string = '';
      currencies: string[] = [];
      newCurrency: string = '';
@@ -271,8 +267,8 @@ export class CreateOfferComponent implements AfterViewChecked {
           if (this.wallets.length === 0) return;
           this.currentWallet = { ...this.wallets[this.selectedWalletIndex], balance: this.currentWallet.balance || '0' };
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
-               await Promise.all([this.onWeWantCurrencyChange(), this.onWeSpendCurrencyChange()]);
-               this.getOffers();
+               await Promise.all([this.onWeWantCurrencyChange(), this.onWeSpendCurrencyChange(), this.getOffers()]);
+               // this.getOffers();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
@@ -3588,6 +3584,18 @@ export class CreateOfferComponent implements AfterViewChecked {
           this.slippage = slippage;
           this.updateTokenBalanceAndExchange(); // Recalculate exchange with new slippage
           this.cdr.detectChanges();
+     }
+
+     onTokenChange(): void {
+          const issuers = this.knownIssuers[this.tokenToRemove] || [];
+
+          if (issuers.length > 0) {
+               // Auto-select the first issuer
+               this.issuerToRemove = issuers[0];
+          } else {
+               // No issuers found
+               this.issuerToRemove = '';
+          }
      }
 
      addToken() {

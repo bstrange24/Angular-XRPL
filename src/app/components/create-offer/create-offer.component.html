@@ -269,75 +269,61 @@
                     </div>
 
                     <div class="button-container">
-                         <table style="text-align: left; width: 100%">
-                              <tr>
-                                   <td colspan="2" style="display: flex; align-items: center; gap: 10px; margin-left: 20px">
-                                        <label>Show Manage Tokens</label>
-                                        <label class="switch">
-                                             <input type="checkbox" [(ngModel)]="showManageTokens" name="showManageTokens" />
-                                             <span class="slider round"></span>
-                                        </label>
-                                   </td>
-                              </tr>
+                         <tr>
+                              <td colspan="2" style="display: flex; align-items: center; margin-bottom: 10px">
+                                   <label>Show Manage Tokens</label>
+                                   <label class="switch" style="margin-left: 10px">
+                                        <input type="checkbox" [(ngModel)]="showManageTokens" name="showManageTokens" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                         </tr>
 
-                              <tr *ngIf="showManageTokens">
-                                   <td colspan="2">
-                                        <fieldset style="width: 50%">
-                                             <legend style="color: white">Manage Tokens</legend>
+                         <tr *ngIf="showManageTokens">
+                              <td colspan="2">
+                                   <fieldset class="manage-tokens">
+                                        <legend>Manage Tokens</legend>
+                                        <div class="token-row">
+                                             <label style="padding-bottom: 12px">Add Token:</label>
+                                             <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" />
+                                             <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" />
+                                             <button style="margin-bottom: 20px" type="button" (click)="addToken()">Add</button>
+                                        </div>
+                                        <div class="token-row">
+                                             <label>Delete Token:</label>
+                                             <select [(ngModel)]="tokenToRemove" name="tokenToRemove" (change)="onTokenChange()">
+                                                  <option value="">Select a token</option>
+                                                  <option *ngFor="let curr of currencies" [value]="curr">{{ curr }}</option>
+                                             </select>
 
-                                             <div style="margin-bottom: 10px">
-                                                  <label>Add Token: </label>
-                                                  <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
-                                                  <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
-                                                  <button type="button" (click)="addToken()">Add</button>
-                                             </div>
+                                             <select [(ngModel)]="issuerToRemove" name="issuerToRemove" [disabled]="!tokenToRemove">
+                                                  <option value="">{{ ((knownIssuers[tokenToRemove] || []).length) > 0 ? 'Select Issuer' : 'No issuers found' }}</option>
+                                                  <option *ngFor="let issuer of knownIssuers[tokenToRemove] || []" [value]="issuer">{{ issuer }}</option>
+                                             </select>
+                                             <button type="button" (click)="removeToken()">Remove</button>
+                                        </div>
+                                   </fieldset>
+                              </td>
+                         </tr>
 
-                                             <div>
-                                                  <label>Remove Token: </label>
-                                                  <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
-                                                       <option value="">Select a token</option>
-                                                       <option *ngFor="let curr of currencies" [value]="curr">{{ curr }}</option>
-                                                  </select>
-                                                  <button type="button" (click)="removeToken()">Remove</button>
-                                             </div>
-                                        </fieldset>
-                                   </td>
-                              </tr>
-                              <!-- <fieldset style="width: 50%">
-                                   <legend style="color: white">Manage Tokens</legend>
-                                   <div style="margin-bottom: 10px">
-                                        <label>Add Token: </label>
-                                        <input type="text" [(ngModel)]="newCurrency" placeholder="Currency Code (e.g., USDC)" name="newCurrency" style="width: 190px; margin-right: 10px" />
-                                        <input type="text" [(ngModel)]="newIssuer" placeholder="Issuer Address" name="newIssuer" style="width: 300px; margin-right: 10px" />
-                                        <button type="button" (click)="addToken()">Add</button>
-                                   </div>
-                                   <div>
-                                        <label>Remove Token: </label>
-                                        <select [(ngModel)]="tokenToRemove" name="tokenToRemove" class="timeUnit" style="width: 293px; height: 25px">
-                                             <option value="">Select a token</option>
-                                             <option *ngFor="let curr of currencies" [value]="curr">{{curr}}</option>
-                                        </select>
-                                        <button type="button" (click)="removeToken()">Remove</button>
-                                   </div>
-                              </fieldset> -->
-                              <tr style="vertical-align: top">
-                                   <td colspan="2">
-                                        <button type="button" (click)="getOffers()">Get Offers</button>
-                                        <button type="button" (click)="getOrderBook()">Get Order Book</button>
-                                        <button type="button" (click)="getTokenBalance()">Get Token Balance</button>
-                                        <button type="button" (click)="invertOrder()">Invert Order</button>
-                                        <button type="button" (click)="createOffer()">Create Offer</button>
-                                        <button type="button" (click)="cancelOffer()">Cancel Offer</button>
-                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
-                                   </td>
-                              </tr>
-                              <tr style="vertical-align: top">
-                                   <td colspan="2">
-                                        <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
-                                   </td>
-                              </tr>
+                         <tr style="vertical-align: top">
+                              <td colspan="2">
+                                   <button type="button" (click)="getOffers()">Get Offers</button>
+                                   <button type="button" (click)="getOrderBook()">Get Order Book</button>
+                                   <button type="button" (click)="getTokenBalance()">Get Token Balance</button>
+                                   <button type="button" (click)="invertOrder()">Invert Order</button>
+                                   <button type="button" (click)="createOffer()">Create Offer</button>
+                                   <button type="button" (click)="cancelOffer()">Cancel Offer</button>
+                                   <button type="button" (click)="clearFields(true)">Clear Fields</button>
+                              </td>
+                         </tr>
+                         <tr style="vertical-align: top">
+                              <td colspan="2">
+                                   <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
+                              </td>
+                         </tr>
 
-                              <!-- <details class="offer-info">
+                         <!-- <details class="offer-info">
                                    <summary>Offer Info</summary>
                                    <fieldset class="offer-fieldset">
                                         <details class="offer-subdetails">
@@ -460,7 +446,6 @@
                                         </details>
                                    </fieldset>
                               </details> -->
-                         </table>
                     </div>
                </div>
 

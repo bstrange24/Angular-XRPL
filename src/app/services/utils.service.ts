@@ -2140,6 +2140,16 @@ export class UtilsService {
           }
      }
 
+     logAssets(asset: any, asset2: any) {
+          if (asset) {
+               console.debug(`asset:`, asset);
+          }
+
+          if (asset2) {
+               console.debug(`asset2:`, asset2);
+          }
+     }
+
      logObjects(type: string, object: any) {
           console.debug(`${type}`, object.result);
      }
