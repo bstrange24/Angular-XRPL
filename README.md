@@ -144,12 +144,49 @@ npm start
    Set asfRequiredAuth to stop user from setting trustlines to it since we want trustlines to the issuer.
    Set asfDepositAuth so no one can send it any tokens
 
+## NFT Steps.
+
+Buy
+✅ Buy at market: NFTokenAcceptOffer (with sell offer index).
+✅ Place buy offer (maybe below market): NFTokenCreateOffer (Flags=0, with Owner).
+✅ Cancel buy offer: NFTokenCancelOffer.
+Buy an NFT for market price (NFTokenAcceptOffer - with the sell offer index you want to take.)
+Create an NFT buy for lower market price (NFTokenCreateOffer - with Flags = 0 and include the Owner (current NFT owner’s address).)
+Cancel an NFT buy offer (NFTokenCancelOffer - with the NFTokenOffer index(es))
+Sell
+✅ Place sell offer (ask price): NFTokenCreateOffer (Flags=1).
+✅ Sell immediately if buy offer exists: NFTokenAcceptOffer (with buy offer index).
+✅ Cancel sell offer: NFTokenCancelOffer.
+Sell an NFT for market price (NFTokenCreateOffer - with Flags = 1)
+Create an NFT sell for lower market price (NFTokenCreateOffer)
+Cancel an NFT sell offer (NFTokenCancelOffer - with the NFTokenOffer index(es))
+
+https://xrpl.org/docs/references/protocol/data-types/nftoken#retrieving-nftoken-data-and-metadata
+https://xrpl.org/docs/use-cases/tokenization/real-world-assets
+
 ## MPT Steps
 
 1. Create MPT - This is the issuer
    Authorize destiation to issuer
 2. Send MPT from issuer to destiation
 3. Destination can create Escrow
+
+## DEVNET Accounts
+
+DEVNET
+Warm
+rDaM6irSxqFKT185hvAarnHpPTCHoqtrsw = 24456.999963 xrp
+snzezKX7GjVDeggt61J4pSTy2K9bC
+
+Hot
+r3ewQDZ2J922xJwEMaLLm1etfx9m91ySSG = 23325.799927 xrp
+sawq5G4Jro14pteBtEiUxbd5tkjBm
+
+Cold
+rn3GKEBSxdgXATEKbnoA9dsU94Meci6noT = 24765.59997 xrp
+snqkZJ6upDfxTVY2u8dFFp3QsnRmP
+
+## MPT Meta Data
 
 {
 "Name": "US Treasury Bill Token",
@@ -168,6 +205,43 @@ npm start
 }
 
 ipfs://bafybeiexamplehash
+
+## DID Data
+
+did:example:123#public-key-0
+
+ipfs://bafybeiexamplehash
+
+{
+"@context": "https://www.w3.org/ns/did/v1",
+"id": "did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc",
+"verificationMethod": [
+{
+"id": "did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc#keys-1",
+"type": "Ed25519VerificationKey2018",
+"controller": "did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc",
+"publicKeyBase58": "H3C2AVvLMfAbZtG7a6bE9muwZ3Q2sVY1H1kP3Q3q4J5L"
+}
+],
+"authentication": [
+"did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc#keys-1"
+],
+"service": [
+{
+"id": "did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc#vc-service",
+"type": "VerifiableCredentialService",
+"serviceEndpoint": "https://example.com/vc/"
+}
+]
+}
+
+{
+"@context": "https://www.w3.org/ns/did/v1",
+"id": "did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc",
+"authentication": [
+"did:xrpl:test:rJNo2iPnuDmXqqw31cobafG37k1GaMZ3Vc#keys-1"
+]
+}
 
 did:xrpl:raWwLN6xwPcwpLTiuHYf8S8vFaQtRzK9ey
 did:xrpl:raWwLN6xwPcwpLTiuHYf8S8vFaQtRzK9ey#keys-1
