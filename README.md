@@ -64,6 +64,26 @@ Run test on Ubuntu
 export CHROME_BIN=$(which chromium)
 npx karma start
 
+## NFT URLs
+
+https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjhubGpubms0bXl5ZzM0cWE4azE5aTlyOHRyNmVhd2prcDc1am43ciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/NxwglXLqMeOuRF3FHv/giphy.gif
+
+https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdHJ4OWR2YjFjN256cGNzZWJyYWwyOW14cm00MTN0ZHV5MnA3OTNodCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KzcamVeEJlaxCE4OAt/giphy.gif
+
+https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDh1YWRtbWV4eXowOWg5emRybmZ5a3E5OTJ4c3FlYXB2YmN4MWR5dSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/bLpUr8MnJdVMIkhWzc/giphy.gif
+
+https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExemh2dDd2NmU2a3ExNmRpZnhrbXZ3cnAwbDNjdjNmbGZ4N3Zyc2kzYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/wfc4Ee9nycnyis3czb/giphy.gif
+
+https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZmx1NDVpMmtkaGE5NTBvcTA0ejN3ZGtiOGF6OGo1eHJmaDY5cWNlcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/jqfXdwlXbfgH3RDoh0/giphy.gif
+
+## Run Test commands
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/trustlines/trustlines.component.spec.ts
+
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/send-xrp/send-xrp.component.spec.ts
+
 cd xrpl-app &&
 npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
 ng test --watch --browsers=Chrome --include src/app/components/create-time-escrow/create-time-escrow.component.spec.ts
@@ -88,6 +108,10 @@ cd xrpl-app &&
 npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/sign-transactions/sign-transactions.component.spec.ts
 ng test --watch --browsers=Chrome --include src/app/components/sign-transactions/sign-transactions.component.spec.ts
 
+cd xrpl-app &&
+npm run test -- --watch=false --browsers=ChromeHeadless --include src/app/components/account-changes/account-changes.component.spec.ts
+ng test --watch --browsers=Chrome --include src/app/components/account-changes/account-changes.component.spec.ts
+
 Run proxy-server.js and Angular at the same time
 npm install --save-dev concurrently
 Modify package.json
@@ -105,7 +129,7 @@ npm install --save-dev concurrently nodemon
 Start with this
 npm start
 
-Issuer Steps
+## Issuer setup steps
 
 1. Create issuer wallet and set account up
    Account Configuration Templates: Issuer
@@ -120,84 +144,12 @@ Issuer Steps
    Set asfRequiredAuth to stop user from setting trustlines to it since we want trustlines to the issuer.
    Set asfDepositAuth so no one can send it any tokens
 
-Dev Net SCript
-Account 1 (warm wallet)
-rGmU8kqozDSDGopQwbcB5zivjFoAtoGJKc
-sEdTPXyyVHDxGmDRkQk5nPpmYAea8z7
-Hot Wallet (operational address)
-rD4YFdgy2riRwGWY7Zx7javcA1d8VAPxm8
-sEdTozppS3PwQ7GR3UZWhFY3B2iS9aw
-Cold Wallet (issuing address)
-rwcdkLpcRpPnULPEMf5HtkLKmCAtfD8rFm
-sEdTbj6rqRpuC2yv4kHttbXVre9Hcju
+## MPT Steps
 
-Dev Net
-Account 1 (warm wallet)
-rD2VVnG5A3QAJrMFzAAdkBsqJu56vCnQwy
-sEdSQjAbb9SorYGv2wfprPmn82hmox8
-Hot Wallet (operational address)
-rH8iAisc9asyjKXdkr5KMopuqNBeBhndKz
-sEdTvKhkXNdfiMrC37fTWozcQzeEv8L
-Cold Wallet (issuing address)
-rQUch4yZo1UgqW2PdoMajVZp4Kw36itjeL
-sEd7WnRBiSdhM1pV1YYB5XZ5wuT5X3e
-
-Dev Net
-Multi-Sign
-Signer 1
-rGnXL6JafXnidF18i3bgAPirM2dY3CjR1a
-sEdTN6sjTnjFs4YVRrSuRpWbzSUz3Cx
-Signer 2
-rhPQYrsZL1TvHfGjecSxA7Eq8oeQEumKKD
-sEdSk8jUZvzbRbCgsGKw3KDzPesit6N
-Signer 3
-rP6v2pzbhF7MxE2ogWeZSXuNC1fSq3BVVB
-sEdTXhkwNsyfCoAi7HduqozcZkAcQHu
-Signer 4
-rLun1syD3QzM4TMMv7jvBKW1He3AzDDr6P
-sEdVSbFNsKKzJgYAYAgbmrFbELUSFip
-Signer 5
-rPNFwHCvcAq9WFtHaa1JWammtmeQzXm8Kw
-sEdVEwbLzukno1yHFjMnNZmfkdirHQK
-Signer 6
-rHtNpRtDEKzQ4DmtJcPMXByqs2zXkiqTny
-sEd7jy8FhyCXiSb2kCBRxaa7D1SxhPK
-
-Deposit Auth
-rPxgdSeXYzysPNCnpwa1XmmBHnEZuEixF9
-sEdVoPUfVtB9qPTZ2uB9NeFHQnUkd9k
-rVJrhReHrc6XVbaLRwJPMqrwWJhBrawKm
-sEd7a3kBJtU2NFF1GfmgPNojhKFJ8h1
-rPxgdSeXYzysPNCnpwa1XmmBHnEZuEixF9,rVJrhReHrc6XVbaLRwJPMqrwWJhBrawKm
-
-Regular Key
-rPUnsU68YvAKg2Tk2dhjCVfUqvzHEEZ81r
-sEdVcsjnjzH4Ky7HP8rr5RXJhfGRUR2
-
-Creds Recipient
-rJwQPwSWF6Qy2BQNxHzzGgUAJvfVbiHLUG
-sEdSArDZDkjbjU3RFnqDKdEpPcTvrpE
-
-Delete this
-rwHjj8Ww1yFmKkFY7guaPP2HWP3R9PQDcA
-sEdTyNBZCtxHF7mcBFmWz1HYebvmsuB
-
-Cold
-rNFvXhgY3LVNFmV9mabYCkAWWCJcDMV4Pt
-sEdV4B674ESWjN9BEnrpWaWCfdgMGb3
-Hot
-r9AADpmbj4aBegtxatperxgPNhuyXvWNDq
-sEd7wWzgZXsNoy7vWCeP1X2ng9ZQ9GE
-
-CTZ Issuer
-rfW6rbAdysF4ShU7fncCqb2td6fVv3A84P
-sEdStZkrzSq5WFhXHY6Fqhfuun18Sz8
-
-TrustLines
-rniP9CwpZCSRntbR2Npzh8SUn8gFMsiWUY
-sEdTbWV8SSduY5bmxcPzBH8VjmfP2kd
-rGiRqiqKmqbtiRWzPTwPw2LrVymyURgxS8
-sEdSz7nDukFAek6yhbucsjeLHDAXVFQ
+1. Create MPT - This is the issuer
+   Authorize destiation to issuer
+2. Send MPT from issuer to destiation
+3. Destination can create Escrow
 
 {
 "Name": "US Treasury Bill Token",
