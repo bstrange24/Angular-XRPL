@@ -164,7 +164,7 @@ export class SendXrpComponent implements AfterViewChecked, OnInit, AfterViewInit
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               return this.setError('ERROR getting wallet in toggleMultiSign');
+               this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.markForCheck();
           }

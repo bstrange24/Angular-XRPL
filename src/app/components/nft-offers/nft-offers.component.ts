@@ -257,7 +257,7 @@ export class NftOffersComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               return this.setError('ERROR getting wallet in toggleMultiSign');
+               this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
           }
