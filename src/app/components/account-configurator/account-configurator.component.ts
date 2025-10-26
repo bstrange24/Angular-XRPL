@@ -1877,7 +1877,7 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                const singerEntriesAccount = wallet.classicAddress + 'signerEntries';
                const signerEntries: SignerEntry[] = this.storageService.get(singerEntriesAccount) || [];
 
-               console.debug(`refreshUiAccountObjects:`, signerEntries);
+               console.debug(`signerEntries:`, signerEntries);
 
                this.multiSignAddress = signerEntries.map((item: { Account: any }) => item.Account + ',\n').join('');
                this.multiSignSeeds = signerEntries.map((item: { seed: any }) => item.seed + ',\n').join('');
