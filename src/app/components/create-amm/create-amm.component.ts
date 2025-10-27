@@ -656,9 +656,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
-               const classicAddress = wallet.classicAddress;
 
-               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
+               const [accountInfo, accountObjects, fee, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client)]);
 
                inputs.account_info = accountInfo;
 
@@ -699,7 +698,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (this.depositOptions.bothPools) {
                     ammDepositTx = {
                          TransactionType: 'AMMDeposit',
-                         Account: classicAddress,
+                         Account: wallet.classicAddress,
                          Asset: assetDef,
                          Asset2: asset2Def,
                          Amount: typeof we_spend === 'string' ? we_spend : { currency: we_spend.currency, issuer: we_spend.issuer, value: we_spend.value },
@@ -712,7 +711,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     // Single asset deposit (Asset2)
                     ammDepositTx = {
                          TransactionType: 'AMMDeposit',
-                         Account: classicAddress,
+                         Account: wallet.classicAddress,
                          Asset: assetDef,
                          Asset2: asset2Def,
                          Amount: typeof we_want === 'string' ? we_want : { currency: we_want.currency, issuer: we_want.issuer, value: we_want.value },
@@ -724,7 +723,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     // Single asset deposit (Asset)
                     ammDepositTx = {
                          TransactionType: 'AMMDeposit',
-                         Account: classicAddress,
+                         Account: wallet.classicAddress,
                          Asset: assetDef,
                          Asset2: asset2Def,
                          Amount: typeof we_spend === 'string' ? we_spend : { currency: we_spend.currency, issuer: we_spend.issuer, value: we_spend.value },
@@ -773,14 +772,14 @@ export class CreateAmmComponent implements AfterViewChecked {
                this.setSuccess(this.result);
 
                if (!this.isSimulateEnabled) {
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
                          try {
-                              await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange(), this.checkAmmParticipation(client, classicAddress, assetDef, asset2Def, true)]);
-                              this.utilsService.loadSignerList(classicAddress, this.signers);
+                              await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange(), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true)]);
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
@@ -1427,7 +1426,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.resultField.nativeElement.classList.add('success');
                     this.setSuccess(this.result);
 
-                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
                     setTimeout(async () => {
@@ -1553,7 +1552,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      //                this.resultField.nativeElement.classList.add('success');
      //                this.setSuccess(this.result);
 
-     //                const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+     //                const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
      //                this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
      //                setTimeout(async () => {
@@ -1715,8 +1714,7 @@ export class CreateAmmComponent implements AfterViewChecked {
      }
 
      private refreshUIData(wallet: xrpl.Wallet, updatedAccountInfo: any, updatedAccountObjects: xrpl.AccountObjectsResponse) {
-          console.debug(`updatedAccountInfo for ${wallet.classicAddress}:`, updatedAccountInfo.result);
-          console.debug(`updatedAccountObjects for ${wallet.classicAddress}:`, updatedAccountObjects.result);
+          this.utilsService.logAccountInfoObjects(updatedAccountInfo, updatedAccountObjects);
 
           this.refreshUiAccountObjects(updatedAccountObjects, updatedAccountInfo, wallet);
           this.refreshUiAccountInfo(updatedAccountInfo);
@@ -2177,7 +2175,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           return errors;
      }
 
-     private async getWallet() {
+     async getWallet() {
           const environment = this.xrplService.getNet().environment;
           const seed = this.currentWallet.seed;
           const wallet = await this.utilsService.getWallet(seed, environment);
@@ -2199,15 +2197,15 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     private updateSpinnerMessage(message: string) {
+     updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
      }
 
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
+     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
           this.spinner = true;
           this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs)); // Minimum display time for initial spinner
+          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      // createAmmRequest(we_spend: CurrencyAmount, we_want: CurrencyAmount, account: string): AMMInfoRequest {
