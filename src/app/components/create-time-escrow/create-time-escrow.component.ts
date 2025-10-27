@@ -164,7 +164,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
-     private knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
+     knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
      issuerToRemove: string = '';
      currencies: string[] = [];
      newCurrency: string = '';
@@ -1308,7 +1308,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                // Skip number validation if value is empty — required() will handle it
                if (shouldSkipNumericValidation(value) || (allowEmpty && value === '')) return null;
 
-               // ✅ Type-safe parse
+               // Type-safe parse
                const num = parseFloat(value as string);
 
                if (isNaN(num) || !isFinite(num)) {
@@ -1681,6 +1681,18 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
           this.currencies.sort((a, b) => a.localeCompare(b));
+     }
+
+     onTokenChange(): void {
+          const issuers = this.knownTrustLinesIssuers[this.tokenToRemove] || [];
+
+          if (issuers.length > 0) {
+               // Auto-select the first issuer
+               this.issuerToRemove = issuers[0];
+          } else {
+               // No issuers found
+               this.issuerToRemove = '';
+          }
      }
 
      addToken() {

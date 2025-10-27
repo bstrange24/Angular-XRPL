@@ -115,7 +115,7 @@ export class SendChecksComponent implements AfterViewChecked {
      tokenBalance: string = '0';
      gatewayBalance: string = '0';
      // private knownTrustLinesIssuers: { [key: string]: string } = {XRP: '',};
-     private knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
+     knownTrustLinesIssuers: { [key: string]: string[] } = { XRP: [] };
      issuerToRemove: string = '';
      currencies: string[] = [];
      // currencyIssuers: string[] = [];
@@ -1528,6 +1528,18 @@ export class SendChecksComponent implements AfterViewChecked {
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
           this.currencies.sort((a, b) => a.localeCompare(b));
+     }
+
+     onTokenChange(): void {
+          const issuers = this.knownTrustLinesIssuers[this.tokenToRemove] || [];
+
+          if (issuers.length > 0) {
+               // Auto-select the first issuer
+               this.issuerToRemove = issuers[0];
+          } else {
+               // No issuers found
+               this.issuerToRemove = '';
+          }
      }
 
      addToken() {

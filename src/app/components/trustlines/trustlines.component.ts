@@ -1509,7 +1509,7 @@ export class TrustlinesComponent implements AfterViewChecked {
           this.selectedTickets = this.selectedTickets.filter(ticket => this.ticketArray.includes(ticket));
      }
 
-     private updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
+     updateTickets(accountObjects: xrpl.AccountObjectsResponse) {
           this.ticketArray = this.getAccountTickets(accountObjects);
 
           // Clean up selections based on current mode
