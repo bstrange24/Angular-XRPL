@@ -309,6 +309,22 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                     const modified = node.ModifiedNode || node.CreatedNode || node.DeletedNode;
                     if (!modified) continue;
 
+                    // if (modified.LedgerEntryType === 'AccountRoot' && modified.FinalFields?.Account === address) {
+                    //      const prevBalanceDrops = modified.PreviousFields?.Balance ?? modified.FinalFields.Balance;
+                    //      const finalBalanceDrops = modified.FinalFields.Balance;
+
+                    //      const prevXrp = xrpl.dropsToXrp(prevBalanceDrops);
+                    //      const finalXrp = xrpl.dropsToXrp(finalBalanceDrops);
+                    //      const delta = this.utilsService.roundToEightDecimals(finalXrp - prevXrp);
+
+                    //      changes.push({
+                    //           fees: xrpl.dropsToXrp(fees),
+                    //           change: delta,
+                    //           currency: 'XRP',
+                    //           balanceBefore: this.utilsService.roundToEightDecimals(prevXrp),
+                    //           balanceAfter: this.utilsService.roundToEightDecimals(finalXrp),
+                    //      });
+                    // }
                     if (modified.LedgerEntryType === 'AccountRoot' && modified.FinalFields?.Account === address) {
                          const prevBalanceDrops = modified.PreviousFields?.Balance ?? modified.FinalFields.Balance;
                          const finalBalanceDrops = modified.FinalFields.Balance;
@@ -317,6 +333,147 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                          const finalXrp = xrpl.dropsToXrp(finalBalanceDrops);
                          const delta = this.utilsService.roundToEightDecimals(finalXrp - prevXrp);
 
+                         // ✅ Determine counterparty or source
+                         let cp = 'N/A';
+
+                         // 🔸 Try to detect AMM pool details from meta.AffectedNodes
+                         const ammNode = meta.AffectedNodes.find((n: any) => {
+                              const node = n.CreatedNode || n.ModifiedNode || n.DeletedNode;
+                              return node?.LedgerEntryType === 'AMM';
+                         });
+
+                         let ammLabel = '';
+                         if (ammNode) {
+                              const amm = ammNode.CreatedNode?.NewFields || ammNode.ModifiedNode?.FinalFields;
+                              if (amm && amm.Asset && amm.Asset2) {
+                                   const curr1 = amm.Asset.currency === 'XRP' ? 'XRP' : this.utilsService.formatCurrencyForDisplay(amm.Asset.currency);
+                                   const curr2 = amm.Asset2.currency === 'XRP' ? 'XRP' : this.utilsService.formatCurrencyForDisplay(amm.Asset2.currency);
+                                   ammLabel = `AMM Pool (${curr1}/${curr2})`;
+                              } else {
+                                   ammLabel = 'AMM Pool';
+                              }
+                         }
+
+                         switch (tx.TransactionType) {
+                              // 🔹 Payments
+                              case 'Payment':
+                                   if (tx.Account === address && tx.Destination) cp = tx.Destination; // Sent to someone
+                                   else if (tx.Destination === address && tx.Account) cp = tx.Account; // Received from someone
+                                   break;
+
+                              // 🔹 Offers (DEX)
+                              case 'OfferCreate':
+                              case 'OfferCancel':
+                                   cp = 'XRPL DEX';
+                                   break;
+
+                              // 🔹 AMM (Automated Market Maker)
+                              case 'AMMCreate':
+                                   cp = ammLabel || 'AMM Pool (Create)';
+                                   break;
+                              case 'AMMDeposit':
+                                   cp = ammLabel || 'AMM Pool (Deposit)';
+                                   break;
+                              case 'AMMWithdraw':
+                                   cp = ammLabel || 'AMM Pool (Withdraw)';
+                                   break;
+                              case 'AMMVote':
+                                   cp = ammLabel || 'AMM Pool (Vote)';
+                                   break;
+                              case 'AMMDelete':
+                                   cp = ammLabel || 'AMM Pool (Delete)';
+                                   break;
+                              case 'AMMTrade':
+                                   cp = ammLabel || 'AMM Pool (Trade)';
+                                   break;
+
+                              // 🔹 Escrows
+                              // case 'EscrowCreate':
+                              //      cp = tx.Destination || 'Escrow Create';
+                              //      break;
+                              // case 'EscrowFinish':
+                              // case 'EscrowCancel':
+                              //      cp = 'Escrow';
+                              //      break;
+
+                              //🔹 Checks
+                              // case 'CheckCreate':
+                              //      cp = tx.Destination || 'Check Created';
+                              //      break;
+                              // case 'CheckCash':
+                              // case 'CheckCancel':
+                              //      cp = 'Check';
+                              //      break;
+
+                              // 🔹 Payment Channels
+                              // case 'PaymentChannelCreate':
+                              //      cp = tx.Destination || 'Payment Channel Create';
+                              //      break;
+                              // case 'PaymentChannelClaim':
+                              // case 'PaymentChannelFund':
+                              //      cp = 'Payment Channel';
+                              //      break;
+
+                              // 🔹 NFTs
+                              case 'NFTokenMint':
+                                   cp = 'NFT Mint';
+                                   break;
+                              case 'NFTokenBurn':
+                                   cp = 'NFT Burn';
+                                   break;
+                              case 'NFTokenAcceptOffer':
+                              case 'NFTokenCancelOffer':
+                              case 'NFTokenCreateOffer':
+                                   cp = 'NFT Offer';
+                                   break;
+
+                              // 🔹 Multi-sign, account config
+                              case 'SignerListSet':
+                                   cp = 'Signer List';
+                                   break;
+                              case 'SetRegularKey':
+                                   cp = 'Regular Key';
+                                   break;
+                              case 'AccountSet':
+                                   cp = 'Account Settings';
+                                   break;
+                              case 'DepositPreauth':
+                                   cp = 'Deposit Auth';
+                                   break;
+
+                              // 🔹 Hooks, DIDs, Credentials
+                              case 'SetHook':
+                                   cp = 'Hook';
+                                   break;
+                              case 'DIDSet':
+                                   cp = 'DID Update';
+                                   break;
+                              // case 'CredentialCreate':
+                              // case 'CredentialAccept':
+                              //      cp = 'Credential';
+                              //      break;
+
+                              // 🔹 Trustlines
+                              // case 'TrustSet':
+                              //      cp = 'Trustline';
+                              //      break;
+
+                              // 🔹 Tickets
+                              case 'TicketCreate':
+                                   cp = 'Ticket';
+                                   break;
+
+                              // 🔹 Fallback
+                              default:
+                                   cp = tx.Destination || tx.Account || 'XRPL Ledger';
+                                   break;
+                         }
+
+                         // Shorten address form for UI readability
+                         if (cp && cp !== 'N/A' && cp.length > 12 && !cp.includes('(')) {
+                              cp = `${cp.substring(0, 6)}...${cp.substring(cp.length - 4)}`;
+                         }
+
                          changes.push({
                               fees: xrpl.dropsToXrp(fees),
                               change: delta,
@@ -324,6 +481,9 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                               balanceBefore: this.utilsService.roundToEightDecimals(prevXrp),
                               balanceAfter: this.utilsService.roundToEightDecimals(finalXrp),
                          });
+
+                         // ✅ Use this counterparty downstream
+                         counterparty = cp;
                     } else if (modified.LedgerEntryType === 'RippleState') {
                          let tokenChange = 0;
                          let tokenCurrency = '';
