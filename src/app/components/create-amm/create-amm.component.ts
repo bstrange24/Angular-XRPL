@@ -243,7 +243,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                }
           } catch (error: any) {
-               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
+               console.error(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
                this.setError('ERROR getting wallet in toggleMultiSign');
           } finally {
                this.cdr.detectChanges();
@@ -1264,7 +1264,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in swapViaAMM:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -1377,7 +1377,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error:', error);
+               console.error('Error in deleteAMM:', error);
                this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
@@ -1511,7 +1511,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.utilsService.setTicketSequence(ammTx, this.selectedSingleTicket, true);
                } else {
                     if (this.multiSelectMode && this.selectedTickets.length > 0) {
-                         console.log('Setting multiple tickets:', this.selectedTickets);
+                         console.warn('Setting multiple tickets:', this.selectedTickets);
                          this.utilsService.setTicketSequence(ammTx, accountInfo.result.account_data.Sequence, false);
                     }
                }
@@ -2214,12 +2214,8 @@ export class CreateAmmComponent implements AfterViewChecked {
 
           try {
                const ammResponse = await this.xrplService.getAMMInfo(client, asset, asset2, account, 'validated');
-               // const ammResponse = await client.request({
-               // ...this.createAmmRequest(asset, asset2, account),
-               // });
-
                if (ammResponse.result && ammResponse.result.amm) {
-                    console.log('checkAmmParticipation:', ammResponse.result.amm);
+                    this.utilsService.logObjects('checkAmmParticipation', ammResponse);
                     result.isAmmPool = true;
                     result.ammInfo = ammResponse.result.amm;
                     result.lpTokens.push({
@@ -2241,7 +2237,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
           } catch (e) {
                // Not an AMM, ignore
-               console.log('Not an AMM account:', e);
+               console.warn('Not an AMM account:', e);
           }
           return result;
      }
