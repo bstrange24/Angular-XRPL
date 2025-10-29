@@ -475,13 +475,9 @@ table textarea {
 }
 
 #selectedWalletField,
-#destinationFields,
-#currencyField,
-#escrowFinishTimeUnit,
-#escrowCancelTimeUnit,
-#checkExpirationTime,
-#timePeriodUnit,
-#timePeriodStartUnit {
+#dropdownTransactionTypes,
+#transactionSelect {
+     color: white;
      background-color: #1a1c21;
      border-radius: 10px;
      margin-bottom: 10px;
@@ -524,4 +520,93 @@ table textarea {
      padding-left: 0;
      /* Remove extra left padding on input cells */
      width: auto;
+}
+
+/* Pretty JSON display (non-editable) */
+.json-display {
+     background: #1e1e1e;
+     color: #d4d4d4;
+     padding: 15px;
+     border-radius: 10px;
+     border: 1px solid #555;
+     font-family: 'Courier New', monospace;
+     font-size: 12px;
+     line-height: 1.5;
+     white-space: pre-wrap;
+     word-break: break-word;
+     margin: 10px 0;
+     overflow-x: auto;
+}
+
+/* Editable field – keep it but hide it visually */
+.result-editable {
+     position: absolute;
+     left: -9999px;
+     /* Off-screen but still focusable */
+     opacity: 0;
+     pointer-events: none;
+     width: 1px;
+     height: 1px;
+}
+
+.result-container {
+     resize: none;
+     font-size: 12px;
+     padding: 15px;
+     box-sizing: border-box;
+     border-radius: 10px;
+     border: 1px solid white;
+     font-family: 'Courier New', monospace;
+     white-space: pre-wrap;
+     word-break: break-word;
+     line-height: 1.5;
+     margin: 10px 0;
+     background: #1e1e1e;
+     color: #d4d4d4;
+     min-height: 100px;
+}
+
+.json-editable {
+     background: #1e1e1e;
+     color: #d4d4d4;
+     padding: 15px;
+     border-radius: 10px;
+     border: 1px solid white;
+     font-family: 'Courier New', monospace;
+     font-size: 12px;
+     line-height: 1.5;
+     white-space: pre-wrap;
+     word-break: break-word;
+     min-height: 100px;
+     outline: none;
+}
+
+.json-editable span {
+     pointer-events: none;
+     /* Allow clicks to go through to div */
+}
+
+/* === SYNTAX COLORS === */
+.json-key {
+     color: #c678dd;
+}
+
+/* purple */
+.json-string {
+     color: #98c379;
+}
+
+/* green */
+.json-number {
+     color: #d19a66;
+}
+
+/* orange */
+.json-boolean {
+     color: #56b6c2;
+}
+
+/* cyan */
+.json-null {
+     color: #f44747;
 }

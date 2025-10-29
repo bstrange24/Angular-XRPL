@@ -105,6 +105,7 @@
                               </div>
                          </div> -->
 
+                         <!-- ======================  TRANSACTION SELECTOR  ====================== -->
                          <div class="top-section-right">
                               <table id="xrpDetails">
                                    <thead>
@@ -113,7 +114,63 @@
                                         </tr>
                                    </thead>
                                    <tbody>
-                                        <!-- Batch -->
+                                        <tr>
+                                             <td><label>Transaction Type</label></td>
+                                             <td>
+                                                  <!-- ONE dropdown – all transaction types grouped -->
+                                                  <select class="dropdownTransactionTypes" id="transactionSelect" [(ngModel)]="selectedTransaction" (ngModelChange)="onTransactionChange()" name="transactionSelect">
+                                                       <optgroup label="Basic">
+                                                            <option value="batch">Batch</option>
+                                                            <option value="sendXrp">Send XRP</option>
+                                                       </optgroup>
+
+                                                       <optgroup label="Trustline">
+                                                            <option value="setTrustline">Set Trustline</option>
+                                                            <option value="removeTrustline">Remove Trustline</option>
+                                                       </optgroup>
+
+                                                       <optgroup label="Account Flags">
+                                                            <option value="accountFlagSet">Account Flag Set</option>
+                                                            <option value="accountFlagClear">Account Flag Clear</option>
+                                                       </optgroup>
+
+                                                       <optgroup label="Escrow">
+                                                            <option value="createTimeEscrow">Create Time Escrow</option>
+                                                            <option value="finishTimeEscrow">Finish Time Escrow</option>
+                                                            <option value="createConditionEscrow">Create Condition Escrow</option>
+                                                            <option value="finishConditionEscrow">Finish Condition Escrow</option>
+                                                            <option value="cancelEscrow">Cancel Escrow</option>
+                                                       </optgroup>
+
+                                                       <optgroup label="Check">
+                                                            <option value="createCheck">Check Create</option>
+                                                            <option value="cashCheck">Check Cash</option>
+                                                            <option value="cancelCheck">Check Cancel</option>
+                                                       </optgroup>
+
+                                                       <optgroup label="MPT">
+                                                            <option value="createMPT">MPT Create</option>
+                                                            <option value="authorizeMPT">Authorize MPT</option>
+                                                            <option value="unauthorizeMPT">Unauthorize MPT</option>
+                                                            <option value="sendMPT">Send MPT</option>
+                                                            <option value="lockMPT">Lock MPT</option>
+                                                            <option value="unlockMPT">Unlock MPT</option>
+                                                            <option value="destroyMPT">Destroy MPT</option>
+                                                       </optgroup>
+                                                  </select>
+                                             </td>
+                                        </tr>
+                                   </tbody>
+                              </table>
+                         </div>
+                         <!-- <div class="top-section-right">
+                              <table id="xrpDetails">
+                                   <thead>
+                                        <tr>
+                                             <th colspan="2"></th>
+                                        </tr>
+                                   </thead>
+                                   <tbody>
                                         <tr>
                                              <td><label>Batch</label></td>
                                              <td>
@@ -123,8 +180,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
-                                        <!-- Send XRP -->
                                         <tr>
                                              <td><label>Send XRP</label></td>
                                              <td>
@@ -134,8 +189,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
-                                        <!-- Trustline Options -->
                                         <tr>
                                              <td><label>TrustLine Options</label></td>
                                              <td>
@@ -145,7 +198,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showTrustlineOptions">
                                              <td><label>Set Trustline</label></td>
                                              <td>
@@ -155,7 +207,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showTrustlineOptions">
                                              <td><label>Remove Trustline</label></td>
                                              <td>
@@ -165,8 +216,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
-                                        <!-- Account Flag Options -->
                                         <tr>
                                              <td><label>Account Flag Options</label></td>
                                              <td>
@@ -176,7 +225,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showAccountOptions">
                                              <td><label>Account Flag Set</label></td>
                                              <td>
@@ -186,7 +234,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showAccountOptions">
                                              <td><label>Account Flag Clear</label></td>
                                              <td>
@@ -208,7 +255,6 @@
                                         </tr>
                                    </thead>
                                    <tbody>
-                                        <!-- Escrow Options -->
                                         <tr>
                                              <td><label>Escrow Options</label></td>
                                              <td>
@@ -218,7 +264,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showEscrowOptions">
                                              <td><label>Create Time Escrow</label></td>
                                              <td>
@@ -228,7 +273,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showEscrowOptions">
                                              <td><label>Finish Time Escrow</label></td>
                                              <td>
@@ -238,7 +282,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showEscrowOptions">
                                              <td><label>Create Condition Escrow</label></td>
                                              <td>
@@ -248,7 +291,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showEscrowOptions">
                                              <td><label>Finish Condition Escrow</label></td>
                                              <td>
@@ -258,7 +300,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showEscrowOptions">
                                              <td><label>Cancel Escrow</label></td>
                                              <td>
@@ -268,8 +309,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
-                                        <!-- Check Options -->
                                         <tr>
                                              <td><label>Check Options</label></td>
                                              <td>
@@ -279,7 +318,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showCheckOptions">
                                              <td><label>Check Create</label></td>
                                              <td>
@@ -289,7 +327,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showCheckOptions">
                                              <td><label>Check Cash</label></td>
                                              <td>
@@ -299,7 +336,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showCheckOptions">
                                              <td><label>Check Cancel</label></td>
                                              <td>
@@ -309,8 +345,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
-                                        <!-- MPT Options -->
                                         <tr>
                                              <td><label>MPT Options</label></td>
                                              <td>
@@ -320,7 +354,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>MPT Create</label></td>
                                              <td>
@@ -330,7 +363,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>Authorize MPT</label></td>
                                              <td>
@@ -340,7 +372,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>Unauthorize MPT</label></td>
                                              <td>
@@ -350,7 +381,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>Send MPT</label></td>
                                              <td>
@@ -360,7 +390,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>Lock MPT</label></td>
                                              <td>
@@ -370,7 +399,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>Unlock MPT</label></td>
                                              <td>
@@ -380,7 +408,6 @@
                                                   </label>
                                              </td>
                                         </tr>
-
                                         <tr *ngIf="showMPTOptions">
                                              <td><label>Destroy MPT</label></td>
                                              <td>
@@ -392,7 +419,7 @@
                                         </tr>
                                    </tbody>
                               </table>
-                         </div>
+                         </div> -->
                     </div>
 
                     <div class="spinner-container">

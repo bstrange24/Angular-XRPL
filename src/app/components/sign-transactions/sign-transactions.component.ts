@@ -224,6 +224,20 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
+     onTransactionChange(): void {
+          // Reset everything that a previous transaction might have left behind
+          this.resetToggles(this.selectedTransaction ? this.selectedTransaction : ''); // keep the parent group open
+          this.txJson = '';
+          this.outputField = '';
+          this.isError = false;
+          this.errorMessage = null;
+          if (this.hashField) this.hashField.nativeElement.innerText = '';
+          if (this.resultField) this.resultField.nativeElement.innerText = '';
+
+          // Enable the newly selected transaction (fills the JSON pane)
+          this.enableTransaction();
+     }
+
      onAccountChange() {
           if (this.wallets.length === 0) return;
           this.currentWallet = {
