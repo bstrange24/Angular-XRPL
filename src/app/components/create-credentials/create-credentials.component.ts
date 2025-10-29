@@ -15,8 +15,6 @@ import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-
 import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
 
 interface ValidationInputs {
-     selectedAccount?: string;
-     senderAddress?: string;
      seed?: string;
      account_info?: any;
      destination?: string;
@@ -30,23 +28,10 @@ interface ValidationInputs {
      multiSignSeeds?: string;
      multiSignAddresses?: string;
      isTicket?: boolean;
-     ticketSequence?: string;
      selectedSingleTicket?: string;
      selectedTicket?: string;
      signerQuorum?: number;
      signers?: { account: string; weight: number }[];
-}
-
-interface SignerEntry {
-     Account: string;
-     SignerWeight: number;
-     SingnerSeed: string;
-}
-
-interface SignerEntry {
-     account: string;
-     seed: string;
-     weight: number;
 }
 
 @Component({
@@ -59,17 +44,14 @@ interface SignerEntry {
 export class CreateCredentialsComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     private lastResult: string = '';
-     transactionInput: string = '';
+     lastResult: string = '';
      result: string = '';
-     selectedAccount: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
      isEditable: boolean = true;
      currencyField: string = '';
      currencyBalanceField: string = '';
      amountField: string = '';
-     ticketSequence: string = '';
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      ownerCount: string = '';
@@ -96,10 +78,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
      ticketArray: string[] = [];
-     selectedTickets: string[] = []; // For multiple selection
-     selectedSingleTicket: string = ''; // For single selection
-     multiSelectMode: boolean = false; // Toggle between modes
-     selectedTicket: string = ''; // The currently selected ticket
+     selectedTickets: string[] = [];
+     selectedSingleTicket: string = '';
+     multiSelectMode: boolean = false;
+     selectedTicket: string = '';
      credential = {
           version: '1.0',
           credential_type: 'KYCCredential',
@@ -128,7 +110,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService, private readonly clickToCopyService: ClickToCopyService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly clickToCopyService: ClickToCopyService) {}
 
      ngOnInit() {}
 
@@ -147,7 +129,6 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
                this.selectedWalletIndex = 0;
           }
-          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -167,9 +148,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                balance: this.currentWallet.balance || '0',
           };
 
-          this.updateDestinations();
-
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.updateDestinations();
                await this.getCredentialsForAccount();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
@@ -223,6 +203,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           console.log('Entering getCredentialsForAccount');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           try {
                if (this.resultField?.nativeElement) {
@@ -234,10 +215,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`account info:`, accountInfo.result);
-               console.debug(`credentials:`, accountObjects.result);
+               this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
 
                const inputs: ValidationInputs = {
                     seed: this.currentWallet.seed,
@@ -309,11 +287,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                // Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
+               this.refreshUIData(wallet, accountInfo, accountObjects);
                this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
-               this.refreshUIData(wallet, accountInfo, accountObjects);
-
-               // DEFER: Non-critical UI updates — let main render complete first
+               // Defer non-critical UI updates. Let main render complete first
                setTimeout(async () => {
                     try {
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -338,11 +315,10 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           console.log('Entering setCredentials');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
-               selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
-               senderAddress: this.currentWallet.address,
                destination: this.credential.subject.destinationAddress,
                credentialType: this.credential.credential_type,
                isRegularKeyAddress: this.isRegularKeyAddress,
@@ -352,7 +328,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
                date: this.credential.subject.expirationDate,
           };
 
@@ -360,20 +337,13 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Setting Credentials (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo :`, accountInfo.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.utilsService.logAccountInfoObjects(accountInfo, null);
+               this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
 
@@ -403,16 +373,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Credentials (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Setting Credentials (no changes will be made)...' : 'Submitting Set Credentials to Ledger...');
 
                let response: any;
 
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, credentialCreateTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, credentialCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, credentialCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -463,9 +433,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           console.log('Entering removeCredentials');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
                seed: this.currentWallet.seed,
                credentialID: this.credentialID,
                credentialType: this.credential.credential_type,
@@ -476,28 +446,21 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Removing Credentials (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo`, accountInfo.result);
-               console.debug(`accountObjects:`, accountObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
+               this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
 
@@ -541,9 +504,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, credentialDeleteTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, credentialDeleteTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, credentialDeleteTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -593,9 +556,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           console.log('Entering acceptCredentials');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
-               selectedAccount: this.selectedAccount,
                seed: this.currentWallet.seed,
                credentialType: this.credential.credential_type,
                isRegularKeyAddress: this.isRegularKeyAddress,
@@ -613,21 +576,13 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Accept Credentials (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'credential'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo :`, accountInfo.result);
-               console.debug(`accountObjects`, accountObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
+               this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
 
@@ -665,16 +620,16 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Accepting Credentials Trustline (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Accepting Credentials (no changes will be made)...' : 'Submitting Accepting Credentials to Ledger...');
 
                let response: any;
 
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, credentialAcceptTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, credentialAcceptTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, credentialAcceptTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -712,8 +667,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                     }, 0);
                }
           } catch (error: any) {
-               console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               console.error('Error in acceptCredentials:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -725,9 +680,9 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           console.log('Entering verifyCredential');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
-          let inputs: ValidationInputs = {
-               selectedAccount: this.currentWallet.address,
+          const inputs: ValidationInputs = {
                seed: this.currentWallet.seed,
                destination: this.credential.subject.destinationAddress,
                credentialID: this.credentialID,
@@ -739,25 +694,24 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
                isTicket: this.isTicket,
-               ticketSequence: this.isTicket ? this.ticketSequence : undefined,
+               selectedTicket: this.selectedTicket,
+               selectedSingleTicket: this.selectedSingleTicket,
           };
 
           try {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
+               const mode = this.isSimulateEnabled ? 'simulating' : 'verifying';
                this.updateSpinnerMessage(`Verifing Credentials (${mode})...`);
 
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', '')]);
+               this.utilsService.logAccountInfoObjects(accountInfo, null);
 
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo :`, accountInfo.result);
-
-               inputs = { ...inputs, account_info: accountInfo };
+               inputs.account_info = accountInfo;
 
                const errors = this.validateInputs(inputs, 'verifyCredential');
                if (errors.length > 0) {
@@ -825,8 +779,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                               content: [{ key: 'Status', value: `Credential not found.` }],
                          });
                          this.renderUiComponentsService.renderDetails(data);
-                         this.resultField.nativeElement.classList.add('error');
-                         this.setErrorProperties();
+                         this.resultField.nativeElement.classList.add('success');
+                         this.setSuccessProperties();
                          return;
                     } else {
                          data.sections.push({
@@ -974,34 +928,43 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
-     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const accountObjectsArray = accountObjects.result?.account_objects;
+          if (!Array.isArray(accountObjectsArray)) return [];
+
           const signerAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
-                         obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry?.Account) {
-                                   const weight = entry.SignerEntry.SignerWeight ?? '';
-                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
-                                   this.signerQuorum = obj.SignerQuorum;
-                              }
-                         });
+
+          for (const obj of accountObjectsArray) {
+               if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                    // Set quorum once
+                    if (obj.SignerQuorum !== undefined) {
+                         this.signerQuorum = obj.SignerQuorum;
                     }
-               });
+
+                    for (const entry of obj.SignerEntries) {
+                         const account = entry.SignerEntry?.Account;
+                         if (account) {
+                              signerAccounts.push(`${account}~${entry.SignerEntry.SignerWeight ?? ''}`);
+                         }
+                    }
+               }
           }
+
           return signerAccounts;
      }
 
-     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
-          const getAccountTickets: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'Ticket') {
-                         getAccountTickets.push(obj.TicketSequence.toString());
-                    }
-               });
-          }
-          return getAccountTickets;
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const objects = accountObjects.result?.account_objects;
+          if (!Array.isArray(objects)) return [];
+
+          const tickets = objects.reduce((acc: number[], obj) => {
+               if (obj.LedgerEntryType === 'Ticket' && typeof obj.TicketSequence === 'number') {
+                    acc.push(obj.TicketSequence);
+               }
+               return acc;
+          }, []);
+
+          return tickets.sort((a, b) => a - b).map(String);
      }
 
      private cleanUpSingleSelection() {
@@ -1027,7 +990,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           }
      }
 
-     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
@@ -1037,22 +1000,19 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     public refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet): void {
+          // Tickets
           this.ticketArray = this.getAccountTickets(accountObjects);
-          if (this.ticketArray.length > 0) {
-               this.selectedTicket = this.ticketArray[0];
-          }
+          this.selectedTicket = this.ticketArray[0] || this.selectedTicket;
 
+          // Signer accounts
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
+          const hasSignerAccounts = signerAccounts?.length > 0;
 
-          if (signerAccounts?.length) {
-               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
-               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
-
-               console.debug(`signerEntries:`, signerEntries);
-
-               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
-               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          if (hasSignerAccounts) {
+               const signerEntries = this.storageService.get(`${wallet.classicAddress}signerEntries`) || [];
+               this.multiSignAddress = signerEntries.map((e: { Account: any }) => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map((e: { seed: any }) => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
@@ -1060,46 +1020,39 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                this.storageService.removeValue('signerEntries');
           }
 
+          // Boolean flags
+          this.multiSigningEnabled = hasSignerAccounts;
           this.useMultiSign = false;
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (signerAccounts && signerAccounts.length > 0) {
-               this.multiSigningEnabled = true;
-          } else {
-               this.multiSigningEnabled = false;
-          }
+          this.masterKeyDisabled = Boolean(accountInfo?.result?.account_flags?.disableMasterKey);
 
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
-          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+     public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse): void {
+          const accountData = accountInfo?.result?.account_data;
+          if (!accountData) return;
+
+          const regularKey = accountData.RegularKey;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey ?? false;
+
+          // Set regular key properties
+          this.setRegularKeyProperties(regularKey, accountData.Account);
+
+          // Set master key property
+          this.masterKeyDisabled = isMasterKeyDisabled;
+
+          // Set regular key signing enabled flag
+          this.regularKeySigningEnabled = !!regularKey;
+     }
+
+     private setRegularKeyProperties(regularKey: string | undefined, account: string): void {
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
-               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               this.regularKeySeed = this.storageService.get(`${account}regularKeySeed`) || '';
           } else {
-               this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
-          }
-
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (regularKey) {
-               this.regularKeySigningEnabled = true;
-          } else {
-               this.regularKeySigningEnabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -1202,8 +1155,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          () => isValidDate(inputs.date),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1217,8 +1170,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          () => isValidSeed(inputs.seed),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1232,8 +1185,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          () => isValidSeed(inputs.seed),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1248,8 +1201,8 @@ export class CreateCredentialsComponent implements AfterViewChecked {
                          () => isValidXrpAddress(inputs.destination, 'Destination address'),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.ticketSequence, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.ticketSequence, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1278,15 +1231,15 @@ export class CreateCredentialsComponent implements AfterViewChecked {
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
 
+          if (errors.length === 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
+
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
           if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
-
-          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
-               errors.push('At least one signer address is required for multi-signing');
-          }
 
           return errors;
      }
@@ -1311,9 +1264,7 @@ export class CreateCredentialsComponent implements AfterViewChecked {
      }
 
      private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.currentWallet.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
+          const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
@@ -1337,15 +1288,15 @@ export class CreateCredentialsComponent implements AfterViewChecked {
 
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
-               this.credential.credential_type = '';
+               this.isSimulateEnabled = false;
                this.credentialID = '';
-               this.credential.subject.destinationAddress = '';
-               this.credential.uri = '';
-               this.ticketSequence = '';
-               this.isTicket = false;
                this.useMultiSign = false;
                this.isRegularKeyAddress = false;
           }
+
+          this.selectedTicket = '';
+          this.selectedSingleTicket = '';
+          this.isTicket = false;
           this.memoField = '';
           this.isMemoEnabled = false;
           this.cdr.markForCheck();

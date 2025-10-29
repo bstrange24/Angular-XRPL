@@ -33,18 +33,6 @@ interface ValidationInputs {
      signers?: { account: string; weight: number }[];
 }
 
-interface SignerEntry {
-     Account: string;
-     SignerWeight: number;
-     SingnerSeed: string;
-}
-
-interface SignerEntry {
-     account: string;
-     seed: string;
-     weight: number;
-}
-
 @Component({
      selector: 'app-mpt-lock-destroy',
      standalone: true,
@@ -55,7 +43,7 @@ interface SignerEntry {
 export class MptLockDestroyComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     private lastResult: string = '';
+     lastResult: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -132,7 +120,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     onAccountChange() {
+     async onAccountChange() {
           if (this.wallets.length === 0) return;
 
           this.currentWallet = {
@@ -194,6 +182,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           console.log('Entering getMptDetails');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           try {
                if (this.resultField?.nativeElement) {
@@ -206,10 +195,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
 
                // this.xrplService.getMptByIssuanceId(client, '0007B137A4AA44F9D4B9DF4F564F3819E67330A0C317690E', 'validated');
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`account info:`, accountInfo.result);
-               console.debug(`accountObjects:`, accountObjects.result);
+               this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
 
                const inputs: ValidationInputs = {
                     seed: this.currentWallet.seed,
@@ -277,12 +263,13 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                // Render immediately
                this.renderUiComponentsService.renderDetails(data);
                this.setSuccess(this.result);
-               this.refreshUIData(wallet, accountInfo, accountObjects);
                this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
                     try {
+                         this.refreshUIData(wallet, accountInfo, accountObjects);
+                         this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.clearFields(false);
                          this.updateTickets(accountObjects);
                          await this.updateXrpBalance(client, accountInfo, wallet);
@@ -304,6 +291,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           console.log('Entering setMptLocked');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
@@ -321,20 +309,17 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           };
 
           try {
-               this.updateSpinnerMessage('Setting MPT Locked...');
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, mptokenObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`mptokenObjects for ${wallet.classicAddress}:`, mptokenObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.utilsService.logAccountInfoObjects(accountInfo, null);
+               this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
+               this.utilsService.logObjects('mptokenObjects', mptokenObjects);
 
                inputs.account_info = accountInfo;
 
@@ -377,9 +362,9 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, mPTokenIssuanceSetTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, mPTokenIssuanceSetTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -409,7 +394,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                          try {
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -446,20 +431,17 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           };
 
           try {
-               this.updateSpinnerMessage('Deleting MPT...');
+               if (this.resultField?.nativeElement) {
+                    this.resultField.nativeElement.innerHTML = '';
+               }
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, destObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify in logs
-               console.debug(`accountInfo for ${wallet.classicAddress}:`, accountInfo.result);
-               console.debug(`destObjects for ${wallet.classicAddress}:`, destObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.utilsService.logAccountInfoObjects(accountInfo, null);
+               this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
+               this.utilsService.logObjects('destObjects', destObjects);
 
                inputs.account_info = accountInfo;
 
@@ -489,9 +471,9 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, mPTokenIssuanceDestroyTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, mPTokenIssuanceDestroyTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, mPTokenIssuanceDestroyTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -521,7 +503,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                          try {
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
-                              await this.updateXrpBalance(client, accountInfo, wallet);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
                          }
@@ -529,7 +511,7 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                }
           } catch (error: any) {
                console.error('Error:', error);
-               return this.setError(`ERROR: ${error.message || 'Unknown error'}`);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -585,34 +567,43 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
-     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const accountObjectsArray = accountObjects.result?.account_objects;
+          if (!Array.isArray(accountObjectsArray)) return [];
+
           const signerAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
-                         obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry?.Account) {
-                                   const weight = entry.SignerEntry.SignerWeight ?? '';
-                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
-                                   this.signerQuorum = obj.SignerQuorum;
-                              }
-                         });
+
+          for (const obj of accountObjectsArray) {
+               if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                    // Set quorum once
+                    if (obj.SignerQuorum !== undefined) {
+                         this.signerQuorum = obj.SignerQuorum;
                     }
-               });
+
+                    for (const entry of obj.SignerEntries) {
+                         const account = entry.SignerEntry?.Account;
+                         if (account) {
+                              signerAccounts.push(`${account}~${entry.SignerEntry.SignerWeight ?? ''}`);
+                         }
+                    }
+               }
           }
+
           return signerAccounts;
      }
 
-     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
-          const getAccountTickets: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'Ticket') {
-                         getAccountTickets.push(obj.TicketSequence.toString());
-                    }
-               });
-          }
-          return getAccountTickets;
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const objects = accountObjects.result?.account_objects;
+          if (!Array.isArray(objects)) return [];
+
+          const tickets = objects.reduce((acc: number[], obj) => {
+               if (obj.LedgerEntryType === 'Ticket' && typeof obj.TicketSequence === 'number') {
+                    acc.push(obj.TicketSequence);
+               }
+               return acc;
+          }, []);
+
+          return tickets.sort((a, b) => a - b).map(String);
      }
 
      private cleanUpSingleSelection() {
@@ -648,22 +639,19 @@ export class MptLockDestroyComponent implements AfterViewChecked {
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     public refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet): void {
+          // Tickets
           this.ticketArray = this.getAccountTickets(accountObjects);
-          if (this.ticketArray.length > 0) {
-               this.selectedTicket = this.ticketArray[0];
-          }
+          this.selectedTicket = this.ticketArray[0] || this.selectedTicket;
 
+          // Signer accounts
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
+          const hasSignerAccounts = signerAccounts?.length > 0;
 
-          if (signerAccounts?.length) {
-               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
-               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
-
-               console.debug(`signerEntries:`, signerEntries);
-
-               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
-               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          if (hasSignerAccounts) {
+               const signerEntries = this.storageService.get(`${wallet.classicAddress}signerEntries`) || [];
+               this.multiSignAddress = signerEntries.map((e: { Account: any }) => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map((e: { seed: any }) => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
@@ -671,46 +659,39 @@ export class MptLockDestroyComponent implements AfterViewChecked {
                this.storageService.removeValue('signerEntries');
           }
 
+          // Boolean flags
+          this.multiSigningEnabled = hasSignerAccounts;
           this.useMultiSign = false;
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (signerAccounts && signerAccounts.length > 0) {
-               this.multiSigningEnabled = true;
-          } else {
-               this.multiSigningEnabled = false;
-          }
+          this.masterKeyDisabled = Boolean(accountInfo?.result?.account_flags?.disableMasterKey);
 
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
-          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+     public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse): void {
+          const accountData = accountInfo?.result?.account_data;
+          if (!accountData) return;
+
+          const regularKey = accountData.RegularKey;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey ?? false;
+
+          // Set regular key properties
+          this.setRegularKeyProperties(regularKey, accountData.Account);
+
+          // Set master key property
+          this.masterKeyDisabled = isMasterKeyDisabled;
+
+          // Set regular key signing enabled flag
+          this.regularKeySigningEnabled = !!regularKey;
+     }
+
+     private setRegularKeyProperties(regularKey: string | undefined, account: string): void {
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
-               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               this.regularKeySeed = this.storageService.get(`${account}regularKeySeed`) || '';
           } else {
-               this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
-          }
-
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (regularKey) {
-               this.regularKeySigningEnabled = true;
-          } else {
-               this.regularKeySigningEnabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -885,33 +866,12 @@ export class MptLockDestroyComponent implements AfterViewChecked {
      }
 
      private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.currentWallet.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
+          const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
           return wallet;
      }
-
-     // updateDestinations() {
-     //      this.destinations = this.wallets.map(w => ({ name: w.name, address: w.address }));
-     //      if (this.destinations.length > 0 && !this.destinationFields) {
-     //           this.destinationFields = this.destinations[0].address;
-     //      }
-     //      this.ensureDefaultNotSelected();
-     // }
-
-     // private ensureDefaultNotSelected() {
-     //      const currentAddress = this.currentWallet.address;
-     //      if (currentAddress && this.destinations.length > 0) {
-     //           if (!this.destinationFields || this.destinationFields === currentAddress) {
-     //                const nonSelectedDest = this.destinations.find(d => d.address !== currentAddress);
-     //                this.destinationFields = nonSelectedDest ? nonSelectedDest.address : this.destinations[0].address;
-     //           }
-     //      }
-     //      this.cdr.detectChanges();
-     // }
 
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
@@ -937,12 +897,6 @@ export class MptLockDestroyComponent implements AfterViewChecked {
      private updateSpinnerMessage(message: string) {
           this.spinnerMessage = message;
           this.cdr.detectChanges();
-     }
-
-     private async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
      }
 
      private setErrorProperties() {

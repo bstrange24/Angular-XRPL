@@ -94,18 +94,6 @@ interface MPToken {
      MPTokenMetadata?: string;
 }
 
-interface SignerEntry {
-     Account: string;
-     SignerWeight: number;
-     SingnerSeed: string;
-}
-
-interface SignerEntry {
-     account: string;
-     seed: string;
-     weight: number;
-}
-
 @Component({
      selector: 'app-create-time-escrow',
      standalone: true,
@@ -116,8 +104,7 @@ interface SignerEntry {
 export class CreateTimeEscrowComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     private lastResult: string = '';
-     transactionInput: string = '';
+     lastResult: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -126,10 +113,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
-     selectedTickets: string[] = []; // For multiple selection
-     selectedSingleTicket: string = ''; // For single selection
-     multiSelectMode: boolean = false; // Toggle between modes
-     selectedTicket: string = ''; // The currently selected ticket
+     selectedTickets: string[] = [];
+     selectedSingleTicket: string = '';
+     multiSelectMode: boolean = false;
+     selectedTicket: string = '';
      selectedAccount: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
@@ -144,7 +131,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      escrowOwnerField: string = '';
      escrowSequenceNumberField: string = '';
      mptIssuanceIdField: string = '';
-     isMptEnabled: boolean = false;
+     // isMptEnabled: boolean = false;
      memoField: string = '';
      isMemoEnabled: boolean = false;
      isMultiSignTransaction: boolean = false;
@@ -211,7 +198,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
                this.selectedWalletIndex = 0;
           }
-          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -231,11 +217,10 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                balance: this.currentWallet.balance || '0',
           };
 
-          this.updateDestinations();
-
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.updateDestinations();
                this.ensureDefaultNotSelected();
-               this.getEscrows();
+               await this.getEscrows();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
@@ -288,6 +273,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           console.log('Entering getEscrows');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           try {
                if (this.resultField?.nativeElement) {
@@ -299,8 +285,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                const [accountInfo, accountObjects, escrowObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
                this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
                this.utilsService.logObjects('escrowObjects', escrowObjects);
 
@@ -503,6 +487,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           console.log('Entering createTimeBasedEscrow');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const t = this.utilsService.convertDateTimeToRippleTime(this.escrowFinishDateTimeField);
           console.log('t: ', t);
@@ -535,16 +520,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Time Based Escrow (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, trustLines, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountLines(client, wallet.classicAddress, 'validated', ''), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
                this.utilsService.logAccountInfoObjects(accountInfo, null);
                this.utilsService.logObjects('trustLines', trustLines);
                this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
@@ -584,22 +564,22 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
-               } else {
+               } else if (this.currencyFieldDropDownValue !== 'MPT') {
                     if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, escrowCreateTx, this.destinationFields)) {
                          return this.setError('ERROR: Not enough IOU balance for this transaction');
                     }
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Creating Time Based Escrow (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Time Based Escrow (no changes will be made)...' : 'Submitting Create Time Based Escrow to Ledger...');
 
                let response: any;
 
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, escrowCreateTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, escrowCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, escrowCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -653,6 +633,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           console.log('Entering finishTimeBasedEscrow');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
@@ -673,10 +654,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Finish Time Based Escrow (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
@@ -689,8 +667,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     this.xrplService.getLastLedgerIndex(client),
                     this.xrplService.getXrplServerInfo(client, 'current', ''),
                ]);
-
-               // Optional: Avoid heavy stringify — log only if needed
                this.utilsService.logAccountInfoObjects(accountInfo, null);
                this.utilsService.logObjects('trustLines', trustLines);
                this.utilsService.logEscrowObjects(escrowObjects, escrow);
@@ -737,22 +713,22 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                               return this.setError('ERROR: Insufficient XRP to complete transaction');
                          }
                     }
-               } else {
+               } else if (this.currencyFieldDropDownValue !== 'MPT') {
                     if (this.utilsService.isInsufficientIouTrustlineBalance(trustLines, escrowFinishTx, this.destinationFields)) {
                          return this.setError('ERROR: Not enough IOU balance for this transaction');
                     }
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Finishing Time Based Escrow (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Finishing Time Based Escrow (no changes will be made)...' : 'Submitting Finish Time Based Escrow to Ledger...');
 
                let response: any;
 
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, escrowFinishTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, escrowFinishTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, escrowFinishTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -806,6 +782,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           console.log('Entering cancelEscrow');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
@@ -826,16 +803,11 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Cancel Time Based Escrow (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, escrowObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'escrow'), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
                this.utilsService.logAccountInfoObjects(accountInfo, null);
                this.utilsService.logEscrowObjects(escrowObjects, null);
                this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
@@ -898,16 +870,16 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Cancelling Time Based Escrow (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Cancelling Time Based Escrow (no changes will be made)...' : 'Submitting Cancel Time Based Escrow to Ledger...');
 
                let response: any;
 
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, escrowCancelTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, escrowCancelTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, escrowCancelTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -925,7 +897,6 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                     (response.result as any).errorMessage = userMessage;
                }
 
-               // Render result
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
@@ -1106,7 +1077,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                }
 
                if (txType === 'create') {
-                    if (this.isMptEnabled) {
+                    if (this.currencyFieldDropDownValue === 'MPT') {
                          const accountObjects = await this.xrplService.getAccountObjects(client, this.destinationFields, 'validated', '');
                          const mptTokens = accountObjects.result.account_objects.filter((obj: any) => obj.LedgerEntryType === 'MPToken');
                          console.debug(`Destination MPT Tokens:`, mptTokens);
@@ -1145,34 +1116,43 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
-     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const accountObjectsArray = accountObjects.result?.account_objects;
+          if (!Array.isArray(accountObjectsArray)) return [];
+
           const signerAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
-                         obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry?.Account) {
-                                   const weight = entry.SignerEntry.SignerWeight ?? '';
-                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
-                                   this.signerQuorum = obj.SignerQuorum;
-                              }
-                         });
+
+          for (const obj of accountObjectsArray) {
+               if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                    // Set quorum once
+                    if (obj.SignerQuorum !== undefined) {
+                         this.signerQuorum = obj.SignerQuorum;
                     }
-               });
+
+                    for (const entry of obj.SignerEntries) {
+                         const account = entry.SignerEntry?.Account;
+                         if (account) {
+                              signerAccounts.push(`${account}~${entry.SignerEntry.SignerWeight ?? ''}`);
+                         }
+                    }
+               }
           }
+
           return signerAccounts;
      }
 
-     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
-          const getAccountTickets: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'Ticket') {
-                         getAccountTickets.push(obj.TicketSequence.toString());
-                    }
-               });
-          }
-          return getAccountTickets;
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const objects = accountObjects.result?.account_objects;
+          if (!Array.isArray(objects)) return [];
+
+          const tickets = objects.reduce((acc: number[], obj) => {
+               if (obj.LedgerEntryType === 'Ticket' && typeof obj.TicketSequence === 'number') {
+                    acc.push(obj.TicketSequence);
+               }
+               return acc;
+          }, []);
+
+          return tickets.sort((a, b) => a - b).map(String);
      }
 
      private cleanUpSingleSelection() {
@@ -1208,22 +1188,19 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     public refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet): void {
+          // Tickets
           this.ticketArray = this.getAccountTickets(accountObjects);
-          if (this.ticketArray.length > 0) {
-               this.selectedTicket = this.ticketArray[0];
-          }
+          this.selectedTicket = this.ticketArray[0] || this.selectedTicket;
 
+          // Signer accounts
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
+          const hasSignerAccounts = signerAccounts?.length > 0;
 
-          if (signerAccounts?.length) {
-               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
-               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
-
-               console.debug(`signerEntries:`, signerEntries);
-
-               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
-               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          if (hasSignerAccounts) {
+               const signerEntries = this.storageService.get(`${wallet.classicAddress}signerEntries`) || [];
+               this.multiSignAddress = signerEntries.map((e: { Account: any }) => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map((e: { seed: any }) => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
@@ -1231,46 +1208,39 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
                this.storageService.removeValue('signerEntries');
           }
 
+          // Boolean flags
+          this.multiSigningEnabled = hasSignerAccounts;
           this.useMultiSign = false;
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (signerAccounts && signerAccounts.length > 0) {
-               this.multiSigningEnabled = true;
-          } else {
-               this.multiSigningEnabled = false;
-          }
+          this.masterKeyDisabled = Boolean(accountInfo?.result?.account_flags?.disableMasterKey);
 
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
-          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+     public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse): void {
+          const accountData = accountInfo?.result?.account_data;
+          if (!accountData) return;
+
+          const regularKey = accountData.RegularKey;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey ?? false;
+
+          // Set regular key properties
+          this.setRegularKeyProperties(regularKey, accountData.Account);
+
+          // Set master key property
+          this.masterKeyDisabled = isMasterKeyDisabled;
+
+          // Set regular key signing enabled flag
+          this.regularKeySigningEnabled = !!regularKey;
+     }
+
+     private setRegularKeyProperties(regularKey: string | undefined, account: string): void {
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
-               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               this.regularKeySeed = this.storageService.get(`${account}regularKeySeed`) || '';
           } else {
-               this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
-          }
-
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (regularKey) {
-               this.regularKeySigningEnabled = true;
-          } else {
-               this.regularKeySigningEnabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -1648,9 +1618,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
      }
 
      private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.currentWallet.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
+          const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
@@ -1680,6 +1648,7 @@ export class CreateTimeEscrowComponent implements AfterViewChecked {
 
      private updateCurrencies() {
           this.currencies = [...Object.keys(this.knownTrustLinesIssuers)];
+          this.currencies.push('MPT');
           this.currencies.sort((a, b) => a.localeCompare(b));
      }
 

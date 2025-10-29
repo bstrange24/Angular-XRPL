@@ -9,7 +9,7 @@ export class XrplTransactionService {
      constructor(private utilsService: UtilsService) {}
 
      // HELPER: Sign transaction (handles both single and multi-sign)
-     async signTransaction(client: any, wallet: xrpl.Wallet, environment: string, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string, useMultiSign: boolean, multiSignAddress: any, multiSignSeeds: any): Promise<{ tx_blob: string; hash: string } | null> {
+     async signTransaction(client: any, wallet: xrpl.Wallet, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string, useMultiSign: boolean, multiSignAddress: any, multiSignSeeds: any): Promise<{ tx_blob: string; hash: string } | null> {
           if (useMultiSign) {
                const signerAddresses = this.utilsService.getMultiSignAddress(multiSignAddress);
                const signerSeeds = this.utilsService.getMultiSignSeeds(multiSignSeeds);
@@ -21,7 +21,7 @@ export class XrplTransactionService {
                     throw new Error('No signer seeds provided for multi-signing');
                }
 
-               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
+               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, tx: tx, signerAddresses, signerSeeds, fee });
 
                tx.Signers = result.signers;
 
@@ -38,7 +38,7 @@ export class XrplTransactionService {
           }
      }
 
-     async signTransactionNoAutofill(client: any, wallet: xrpl.Wallet, environment: string, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string, useMultiSign: boolean, multiSignAddress: any, multiSignSeeds: any, noAutofill: boolean = false): Promise<{ tx_blob: string; hash: string } | null> {
+     async signTransactionNoAutofill(client: any, wallet: xrpl.Wallet, tx: any, useRegularKeyWalletSignTx: boolean, regularKeyWalletSignTx: any, fee: string, useMultiSign: boolean, multiSignAddress: any, multiSignSeeds: any, noAutofill: boolean = false): Promise<{ tx_blob: string; hash: string } | null> {
           if (useMultiSign) {
                const signerAddresses = this.utilsService.getMultiSignAddress(multiSignAddress);
                const signerSeeds = this.utilsService.getMultiSignSeeds(multiSignSeeds);
@@ -50,7 +50,7 @@ export class XrplTransactionService {
                     throw new Error('No signer seeds provided for multi-signing');
                }
 
-               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: tx, signerAddresses, signerSeeds, fee });
+               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, tx: tx, signerAddresses, signerSeeds, fee });
 
                tx.Signers = result.signers;
 

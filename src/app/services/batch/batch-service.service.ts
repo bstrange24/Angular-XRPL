@@ -52,8 +52,7 @@ export class BatchService {
                // Let autofill compute Sequence, LastLedgerSequence, Fee, etc.
                const preparedTx = await client.autofill(batchTx);
 
-               const environment = this.xrplService.getNet().environment;
-               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, environment, tx: preparedTx, signerAddresses, signerSeeds, fee: options.fee ?? preparedTx.Fee });
+               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, tx: preparedTx, signerAddresses, signerSeeds, fee: options.fee ?? preparedTx.Fee });
 
                signedTx = result.signedTx;
                preparedTx.Signers = result.signers;

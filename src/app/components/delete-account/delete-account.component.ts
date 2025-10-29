@@ -15,7 +15,6 @@ import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-
 import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
 
 interface ValidationInputs {
-     selectedAccount?: string;
      senderAddress?: string;
      seed?: string;
      account_info?: any;
@@ -35,18 +34,6 @@ interface ValidationInputs {
      signers?: { account: string; weight: number }[];
 }
 
-interface SignerEntry {
-     Account: string;
-     SignerWeight: number;
-     SingnerSeed: string;
-}
-
-interface SignerEntry {
-     account: string;
-     seed: string;
-     weight: number;
-}
-
 @Component({
      selector: 'app-delete-account',
      standalone: true,
@@ -58,7 +45,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      @ViewChild(AppWalletDynamicInputComponent) appWalletDynamicInputComponent!: AppWalletDynamicInputComponent;
-     private lastResult: string = '';
+     lastResult: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -66,11 +53,10 @@ export class DeleteAccountComponent implements AfterViewChecked {
      ticketSequence: string = '';
      isTicket: boolean = false;
      ticketArray: string[] = [];
-     selectedTickets: string[] = []; // For multiple selection
-     selectedSingleTicket: string = ''; // For single selection
-     multiSelectMode: boolean = false; // Toggle between modes
-     selectedTicket: string = ''; // The currently selected ticket
-     selectedAccount: string = '';
+     selectedTickets: string[] = [];
+     selectedSingleTicket: string = '';
+     multiSelectMode: boolean = false;
+     selectedTicket: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
@@ -97,7 +83,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly xrplTransactions: XrplTransactionService, private readonly clickToCopyService: ClickToCopyService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly clickToCopyService: ClickToCopyService) {}
 
      ngOnInit() {}
 
@@ -107,7 +93,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           if (this.result !== this.lastResult && this.resultField?.nativeElement) {
                this.renderUiComponentsService.attachSearchListener(this.resultField.nativeElement);
                this.lastResult = this.result;
-               this.cdr.detectChanges();
+               this.cdr.markForCheck();
           }
      }
 
@@ -116,7 +102,6 @@ export class DeleteAccountComponent implements AfterViewChecked {
           if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
                this.selectedWalletIndex = 0;
           }
-          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -125,7 +110,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.isError = event.isError;
           this.isSuccess = event.isSuccess;
           this.isEditable = !this.isSuccess;
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 
      async onAccountChange() {
@@ -136,9 +121,8 @@ export class DeleteAccountComponent implements AfterViewChecked {
                balance: this.currentWallet.balance || '0',
           };
 
-          this.updateDestinations();
-
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.updateDestinations();
                await this.getAccountDetails();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
@@ -192,6 +176,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           console.log('Entering getAccountDetails');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           try {
                if (this.resultField?.nativeElement) {
@@ -203,10 +188,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`account info:`, accountInfo.result);
-               console.debug(`account objects:`, accountObjects.result);
+               this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
 
                const inputs: ValidationInputs = {
                     seed: this.currentWallet.seed,
@@ -225,7 +207,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.refreshUIData(wallet, accountInfo, accountObjects);
                this.clickToCopyService.attachCopy(this.resultField.nativeElement);
 
-               // DEFER: Non-critical UI updates — let main render complete first
+               // Defer non-critical UI updates. Let main render complete first
                setTimeout(async () => {
                     try {
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
@@ -250,9 +232,9 @@ export class DeleteAccountComponent implements AfterViewChecked {
           console.log('Entering deleteAccount');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
-               selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
                senderAddress: this.currentWallet.address,
                destination: this.destinationFields,
@@ -262,6 +244,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
                useMultiSign: this.useMultiSign,
                multiSignAddresses: this.useMultiSign ? this.multiSignAddress : undefined,
                multiSignSeeds: this.useMultiSign ? this.multiSignSeeds : undefined,
+               isTicket: this.isTicket,
                selectedTicket: this.selectedTicket,
                selectedSingleTicket: this.selectedSingleTicket,
           };
@@ -270,21 +253,13 @@ export class DeleteAccountComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Deleting account (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
                const [accountInfo, accountObjects, fee, currentLedger, serverInfo] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.checkAccountObjectsForDeletion(client, wallet.classicAddress), this.xrplService.calculateTransactionFee(client), this.xrplService.getLastLedgerIndex(client), this.xrplService.getXrplServerInfo(client, 'current', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
-               console.debug(`accountInfo :`, accountInfo.result);
-               console.debug(`accountObjects for ${wallet.classicAddress}:`, accountObjects.result);
-               console.debug(`fee :`, fee);
-               console.debug(`currentLedger :`, currentLedger);
-               console.debug(`serverInfo :`, serverInfo);
+               this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
+               this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
 
                inputs.account_info = accountInfo;
                inputs.accountObjects = accountObjects;
@@ -308,16 +283,16 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     return this.setError('ERROR: Insufficient XRP to complete transaction');
                }
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Deleting Account (no changes will be made)...' : 'Submitting to Ledger...');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Deleting Account (no changes will be made)...' : 'Submitting Delete Account to Ledger...');
 
                let response: any;
 
                if (this.isSimulateEnabled) {
                     response = await this.xrplTransactions.simulateTransaction(client, accountDeleteTx);
                } else {
-                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                    const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, accountDeleteTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                    const signedTx = await this.xrplTransactions.signTransaction(client, wallet, accountDeleteTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                     if (!signedTx) {
                          return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -335,21 +310,23 @@ export class DeleteAccountComponent implements AfterViewChecked {
                     (response.result as any).errorMessage = userMessage;
                }
 
+               if (!this.isSimulateEnabled) {
+                    if (this.appWalletDynamicInputComponent) {
+                         const index = this.getWalletIndexByAddress(wallet.classicAddress);
+                         if (index !== -1) {
+                              console.log(`Wallet found at index: ${index}`);
+                              this.appWalletDynamicInputComponent.removeWallet(index);
+                         } else {
+                              console.warn('Wallet not found.');
+                         }
+                    } else {
+                         console.warn('appWalletDynamicInputComponent not available at this time');
+                    }
+               }
+
                this.renderTransactionResult(response);
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.result);
-
-               if (this.appWalletDynamicInputComponent) {
-                    const index = this.getWalletIndexByAddress(wallet.classicAddress);
-                    if (index !== -1) {
-                         console.log(`Wallet found at index: ${index}`);
-                         this.appWalletDynamicInputComponent.removeWallet(index);
-                    } else {
-                         console.warn('Wallet not found.');
-                    }
-               } else {
-                    console.warn('appWalletDynamicInputComponent not available at this time');
-               }
 
                if (!this.isSimulateEnabled) {
                     // const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
@@ -420,34 +397,43 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
-     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const accountObjectsArray = accountObjects.result?.account_objects;
+          if (!Array.isArray(accountObjectsArray)) return [];
+
           const signerAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
-                         obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry?.Account) {
-                                   const weight = entry.SignerEntry.SignerWeight ?? '';
-                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
-                                   this.signerQuorum = obj.SignerQuorum;
-                              }
-                         });
+
+          for (const obj of accountObjectsArray) {
+               if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                    // Set quorum once
+                    if (obj.SignerQuorum !== undefined) {
+                         this.signerQuorum = obj.SignerQuorum;
                     }
-               });
+
+                    for (const entry of obj.SignerEntries) {
+                         const account = entry.SignerEntry?.Account;
+                         if (account) {
+                              signerAccounts.push(`${account}~${entry.SignerEntry.SignerWeight ?? ''}`);
+                         }
+                    }
+               }
           }
+
           return signerAccounts;
      }
 
-     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
-          const getAccountTickets: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'Ticket') {
-                         getAccountTickets.push(obj.TicketSequence.toString());
-                    }
-               });
-          }
-          return getAccountTickets;
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const objects = accountObjects.result?.account_objects;
+          if (!Array.isArray(objects)) return [];
+
+          const tickets = objects.reduce((acc: number[], obj) => {
+               if (obj.LedgerEntryType === 'Ticket' && typeof obj.TicketSequence === 'number') {
+                    acc.push(obj.TicketSequence);
+               }
+               return acc;
+          }, []);
+
+          return tickets.sort((a, b) => a - b).map(String);
      }
 
      private cleanUpSingleSelection() {
@@ -473,7 +459,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           }
      }
 
-     private async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     async updateXrpBalance(client: xrpl.Client, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
           const { ownerCount, totalXrpReserves } = await this.utilsService.updateOwnerCountAndReserves(client, accountInfo, wallet.classicAddress);
 
           this.ownerCount = ownerCount;
@@ -483,22 +469,19 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     public refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet): void {
+          // Tickets
           this.ticketArray = this.getAccountTickets(accountObjects);
-          if (this.ticketArray.length > 0) {
-               this.selectedTicket = this.ticketArray[0];
-          }
+          this.selectedTicket = this.ticketArray[0] || this.selectedTicket;
 
+          // Signer accounts
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
+          const hasSignerAccounts = signerAccounts?.length > 0;
 
-          if (signerAccounts?.length) {
-               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
-               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
-
-               console.debug(`signerEntries:`, signerEntries);
-
-               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
-               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          if (hasSignerAccounts) {
+               const signerEntries = this.storageService.get(`${wallet.classicAddress}signerEntries`) || [];
+               this.multiSignAddress = signerEntries.map((e: { Account: any }) => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map((e: { seed: any }) => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
@@ -506,46 +489,39 @@ export class DeleteAccountComponent implements AfterViewChecked {
                this.storageService.removeValue('signerEntries');
           }
 
+          // Boolean flags
+          this.multiSigningEnabled = hasSignerAccounts;
           this.useMultiSign = false;
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (signerAccounts && signerAccounts.length > 0) {
-               this.multiSigningEnabled = true;
-          } else {
-               this.multiSigningEnabled = false;
-          }
+          this.masterKeyDisabled = Boolean(accountInfo?.result?.account_flags?.disableMasterKey);
 
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
-          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+     public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse): void {
+          const accountData = accountInfo?.result?.account_data;
+          if (!accountData) return;
+
+          const regularKey = accountData.RegularKey;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey ?? false;
+
+          // Set regular key properties
+          this.setRegularKeyProperties(regularKey, accountData.Account);
+
+          // Set master key property
+          this.masterKeyDisabled = isMasterKeyDisabled;
+
+          // Set regular key signing enabled flag
+          this.regularKeySigningEnabled = !!regularKey;
+     }
+
+     private setRegularKeyProperties(regularKey: string | undefined, account: string): void {
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
-               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               this.regularKeySeed = this.storageService.get(`${account}regularKeySeed`) || '';
           } else {
-               this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
-          }
-
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (regularKey) {
-               this.regularKeySigningEnabled = true;
-          } else {
-               this.regularKeySigningEnabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -737,15 +713,15 @@ export class DeleteAccountComponent implements AfterViewChecked {
           const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
           if (multiErr) errors.push(multiErr);
 
+          if (errors.length === 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
+               errors.push('At least one signer address is required for multi-signing');
+          }
+
           const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
           if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') errors.push(regAddrErr);
 
           const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
           if (regSeedErr) errors.push(regSeedErr);
-
-          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
-               errors.push('At least one signer address is required for multi-signing');
-          }
 
           return errors;
      }
@@ -758,7 +734,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
           this.ensureDefaultNotSelected();
      }
 
-     private ensureDefaultNotSelected() {
+     ensureDefaultNotSelected() {
           const currentAddress = this.currentWallet.address;
           if (currentAddress && this.destinations.length > 0) {
                if (!this.destinationFields || this.destinationFields === currentAddress) {
@@ -770,9 +746,7 @@ export class DeleteAccountComponent implements AfterViewChecked {
      }
 
      private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.currentWallet.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
+          const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
@@ -781,10 +755,15 @@ export class DeleteAccountComponent implements AfterViewChecked {
 
      clearFields(clearAllFields: boolean) {
           if (clearAllFields) {
-               this.destinationTagField = '';
-               this.isRegularKeyAddress = false;
+               this.isSimulateEnabled = false;
                this.useMultiSign = false;
+               this.isRegularKeyAddress = false;
+               this.destinationTagField = '';
           }
+
+          this.selectedTicket = '';
+          this.selectedSingleTicket = '';
+          this.isTicket = false;
           this.memoField = '';
           this.isMemoEnabled = false;
           this.cdr.markForCheck();
@@ -824,6 +803,6 @@ export class DeleteAccountComponent implements AfterViewChecked {
                isError: this.isError,
                isSuccess: this.isSuccess,
           });
-          this.cdr.detectChanges();
+          this.cdr.markForCheck();
      }
 }

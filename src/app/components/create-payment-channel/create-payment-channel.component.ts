@@ -16,7 +16,6 @@ import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.s
 
 interface ValidationInputs {
      selectedAccount?: string;
-     senderAddress?: string;
      account_info?: any;
      seed?: string;
      amount?: string;
@@ -51,18 +50,6 @@ interface PaymentChannelObject {
      PublicKey: string;
 }
 
-interface SignerEntry {
-     Account: string;
-     SignerWeight: number;
-     SingnerSeed: string;
-}
-
-interface SignerEntry {
-     account: string;
-     seed: string;
-     weight: number;
-}
-
 @Component({
      selector: 'app-account',
      standalone: true,
@@ -74,7 +61,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      @ViewChild('resultField') resultField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
      private lastResult: string = '';
-     transactionInput: string = '';
      result: string = '';
      isError: boolean = false;
      isSuccess: boolean = false;
@@ -153,7 +139,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           if (this.wallets.length > 0 && this.selectedWalletIndex >= this.wallets.length) {
                this.selectedWalletIndex = 0;
           }
-          this.updateDestinations();
           this.onAccountChange();
      }
 
@@ -173,11 +158,10 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                balance: this.currentWallet.balance || '0',
           };
 
-          this.updateDestinations();
-
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
+               this.updateDestinations();
                this.ensureDefaultAuthorizedWallet();
-               this.getPaymentChannels();
+               await this.getPaymentChannels();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
           }
@@ -248,6 +232,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           console.log('Entering getPaymentChannels');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           try {
                if (this.resultField?.nativeElement) {
@@ -259,8 +244,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                const [accountInfo, paymentChannelObjects, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel'), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
-
-               // Optional: Avoid heavy stringify — log only if needed
                this.utilsService.logAccountInfoObjects(accountInfo, accountObjects);
                this.utilsService.logObjects('paymentChannelObjects', paymentChannelObjects);
 
@@ -351,11 +334,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           console.log('Entering handlePaymentChannelAction');
           const startTime = Date.now();
           this.setSuccessProperties();
+          this.updateSpinnerMessage(``);
 
           const inputs: ValidationInputs = {
                seed: this.currentWallet.seed,
                selectedAccount: this.currentWallet.address,
-               senderAddress: this.currentWallet.address,
                destination: this.destinationFields,
                amount: this.amountField,
                settleDelay: this.settleDelayField,
@@ -378,10 +361,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
-               const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-               this.updateSpinnerMessage(`Preparing Payment Channels (${mode})...`);
 
-               const environment = this.xrplService.getNet().environment;
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
                const [accountInfo, fee, currentLedger, accountObject, paymentChannelObjects, serverInfo] = await Promise.all([
@@ -392,8 +372,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', 'payment_channel'),
                     this.xrplService.getXrplServerInfo(client, 'current', ''),
                ]);
-
-               // Optional: Avoid heavy stringify — log only if needed
                this.utilsService.logAccountInfoObjects(accountInfo, accountObject);
                this.utilsService.logLedgerObjects(fee, currentLedger, serverInfo);
                this.utilsService.logObjects('paymentChannelObjects', paymentChannelObjects);
@@ -412,8 +390,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (this.resultField?.nativeElement) {
                          this.resultField.nativeElement.innerHTML = '';
                     }
-                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-                    this.updateSpinnerMessage(`Preparing Create Payment Channel ${action} (${mode})...`);
 
                     let paymentChannelCreateTx: PaymentChannelCreate = {
                          TransactionType: 'PaymentChannelCreate',
@@ -432,14 +408,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Create Payment Channel (no changes will be made)...' : 'Submitting Create Payment Channel to Ledger...');
 
                     if (this.isSimulateEnabled) {
                          response = await this.xrplTransactions.simulateTransaction(client, paymentChannelCreateTx);
                     } else {
-                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, paymentChannelCreateTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -451,8 +427,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (this.resultField?.nativeElement) {
                          this.resultField.nativeElement.innerHTML = '';
                     }
-                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-                    this.updateSpinnerMessage(`Preparing Fund/Renew Payment Channel ${action} (${mode})...`);
 
                     let paymentChannelFundTx: PaymentChannelFund = {
                          TransactionType: 'PaymentChannelFund',
@@ -468,14 +442,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Funding/Renewing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Funding/Renewing Payment Channel (no changes will be made)...' : 'Submitting Funding/Renewing Payment Channel to Ledger...');
 
                     if (this.isSimulateEnabled) {
                          response = await this.xrplTransactions.simulateTransaction(client, paymentChannelFundTx);
                     } else {
-                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelFundTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, paymentChannelFundTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -487,11 +461,11 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (this.resultField?.nativeElement) {
                          this.resultField.nativeElement.innerHTML = '';
                     }
-                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-                    this.updateSpinnerMessage(`Preparing Claim Payment Channel ${action} (${mode})...`);
 
-                    const authorizedWallet = await this.getPaymentChannelAuthorizedWallet(environment, this.authorizedWalletAddress);
+                    const authorizedWallet = await this.getPaymentChannelAuthorizedWallet(this.authorizedWalletAddress);
                     const [signatureVerified, isChannelAuthorized] = await Promise.all([this.xrplService.getChannelVerifiy(client, this.channelIDField, this.amountField, this.publicKeyField, this.channelClaimSignatureField), this.xrplService.getPaymentChannelAuthorized(client, this.channelIDField, this.amountField, authorizedWallet)]);
+                    this.utilsService.logObjects('signatureVerified', signatureVerified);
+                    this.utilsService.logObjects('isChannelAuthorized', isChannelAuthorized);
 
                     // Get payment channel details to verify creator and receiver
                     const channels = paymentChannelObjects.result.account_objects as PaymentChannelObject[];
@@ -528,14 +502,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Claiming Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Claiming Payment Channel (no changes will be made)...' : 'Submitting Claiming Payment Channel to Ledger...');
 
                     if (this.isSimulateEnabled) {
                          response = await this.xrplTransactions.simulateTransaction(client, paymentChannelClaimTx);
                     } else {
-                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -547,8 +521,6 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                     if (this.resultField?.nativeElement) {
                          this.resultField.nativeElement.innerHTML = '';
                     }
-                    const mode = this.isSimulateEnabled ? 'simulating' : 'setting';
-                    this.updateSpinnerMessage(`Preparing Close Payment Channel ${action} (${mode})...`);
 
                     const channels = paymentChannelObjects.result.account_objects as PaymentChannelObject[];
                     const channel = channels.find(c => c.index === this.channelIDField);
@@ -599,14 +571,14 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Closing Payment Channel (no changes will be made)...' : 'Submitting to Ledger...');
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Closing Payment Channel (no changes will be made)...' : 'Submitting Closing Payment Channel to Ledger...');
 
                     if (this.isSimulateEnabled) {
                          response = await this.xrplTransactions.simulateTransaction(client, paymentChannelClaimTx);
                     } else {
-                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(environment, this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
+                         const { useRegularKeyWalletSignTx, regularKeyWalletSignTx } = await this.utilsService.getRegularKeyWallet(this.useMultiSign, this.isRegularKeyAddress, this.regularKeySeed);
 
-                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, environment, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
+                         const signedTx = await this.xrplTransactions.signTransaction(client, wallet, paymentChannelClaimTx, useRegularKeyWalletSignTx, regularKeyWalletSignTx, fee, this.useMultiSign, this.multiSignAddress, this.multiSignSeeds);
 
                          if (!signedTx) {
                               return this.setError('ERROR: Failed to sign Payment transaction.');
@@ -658,7 +630,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           }
      }
 
-     private async getPaymentChannelAuthorizedWallet(environment: string, authorizedWalletAddress: string) {
+     private async getPaymentChannelAuthorizedWallet(authorizedWalletAddress: string) {
           if (!this.wallets || this.wallets.length === 0) {
                throw new Error('ERROR: No wallets available');
           }
@@ -673,7 +645,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           if (!authorizedSeed) {
                throw new Error('ERROR: No seed available for authorized wallet');
           }
-          const authorizedWallet = await this.utilsService.getWallet(authorizedSeed, environment);
+          const authorizedWallet = await this.utilsService.getWallet(authorizedSeed);
           if (!authorizedWallet) {
                throw new Error('ERROR: Authorized wallet could not be created or is undefined');
           }
@@ -838,34 +810,43 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.refreshUiAccountInfo(updatedAccountInfo);
      }
 
-     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse) {
+     private checkForSignerAccounts(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const accountObjectsArray = accountObjects.result?.account_objects;
+          if (!Array.isArray(accountObjectsArray)) return [];
+
           const signerAccounts: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
-                         obj.SignerEntries.forEach((entry: any) => {
-                              if (entry.SignerEntry?.Account) {
-                                   const weight = entry.SignerEntry.SignerWeight ?? '';
-                                   signerAccounts.push(`${entry.SignerEntry.Account}~${weight}`);
-                                   this.signerQuorum = obj.SignerQuorum;
-                              }
-                         });
+
+          for (const obj of accountObjectsArray) {
+               if (obj.LedgerEntryType === 'SignerList' && Array.isArray(obj.SignerEntries)) {
+                    // Set quorum once
+                    if (obj.SignerQuorum !== undefined) {
+                         this.signerQuorum = obj.SignerQuorum;
                     }
-               });
+
+                    for (const entry of obj.SignerEntries) {
+                         const account = entry.SignerEntry?.Account;
+                         if (account) {
+                              signerAccounts.push(`${account}~${entry.SignerEntry.SignerWeight ?? ''}`);
+                         }
+                    }
+               }
           }
+
           return signerAccounts;
      }
 
-     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse) {
-          const getAccountTickets: string[] = [];
-          if (accountObjects.result && Array.isArray(accountObjects.result.account_objects)) {
-               accountObjects.result.account_objects.forEach(obj => {
-                    if (obj.LedgerEntryType === 'Ticket') {
-                         getAccountTickets.push(obj.TicketSequence.toString());
-                    }
-               });
-          }
-          return getAccountTickets;
+     private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse): string[] {
+          const objects = accountObjects.result?.account_objects;
+          if (!Array.isArray(objects)) return [];
+
+          const tickets = objects.reduce((acc: number[], obj) => {
+               if (obj.LedgerEntryType === 'Ticket' && typeof obj.TicketSequence === 'number') {
+                    acc.push(obj.TicketSequence);
+               }
+               return acc;
+          }, []);
+
+          return tickets.sort((a, b) => a - b).map(String);
      }
 
      private cleanUpSingleSelection() {
@@ -901,22 +882,19 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
           this.currentWallet.balance = balance.toString();
      }
 
-     private refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet) {
+     public refreshUiAccountObjects(accountObjects: xrpl.AccountObjectsResponse, accountInfo: xrpl.AccountInfoResponse, wallet: xrpl.Wallet): void {
+          // Tickets
           this.ticketArray = this.getAccountTickets(accountObjects);
-          if (this.ticketArray.length > 0) {
-               this.selectedTicket = this.ticketArray[0];
-          }
+          this.selectedTicket = this.ticketArray[0] || this.selectedTicket;
 
+          // Signer accounts
           const signerAccounts = this.checkForSignerAccounts(accountObjects);
+          const hasSignerAccounts = signerAccounts?.length > 0;
 
-          if (signerAccounts?.length) {
-               const signerEntriesKey = `${wallet.classicAddress}signerEntries`;
-               const signerEntries: SignerEntry[] = this.storageService.get(signerEntriesKey) || [];
-
-               console.debug(`signerEntries:`, signerEntries);
-
-               this.multiSignAddress = signerEntries.map(e => e.Account).join(',\n');
-               this.multiSignSeeds = signerEntries.map(e => e.seed).join(',\n');
+          if (hasSignerAccounts) {
+               const signerEntries = this.storageService.get(`${wallet.classicAddress}signerEntries`) || [];
+               this.multiSignAddress = signerEntries.map((e: { Account: any }) => e.Account).join(',\n');
+               this.multiSignSeeds = signerEntries.map((e: { seed: any }) => e.seed).join(',\n');
           } else {
                this.signerQuorum = 0;
                this.multiSignAddress = 'No Multi-Sign address configured for account';
@@ -924,46 +902,39 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                this.storageService.removeValue('signerEntries');
           }
 
+          // Boolean flags
+          this.multiSigningEnabled = hasSignerAccounts;
           this.useMultiSign = false;
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (signerAccounts && signerAccounts.length > 0) {
-               this.multiSigningEnabled = true;
-          } else {
-               this.multiSigningEnabled = false;
-          }
+          this.masterKeyDisabled = Boolean(accountInfo?.result?.account_flags?.disableMasterKey);
 
           this.clearFields(false);
      }
 
-     private refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse) {
-          const regularKey = accountInfo?.result?.account_data?.RegularKey;
+     public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse): void {
+          const accountData = accountInfo?.result?.account_data;
+          if (!accountData) return;
+
+          const regularKey = accountData.RegularKey;
+          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey ?? false;
+
+          // Set regular key properties
+          this.setRegularKeyProperties(regularKey, accountData.Account);
+
+          // Set master key property
+          this.masterKeyDisabled = isMasterKeyDisabled;
+
+          // Set regular key signing enabled flag
+          this.regularKeySigningEnabled = !!regularKey;
+     }
+
+     private setRegularKeyProperties(regularKey: string | undefined, account: string): void {
           if (regularKey) {
                this.regularKeyAddress = regularKey;
-               const regularKeySeedAccount = accountInfo.result.account_data.Account + 'regularKeySeed';
-               this.regularKeySeed = this.storageService.get(regularKeySeedAccount);
+               this.regularKeySeed = this.storageService.get(`${account}regularKeySeed`) || '';
           } else {
-               this.isRegularKeyAddress = false;
                this.regularKeyAddress = 'No RegularKey configured for account';
                this.regularKeySeed = '';
-          }
-
-          const isMasterKeyDisabled = accountInfo?.result?.account_flags?.disableMasterKey;
-          if (isMasterKeyDisabled) {
-               this.masterKeyDisabled = true;
-          } else {
-               this.masterKeyDisabled = false;
-          }
-
-          if (regularKey) {
-               this.regularKeySigningEnabled = true;
-          } else {
-               this.regularKeySigningEnabled = false;
+               this.isRegularKeyAddress = false;
           }
      }
 
@@ -1095,7 +1066,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.settleDelay, 'Settle Delay', 0),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
                          () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true), // Allow empty
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => isNotSelfPayment(inputs.selectedAccount, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
@@ -1114,7 +1085,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.amount, 'Amount', 0),
                          () => isValidChannelId(inputs.channelID),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => isNotSelfPayment(inputs.selectedAccount, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
@@ -1134,7 +1105,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidNumber(inputs.amount, 'Amount', 0),
                          () => isValidChannelId(inputs.channelID),
                          () => isValidXrpAddress(inputs.destination, 'Destination'),
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => isNotSelfPayment(inputs.selectedAccount, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
@@ -1155,7 +1126,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
                          () => isValidChannelId(inputs.channelID),
                          () => isRequired(inputs.channelClaimSignatureField, 'Channel Claim Signature'),
                          () => isRequired(inputs.publicKeyField, 'Public Key'),
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
+                         () => isNotSelfPayment(inputs.selectedAccount, inputs.destination),
                          () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
                          () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
@@ -1272,9 +1243,7 @@ export class CreatePaymentChannelComponent implements AfterViewChecked {
      }
 
      private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.currentWallet.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
+          const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }

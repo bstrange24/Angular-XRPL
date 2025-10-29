@@ -375,7 +375,7 @@ export class UtilsService {
 
      jsonToHex(obj: string | object): string {
           const str = typeof obj === 'string' ? obj : JSON.stringify(obj);
-          return Buffer.from(JSON.stringify(str), 'utf8').toString('hex');
+          return Buffer.from(str, 'utf8').toString('hex');
      }
 
      hexTojson(obj: string | object): string {
@@ -556,12 +556,12 @@ export class UtilsService {
           }
      };
 
-     async getRegularKeyWallet(environment: string, isMultiSign: boolean, isRegularKeyAddress: boolean, regularKeySeed: string) {
+     async getRegularKeyWallet(isMultiSign: boolean, isRegularKeyAddress: boolean, regularKeySeed: string) {
           let regularKeyWalletSignTx: any = '';
           let useRegularKeyWalletSignTx = false;
           if (isRegularKeyAddress && !isMultiSign) {
                console.log('Using Regular Key Seed for transaction signing');
-               regularKeyWalletSignTx = await this.getWallet(regularKeySeed, environment);
+               regularKeyWalletSignTx = await this.getWallet(regularKeySeed);
                useRegularKeyWalletSignTx = true;
           }
           return { useRegularKeyWalletSignTx, regularKeyWalletSignTx };
@@ -850,7 +850,7 @@ export class UtilsService {
           return div.textContent || div.innerText || '';
      }
 
-     async getWallet(seed: string, environment: string): Promise<xrpl.Wallet> {
+     async getWallet(seed: string): Promise<xrpl.Wallet> {
           const savedEncryptionType = this.storageService.getInputValue('encryptionType');
           const result = this.detectXrpInputType(seed);
           try {
@@ -1217,7 +1217,7 @@ export class UtilsService {
           return ` (Code: ${resultMsg})`;
      }
 
-     async handleMultiSignTransaction({ client, wallet, environment, tx, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; environment: string; tx: xrpl.Transaction; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
+     async handleMultiSignTransaction({ client, wallet, tx, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; tx: xrpl.Transaction; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
           const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');
           if (!signerList) {
@@ -1269,7 +1269,7 @@ export class UtilsService {
           const signerBlobs: string[] = [];
 
           for (let i = 0; i < signerAddresses.length; i++) {
-               const signerWallet = await this.getWallet(signerSeeds[i], environment);
+               const signerWallet = await this.getWallet(signerSeeds[i]);
 
                if (signerWallet.classicAddress !== signerAddresses[i]) {
                     throw new Error(`Seed mismatch for signer ${signerAddresses[i]}`);

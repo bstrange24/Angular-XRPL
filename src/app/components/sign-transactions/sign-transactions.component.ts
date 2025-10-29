@@ -17,6 +17,7 @@ import { XrplTransactionService } from '../../services/xrpl-transactions/xrpl-tr
 import { RenderUiComponentsService } from '../../services/render-ui-components/render-ui-components.service';
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 import { SignTransactionUtilService } from '../../services/sign-transactions-util/sign-transaction-util.service';
+import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
 
 interface ValidationInputs {
      selectedAccount?: string;
@@ -65,7 +66,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
      @ViewChild('resultFieldError') resultFieldError!: ElementRef<HTMLDivElement>;
      @ViewChild('hashField') hashField!: ElementRef<HTMLDivElement>;
      @ViewChild('accountForm') accountForm!: NgForm;
-     transactionInput: string = '';
      txJson: string = ''; // Dedicated for transaction JSON (untouched on error)
      outputField: string = ''; // Dedicated for hash/blob in "Signed" field (empty on error)
      isError: boolean = false;
@@ -75,10 +75,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
      isTicket: boolean = false;
      isTicketEnabled: boolean = false;
      ticketArray: string[] = [];
-     selectedTickets: string[] = []; // For multiple selection
-     selectedSingleTicket: string = ''; // For single selection
-     multiSelectMode: boolean = false; // Toggle between modes
-     selectedTicket: string = ''; // The currently selected ticket
+     selectedTickets: string[] = [];
+     selectedSingleTicket: string = '';
+     multiSelectMode: boolean = false;
+     selectedTicket: string = '';
      selectedAccount: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
@@ -182,7 +182,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
 
-     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly signTransactionUtilService: SignTransactionUtilService) {}
+     constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly signTransactionUtilService: SignTransactionUtilService, private readonly clickToCopyService: ClickToCopyService) {}
 
      ngOnInit() {
           this.showSendXrpOptions = true;
@@ -877,9 +877,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      ];
 
      private async getWallet() {
-          const environment = this.xrplService.getNet().environment;
-          const seed = this.currentWallet.seed;
-          const wallet = await this.utilsService.getWallet(seed, environment);
+          const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
           if (!wallet) {
                throw new Error('ERROR: Wallet could not be created or is undefined');
           }
@@ -1083,6 +1081,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                console.debug(`Response`, response);
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
+          this.clickToCopyService.attachCopy(this.resultField.nativeElement);
      }
 
      private updateSpinnerMessage(message: string) {

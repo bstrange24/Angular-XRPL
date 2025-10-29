@@ -147,7 +147,7 @@
                                         <div #resultField id="resultField" [attr.contenteditable]="isEditable" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [innerHTML]="result | sanitizeHtml"></div>
                                    </td>
                               </tr>
-                              <details class="send-xrp-info">
+                              <!-- <details class="send-xrp-info">
                                    <summary>Send XRP Info</summary>
                                    <fieldset class="send-xrp-fieldset">
                                         <div class="send-xrp-table">
@@ -181,7 +181,7 @@
                                              </div>
                                         </div>
                                    </fieldset>
-                              </details>
+                              </details> -->
                          </table>
                     </div>
                </div>
@@ -325,12 +325,12 @@
                                    </span>
                               </td>
                               <td>
-                                   <div class="selection-mode">
+                                   <!-- <div class="selection-mode">
                                         <label>
                                              <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
                                              Multiple Selection
                                         </label>
-                                   </div>
+                                   </div> -->
 
                                    <div *ngIf="multiSelectMode; else singleSelect">
                                         <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
