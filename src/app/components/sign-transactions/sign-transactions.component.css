@@ -1,147 +1,4 @@
-/* send-xrp Info Section */
-.send-xrp-info {
-     margin: 20px 0;
-     border-radius: 10px;
-     overflow: hidden;
-}
-
-.send-xrp-info summary {
-     color: white;
-     font-weight: bold;
-     font-size: 14px;
-     padding: 10px;
-     cursor: pointer;
-     transition: background 0.3s ease;
-}
-
-.send-xrp-info summary:hover {
-     background: #3a3c41;
-}
-
-.send-xrp-info summary::marker {
-     content: '▶ ';
-}
-
-.send-xrp-info[open] summary::marker {
-     content: '▼ ';
-}
-
-.send-xrp-fieldset {
-     border: 1px solid #1a1c21;
-     border-radius: 10px;
-     padding: 20px;
-     background: #1a1c21;
-     margin: 0;
-}
-
-.send-xrp-fieldset legend {
-     color: white;
-     font-size: 14px;
-     padding: 0 10px;
-     font-weight: bold;
-}
-
-.send-xrp-table {
-     display: flex;
-     flex-direction: column;
-     gap: 0;
-     background: #2a2c31;
-     border-radius: 8px;
-     overflow: hidden;
-     margin-bottom: 20px;
-}
-
-.send-xrp-row {
-     display: flex;
-     width: 100%;
-     transition: background 0.3s ease;
-}
-
-.send-xrp-row:hover:not(.send-xrp-header) {
-     background: #3a3c41;
-}
-
-.send-xrp-header {
-     font-weight: bold;
-     background: #1a1c21;
-     color: #4caf50;
-}
-
-.send-xrp-cell {
-     flex: 1;
-     padding: 12px;
-     /* Reduced from 12px to decrease spacing */
-     color: white;
-     font-size: 13px;
-     text-align: left;
-     border-bottom: 1px solid #686868;
-}
-
-.send-xrp-header .send-xrp-cell {
-     border-bottom: 2px solid #4caf50;
-}
-
-/* Style code tags for emphasis */
-.send-xrp-cell code {
-     background: #3a3c41;
-     padding: 2px 4px;
-     border-radius: 4px;
-     font-family: monospace;
-     color: #4caf50;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-     .send-xrp-table {
-          display: block;
-     }
-
-     .send-xrp-row {
-          flex-direction: column;
-          border-bottom: 1px solid #686868;
-          margin-bottom: 10px;
-     }
-
-     .send-xrp-cell {
-          flex: none;
-          padding: 8px;
-          border-bottom: none;
-     }
-
-     .send-xrp-header .send-xrp-cell {
-          border-bottom: none;
-     }
-
-     .send-xrp-cell::before {
-          content: attr(data-label);
-          font-weight: bold;
-          display: inline-block;
-          width: 120px;
-          color: #4caf50;
-     }
-}
-
-.send-xrp-subdetails {
-     margin: 20px 0;
-     border-radius: 10px;
-     overflow: hidden;
-}
-
-.send-xrp-subdetails summary {
-     color: white;
-     font-weight: bold;
-     font-size: 14px;
-     padding: 10px;
-     cursor: pointer;
-     transition: background 0.3s ease;
-}
-
 summary::marker {
-     color: white;
-}
-
-.send-xrp-subdetails[open] summary::marker {
-     content: '▼ ';
      color: white;
 }
 
@@ -216,6 +73,60 @@ table textarea {
      color: #4CAF50;
 }
 
+.result-container span.string {
+     color: #32cd32 !important;
+}
+
+.result-container span.number {
+     color: #ffa500 !important;
+}
+
+.result-container span.boolean {
+     color: #ff4500 !important;
+}
+
+.result-container span.null {
+     color: #808080 !important;
+}
+
+.result-container>div span.key,
+.result-container span.key {
+     color: #1e90ff;
+}
+
+/* === JSON Syntax Highlighting === */
+.result-container span.key {
+     color: #1e90ff !important;
+}
+
+.result-container span.string {
+     color: #32cd32 !important;
+}
+
+.result-container span.number {
+     color: #ffa500 !important;
+}
+
+.result-container span.boolean {
+     color: #ff4500 !important;
+}
+
+.result-container span.null {
+     color: #808080 !important;
+}
+
+.result-container span {
+     color: inherit;
+}
+
+.json-highlighted .key {
+     color: #1e90ff;
+}
+
+.json-highlighted .string {
+     color: #32cd32;
+}
+
 .custom-destination input {
      width: 100%;
      font-size: 14px;
@@ -280,26 +191,6 @@ table textarea {
      white-space: pre;
      transition: opacity 0.3s ease-in-out;
      opacity: 1;
-}
-
-.result-container .key {
-     color: #1e90ff;
-}
-
-.result-container .string {
-     color: #32cd32;
-}
-
-.result-container .number {
-     color: #ffa500;
-}
-
-.result-container .boolean {
-     color: #ff4500;
-}
-
-.result-container .null {
-     color: #808080;
 }
 
 .result-container-row {
@@ -566,47 +457,32 @@ table textarea {
      min-height: 100px;
 }
 
-.json-editable {
-     background: #1e1e1e;
-     color: #d4d4d4;
-     padding: 15px;
-     border-radius: 10px;
-     border: 1px solid white;
-     font-family: 'Courier New', monospace;
-     font-size: 12px;
-     line-height: 1.5;
-     white-space: pre-wrap;
-     word-break: break-word;
-     min-height: 100px;
-     outline: none;
+/* === JSON Syntax Highlighting – FINAL OVERRIDE === */
+.result-container .key,
+.result-container .string,
+.result-container .number,
+.result-container .boolean,
+.result-container .null {
+     color: inherit;
+     /* reset */
 }
 
-.json-editable span {
-     pointer-events: none;
-     /* Allow clicks to go through to div */
+.result-container .key {
+     color: #1e90ff !important;
 }
 
-/* === SYNTAX COLORS === */
-.json-key {
-     color: #c678dd;
+.result-container .string {
+     color: #32cd32 !important;
 }
 
-/* purple */
-.json-string {
-     color: #98c379;
+.result-container .number {
+     color: #ffa500 !important;
 }
 
-/* green */
-.json-number {
-     color: #d19a66;
+.result-container .boolean {
+     color: #ff4500 !important;
 }
 
-/* orange */
-.json-boolean {
-     color: #56b6c2;
-}
-
-/* cyan */
-.json-null {
-     color: #f44747;
+.result-container .null {
+     color: #808080 !important;
 }

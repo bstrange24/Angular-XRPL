@@ -42,18 +42,6 @@ interface ValidationInputs {
      signers?: { account: string; weight: number }[];
 }
 
-interface SignerEntry {
-     Account: string;
-     SignerWeight: number;
-     SingnerSeed: string;
-}
-
-interface SignerEntry {
-     account: string;
-     seed: string;
-     weight: number;
-}
-
 @Component({
      selector: 'app-sign-transactions',
      standalone: true,
@@ -864,29 +852,29 @@ export class SignTransactionsComponent implements AfterViewChecked {
           }
      }
 
-     toggleGroup(groupKey: string, event: Event) {
-          const checked = (event.target as HTMLInputElement).checked;
+     // toggleGroup(groupKey: string, event: Event) {
+     //      const checked = (event.target as HTMLInputElement).checked;
 
-          // Reset all groups
-          this.transactionGroups.forEach(group => {
-               (this as any)[group.key] = false;
-          });
+     //      // Reset all groups
+     //      this.transactionGroups.forEach(group => {
+     //           (this as any)[group.key] = false;
+     //      });
 
-          // Open selected group if checked
-          if (checked) (this as any)[groupKey] = true;
+     //      // Open selected group if checked
+     //      if (checked) (this as any)[groupKey] = true;
 
-          // Reset transaction & display
-          this.selectedTransaction = '';
-          this.txJson = '';
-          this.outputField = '';
-          this.isError = true;
-          this.errorMessage = null;
+     //      // Reset transaction & display
+     //      this.selectedTransaction = '';
+     //      this.txJson = '';
+     //      this.outputField = '';
+     //      this.isError = true;
+     //      this.errorMessage = null;
 
-          if (this.hashField) this.hashField.nativeElement.innerText = '';
-          if (this.resultField) this.resultField.nativeElement.innerText = '';
+     //      if (this.hashField) this.hashField.nativeElement.innerText = '';
+     //      if (this.resultField) this.resultField.nativeElement.innerText = '';
 
-          this.cdr.markForCheck();
-     }
+     //      this.cdr.markForCheck();
+     // }
 
      private resetToggles(exceptFor?: string) {
           // Turn off every "showXYZOptions" flag
