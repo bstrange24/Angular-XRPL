@@ -329,6 +329,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                if (this.resultField?.nativeElement) {
                     this.resultField.nativeElement.innerHTML = '';
                }
+
                this.updateSpinnerMessage(`Getting Offers`);
 
                const client = await this.xrplService.getClient();
@@ -345,7 +346,6 @@ export class CreateOfferComponent implements AfterViewChecked {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // Prepare data structure
                const data = {
                     sections: [{}],
                };
@@ -365,10 +365,8 @@ export class CreateOfferComponent implements AfterViewChecked {
                          subItems: offers.map((offer, index) => {
                               // Format taker_gets
                               const takerGets = typeof offer.taker_gets === 'string' ? `${xrpl.dropsToXrp(offer.taker_gets)} XRP` : `${offer.taker_gets.value} ${this.utilsService.decodeIfNeeded(offer.taker_gets.currency)}${offer.taker_gets.issuer ? ` (Issuer: ${offer.taker_gets.issuer})` : ''}`;
-
                               // Format taker_pays
                               const takerPays = typeof offer.taker_pays === 'string' ? `${xrpl.dropsToXrp(offer.taker_pays)} XRP` : `${offer.taker_pays.value} ${this.utilsService.decodeIfNeeded(offer.taker_pays.currency)}${offer.taker_pays.issuer ? ` (Issuer: ${offer.taker_pays.issuer})` : ''}`;
-
                               // Build content array
                               const content: { key: string; value: string }[] = [
                                    { key: 'Sequence', value: String(offer.seq) },
@@ -459,28 +457,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               // PHASE 2: Prepare currency objects
-               const we_want: CurrencyAmount =
-                    this.weWantCurrencyField === 'XRP'
-                         ? { currency: 'XRP', value: this.weWantAmountField }
-                         : {
-                                currency: this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField,
-                                issuer: this.weWantIssuerField,
-                                value: this.weWantAmountField,
-                           };
-
-               const we_spend: CurrencyAmount =
-                    this.weSpendCurrencyField === 'XRP'
-                         ? { currency: 'XRP', value: this.weSpendAmountField }
-                         : {
-                                currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
-                                issuer: this.weSpendIssuerField,
-                                value: this.weSpendAmountField,
-                           };
+               // Prepare currency objects
+               const we_want: CurrencyAmount = this.weWantCurrencyField === 'XRP' ? { currency: 'XRP', value: this.weWantAmountField } : { currency: this.utilsService.encodeIfNeeded(this.weWantCurrencyField), issuer: this.weWantIssuerField, value: this.weWantAmountField };
+               const we_spend: CurrencyAmount = this.weSpendCurrencyField === 'XRP' ? { currency: 'XRP', value: this.weSpendAmountField } : { currency: this.utilsService.encodeIfNeeded(this.weSpendCurrencyField), issuer: this.weSpendIssuerField, value: this.weSpendAmountField };
 
                // Decode currencies for display
-               const displayWeWantCurrency = we_want.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_want.currency) : we_want.currency;
-               const displayWeSpendCurrency = we_spend.currency.length > 3 ? this.utilsService.decodeCurrencyCode(we_spend.currency) : we_spend.currency;
+               const displayWeWantCurrency = this.utilsService.decodeIfNeeded(we_want.currency);
+               const displayWeSpendCurrency = this.utilsService.decodeIfNeeded(we_spend.currency);
                const offerType = we_spend.currency === AppConstants.XRP_CURRENCY ? 'buy' : 'sell';
 
                // PARALLELIZE — fetch order book, counter order book, and AMM data
@@ -800,7 +783,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          return this.setError('ERROR: Insufficient XRP to complete transaction');
                     }
 
-                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Adding Trustline (no changes will be made)...' : 'Submitting Adding Trustline to Ledger...');
+                    this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Trustline (no changes will be made)...' : 'Submitting Trustline to Ledger...');
 
                     let response: any;
 
@@ -817,6 +800,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
                          response = await this.xrplTransactions.submitTransaction(client, signedTx);
                     }
+
                     const isSuccess = this.utilsService.isTxSuccessful(response);
                     if (!isSuccess) {
                          const resultMsg = this.utilsService.getTransactionResultMessage(response);
@@ -883,15 +867,13 @@ export class CreateOfferComponent implements AfterViewChecked {
                          throw new Error('weSpendAmountField and weSpendIssuerField are required for token');
                     }
                     we_spend = {
-                         currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
+                         currency: this.utilsService.encodeIfNeeded(this.weSpendCurrencyField),
                          value: this.weSpendAmountField,
                          issuer: this.weSpendIssuerField,
                     };
                }
 
-               if (we_want.currency.length > 3) {
-                    we_want.currency = this.utilsService.encodeCurrencyCode(we_want.currency);
-               }
+               we_want.currency = this.utilsService.encodeIfNeeded(we_want.currency);
 
                const offerType = we_spend.currency ? 'sell' : 'buy';
                this.utilsService.logObjects(`offerType`, offerType);
@@ -1047,7 +1029,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          throw new Error('weWantAmountField and weWantIssuerField are required for token');
                     }
                     we_want1 = {
-                         currency: this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField,
+                         currency: this.utilsService.encodeIfNeeded(this.weWantCurrencyField),
                          issuer: this.weWantIssuerField,
                          value: this.weWantAmountField,
                     };
@@ -1064,7 +1046,7 @@ export class CreateOfferComponent implements AfterViewChecked {
                          throw new Error('weSpendAmountField and weSpendIssuerField are required for token');
                     }
                     we_spend1 = {
-                         currency: this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField,
+                         currency: this.utilsService.encodeIfNeeded(this.weSpendCurrencyField),
                          issuer: this.weSpendIssuerField,
                          value: this.weSpendAmountField,
                     };

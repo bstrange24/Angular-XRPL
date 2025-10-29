@@ -1390,7 +1390,6 @@ export class CreateAmmComponent implements AfterViewChecked {
           console.log('Entering onWeWantCurrencyChange');
           this.setSuccessProperties();
 
-          this.weWantIssuerField = 'rn3GKEBSxdgXATEKbnoA9dsU94Meci6noT';
           const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
           };
@@ -1428,6 +1427,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (this.weWantTokenBalanceField !== '0') {
                     this.weWantTokenBalanceField = this.utilsService.formatTokenBalance(this.weWantTokenBalanceField, 18);
                }
+               await this.getAMMPoolInfo();
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
@@ -1479,6 +1479,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (this.weSpendTokenBalanceField !== '0') {
                     this.weSpendTokenBalanceField = this.weSpendTokenBalanceField;
                }
+               await this.getAMMPoolInfo();
           } catch (error: any) {
                console.error('Error fetching weSpend balance:', error);
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
