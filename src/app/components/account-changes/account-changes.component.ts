@@ -416,11 +416,13 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
 
      getTypeColor(type: string): string {
           switch (type) {
+               case 'Payment':
                case 'Payment Sent':
                case 'Payment Received':
                     return '#8BE684';
 
                case 'PermissionedDomainSet':
+               case 'PermissionedDomainDelete':
                case 'CredentialCreate':
                case 'CredentialAccept':
                case 'DepositPreauth':
@@ -432,6 +434,7 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'NFTokenBurn':
                case 'PaymentChannelClaim':
                case 'PaymentChannelCreate':
+               case 'AMMDelete':
                     return '#f0874bff';
 
                case 'TicketCreate':
@@ -442,10 +445,12 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'AMMWithdraw':
                case 'AMMCreate':
                case 'AMMDeposit':
+               case 'Clawback':
                     return '#79BDD8';
 
                case 'SignerListSet':
                case 'DIDSet':
+               case 'DIDDelete':
                case 'AccountSet':
                case 'AccountDelete':
                case 'SetRegularKey':
@@ -463,9 +468,25 @@ export class AccountChangesComponent implements OnDestroy, AfterViewInit, AfterV
                case 'CheckCash':
                case 'CheckCreate':
                     return '#9bc5a2ff';
+
+               case 'OfferCreate':
+               case 'OfferCancel':
+                    return '#9bc5a2ff';
                default:
                     return 'white'; // fallback color
           }
+     }
+
+     copyToClipboard(text: string) {
+          navigator.clipboard.writeText(text).then(
+               () => {
+                    console.log('Copied:', text);
+                    // Optional: show a toast/snackbar
+               },
+               err => {
+                    console.error('Clipboard copy failed:', err);
+               }
+          );
      }
 
      private setErrorProperties() {
