@@ -219,7 +219,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           };
 
           if (this.currentWallet.address && xrpl.isValidAddress(this.currentWallet.address)) {
-               await Promise.all([this.onWeWantCurrencyChange(), this.onWeSpendCurrencyChange()]);
+               await Promise.all([this.onWeWantCurrencyChange(true), this.onWeSpendCurrencyChange(true)]);
                this.getAMMPoolInfo();
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address');
@@ -348,8 +348,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.assetPool2Balance = typeof amm.amount2 === 'string' ? xrpl.dropsToXrp(amm.amount2) || amm.amount2.value : this.utilsService.formatTokenBalance(amm.amount2.value, 18).toString();
 
                     // Decode currencies for display
-                    const assetCurrency = typeof amm.amount === 'string' ? 'XRP' : (amm.amount.currency.length > 3 ? this.utilsService.decodeCurrencyCode(amm.amount.currency) : amm.amount.currency) + (amm.amount.issuer ? ` (Issuer: ${amm.amount.issuer})` : '');
-                    const asset2Currency = typeof amm.amount2 === 'string' ? 'XRP' : (amm.amount2.currency.length > 3 ? this.utilsService.decodeCurrencyCode(amm.amount2.currency) : amm.amount2.currency) + (amm.amount2.issuer ? ` (Issuer: ${amm.amount2.issuer})` : '');
+                    const assetCurrency = typeof amm.amount === 'string' ? 'XRP' : this.utilsService.decodeIfNeeded(amm.amount.currency) + (amm.amount.issuer ? ` (Issuer: ${amm.amount.issuer})` : '');
+                    const asset2Currency = typeof amm.amount2 === 'string' ? 'XRP' : this.utilsService.decodeIfNeeded(amm.amount2.currency) + (amm.amount2.issuer ? ` (Issuer: ${amm.amount2.issuer})` : '');
 
                     data.sections.push({
                          title: 'AMM Pool Info',
@@ -476,8 +476,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
 
                // Build currency objects correctly
-               const we_want_currency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-               const we_spend_currency = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
+               const we_want_currency = this.utilsService.encodeIfNeeded(this.weWantCurrencyField);
+               const we_spend_currency = this.utilsService.encodeIfNeeded(this.weSpendCurrencyField);
                this.utilsService.logAssets(we_want_currency, we_spend_currency);
 
                // Build properly typed currency objects
@@ -577,7 +577,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                          issuer: (we_want as xrpl.IssuedCurrencyAmount).issuer ?? '',
                     };
 
-                    const [updatedAccountInfo, updatedAccountObjects, participation] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true), this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange()]);
+                    const [updatedAccountInfo, updatedAccountObjects, participation] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', ''), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true), this.onWeSpendCurrencyChange(false), this.onWeWantCurrencyChange(false)]);
                     this.utilsService.logAccountInfoObjects(updatedAccountInfo, updatedAccountObjects);
                     this.utilsService.logObjects(`participation:`, participation);
 
@@ -653,8 +653,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
 
                // Build currency objects correctly
-               const we_want_currency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-               const we_spend_currency = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
+               const we_want_currency = this.utilsService.encodeIfNeeded(this.weWantCurrencyField);
+               const we_spend_currency = this.utilsService.encodeIfNeeded(this.weSpendCurrencyField);
 
                if (this.depositOptions.firstPoolOnly) {
                     this.weSpendAmountField = '0';
@@ -762,7 +762,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
-                              await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange(), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true)]);
+                              await Promise.all([this.onWeSpendCurrencyChange(false), this.onWeWantCurrencyChange(false), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true)]);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
@@ -830,8 +830,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                }
 
                // Build currency objects correctly
-               const we_want_currency = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
-               const we_spend_currency = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
+               const we_want_currency = this.utilsService.encodeIfNeeded(this.weWantCurrencyField);
+               const we_spend_currency = this.utilsService.encodeIfNeeded(this.weSpendCurrencyField);
 
                if (this.withdrawOptions.bothPools) {
                     this.weSpendAmountField = '0';
@@ -980,7 +980,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
-                              await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange(), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true)]);
+                              await Promise.all([this.onWeSpendCurrencyChange(false), this.onWeWantCurrencyChange(false), this.checkAmmParticipation(client, wallet.classicAddress, assetDef, asset2Def, true)]);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
@@ -1048,12 +1048,12 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                // Build AMM pool assets correctly
                const assetDef: xrpl.Currency = {
-                    currency: this.weSpendCurrencyField === 'XRP' ? 'XRP' : this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField),
+                    currency: this.weSpendCurrencyField === 'XRP' ? 'XRP' : this.utilsService.encodeIfNeeded(this.weSpendCurrencyField),
                     issuer: this.weSpendCurrencyField !== 'XRP' ? this.weSpendIssuerField : '',
                };
 
                const asset2Def: xrpl.Currency = {
-                    currency: this.weWantCurrencyField === 'XRP' ? 'XRP' : this.utilsService.encodeCurrencyCode(this.weWantCurrencyField),
+                    currency: this.weWantCurrencyField === 'XRP' ? 'XRP' : this.utilsService.encodeIfNeeded(this.weWantCurrencyField),
                     issuer: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : '',
                };
 
@@ -1253,7 +1253,7 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
-                              await Promise.all([this.onWeSpendCurrencyChange(), this.onWeWantCurrencyChange()]);
+                              await Promise.all([this.onWeSpendCurrencyChange(false), this.onWeWantCurrencyChange(false)]);
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
@@ -1281,8 +1281,8 @@ export class CreateAmmComponent implements AfterViewChecked {
           const inputs: ValidationInputs = {
                selectedAccount: this.currentWallet.address,
                seed: this.currentWallet.seed,
-               weWantAmountField: this.weWantAmountField,
-               weSpendAmountField: this.weSpendAmountField,
+               // weWantAmountField: this.weWantAmountField,
+               // weSpendAmountField: this.weSpendAmountField,
                weWantCurrencyField: this.weWantCurrencyField,
                weSpendCurrencyField: this.weSpendCurrencyField,
                weWantIssuerField: this.weWantCurrencyField !== 'XRP' ? this.weWantIssuerField : undefined,
@@ -1305,13 +1305,13 @@ export class CreateAmmComponent implements AfterViewChecked {
 
                inputs.account_info = accountInfo;
 
-               const errors = await this.validateInputs(inputs, 'swap');
+               const errors = await this.validateInputs(inputs, 'deleteAMM');
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`);
                }
 
-               const asset = this.toCurrency(this.utilsService.encodeIfNeeded(this.weWantCurrencyField), 'r9DZiCr2eejjRUqqTnTahL5UpLfku9Fe9D');
-               const asset2 = this.toCurrency(this.utilsService.encodeIfNeeded(this.weSpendCurrencyField), 'r9DZiCr2eejjRUqqTnTahL5UpLfku9Fe9D');
+               const asset = this.toCurrency(this.utilsService.encodeIfNeeded(this.weWantCurrencyField), this.weWantIssuerField);
+               const asset2 = this.toCurrency(this.utilsService.encodeIfNeeded(this.weSpendCurrencyField), this.weSpendIssuerField);
                this.utilsService.logObjects('asset', asset);
                this.utilsService.logObjects('asset2', asset2);
 
@@ -1386,7 +1386,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
-     async onWeWantCurrencyChange() {
+     async onWeWantCurrencyChange(loadAmmInfo: boolean) {
           console.log('Entering onWeWantCurrencyChange');
           this.setSuccessProperties();
 
@@ -1415,7 +1415,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.weWantTokenBalanceField = balance ?? '0';
                     this.weWantIssuerField = '';
                } else {
-                    const currencyCode = this.weWantCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weWantCurrencyField) : this.weWantCurrencyField;
+                    const currencyCode = this.utilsService.encodeIfNeeded(this.weWantCurrencyField);
                     // this.weWantIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
                     const issuers = this.knownTrustLinesIssuers[this.weWantCurrencyField] || [];
                     this.weWantIssuerField = issuers.length > 0 ? issuers[0] : '';
@@ -1427,7 +1427,10 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (this.weWantTokenBalanceField !== '0') {
                     this.weWantTokenBalanceField = this.utilsService.formatTokenBalance(this.weWantTokenBalanceField, 18);
                }
-               await this.getAMMPoolInfo();
+
+               if (loadAmmInfo) {
+                    await this.getAMMPoolInfo();
+               }
           } catch (error: any) {
                console.error('Error fetching weWant balance:', error);
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
@@ -1439,7 +1442,7 @@ export class CreateAmmComponent implements AfterViewChecked {
           }
      }
 
-     async onWeSpendCurrencyChange() {
+     async onWeSpendCurrencyChange(loadAmmInfo: boolean) {
           console.log('Entering onWeSpendCurrencyChange');
           this.setSuccessProperties();
 
@@ -1467,7 +1470,7 @@ export class CreateAmmComponent implements AfterViewChecked {
                     this.weSpendTokenBalanceField = balance !== null ? balance : '0';
                     this.weSpendIssuerField = '';
                } else {
-                    const currencyCode = this.weSpendCurrencyField.length > 3 ? this.utilsService.encodeCurrencyCode(this.weSpendCurrencyField) : this.weSpendCurrencyField;
+                    const currencyCode = this.utilsService.encodeIfNeeded(this.weSpendCurrencyField);
                     // this.weSpendIssuerField = this.knownTrustLinesIssuers[this.weWantCurrencyField];
                     const issuers = this.knownTrustLinesIssuers[this.weWantCurrencyField] || [];
                     this.weSpendIssuerField = issuers.length > 0 ? issuers[0] : '';
@@ -1479,7 +1482,10 @@ export class CreateAmmComponent implements AfterViewChecked {
                if (this.weSpendTokenBalanceField !== '0') {
                     this.weSpendTokenBalanceField = this.weSpendTokenBalanceField;
                }
-               await this.getAMMPoolInfo();
+
+               if (loadAmmInfo) {
+                    await this.getAMMPoolInfo();
+               }
           } catch (error: any) {
                console.error('Error fetching weSpend balance:', error);
                this.setError(`ERROR: Failed to fetch balance - ${error.message || 'Unknown error'}`);
@@ -1917,6 +1923,28 @@ export class CreateAmmComponent implements AfterViewChecked {
                     ],
                     asyncValidators: [],
                },
+               deleteAMM: {
+                    required: ['seed', 'weWantCurrencyField', 'weSpendCurrencyField'],
+                    customValidators: [
+                         () => isValidSeed(inputs.seed),
+                         () => isValidCurrency(inputs.weWantCurrencyField, 'We want currency'),
+                         () => isValidCurrency(inputs.weSpendCurrencyField, 'We spend currency'),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isRequired(inputs.weWantIssuerField, 'We want issuer') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isRequired(inputs.weSpendIssuerField, 'We spend issuer') : null),
+                         () => (inputs.weWantCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weWantIssuerField, 'We want issuer address') : null),
+                         () => (inputs.weSpendCurrencyField !== 'XRP' ? isValidXrpAddress(inputs.weSpendIssuerField, 'We spend issuer address') : null),
+                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
+                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
+                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
+                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
+                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
+                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
+                    ],
+                    asyncValidators: [],
+               },
                tokenBalance: {
                     required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed)],
@@ -2000,35 +2028,19 @@ export class CreateAmmComponent implements AfterViewChecked {
           this.cdr.detectChanges();
      }
 
-     async showSpinnerWithDelay(message: string, delayMs: number = 200) {
-          this.spinner = true;
-          this.updateSpinnerMessage(message);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-     }
-
-     // createAmmRequest(we_spend: CurrencyAmount, we_want: CurrencyAmount, account: string): AMMInfoRequest {
-     //      return {
-     //           command: 'amm_info',
-     //           asset: this.isTokenAmount(we_spend) ? { currency: we_spend.currency, issuer: we_spend.issuer } : { currency: 'XRP' },
-     //           asset2: this.isTokenAmount(we_want) ? { currency: we_want.currency, issuer: we_want.issuer } : { currency: 'XRP' },
-     //           // account: this.selectedAccount ? this.utilsService.getSelectedAddressWithIssuer(this.selectedAccount, this.account1, this.account2, this.issuer) : '',
-     //           account: account,
-     //      };
+     // isTokenAmount(amount: CurrencyAmount): amount is CurrencyAmountToken {
+     //      return amount.currency !== 'XRP';
      // }
 
-     isTokenAmount(amount: CurrencyAmount): amount is CurrencyAmountToken {
-          return amount.currency !== 'XRP';
-     }
-
-     formatCurrencyAmount(amount: string | IssuedCurrencyAmount | CurrencyAmount): string {
-          if (typeof amount === 'string') {
-               return `${xrpl.dropsToXrp(amount)} XRP`;
-          }
-          if ('issuer' in amount) {
-               return `${amount.value} ${amount.currency} (${amount.issuer})`;
-          }
-          return `${amount.value} XRP`;
-     }
+     // formatCurrencyAmount(amount: string | IssuedCurrencyAmount | CurrencyAmount): string {
+     //      if (typeof amount === 'string') {
+     //           return `${xrpl.dropsToXrp(amount)} XRP`;
+     //      }
+     //      if ('issuer' in amount) {
+     //           return `${amount.value} ${amount.currency} (${amount.issuer})`;
+     //      }
+     //      return `${amount.value} XRP`;
+     // }
 
      async getCurrencyBalance(balanceResponse: xrpl.GatewayBalancesResponse, address: string, currency: string, issuer?: string): Promise<string | null> {
           console.log('Entering getCurrencyBalance');
@@ -2040,8 +2052,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                     Object.entries(balanceResponse.result.assets).forEach(([assetIssuer, assets]) => {
                          if (!issuer || assetIssuer === issuer) {
                               assets.forEach((asset: any) => {
-                                   let assetCurrency = asset.currency.length > 3 ? this.utilsService.decodeCurrencyCode(asset.currency) : asset.currency;
-                                   let assetCur = currency.length > 3 ? this.utilsService.decodeCurrencyCode(currency) : currency;
+                                   let assetCurrency = this.utilsService.decodeIfNeeded(asset.currency);
+                                   let assetCur = this.utilsService.decodeIfNeeded(currency);
                                    if (assetCur === assetCurrency) {
                                         const value = parseFloat(asset.value);
                                         if (!isNaN(value)) {
@@ -2054,8 +2066,8 @@ export class CreateAmmComponent implements AfterViewChecked {
                } else if (balanceResponse.result.obligations) {
                     Object.entries(balanceResponse.result.obligations).forEach(([assetCurrency, value]) => {
                          // Decode if necessary
-                         let decodedCurrency = assetCurrency.length > 3 ? this.utilsService.decodeCurrencyCode(assetCurrency) : assetCurrency;
-                         let assetCur = currency.length > 3 ? this.utilsService.decodeCurrencyCode(currency) : currency;
+                         let decodedCurrency = this.utilsService.decodeIfNeeded(assetCurrency);
+                         let assetCur = this.utilsService.decodeIfNeeded(currency);
                          if (assetCur === decodedCurrency) {
                               const numValue = parseFloat(value);
                               if (!isNaN(numValue)) {

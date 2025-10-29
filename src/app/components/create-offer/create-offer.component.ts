@@ -3277,6 +3277,7 @@ export class CreateOfferComponent implements AfterViewChecked {
 
      private updateCurrencies() {
           this.currencies = ['XRP', ...Object.keys(this.knownIssuers).filter(c => c !== 'XRP')];
+          this.currencies.sort((a, b) => a.localeCompare(b));
      }
 
      private setErrorProperties() {
