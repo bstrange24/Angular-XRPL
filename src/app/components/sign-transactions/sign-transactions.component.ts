@@ -494,7 +494,11 @@ export class SignTransactionsComponent implements AfterViewChecked {
                const wallet = await this.getWallet();
 
                if (!this.outputField.trim()) {
-                    return this.setError('Signed tx blob can not be empty', null);
+                    if (this.hashField && this.hashField.nativeElement.textContent) {
+                         this.outputField = this.hashField.nativeElement.textContent;
+                    } else {
+                         return this.setError('Signed tx blob can not be empty', null);
+                    }
                }
 
                const signedTxBlob = this.outputField.trim();
