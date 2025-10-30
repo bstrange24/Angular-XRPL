@@ -1007,6 +1007,10 @@ export class SendChecksComponent implements AfterViewChecked {
                if (checkExpiration && checkExpiration != '') {
                     this.utilsService.setExpiration(checkTx, Number(checkExpiration));
                }
+
+               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
+                    this.utilsService.setDestinationTag(checkTx, this.destinationTagField);
+               }
           }
 
           if (this.selectedSingleTicket) {
@@ -1019,12 +1023,6 @@ export class SendChecksComponent implements AfterViewChecked {
                if (this.multiSelectMode && this.selectedTickets.length > 0) {
                     console.log('Setting multiple tickets:', this.selectedTickets);
                     this.utilsService.setTicketSequence(checkTx, accountInfo.result.account_data.Sequence, false);
-               }
-          }
-
-          if (txType === 'create') {
-               if (this.destinationTagField && parseInt(this.destinationTagField) > 0) {
-                    this.utilsService.setDestinationTag(checkTx, this.destinationTagField);
                }
           }
 

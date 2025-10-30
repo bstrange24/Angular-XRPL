@@ -109,11 +109,6 @@
                          <div class="top-section-right">
                               <table id="xrpDetails">
                                    <th></th>
-                                   <!-- <thead>
-                                        <tr>
-                                             <th colspan="2"></th>
-                                        </tr>
-                                   </thead> -->
                                    <tbody>
                                         <tr>
                                              <td><label>Transaction Type</label></td>
@@ -143,10 +138,24 @@
                                                             <option value="cancelEscrow">Cancel Escrow</option>
                                                        </optgroup>
 
+                                                       <optgroup label="Token Escrow">
+                                                            <option value="createTimeEscrowToken">Create Token Time Escrow</option>
+                                                            <option value="finishTimeEscrowToken">Finish Token Time Escrow</option>
+                                                            <option value="createConditionEscrowToken">Create Token Condition Escrow</option>
+                                                            <option value="finishConditionEscrowToken">Finish Token Condition Escrow</option>
+                                                            <option value="cancelEscrow">Cancel Token Escrow</option>
+                                                       </optgroup>
+
                                                        <optgroup label="Check">
                                                             <option value="createCheck">Check Create</option>
                                                             <option value="cashCheck">Check Cash</option>
                                                             <option value="cancelCheck">Check Cancel</option>
+                                                       </optgroup>
+
+                                                       <optgroup label="Token Check">
+                                                            <option value="createCheckToken">Check Token Create</option>
+                                                            <option value="cashCheckToken">Check Token Cash</option>
+                                                            <option value="cancelCheck">Check Token Cancel</option>
                                                        </optgroup>
 
                                                        <optgroup label="MPT">
@@ -164,263 +173,6 @@
                                    </tbody>
                               </table>
                          </div>
-                         <!-- <div class="top-section-right">
-                              <table id="xrpDetails">
-                                   <thead>
-                                        <tr>
-                                             <th colspan="2"></th>
-                                        </tr>
-                                   </thead>
-                                   <tbody>
-                                        <tr>
-                                             <td><label>Batch</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'batch'" (change)="setTransaction('batch', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr>
-                                             <td><label>Send XRP</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'sendXrp'" (change)="setTransaction('sendXrp', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr>
-                                             <td><label>TrustLine Options</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="showTrustlineOptions" [checked]="showTrustlineOptions" (change)="toggleGroup('showTrustlineOptions', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showTrustlineOptions">
-                                             <td><label>Set Trustline</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'setTrustline'" (change)="setTransaction('setTrustline', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showTrustlineOptions">
-                                             <td><label>Remove Trustline</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'removeTrustline'" (change)="setTransaction('removeTrustline', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr>
-                                             <td><label>Account Flag Options</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="showAccountOptions" [checked]="showAccountOptions" (change)="toggleGroup('showAccountOptions', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showAccountOptions">
-                                             <td><label>Account Flag Set</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'accountFlagSet'" (change)="setTransaction('accountFlagSet', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showAccountOptions">
-                                             <td><label>Account Flag Clear</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'accountFlagClear'" (change)="setTransaction('accountFlagClear', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                   </tbody>
-                              </table>
-                         </div>
-
-                         <div class="top-section-right">
-                              <table id="xrpDetails">
-                                   <thead>
-                                        <tr>
-                                             <th colspan="2"></th>
-                                        </tr>
-                                   </thead>
-                                   <tbody>
-                                        <tr>
-                                             <td><label>Escrow Options</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="showEscrowOptions" [checked]="showEscrowOptions" (change)="toggleGroup('showEscrowOptions', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showEscrowOptions">
-                                             <td><label>Create Time Escrow</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'createTimeEscrow'" (change)="setTransaction('createTimeEscrow', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showEscrowOptions">
-                                             <td><label>Finish Time Escrow</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'finishTimeEscrow'" (change)="setTransaction('finishTimeEscrow', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showEscrowOptions">
-                                             <td><label>Create Condition Escrow</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'createConditionEscrow'" (change)="setTransaction('createConditionEscrow', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showEscrowOptions">
-                                             <td><label>Finish Condition Escrow</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'finishConditionEscrow'" (change)="setTransaction('finishConditionEscrow', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showEscrowOptions">
-                                             <td><label>Cancel Escrow</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'cancelEscrow'" (change)="setTransaction('cancelEscrow', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr>
-                                             <td><label>Check Options</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="showCheckOptions" [checked]="showCheckOptions" (change)="toggleGroup('showCheckOptions', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showCheckOptions">
-                                             <td><label>Check Create</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'createCheck'" (change)="setTransaction('createCheck', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showCheckOptions">
-                                             <td><label>Check Cash</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'cashCheck'" (change)="setTransaction('cashCheck', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showCheckOptions">
-                                             <td><label>Check Cancel</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'cancelCheck'" (change)="setTransaction('cancelCheck', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr>
-                                             <td><label>MPT Options</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" id="showMPTOptions" [checked]="showMPTOptions" (change)="toggleGroup('showMPTOptions', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>MPT Create</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'createMPT'" (change)="setTransaction('createMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>Authorize MPT</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'authorizeMPT'" (change)="setTransaction('authorizeMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>Unauthorize MPT</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'unauthorizeMPT'" (change)="setTransaction('unauthorizeMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>Send MPT</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'sendMPT'" (change)="setTransaction('sendMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>Lock MPT</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'lockMPT'" (change)="setTransaction('lockMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>Unlock MPT</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'unlockMPT'" (change)="setTransaction('unlockMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                        <tr *ngIf="showMPTOptions">
-                                             <td><label>Destroy MPT</label></td>
-                                             <td>
-                                                  <label class="switch">
-                                                       <input type="checkbox" [checked]="selectedTransaction === 'destroyMPT'" (change)="setTransaction('destroyMPT', $event)" />
-                                                       <span class="slider round"></span>
-                                                  </label>
-                                             </td>
-                                        </tr>
-                                   </tbody>
-                              </table>
-                         </div> -->
                     </div>
 
                     <div class="spinner-container">
@@ -599,6 +351,7 @@
                                    </span>
                               </td>
                               <td>
+                                   <!-- Multi Select -->
                                    <!-- <div class="selection-mode">
                                         <label>
                                              <input type="checkbox" [(ngModel)]="multiSelectMode" [ngModelOptions]="{standalone: true}" />
@@ -606,18 +359,16 @@
                                         </label>
                                    </div> -->
 
-                                   <div *ngIf="multiSelectMode; else singleSelect">
-                                        <select class="timeUnit" [(ngModel)]="selectedTickets" multiple [ngModelOptions]="{standalone: true}">
-                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
-                                        </select>
-                                   </div>
+                                   <!-- Single Select -->
+                                   <select class="timeUnit" [(ngModel)]="selectedSingleTicket" (ngModelChange)="onTicketChange($event)" [ngModelOptions]="{standalone: true}">
+                                        <option value="" disabled>Select a ticket</option>
+                                        <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                   </select>
 
-                                   <ng-template #singleSelect>
-                                        <select class="timeUnit" [(ngModel)]="selectedSingleTicket" [ngModelOptions]="{standalone: true}">
-                                             <option value="" disabled>Select a ticket</option>
-                                             <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
-                                        </select>
-                                   </ng-template>
+                                   <!-- Multi Select -->
+                                   <select *ngIf="multiSelectMode" class="timeUnit" [(ngModel)]="selectedTickets" (ngModelChange)="onTicketChange($event)" multiple [ngModelOptions]="{standalone: true}">
+                                        <option *ngFor="let ticket of ticketArray" [value]="ticket">{{ticket}}</option>
+                                   </select>
                               </td>
                          </tr>
                          <tr>

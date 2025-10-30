@@ -18,6 +18,7 @@ import { RenderUiComponentsService } from '../../services/render-ui-components/r
 import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-wallet-dynamic-input.component';
 import { SignTransactionUtilService } from '../../services/sign-transactions-util/sign-transaction-util.service';
 import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
+import { AppConstants } from '../../core/app.constants';
 
 interface ValidationInputs {
      selectedAccount?: string;
@@ -65,6 +66,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      ticketArray: string[] = [];
      selectedTickets: string[] = [];
      selectedSingleTicket: string = '';
+     defaultTicketSequence: string | null = null; // store defaulted ticket
      multiSelectMode: boolean = false;
      selectedTicket: string = '';
      selectedAccount: string = '';
@@ -109,71 +111,49 @@ export class SignTransactionsComponent implements AfterViewChecked {
      multiSignedBlobs: string[] = []; // store partial multi-signed blobs
      combinedTxBlob: string = ''; // store combined tx blob for submission
      multiSignedHtml: string = '';
-     showTrustlineOptions: boolean = false;
-     showAccountOptions: boolean = false;
-     showEscrowOptions: boolean = false;
-     showCheckOptions: boolean = false;
-     showSendXrpOptions: boolean = false;
-     showMPTOptions: boolean = false;
-     transactionTypes = [
-          {
-               value: 'Payment',
-               label: 'Send XRP',
-               description: 'Transfer XRP between accounts',
-               icon: '💸',
-          },
-          {
-               value: 'TrustSet',
-               label: 'Trustline',
-               description: 'Add or modify a trustline',
-               icon: '🤝',
-          },
-          {
-               value: 'OfferCreate',
-               label: 'Offer',
-               description: 'Create an order on the DEX',
-               icon: '📈',
-          },
-          {
-               value: 'NFTokenMint',
-               label: 'Mint NFT',
-               description: 'Create a new NFT on XRPL',
-               icon: '🖼️',
-          },
-          {
-               value: 'NFTokenBurn',
-               label: 'Burn NFT',
-               description: 'Destroy an existing NFT',
-               icon: '🔥',
-          },
-          {
-               value: 'EscrowCreate',
-               label: 'Escrow',
-               description: 'Lock XRP until conditions are met',
-               icon: '⏳',
-          },
-          {
-               value: 'CheckCreate',
-               label: 'Check',
-               description: 'Create a deferred payment check',
-               icon: '✅',
-          },
-          {
-               value: 'AccountSet',
-               label: 'Account Flags',
-               description: 'Configure account settings',
-               icon: '⚙️',
-          },
-          // ➕ Add more as needed
-     ];
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
+     transactionLabelMap: Record<string, string> = {
+          batch: 'Batch',
+          sendXrp: 'Send XRP',
+          setTrustline: 'Set Trustline',
+          removeTrustline: 'Remove Trustline',
+          accountFlagSet: 'Account Flag Set',
+          accountFlagClear: 'Account Flag Clear',
+          createTimeEscrow: 'Create Time Escrow',
+          finishTimeEscrow: 'Finish Time Escrow',
+          createConditionEscrow: 'Create Condition Escrow',
+          finishConditionEscrow: 'Finish Condition Escrow',
+          cancelEscrow: 'Cancel Escrow',
+          createTimeEscrowToken: 'Create Token Time Escrow',
+          finishTimeEscrowToken: 'Finish Token Time Escrow',
+          createConditionEscrowToken: 'Create Token Condition Escrow',
+          finishConditionEscrowToken: 'Finish Token Condition Escrow',
+          cancelEscrowToken: 'Cancel Token Escrow',
+          createCheck: 'Check Create',
+          cashCheck: 'Check Cash',
+          cancelCheck: 'Check Cancel',
+          createCheckToken: 'Check Token Create',
+          cashCheckToken: 'Check Token Cash',
+          cancelCheckToken: 'Check Token Cancel',
+          createMPT: 'MPT Create',
+          authorizeMPT: 'Authorize MPT',
+          unauthorizeMPT: 'Unauthorize MPT',
+          sendMPT: 'Send MPT',
+          lockMPT: 'Lock MPT',
+          unlockMPT: 'Unlock MPT',
+          destroyMPT: 'Destroy MPT',
+     };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly signTransactionUtilService: SignTransactionUtilService, private readonly clickToCopyService: ClickToCopyService) {}
 
      ngOnInit() {
-          this.showSendXrpOptions = true;
+          if (this.ticketArray && this.ticketArray.length > 0) {
+               this.defaultTicketSequence = this.ticketArray[0];
+               this.selectedSingleTicket = this.defaultTicketSequence;
+          }
+
           this.selectedTransaction = 'sendXrp';
           this.enableTransaction();
           this.cdr.detectChanges();
@@ -212,8 +192,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
      }
 
      onTransactionChange(): void {
-          // Reset everything that a previous transaction might have left behind
-          this.resetToggles(this.selectedTransaction ? this.selectedTransaction : ''); // keep the parent group open
           this.txJson = '';
           this.outputField = '';
           this.isError = false;
@@ -272,10 +250,21 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.cdr.markForCheck();
      }
 
-     toggleTicketSequence() {
-          if (!this.isTicketEnabled) {
-               this.enableTransaction();
+     onTicketChange(newValue: any) {
+          // Check if user changed from default
+          if (Array.isArray(newValue)) {
+               // multi-select mode
+               if (!newValue.includes(this.defaultTicketSequence)) {
+                    this.toggleTicketSequence();
+               }
+          } else if (newValue !== this.defaultTicketSequence) {
+               // single-select mode
+               this.toggleTicketSequence();
           }
+     }
+
+     toggleTicketSequence() {
+          this.enableTransaction();
           this.cdr.markForCheck();
      }
 
@@ -291,16 +280,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.onTransactionChange();
      }
 
-     // selectTransaction(value: string) {
-     //      this.selectedTransaction = value;
-     //      console.log('Selected transaction:', value);
-     // }
-
      setTransaction(type: string, event: Event) {
           const checked = (event.target as HTMLInputElement).checked;
 
           if (checked) {
-               this.resetToggles(type);
                this.selectedTransaction = type;
                this.txJson = ''; // clear until data appears
                this.outputField = '';
@@ -319,24 +302,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
           this.cdr.markForCheck();
      }
-
-     // setTransaction(type: string, event: Event) {
-     //      const checked = (event.target as HTMLInputElement).checked;
-
-     //      if (checked) {
-     //           this.selectedTransaction = type;
-     //           this.txJson = '';
-     //           this.hashField.nativeElement.innerText = '';
-     //           this.isError = false;
-     //           this.errorMessage = null;
-     //           this.enableTransaction();
-     //      } else {
-     //           this.selectedTransaction = null; // 👈 removes the whole block
-     //           this.txJson = '';
-     //           this.isError = false;
-     //           this.errorMessage = null;
-     //      }
-     // }
 
      async getAccountDetails() {
           console.log('Entering getAccountDetails');
@@ -396,64 +361,82 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     this.txJson = await this.signTransactionUtilService.createBatchpRequestText({ client, wallet });
                     break;
                case 'sendXrp':
-                    this.txJson = await this.signTransactionUtilService.createSendXrpRequestText({ client, wallet, isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.createSendXrpRequestText({ client, wallet, isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'setTrustline':
-                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'setTrustline', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'setTrustline', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'removeTrustline':
-                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'removeTrustline', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'removeTrustline', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'accountFlagSet':
-                    this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'accountFlagClear':
-                    this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'createTimeEscrow':
-                    this.txJson = await this.signTransactionUtilService.createTimeEscrowRequestText({ client, wallet, selectedTransaction: 'createTimeEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.createTimeEscrowRequestText({ client, wallet, selectedTransaction: 'createTimeEscrow', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'finishTimeEscrow':
-                    this.txJson = await this.signTransactionUtilService.finshEscrowRequestText({ client, wallet, selectedTransaction: 'finishTimeEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.finshTimeEscrowRequestText({ client, wallet, selectedTransaction: 'finishTimeEscrow', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'createTimeEscrowToken':
+                    this.txJson = await this.signTransactionUtilService.createTimeEscrowRequestText({ client, wallet, selectedTransaction: 'createTimeEscrowToken', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'finishTimeEscrowToken':
+                    this.txJson = await this.signTransactionUtilService.finshTimeEscrowRequestText({ client, wallet, selectedTransaction: 'finishTimeEscrowToken', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'createConditionEscrow':
-                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({ client, wallet, selectedTransaction: 'createConditionEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.createConditionalEscrowRequestText({ client, wallet, selectedTransaction: 'createConditionEscrow', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'finishConditionEscrow':
-                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({ client, wallet, selectedTransaction: 'finishConditionEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.finsishConditionalEscrowRequestText({ client, wallet, selectedTransaction: 'finishConditionEscrow', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'createConditionEscrowToken':
+                    this.txJson = await this.signTransactionUtilService.createConditionalEscrowRequestText({ client, wallet, selectedTransaction: 'createConditionEscrowToken', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'finishConditionEscrowToken':
+                    this.txJson = await this.signTransactionUtilService.finsishConditionalEscrowRequestText({ client, wallet, selectedTransaction: 'finishConditionEscrowToken', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'cancelEscrow':
-                    this.txJson = await this.signTransactionUtilService.createEscrowRequestText({ client, wallet, selectedTransaction: 'cancelEscrow', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.cancelEscrowRequestText({ client, wallet, selectedTransaction: 'cancelEscrow', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'createCheck':
-                    this.txJson = await this.signTransactionUtilService.createCheckRequestText({ client, wallet, selectedTransaction: 'createCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.createCheckRequestText({ client, wallet, selectedTransaction: 'createCheck', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'createCheckToken':
+                    this.txJson = await this.signTransactionUtilService.createCheckRequestText({ client, wallet, selectedTransaction: 'createCheckToken', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'cashCheck':
-                    this.txJson = await this.signTransactionUtilService.cashCheckRequestText({ client, wallet, selectedTransaction: 'cashCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.cashCheckRequestText({ client, wallet, selectedTransaction: 'cashCheck', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'cashCheckToken':
+                    this.txJson = await this.signTransactionUtilService.cashCheckRequestText({ client, wallet, selectedTransaction: 'cashCheckToken', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'cancelCheck':
-                    this.txJson = await this.signTransactionUtilService.cancelCheckRequestText({ client, wallet, selectedTransaction: 'cancelCheck', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.cancelCheckRequestText({ client, wallet, selectedTransaction: 'cancelCheck', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'createMPT':
-                    this.txJson = await this.signTransactionUtilService.createMPTRequestText({ client, wallet, selectedTransaction: 'createMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.createMPTRequestText({ client, wallet, selectedTransaction: 'createMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'authorizeMPT':
-                    this.txJson = await this.signTransactionUtilService.authorizeMPTRequestText({ client, wallet, selectedTransaction: 'authorizeMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.authorizeMPTRequestText({ client, wallet, selectedTransaction: 'authorizeMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'unauthorizeMPT':
-                    this.txJson = await this.signTransactionUtilService.unauthorizeMPTRequestText({ client, wallet, selectedTransaction: 'unauthorizeMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.unauthorizeMPTRequestText({ client, wallet, selectedTransaction: 'unauthorizeMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'sendMPT':
-                    this.txJson = await this.signTransactionUtilService.sendMPTRequestText({ client, wallet, selectedTransaction: 'sendMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.sendMPTRequestText({ client, wallet, selectedTransaction: 'sendMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'lockMPT':
-                    this.txJson = await this.signTransactionUtilService.lockMPTRequestText({ client, wallet, selectedTransaction: 'lockMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.lockMPTRequestText({ client, wallet, selectedTransaction: 'lockMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'unlockMPT':
-                    this.txJson = await this.signTransactionUtilService.unlockMPTRequestText({ client, wallet, selectedTransaction: 'unlockMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.unlockMPTRequestText({ client, wallet, selectedTransaction: 'unlockMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'destroyMPT':
-                    this.txJson = await this.signTransactionUtilService.destroyMPTRequestText({ client, wallet, selectedTransaction: 'destroyMPT', isTicketEnabled: this.isTicketEnabled, ticketSequence: this.ticketSequence });
+                    this.txJson = await this.signTransactionUtilService.destroyMPTRequestText({ client, wallet, selectedTransaction: 'destroyMPT', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                // add others as needed
                default:
@@ -557,59 +540,44 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.setSuccessProperties();
 
           try {
-               const mode = this.isSimulateEnabled ? 'simulating' : 'sending';
-               this.updateSpinnerMessage(`Preparing Signed Transaction Submit (${mode})...`);
-
                const client = await this.xrplService.getClient();
                const wallet = await this.getWallet();
 
-               this.updateSpinnerMessage(this.isSimulateEnabled ? 'Simulating Sending XRP (no funds will be moved)...' : 'Submitting to Ledger...');
+               if (!this.outputField.trim()) {
+                    return this.setError('Signed tx blob can not be empty', null);
+               }
 
-               if (!this.outputField.trim()) return this.setError('Signed tx blob can not be empty', null);
                const signedTxBlob = this.outputField.trim();
 
-               const currentLedger = await client.getLedgerIndex();
-               console.log('currentLedger: ', currentLedger);
+               const txType = this.getTransactionLabel(this.selectedTransaction ?? '');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? `Simulating ${txType} (no funds will be moved)...` : `Submitting ${txType} to Ledger...`);
+
+               let response: any;
 
                if (this.isSimulateEnabled) {
                     const txToSign = this.cleanTx(JSON.parse(this.txJson.trim()));
                     console.log('Pre txToSign', txToSign);
-                    const simulation = await this.xrplTransactions.simulateTransaction(client, txToSign);
-
-                    const isSuccess = this.utilsService.isTxSuccessful(simulation);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(simulation);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
-
-                         (simulation['result'] as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, simulation);
-                    }
-
-                    // Render result
-                    this.renderTransactionResult(simulation);
-                    this.txJson = this.resultField.nativeElement.textContent || ''; // Sync plain JSON after render
-
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.txJson, null);
+                    response = await this.xrplTransactions.simulateTransaction(client, txToSign);
                } else {
-                    const response = await client.submitAndWait(signedTxBlob);
+                    response = await client.submitAndWait(signedTxBlob);
+               }
 
-                    const isSuccess = this.utilsService.isTxSuccessful(response);
-                    if (!isSuccess) {
-                         const resultMsg = this.utilsService.getTransactionResultMessage(response);
-                         let userMessage = 'Transaction failed.\n';
-                         userMessage += this.utilsService.processErrorMessageFromLedger(resultMsg);
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
 
-                         (response.result as any).errorMessage = userMessage;
-                         console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
-                    }
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
 
-                    this.renderTransactionResult(response);
-                    this.txJson = this.resultField.nativeElement.textContent || ''; // Sync plain JSON after render
-                    this.resultField.nativeElement.classList.add('success');
-                    this.setSuccess(this.txJson, null);
+               // Render result
+               this.renderTransactionResult(response);
+               this.txJson = this.resultField.nativeElement.textContent || ''; // Sync plain JSON after render
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.txJson, null);
 
+               if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
 
@@ -617,6 +585,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
                               console.error('Error in post-tx cleanup:', err);
@@ -656,7 +625,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     const memoTypeEmpty = !memo.MemoType || memo.MemoType === '' || memo.MemoType === 0;
 
                     // Remove if both are empty
-                    return !(memoDataEmpty && memoTypeEmpty);
+                    return !(memoDataEmpty || memoTypeEmpty);
                });
 
                if (editedJson.Memos.length === 0) {
@@ -685,7 +654,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.txJson = JSON.stringify(decodedTx, null, 3); // Update txJson with decoded
      }
 
-     private encodeMemo(editedJson: any) {
+     encodeMemo(editedJson: any) {
           editedJson.Memos = editedJson.Memos.map((memoObj: any) => {
                // Ensure the structure is correct
                if (!memoObj || !memoObj.Memo) {
@@ -855,55 +824,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.isRegularKeyAddress = false;
           }
      }
-
-     // toggleGroup(groupKey: string, event: Event) {
-     //      const checked = (event.target as HTMLInputElement).checked;
-
-     //      // Reset all groups
-     //      this.transactionGroups.forEach(group => {
-     //           (this as any)[group.key] = false;
-     //      });
-
-     //      // Open selected group if checked
-     //      if (checked) (this as any)[groupKey] = true;
-
-     //      // Reset transaction & display
-     //      this.selectedTransaction = '';
-     //      this.txJson = '';
-     //      this.outputField = '';
-     //      this.isError = true;
-     //      this.errorMessage = null;
-
-     //      if (this.hashField) this.hashField.nativeElement.innerText = '';
-     //      if (this.resultField) this.resultField.nativeElement.innerText = '';
-
-     //      this.cdr.markForCheck();
-     // }
-
-     private resetToggles(exceptFor?: string) {
-          // Turn off every "showXYZOptions" flag
-          this.transactionGroups.forEach(group => {
-               (this as any)[group.key] = false;
-          });
-
-          // If a transaction name is provided, open the matching group (so sub-selection keeps parent open)
-          if (exceptFor) {
-               const matchingGroup = this.transactionGroups.find(group => group.transactions.includes(exceptFor));
-               if (matchingGroup) {
-                    (this as any)[matchingGroup.key] = true;
-               }
-          }
-     }
-
-     private transactionGroups = [
-          { key: 'showSendXrpOptions', transactions: ['sendXrp'] },
-          { key: 'showTrustlineOptions', transactions: ['setTrustline', 'removeTrustline'] },
-          { key: 'showAccountOptions', transactions: ['accountFlagSet', 'accountFlagClear'] },
-          { key: 'showEscrowOptions', transactions: ['createTimeEscrow', 'finishTimeEscrow', 'createConditionEscrow', 'finishConditionEscrow', 'cancelEscrow'] },
-          { key: 'showCheckOptions', transactions: ['createCheck', 'cashCheck', 'cancelCheck'] },
-          { key: 'showMPTOptions', transactions: ['createMPT', 'authorizeMPT', 'unauthorizeMPT', 'sendMPT', 'lockMPT', 'unlockMPT', 'destroyMPT'] },
-          // add more groups here if you add new submenu transaction names
-     ];
 
      private async getWallet() {
           const wallet = await this.utilsService.getWallet(this.currentWallet.seed);
@@ -1096,7 +1016,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.sourceTagField = '';
           }
 
-          this.ticketSequence = '';
+          this.selectedSingleTicket = '';
           this.isTicket = false;
           this.memoField = '';
           this.isMemoEnabled = false;
@@ -1111,6 +1031,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.renderUiComponentsService.renderTransactionsResults(response, this.resultField.nativeElement);
           }
           this.clickToCopyService.attachCopy(this.resultField.nativeElement);
+     }
+
+     getTransactionLabel(key: string): string {
+          return this.transactionLabelMap[key] || key;
      }
 
      private updateSpinnerMessage(message: string) {
