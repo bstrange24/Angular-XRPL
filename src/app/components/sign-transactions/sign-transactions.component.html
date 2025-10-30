@@ -97,13 +97,6 @@
                                    </tr>
                               </table>
                          </div>
-                         <!-- <div class="tx-grid">
-                              <div *ngFor="let tx of transactionTypes" class="tx-card" [class.active]="selectedTransaction === tx.value" (click)="selectTransaction(tx.value)">
-                                   <div class="tx-icon">{{ tx.icon }}</div>
-                                   <h4>{{ tx.label }}</h4>
-                                   <p>{{ tx.description }}</p>
-                              </div>
-                         </div> -->
 
                          <!-- ======================  TRANSACTION SELECTOR  ====================== -->
                          <div class="top-section-right">
@@ -195,32 +188,12 @@
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
-                              <!-- <tr style="vertical-align: top">
-                                   <td colspan="2">
-                                        <div #resultFieldError id="resultFieldError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" [innerHTML]="highlightJson(result) | sanitizeHtml"></div>
-                                   </td>
-                              </tr> -->
                               <td>
-                                   <!-- <div class="transaction-results" style="display: flex; gap: 10px; flex-wrap: wrap">
-                                        <div style="flex: 1 1 50%; min-width: 0">
-                                             <h4>Transaction JSON</h4>
-                                             <div class="result-container" #resultField contenteditable="true" spellcheck="false" [ngClass]="{ error: isError, success: isSuccess }" [innerHTML]="highlightJson(result) | sanitizeHtml"></div>
-                                        </div>
-
-                                        <div style="flex: 1 1 50%; min-width: 0">
-                                             <h4>Signed / Multi-Signed</h4>
-                                             <div class="result-container" #hashField spellcheck="false" spellcheck="false" [ngClass]="{ error: isError, success: isSuccess }" [innerHTML]="multiSignedHtml | sanitizeHtml" (blur)="populateTxDetails()"></div>
-                                        </div>
-                                   </div> -->
-
                                    <div class="transaction-results">
                                         <div class="transaction-column">
                                              <h4>Transaction JSON</h4>
-                                             <!-- <div #resultField id="resultField" *ngIf="selectedTransaction || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()"> -->
                                              <div #resultField id="resultField" *ngIf="(selectedTransaction && txJson) || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()">
-                                                  <!-- <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div> -->
                                                   <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div>
-                                                  <!-- <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div> -->
                                                   <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div>
                                              </div>
                                         </div>

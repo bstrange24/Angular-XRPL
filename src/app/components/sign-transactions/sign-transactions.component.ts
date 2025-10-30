@@ -592,7 +592,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                }
           }
 
-          if (typeof editedJson.Amount === 'string') {
+          if (typeof editedJson.Amount === 'string' && this.selectedTransaction === 'sendXrp') {
                editedJson.Amount = xrpl.xrpToDrops(editedJson.Amount);
           }
 

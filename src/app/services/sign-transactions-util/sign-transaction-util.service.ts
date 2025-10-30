@@ -106,8 +106,8 @@ export class SignTransactionUtilService {
           let xrpPaymentRequest: any = {
                TransactionType: 'Payment',
                Account: wallet.classicAddress,
-               Destination: 'rB59o63jhXxHU9RHDMUq2bypc8pW4m5f6s',
-               Amount: '0.00001', // 1 XRP in drops
+               Destination: 'rMiqQ8m11gBUR3XhTstpjJDbTPdcdATCgE',
+               Amount: xrpl.xrpToDrops('0.000001'), // 1 XRP in drops
                Fee: '10',
                LastLedgerSequence: currentLedger,
                Sequence: accountInfo.result.account_data.Sequence,
