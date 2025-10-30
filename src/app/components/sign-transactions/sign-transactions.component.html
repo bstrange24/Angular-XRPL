@@ -180,27 +180,29 @@
                               <tr style="vertical-align: top">
                                    <td colspan="2">
                                         <button type="button" (click)="getTransactionJSON()">Get Transaction JSON</button>
-                                        <button type="button" (click)="unsignedTransaction()">Unsigned Transaction</button>
+                                        <!-- <button type="button" (click)="unsignedTransaction()">Unsigned Transaction</button> -->
                                         <button type="button" (click)="signedTransaction()">Signed Transaction</button>
                                         <button type="button" (click)="submitTransaction()">Submit Transaction</button>
-                                        <button type="button" (click)="signedTransaction()">Sign for Multi-Sign</button>
+                                        <!-- <button type="button" (click)="signedTransaction()">Sign for Multi-Sign</button> -->
                                         <button type="button" (click)="clearFields()">Clear Fields</button>
                                    </td>
                               </tr>
 
                               <td>
-                                   <div class="transaction-results">
-                                        <div class="transaction-column">
-                                             <h4>Transaction JSON</h4>
-                                             <div #resultField id="resultField" *ngIf="(selectedTransaction && txJson) || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" (blur)="syncTxJsonFromField()">
-                                                  <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div>
-                                                  <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div>
+                                   <div class="results-container">
+                                        <div class="transaction-results">
+                                             <div class="transaction-column">
+                                                  <h4>Transaction JSON</h4>
+                                                  <div #resultField id="resultField" *ngIf="(selectedTransaction && txJson) || isError" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container result-equal" (blur)="syncTxJsonFromField()">
+                                                       <div *ngIf="isError && errorMessage" class="error-message">ERROR: {{ errorMessage }}</div>
+                                                       <div *ngIf="txJson" [innerHTML]="highlightJson(txJson) | sanitizeHtml"></div>
+                                                  </div>
                                              </div>
-                                        </div>
 
-                                        <div class="transaction-column">
-                                             <h4>Signed</h4>
-                                             <div #hashField id="hashField" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container" [textContent]="outputField" (blur)="populateTxDetails()"></div>
+                                             <div class="transaction-column">
+                                                  <h4>Signed</h4>
+                                                  <div #hashField id="hashField" spellcheck="false" contenteditable="true" [ngClass]="{ error: isError, success: isSuccess }" class="result-container result-equal" [textContent]="outputField" (blur)="populateTxDetails()"></div>
+                                             </div>
                                         </div>
                                    </div>
                               </td>
@@ -211,6 +213,53 @@
                <div class="right-section">
                     <table id="flags">
                          <th></th>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
+                                        <label>Use Multi Sign</label>
+                                   </span>
+                              </td>
+                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
+                                   <label class="switch">
+                                        <input type="checkbox" id="useMultiSign" [(ngModel)]="useMultiSign" name="useMultiSign" />
+                                        <span class="slider round"></span>
+                                   </label>
+                              </td>
+                         </tr>
+                         <tr *ngIf="useMultiSign">
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to simulate a send xrp transaction">
+                                        <label></label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <div *ngIf="currentWallet && availableSigners.length === 0">No signers configured for {{ currentWallet.name || currentWallet.address }}.</div>
+
+                                   <div *ngFor="let wallet of availableSigners; let i = index">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="wallet.isSelectedSigner" (change)="updateSelectedQuorum()" name="multiSigner{{i}}" />
+                                             {{ wallet.name || 'Wallet ' + (i + 1) }} ({{ wallet.address | slice:0:6 }}...{{ wallet.address | slice:-4 }})
+                                             <span *ngIf="wallet.quorum !== null" style="padding-left: 13px">Quorum {{ wallet.quorum }}</span>
+                                        </label>
+                                   </div>
+
+                                   <div *ngIf="requiredQuorum" class="quorum-progress">Required quorum: {{ requiredQuorum }}</div>
+
+                                   <div *ngIf="currentWallet && availableSigners.length !== 0" class="quorum-container">
+                                        <div class="quorum-header">
+                                             <span>Quorum Progress:</span>
+                                             <span class="quorum-value">{{ selectedQuorum }} / {{ requiredQuorum }}</span>
+                                        </div>
+
+                                        <div class="progress-bar-container">
+                                             <div class="progress-bar" [style.width.%]="(selectedQuorum / requiredQuorum) * 100" [style.background-color]="selectedQuorum >= requiredQuorum ? 'green' : 'gray'"></div>
+                                        </div>
+                                   </div>
+
+                                   <button type="button" (click)="signForMultiSign()" *ngIf="availableSigners.length > 0">Sign for Multi-Sign</button>
+                                   <button type="button" (click)="submitTransaction()" *ngIf="availableSigners.length > 0">Submit Multi-Signed TX</button>
+                              </td>
+                         </tr>
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
@@ -264,53 +313,6 @@
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isSimulateEnabled"></label>
-                              </td>
-                         </tr>
-                         <tr>
-                              <td>
-                                   <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
-                                        <label>Use Multi Sign</label>
-                                   </span>
-                              </td>
-                              <td style="display: flex; gap: 10px; flex-wrap: wrap">
-                                   <label class="switch">
-                                        <input type="checkbox" id="useMultiSign" [(ngModel)]="useMultiSign" name="useMultiSign" />
-                                        <span class="slider round"></span>
-                                   </label>
-                              </td>
-                         </tr>
-                         <tr *ngIf="useMultiSign">
-                              <td>
-                                   <span class="tooltip" tooltip-data="Check this to simulate a send xrp transaction">
-                                        <label></label>
-                                   </span>
-                              </td>
-                              <td>
-                                   <div *ngIf="currentWallet && availableSigners.length === 0">No signers configured for {{ currentWallet.name || currentWallet.address }}.</div>
-
-                                   <div *ngFor="let wallet of availableSigners; let i = index">
-                                        <label>
-                                             <input type="checkbox" [(ngModel)]="wallet.isSelectedSigner" (change)="updateSelectedQuorum()" name="multiSigner{{i}}" />
-                                             {{ wallet.name || 'Wallet ' + (i + 1) }} ({{ wallet.address | slice:0:6 }}...{{ wallet.address | slice:-4 }})
-                                             <span *ngIf="wallet.quorum !== null" style="padding-left: 13px">Quorum {{ wallet.quorum }}</span>
-                                        </label>
-                                   </div>
-
-                                   <div *ngIf="requiredQuorum" class="quorum-progress">Required quorum: {{ requiredQuorum }}</div>
-
-                                   <div *ngIf="currentWallet && availableSigners.length !== 0" class="quorum-container">
-                                        <div class="quorum-header">
-                                             <span>Quorum Progress:</span>
-                                             <span class="quorum-value">{{ selectedQuorum }} / {{ requiredQuorum }}</span>
-                                        </div>
-
-                                        <div class="progress-bar-container">
-                                             <div class="progress-bar" [style.width.%]="(selectedQuorum / requiredQuorum) * 100" [style.background-color]="selectedQuorum >= requiredQuorum ? 'green' : 'gray'"></div>
-                                        </div>
-                                   </div>
-
-                                   <button type="button" (click)="signForMultiSign()" *ngIf="availableSigners.length > 0">Sign for Multi-Sign</button>
-                                   <button type="button" (click)="submitTransaction()" *ngIf="availableSigners.length > 0">Submit Multi-Signed TX</button>
                               </td>
                          </tr>
                     </table>

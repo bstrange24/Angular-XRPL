@@ -1,63 +1,3 @@
-summary::marker {
-     color: white;
-}
-
-.transaction-layout {
-     display: grid;
-     grid-template-columns: 2fr 1fr;
-     gap: 20px;
-     align-items: start;
-}
-
-.left-column {
-     display: flex;
-     flex-direction: column;
-     gap: 15px;
-}
-
-.right-column {
-     justify-self: start;
-     width: 100%;
-}
-
-.flags-layout {
-     display: grid;
-     grid-template-columns: 4fr 0.1fr 1fr;
-     gap: 20px;
-     align-items: start;
-}
-
-.flags-layout table {
-     flex: 1;
-}
-
-.button-container {
-     width: 100%;
-}
-
-table textarea {
-     resize: vertical;
-     height: 60px;
-}
-
-#flags,
-#meta td:first-child {
-     white-space: nowrap;
-     width: 150px;
-     padding-right: 10px;
-     text-align: right;
-     vertical-align: middle;
-}
-
-#flags,
-#meta td:last-child {
-     width: auto;
-}
-
-.custom-destination {
-     width: 100%;
-}
-
 .mdc-text-field--outlined .mat-mdc-form-field-infix,
 .mdc-text-field--no-label .mat-mdc-form-field-infix {
      padding: 0px;
@@ -71,52 +11,6 @@ table textarea {
 .mdc-text-field--no-label:not(.mdc-text-field--textarea) .mat-mdc-form-field-input-control.mdc-text-field__input,
 .mat-mdc-text-field-wrapper .mat-mdc-form-field-input-control {
      color: #4CAF50;
-}
-
-.result-container span.string {
-     color: #32cd32 !important;
-}
-
-.result-container span.number {
-     color: #ffa500 !important;
-}
-
-.result-container span.boolean {
-     color: #ff4500 !important;
-}
-
-.result-container span.null {
-     color: #808080 !important;
-}
-
-.result-container>div span.key,
-.result-container span.key {
-     color: #1e90ff;
-}
-
-/* === JSON Syntax Highlighting === */
-.result-container span.key {
-     color: #1e90ff !important;
-}
-
-.result-container span.string {
-     color: #32cd32 !important;
-}
-
-.result-container span.number {
-     color: #ffa500 !important;
-}
-
-.result-container span.boolean {
-     color: #ff4500 !important;
-}
-
-.result-container span.null {
-     color: #808080 !important;
-}
-
-.result-container span {
-     color: inherit;
 }
 
 .json-highlighted .key {
@@ -186,24 +80,6 @@ table textarea {
      height: 28px;
 }
 
-.result-container {
-     font-family: monospace;
-     white-space: pre;
-     transition: opacity 0.3s ease-in-out;
-     opacity: 1;
-}
-
-.result-container-row {
-     display: flex;
-     gap: 10px;
-}
-
-.result-container {
-     flex: 1;
-     min-width: 0;
-     /* prevents overflow */
-}
-
 .tx-grid {
      display: grid;
      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -243,15 +119,12 @@ table textarea {
      font-weight: bold;
      margin-bottom: 8px;
      white-space: pre-wrap;
-     /* keeps long errors readable */
 }
 
 .trustline-option {
      display: flex;
      justify-content: space-between;
-     /* text left, slider right */
      align-items: center;
-     /* vertical centering */
      width: 100%;
      margin: 6px 0;
      padding: 4px 0;
@@ -301,7 +174,6 @@ table textarea {
      border-right: 1px solid #ccc;
 }
 
-/* Revert top-sections-wrapper to row for side-by-side layout */
 .top-sections-wrapper {
      display: flex;
      flex-direction: row;
@@ -311,7 +183,6 @@ table textarea {
      align-items: flex-start;
 }
 
-/* Adjust flex for children to fit content */
 .top-sections-wrapper>.top-section-left {
      flex: 0 0 auto;
      min-width: 0;
@@ -322,20 +193,6 @@ table textarea {
      min-width: 0;
 }
 
-/* Update transaction-layout to use auto for left column to fit content */
-.transaction-layout {
-     display: grid;
-     grid-template-columns: auto 1fr;
-     gap: 20px;
-     align-items: start;
-}
-
-/* Keep or adjust max-width for result-container to shorten it */
-.result-container {
-     max-width: 1050px;
-}
-
-/* Ensure consistent sizing and right alignment for labels in all sections */
 #accountSelection td:first-child,
 #xrpDetails td:first-child,
 #flags td:first-child {
@@ -360,7 +217,6 @@ table textarea {
      height: 100px;
 }
 
-/* For switches and other non-input elements, ensure they fit */
 #flags td:last-child {
      width: auto;
 }
@@ -376,7 +232,6 @@ table textarea {
      border: 1px solid white;
 }
 
-/* Target the multi-sign fieldset table cells specifically */
 .multisignAddressClass td:first-child {
      width: 80px;
      text-align: right;
@@ -390,7 +245,6 @@ table textarea {
      padding-left: 10px;
 }
 
-/* Target the inner table in the multi-sign fieldset */
 #flags fieldset table {
      width: 100%;
      border-collapse: collapse;
@@ -400,20 +254,16 @@ table textarea {
 
 #flags fieldset td:first-child {
      width: 60px;
-     /* Shorter for compact labels like "Signers", "Seeds", "Quorum" */
      text-align: right;
      padding: 5px 10px 5px 0;
-     /* Zero left padding to hug the fieldset left border */
      vertical-align: top;
 }
 
 #flags fieldset td:last-child {
      padding-left: 0;
-     /* Remove extra left padding on input cells */
      width: auto;
 }
 
-/* Pretty JSON display (non-editable) */
 .json-display {
      background: #1e1e1e;
      color: #d4d4d4;
@@ -429,62 +279,13 @@ table textarea {
      overflow-x: auto;
 }
 
-/* Editable field – keep it but hide it visually */
 .result-editable {
      position: absolute;
      left: -9999px;
-     /* Off-screen but still focusable */
      opacity: 0;
      pointer-events: none;
      width: 1px;
      height: 1px;
-}
-
-.result-container {
-     resize: none;
-     font-size: 12px;
-     padding: 15px;
-     box-sizing: border-box;
-     border-radius: 10px;
-     border: 1px solid white;
-     font-family: 'Courier New', monospace;
-     white-space: pre-wrap;
-     word-break: break-word;
-     line-height: 1.5;
-     margin: 10px 0;
-     background: #1e1e1e;
-     color: #d4d4d4;
-     min-height: 100px;
-}
-
-/* === JSON Syntax Highlighting – FINAL OVERRIDE === */
-.result-container .key,
-.result-container .string,
-.result-container .number,
-.result-container .boolean,
-.result-container .null {
-     color: inherit;
-     /* reset */
-}
-
-.result-container .key {
-     color: #1e90ff !important;
-}
-
-.result-container .string {
-     color: #32cd32 !important;
-}
-
-.result-container .number {
-     color: #ffa500 !important;
-}
-
-.result-container .boolean {
-     color: #ff4500 !important;
-}
-
-.result-container .null {
-     color: #808080 !important;
 }
 
 .quorum-progress {
@@ -501,16 +302,11 @@ table textarea {
      display: flex;
      align-items: center;
      gap: 198px;
-     /* space between label and value */
      font-weight: 500;
      margin-bottom: 4px;
      padding-left: 8px;
      margin-top: 10px;
 }
-
-/* .quorum-header {
-     justify-content: space-between;
-} */
 
 .progress-bar-container {
      height: 10px;
@@ -527,4 +323,70 @@ table textarea {
      height: 100%;
      transition: width 0.4s ease, background-color 0.4s ease;
      border-radius: 4px;
+}
+
+.results-container {
+     width: 100%;
+     max-width: 100%;
+     overflow: hidden;
+     box-sizing: border-box;
+}
+
+.transaction-results {
+     display: flex;
+     gap: 20px;
+     width: 100%;
+     max-width: 1200px;
+     margin: 0 auto;
+     overflow: hidden;
+}
+
+.transaction-column {
+     flex: 1;
+     min-width: 0;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+}
+
+.result-container {
+     flex: 1;
+     min-width: 0;
+     width: 100%;
+     max-width: 100%;
+     overflow: hidden;
+     box-sizing: border-box;
+     white-space: pre-wrap;
+     word-break: break-all;
+     overflow-wrap: anywhere;
+     padding: 15px;
+     border: 1px solid white;
+     border-radius: 10px;
+     background: #1a1c21;
+     color: #62bb8b;
+     font-family: 'Courier New', monospace;
+     font-size: 12px;
+     line-height: 1.5;
+     overflow-x: hidden;
+     overflow-y: auto;
+     transition: all 0.3s ease;
+}
+
+.transaction-column {
+     min-width: 0;
+     display: flex;
+     flex-direction: column;
+     overflow: hidden;
+}
+
+.result-equal {
+     flex-grow: 1 !important;
+}
+
+.result-wide {
+     flex-grow: 3 !important;
+}
+
+.result-narrow {
+     flex-grow: 1 !important;
 }

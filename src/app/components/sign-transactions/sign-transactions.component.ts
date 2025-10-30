@@ -505,6 +505,13 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.resultField.nativeElement.classList.add('success');
                this.setSuccess(this.txJson, null);
 
+               // === DYNAMIC WIDTH CHANGE ===
+               this.resultField.nativeElement.classList.remove('result-equal');
+               this.resultField.nativeElement.classList.add('result-wide');
+
+               this.hashField.nativeElement.classList.remove('result-equal');
+               this.hashField.nativeElement.classList.add('result-narrow');
+
                if (!this.isSimulateEnabled) {
                     const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
                     this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
