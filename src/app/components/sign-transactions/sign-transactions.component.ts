@@ -114,38 +114,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
-     transactionLabelMap: Record<string, string> = {
-          batch: 'Batch',
-          sendXrp: 'Send XRP',
-          setTrustline: 'Set Trustline',
-          removeTrustline: 'Remove Trustline',
-          issueCurrency: 'Issue Currency',
-          accountFlagSet: 'Account Flag Set',
-          accountFlagClear: 'Account Flag Clear',
-          createTimeEscrow: 'Create Time Escrow',
-          finishTimeEscrow: 'Finish Time Escrow',
-          createConditionEscrow: 'Create Condition Escrow',
-          finishConditionEscrow: 'Finish Condition Escrow',
-          cancelEscrow: 'Cancel Escrow',
-          createTimeEscrowToken: 'Create Token Time Escrow',
-          finishTimeEscrowToken: 'Finish Token Time Escrow',
-          createConditionEscrowToken: 'Create Token Condition Escrow',
-          finishConditionEscrowToken: 'Finish Token Condition Escrow',
-          cancelEscrowToken: 'Cancel Token Escrow',
-          createCheck: 'Check Create',
-          cashCheck: 'Check Cash',
-          cancelCheck: 'Check Cancel',
-          createCheckToken: 'Check Token Create',
-          cashCheckToken: 'Check Token Cash',
-          cancelCheckToken: 'Check Token Cancel',
-          createMPT: 'MPT Create',
-          authorizeMPT: 'Authorize MPT',
-          unauthorizeMPT: 'Unauthorize MPT',
-          sendMPT: 'Send MPT',
-          lockMPT: 'Lock MPT',
-          unlockMPT: 'Unlock MPT',
-          destroyMPT: 'Destroy MPT',
-     };
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly signTransactionUtilService: SignTransactionUtilService, private readonly clickToCopyService: ClickToCopyService) {}
 
@@ -1038,7 +1006,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
      }
 
      getTransactionLabel(key: string): string {
-          return this.transactionLabelMap[key] || key;
+          return (AppConstants.SIGN_TRANSACTION_LABEL_MAP as Record<string, string>)[key] || key;
      }
 
      private updateSpinnerMessage(message: string) {
