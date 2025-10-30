@@ -119,6 +119,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           sendXrp: 'Send XRP',
           setTrustline: 'Set Trustline',
           removeTrustline: 'Remove Trustline',
+          issueCurrency: 'Issue Currency',
           accountFlagSet: 'Account Flag Set',
           accountFlagClear: 'Account Flag Clear',
           createTimeEscrow: 'Create Time Escrow',
@@ -342,6 +343,8 @@ export class SignTransactionsComponent implements AfterViewChecked {
                          console.error('Error in deferred UI updates:', err);
                     }
                }, 0);
+
+               this.enableTransaction();
           } catch (error: any) {
                console.error('Error in getAccountDetails:', error);
                this.setError(error.message || 'Unknown error', null);
@@ -368,6 +371,9 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     break;
                case 'removeTrustline':
                     this.txJson = await this.signTransactionUtilService.modifyTrustlineRequestText({ client, wallet, selectedTransaction: 'removeTrustline', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
+                    break;
+               case 'issueCurrency':
+                    this.txJson = await this.signTransactionUtilService.issueCurrencyRequestText({ client, wallet, selectedTransaction: 'issueCurrency', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
                     break;
                case 'accountFlagSet':
                     this.txJson = await this.signTransactionUtilService.modifyAccountFlagsRequestText({ client, wallet, selectedTransaction: 'accountFlagSet', isTicketEnabled: this.isTicket, ticketSequence: this.selectedSingleTicket });
@@ -505,11 +511,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                const client = await this.xrplService.getClient();
                const currentLedger = await client.getLedgerIndex();
                console.log('currentLedger: ', currentLedger);
-               if (this.isSimulateEnabled) {
-                    txToSign.LastLedgerSequence = currentLedger;
-               } else {
-                    txToSign.LastLedgerSequence = currentLedger + 1000; // adjust to new ledger
-               }
+               txToSign.LastLedgerSequence = currentLedger + 1000; // adjust to new ledger
 
                console.log('Post txToSign', txToSign);
 
@@ -525,8 +527,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                console.log(decodedTx);
           } catch (error: any) {
                console.error('Error in signedTransaction:', error);
-               this.setError(`ERROR: ${error.message || 'Unknown error'}`, txToSign); // Clears outputField
-               // txJson remains untouched
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`, txToSign);
           } finally {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
@@ -557,6 +558,9 @@ export class SignTransactionsComponent implements AfterViewChecked {
                if (this.isSimulateEnabled) {
                     const txToSign = this.cleanTx(JSON.parse(this.txJson.trim()));
                     console.log('Pre txToSign', txToSign);
+                    const currentLedger = await client.getLedgerIndex();
+                    console.log('currentLedger: ', currentLedger);
+                    txToSign.LastLedgerSequence = currentLedger + 5;
                     response = await this.xrplTransactions.simulateTransaction(client, txToSign);
                } else {
                     response = await client.submitAndWait(signedTxBlob);

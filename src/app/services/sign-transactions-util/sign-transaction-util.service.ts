@@ -11,6 +11,7 @@ interface SignTransactionOptions {
           | 'accountFlagClear'
           | 'setTrustline'
           | 'removeTrustline'
+          | 'issueCurrency'
           | 'createTimeEscrow'
           | 'createTimeEscrowToken'
           | 'finishTimeEscrow'
@@ -152,10 +153,73 @@ export class SignTransactionUtilService {
           let modifyTrustlineRequest: any = {
                TransactionType: 'TrustSet',
                Account: wallet.classicAddress,
+          };
+
+          if (selectedTransaction === 'setTrustline') {
+               modifyTrustlineRequest.LimitAmount = {
+                    currency: 'CTZ',
+                    issuer: 'rLBknJdCzFGV15Vyyewd3U8jQmDR3abRJ4',
+                    value: '10000000000',
+               };
+          } else {
+               modifyTrustlineRequest.LimitAmount = {
+                    currency: 'CTZ',
+                    issuer: 'rLBknJdCzFGV15Vyyewd3U8jQmDR3abRJ4',
+                    value: '0',
+               };
+          }
+
+          modifyTrustlineRequest.Fee = '10';
+          // modifyTrustlineRequest.QualityIn = 0;
+          // modifyTrustlineRequest.QualityOut = 0;
+          // modifyTrustlineRequest.Flags = 0;
+          modifyTrustlineRequest.LastLedgerSequence = currentLedger;
+          modifyTrustlineRequest.Sequence = accountInfo.result.account_data.Sequence;
+          modifyTrustlineRequest.Memos = [
+               {
+                    Memo: {
+                         MemoData: '',
+                         MemoType: 'text/plain',
+                    },
+               },
+               {
+                    Memo: {
+                         MemoData: '',
+                         MemoType: 'text/plain',
+                    },
+               },
+          ];
+
+          if (isTicketEnabled && ticketSequence) {
+               // If using a Ticket
+               const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
+
+               if (!ticketExists) {
+                    throw new Error(`ERROR: Ticket Sequence ${ticketSequence} not found for account ${wallet.classicAddress}`);
+               }
+
+               // Overwrite fields for ticketed tx
+               modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
+               modifyTrustlineRequest.Sequence = 0;
+          }
+
+          const txString = JSON.stringify(modifyTrustlineRequest, null, 2);
+          return txString; // Set property instead of DOM
+     }
+
+     async issueCurrencyRequestText({ client, wallet, selectedTransaction, isTicketEnabled, ticketSequence }: SignTransactionOptions): Promise<string> {
+          const [accountInfo, currentLedger] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getLastLedgerIndex(client)]);
+
+          let issueCurrencyRequest: any = {
+               TransactionType: 'Payment',
+               Account: wallet.classicAddress,
+               Destination: 'rHp1RqKdRSG5cJY5ikZadRA91yE35wTJFf',
+               Amount: {
+                    currency: 'CTZ',
+                    issuer: 'rLBknJdCzFGV15Vyyewd3U8jQmDR3abRJ4',
+                    value: '100',
+               },
                Fee: '10',
-               QualityIn: 0,
-               QualityOut: 0,
-               Flags: 0,
                LastLedgerSequence: currentLedger,
                Sequence: accountInfo.result.account_data.Sequence,
                Memos: [
@@ -174,20 +238,6 @@ export class SignTransactionUtilService {
                ],
           };
 
-          if (selectedTransaction === 'setTrustline') {
-               modifyTrustlineRequest.LimitAmount = {
-                    currency: '',
-                    issuer: 'rsP3mgGb2tcYUrxiLFiHJiQXhsziegtwBc',
-                    value: '10000000000000000000',
-               };
-          } else {
-               modifyTrustlineRequest.LimitAmount = {
-                    currency: '',
-                    issuer: 'rsP3mgGb2tcYUrxiLFiHJiQXhsziegtwBc',
-                    value: '0',
-               };
-          }
-
           if (isTicketEnabled && ticketSequence) {
                // If using a Ticket
                const ticketExists = await this.xrplService.checkTicketExists(client, wallet.classicAddress, Number(ticketSequence));
@@ -197,11 +247,11 @@ export class SignTransactionUtilService {
                }
 
                // Overwrite fields for ticketed tx
-               modifyTrustlineRequest.TicketSequence = Number(ticketSequence);
-               modifyTrustlineRequest.Sequence = 0;
+               issueCurrencyRequest.TicketSequence = Number(ticketSequence);
+               issueCurrencyRequest.Sequence = 0;
           }
 
-          const txString = JSON.stringify(modifyTrustlineRequest, null, 2);
+          const txString = JSON.stringify(issueCurrencyRequest, null, 2);
           return txString; // Set property instead of DOM
      }
 

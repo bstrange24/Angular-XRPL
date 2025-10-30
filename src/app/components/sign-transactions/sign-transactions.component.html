@@ -25,7 +25,7 @@
                                              </select>
                                         </td>
                                    </tr>
-                                   <tr>
+                                   <!-- <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="Name of the currently selected account.">
                                                   <label for="accountNameField">Name</label>
@@ -54,7 +54,7 @@
                                         <td>
                                              <input type="text" id="accountSeedField" [(ngModel)]="currentWallet.seed" name="accountSeedField" readonly />
                                         </td>
-                                   </tr>
+                                   </tr> -->
                                    <tr>
                                         <td>
                                              <span class="tooltip" tooltip-data="XRP balance for the currently selected account.">
@@ -123,6 +123,7 @@
                                                        <optgroup label="Trustline">
                                                             <option value="setTrustline">Set Trustline</option>
                                                             <option value="removeTrustline">Remove Trustline</option>
+                                                            <option value="issueCurrency">Issue Currency</option>
                                                        </optgroup>
 
                                                        <optgroup label="Account Flags">
