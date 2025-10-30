@@ -1662,10 +1662,6 @@ export class AccountConfiguratorComponent implements AfterViewChecked {
                if (signers.length > 8) {
                     errors.push(`XRPL allows max 8 signer entries. You provided ${signers.length}`);
                }
-               const totalWeight = signers.reduce((sum, s) => sum + (s.weight || 0), 0);
-               if (inputs.signerQuorum && inputs.signerQuorum < totalWeight) {
-                    errors.push(`Quorum (${inputs.signerQuorum}) exceeds total signer weight (${totalWeight})`);
-               }
                if (inputs.signerQuorum ? parseInt(inputs.signerQuorum.toString()) <= 0 : true) {
                     errors.push('Quorum must be greater than 0');
                }

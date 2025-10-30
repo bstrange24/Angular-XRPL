@@ -746,38 +746,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
                return errors;
           };
 
-          const validateSigners = async (signers: { account: string; weight: number }[] | undefined): Promise<string[]> => {
-               const errors: string[] = [];
-               if (!signers?.length) {
-                    errors.push('No valid signer accounts provided');
-                    return errors;
-               }
-               const selfAddress = (await this.getWallet()).classicAddress;
-               if (signers.some(s => s.account === selfAddress)) {
-                    errors.push('Your own account cannot be in the signer list');
-               }
-               const invalidAddresses = signers.filter(s => s.account && !xrpl.isValidClassicAddress(s.account));
-               if (invalidAddresses.length > 0) {
-                    errors.push(`Invalid signer addresses: ${invalidAddresses.map(s => s.account).join(', ')}`);
-               }
-               const addresses = signers.map(s => s.account);
-               const duplicates = addresses.filter((addr, idx, self) => self.indexOf(addr) !== idx);
-               if (duplicates.length > 0) {
-                    errors.push(`Duplicate signer addresses: ${[...new Set(duplicates)].join(', ')}`);
-               }
-               if (signers.length > 8) {
-                    errors.push(`XRPL allows max 8 signer entries. You provided ${signers.length}`);
-               }
-               const totalWeight = signers.reduce((sum, s) => sum + (s.weight || 0), 0);
-               if (inputs.signerQuorum && inputs.signerQuorum > totalWeight) {
-                    errors.push(`Quorum (${inputs.signerQuorum}) exceeds total signer weight (${totalWeight})`);
-               }
-               if (inputs.signerQuorum && inputs.signerQuorum <= 0) {
-                    errors.push('Quorum must be greater than 0');
-               }
-               return errors;
-          };
-
           // Action-specific config: required fields and custom rules
           const actionConfig: Record<string, { required: (keyof ValidationInputs)[]; customValidators?: (() => Promise<string | null>)[] }> = {
                getAccountDetails: {
@@ -791,7 +759,6 @@ export class AccountDelegateComponent implements AfterViewChecked {
                          async () => isValidXrpAddress(inputs.destination, 'Destination address'),
                          async () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
                          async () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         async () => (inputs.useMultiSign ? (await validateSigners(inputs.signers)).join('; ') : null),
                          async () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
                          async () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
                          async () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),

@@ -188,6 +188,7 @@
                                         <button type="button" (click)="clearFields(true)">Clear Fields</button>
                                    </td>
                               </tr>
+
                               <td>
                                    <div class="transaction-results">
                                         <div class="transaction-column">
@@ -211,7 +212,7 @@
                <div class="right-section">
                     <table id="flags">
                          <th></th>
-                         <tr>
+                         <!-- <tr>
                               <td></td>
                               <td *ngIf="masterKeyDisabled">
                                    <span [style.color]="'red'">Master Key is disabled. Use multi-sign or regular key to sign transactions.</span>
@@ -303,7 +304,7 @@
                               <td>
                                    <input type="text" id="regularKeySeed" size="41" id="regularKeySeed" placeholder="Enter Regular Key Seed" [(ngModel)]="regularKeySeed" name="regularKeySeed" readonly />
                               </td>
-                         </tr>
+                         </tr> -->
                          <tr>
                               <td>
                                    <span class="tooltip" tooltip-data="Check this to use a ticket sequence">
@@ -357,6 +358,38 @@
                                         <span class="slider round"></span>
                                    </label>
                                    <label for="isSimulateEnabled"></label>
+                              </td>
+                         </tr>
+                         <tr>
+                              <td>
+                                   <span class="tooltip" tooltip-data="Check this to simulate a send xrp transaction">
+                                        <label>Multi Sign</label>
+                                   </span>
+                              </td>
+                              <td>
+                                   <div *ngIf="currentWallet && availableSigners.length === 0">No signers configured for {{ currentWallet.name || currentWallet.address }}.</div>
+
+                                   <div *ngFor="let wallet of availableSigners; let i = index">
+                                        <label>
+                                             <input type="checkbox" [(ngModel)]="wallet.isSelectedSigner" (change)="updateSelectedQuorum()" name="multiSigner{{i}}" />
+                                             {{ wallet.name || 'Wallet ' + (i + 1) }} ({{ wallet.address | slice:0:6 }}...{{ wallet.address | slice:-4 }})
+                                             <span *ngIf="wallet.quorum !== null" style="padding-left: 13px">Quorum {{ wallet.quorum }}</span>
+                                        </label>
+                                   </div>
+
+                                   <div *ngIf="requiredQuorum" class="quorum-progress">Required quorum: {{ requiredQuorum }}</div>
+
+                                   <div *ngIf="requiredQuorum">
+                                        <div style="margin-top: 10px; padding-top: 5px; padding-left: 8px">
+                                             Quorum Progress:
+                                             <div [ngStyle]="{background: selectedQuorum >= requiredQuorum ? '#28a745' : '#ccc', height: '16px',width: (selectedQuorum / requiredQuorum) * 100 + '%', maxWidth: '100%', borderRadius: '8px', transition: 'width 0.3s ease'}"></div>
+                                             <!-- <div [ngStyle]="{background: 'linear-gradient(to right, #ffc107, #28a745 ' + (selectedQuorum / requiredQuorum) * 100 + '%)', height: '16px', width: (selectedQuorum / requiredQuorum) * 100 + '%', borderRadius: '8px', transition: 'all 0.3s ease'}"></div> -->
+                                             <div style="margin-top: 4px">{{ selectedQuorum }} / {{ requiredQuorum }}</div>
+                                        </div>
+                                   </div>
+
+                                   <button type="button" (click)="signForMultiSign()" *ngIf="availableSigners.length > 0">Sign for Multi-Sign</button>
+                                   <button type="button" (click)="submitTransaction()" *ngIf="availableSigners.length > 0">Submit Multi-Signed TX</button>
                               </td>
                          </tr>
                     </table>

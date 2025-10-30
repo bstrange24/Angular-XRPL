@@ -19,6 +19,7 @@ import { AppWalletDynamicInputComponent } from '../app-wallet-dynamic-input/app-
 import { SignTransactionUtilService } from '../../services/sign-transactions-util/sign-transaction-util.service';
 import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.service';
 import { AppConstants } from '../../core/app.constants';
+import SignerList from 'xrpl/dist/npm/models/ledger/SignerList';
 
 interface ValidationInputs {
      account_info?: any;
@@ -96,6 +97,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
+     multiSignedTxBlob: string = ''; // Final combined tx blob
+     availableSigners: any[] = [];
+     requiredQuorum: number = 0;
+     selectedQuorum: number = 0;
 
      constructor(private readonly xrplService: XrplService, private readonly utilsService: UtilsService, private readonly cdr: ChangeDetectorRef, private readonly storageService: StorageService, private readonly xrplTransactions: XrplTransactionService, private readonly renderUiComponentsService: RenderUiComponentsService, private readonly signTransactionUtilService: SignTransactionUtilService, private readonly clickToCopyService: ClickToCopyService) {}
 
@@ -167,6 +172,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
           } else if (this.currentWallet.address) {
                this.setError('Invalid XRP address', null);
           }
+
+          // this.availableSigners = this.wallets.filter(w => w.address !== this.currentWallet.address && this.signerAddresses.includes(w.address));
+          this.resetSigners();
+
           this.cdr.detectChanges();
      }
 
@@ -231,6 +240,15 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.onTransactionChange();
      }
 
+     get currentQuorumSelected(): number {
+          return this.availableSigners.filter(w => w.isSelectedSigner).reduce((sum, w) => sum + (w.quorum || 0), 0);
+     }
+
+     updateSelectedQuorum() {
+          // Sum the weights (SignerWeight) of all checked signers
+          this.selectedQuorum = this.availableSigners.filter(w => w.isSelectedSigner).reduce((sum, w) => sum + (w.quorum || 0), 0);
+     }
+
      setTransaction(type: string, event: Event) {
           const checked = (event.target as HTMLInputElement).checked;
 
@@ -267,9 +285,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
                const [accountInfo, accountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
 
-               console.debug(`accountInfo:`, accountInfo.result);
-               console.debug(`accountObjects:`, accountObjects.result);
-
                const inputs: ValidationInputs = {
                     seed: this.currentWallet.seed,
                     account_info: accountInfo,
@@ -279,6 +294,8 @@ export class SignTransactionsComponent implements AfterViewChecked {
                if (errors.length > 0) {
                     return this.setError(errors.length === 1 ? `Error:\n${errors.join('\n')}` : `Multiple Error's:\n${errors.join('\n')}`, null);
                }
+
+               this.getSignerAccountsList(accountObjects);
 
                // DEFER: Non-critical UI updates — let main render complete first
                setTimeout(async () => {
@@ -540,6 +557,8 @@ export class SignTransactionsComponent implements AfterViewChecked {
 
                     setTimeout(async () => {
                          try {
+                              // Reset selected checkboxes
+                              this.resetSigners();
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                               this.clearFields(false);
                               this.updateTickets(updatedAccountObjects);
@@ -556,6 +575,135 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.spinner = false;
                this.executionTime = (Date.now() - startTime).toString();
                console.log(`Leaving submitTransaction in ${this.executionTime}ms`);
+          }
+     }
+
+     async submitMultiSignedTransaction() {
+          console.log('Entering submitMultiSignedTransaction');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          try {
+               if (!this.outputField.trim()) {
+                    if (this.hashField && this.hashField.nativeElement.textContent) {
+                         this.outputField = this.hashField.nativeElement.textContent;
+                    } else {
+                         return this.setError('Signed tx blob can not be empty', null);
+                    }
+               }
+
+               const client = await this.xrplService.getClient();
+               const wallet = await this.getWallet();
+
+               const multiSignedTxBlob = this.outputField.trim();
+               console.log('multiSignedTxBlob', multiSignedTxBlob);
+
+               const txType = this.getTransactionLabel(this.selectedTransaction ?? '');
+               this.updateSpinnerMessage(this.isSimulateEnabled ? `Simulating ${txType} (no funds will be moved)...` : `Submitting ${txType} to Ledger...`);
+
+               let response: any;
+
+               if (this.isSimulateEnabled) {
+                    const txToSign = this.cleanTx(JSON.parse(this.txJson.trim()));
+                    console.log('Pre txToSign', txToSign);
+                    const currentLedger = await client.getLedgerIndex();
+                    console.log('currentLedger: ', currentLedger);
+                    txToSign.LastLedgerSequence = currentLedger + 5;
+                    response = await this.xrplTransactions.simulateTransaction(client, txToSign);
+               } else {
+                    response = await client.submitAndWait(multiSignedTxBlob);
+               }
+
+               const isSuccess = this.utilsService.isTxSuccessful(response);
+               if (!isSuccess) {
+                    const resultMsg = this.utilsService.getTransactionResultMessage(response);
+                    const userMessage = 'Transaction failed.\n' + this.utilsService.processErrorMessageFromLedger(resultMsg);
+
+                    console.error(`Transaction ${this.isSimulateEnabled ? 'simulation' : 'submission'} failed: ${resultMsg}`, response);
+                    (response.result as any).errorMessage = userMessage;
+               }
+
+               // Render result
+               this.renderTransactionResult(response);
+               this.txJson = this.resultField.nativeElement.textContent || ''; // Sync plain JSON after render
+               this.resultField.nativeElement.classList.add('success');
+               this.setSuccess(this.txJson, null);
+
+               if (!this.isSimulateEnabled) {
+                    const [updatedAccountInfo, updatedAccountObjects] = await Promise.all([this.xrplService.getAccountInfo(client, wallet.classicAddress, 'validated', ''), this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '')]);
+                    this.refreshUIData(wallet, updatedAccountInfo, updatedAccountObjects);
+
+                    setTimeout(async () => {
+                         try {
+                              this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
+                              this.clearFields(false);
+                              this.updateTickets(updatedAccountObjects);
+                              await this.updateXrpBalance(client, updatedAccountInfo, wallet);
+                         } catch (err) {
+                              console.error('Error in post-tx cleanup:', err);
+                         }
+                    }, 0);
+               }
+          } catch (error: any) {
+               console.error('Error in submitMultiSignedTransaction:', error);
+               this.setError(`ERROR: ${error.message || 'Unknown error'}`, null);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving submitMultiSignedTransaction in ${this.executionTime}ms`);
+          }
+     }
+
+     async signForMultiSign() {
+          console.log('Entering signForMultiSign');
+          const startTime = Date.now();
+          this.setSuccessProperties();
+
+          let txToSign: any;
+
+          try {
+               if (!this.txJson.trim()) {
+                    return this.setError('Transaction cannot be empty', null);
+               }
+
+               const editedString = this.txJson.trim();
+               let editedJson = JSON.parse(editedString);
+               txToSign = this.cleanTx(editedJson);
+               console.log('Pre txToSign', txToSign);
+
+               const client = await this.xrplService.getClient();
+               const currentLedger = await client.getLedgerIndex();
+               console.log('currentLedger: ', currentLedger);
+               txToSign.LastLedgerSequence = currentLedger + 1000; // adjust to new ledger
+
+               console.log('Post txToSign', txToSign);
+
+               // Get selected signer wallets
+               const selectedSigners = this.availableSigners.filter(w => w.isSelectedSigner);
+
+               if (!selectedSigners.length) {
+                    return this.setError('Select at least one signer.', null);
+               }
+
+               const addresses = selectedSigners.map(acc => acc.address).join(',');
+               const seeds = selectedSigners.map(acc => acc.seed).join(',');
+               console.log('Addresses:', addresses);
+               console.log('Seeds:', seeds);
+
+               const fee = await this.xrplService.calculateTransactionFee(client);
+               const wallet = await this.getWallet();
+               const signerAddresses = this.utilsService.getMultiSignAddress(addresses);
+               const signerSeeds = this.utilsService.getMultiSignSeeds(seeds);
+               const result = await this.utilsService.handleMultiSignTransaction({ client, wallet, tx: txToSign, signerAddresses, signerSeeds, fee });
+               console.info(`result`, result);
+               this.outputField = result.signedTx?.tx_blob ? result.signedTx?.tx_blob : 'Error';
+          } catch (error: any) {
+               console.error('Error in signForMultiSign:', error);
+               this.setError(`Error: ${error.message || error}`, null);
+          } finally {
+               this.spinner = false;
+               this.executionTime = (Date.now() - startTime).toString();
+               console.log(`Leaving signForMultiSign in ${this.executionTime}ms`);
           }
      }
 
@@ -677,6 +825,27 @@ export class SignTransactionsComponent implements AfterViewChecked {
           }
 
           return signerAccounts;
+     }
+
+     private getSignerAccountsList(accountObjects: xrpl.AccountObjectsResponse) {
+          const signerList = accountObjects.result.account_objects?.find((obj: any): obj is SignerList => obj.LedgerEntryType === 'SignerList');
+          this.requiredQuorum = signerList?.SignerQuorum || 0;
+
+          const signerData = this.checkForSignerAccounts(accountObjects).map(s => {
+               const [address, weight] = s.split('~');
+               return { address, weight: parseInt(weight, 10) };
+          });
+          this.availableSigners = this.wallets
+               .filter(w => w.address !== this.currentWallet.address)
+               .filter(w => signerData.some(s => s.address === w.address))
+               .map(w => {
+                    const match = signerData.find(s => s.address === w.address);
+                    return {
+                         ...w,
+                         quorum: match ? match.weight : null,
+                         isSelectedSigner: false,
+                    };
+               });
      }
 
      private getAccountTickets(accountObjects: xrpl.AccountObjectsResponse): string[] {
@@ -865,7 +1034,13 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.isTicket = false;
           this.memoField = '';
           this.isMemoEnabled = false;
+          this.resetSigners();
           this.cdr.markForCheck();
+     }
+
+     resetSigners() {
+          this.availableSigners.forEach(w => (w.isSelectedSigner = false));
+          this.selectedQuorum = 0;
      }
 
      private renderTransactionResult(response: any): void {

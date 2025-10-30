@@ -486,3 +486,8 @@ table textarea {
 .result-container .null {
      color: #808080 !important;
 }
+
+.quorum-progress {
+     padding-top: 5px;
+     padding-left: 8px;
+}

@@ -1187,9 +1187,16 @@ export class UtilsService {
 
      async handleMultiSignTransaction({ client, wallet, tx, signerAddresses, signerSeeds, fee }: { client: xrpl.Client; wallet: xrpl.Wallet; tx: xrpl.Transaction; signerAddresses: string[]; signerSeeds: string[]; fee: string }): Promise<{ signedTx: { tx_blob: string; hash: string } | null; signers: xrpl.Signer[] }> {
           const accountObjects = await this.xrplService.getAccountObjects(client, wallet.classicAddress, 'validated', '');
+
           const signerList = accountObjects.result.account_objects.find((obj: any) => obj.LedgerEntryType === 'SignerList');
           if (!signerList) {
                throw new Error('Account does not have a SignerList');
+          }
+
+          // Optional: prevent duplicates
+          const uniqueSigners = new Set(signerAddresses);
+          if (uniqueSigners.size !== signerAddresses.length) {
+               throw new Error('Duplicate signer addresses are not allowed');
           }
 
           if (!Array.isArray((signerList as any).SignerEntries)) {
@@ -1199,7 +1206,13 @@ export class UtilsService {
           if (!('SignerEntries' in signerList) || !Array.isArray((signerList as any).SignerEntries)) {
                throw new Error('SignerList object does not have SignerEntries');
           }
+
           const validSigners = (signerList as { SignerEntries: any[] }).SignerEntries.map((entry: any) => entry.SignerEntry.Account);
+
+          if (signerAddresses.some(addr => !validSigners.includes(addr))) {
+               throw new Error('One or more signer addresses are not in the SignerList');
+          }
+
           const quorum = (signerList as any).SignerQuorum;
 
           let totalWeight = 0;
@@ -1210,8 +1223,8 @@ export class UtilsService {
                }
           });
 
-          if (signerAddresses.some(addr => !validSigners.includes(addr))) {
-               throw new Error('One or more signer addresses are not in the SignerList');
+          if (totalWeight < quorum) {
+               throw new Error(`Signer weight (${totalWeight}) is less than required quorum (${quorum})`);
           }
 
           console.log('SignerList:', signerList);
