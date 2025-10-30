@@ -287,6 +287,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
           }
      }
 
+     getTransactionJSON() {
+          this.onTransactionChange();
+     }
+
      // selectTransaction(value: string) {
      //      this.selectedTransaction = value;
      //      console.log('Selected transaction:', value);

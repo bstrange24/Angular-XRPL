@@ -1308,8 +1308,8 @@ export class RenderUiComponentsService {
                                         objTable.appendChild(objHeader);
 
                                         for (const item of subItem.content) {
-                                             console.log(`item.key HEY:`, item.key);
-                                             console.log(`item.value:`, item.value);
+                                             // console.log(`item.key HEY:`, item.key);
+                                             // console.log(`item.value:`, item.value);
                                              const row = document.createElement('div');
                                              row.className = 'result-row';
                                              if (item.key === 'MPTokenMetadata' || item.key === 'Data' || item.key === 'URI') {
@@ -1346,8 +1346,8 @@ export class RenderUiComponentsService {
                                         nestedTable.appendChild(nestedHeader);
 
                                         for (const nestedContent of nestedItem.content) {
-                                             console.log(`item.key:`, nestedContent.key);
-                                             console.log(`item.value:`, nestedContent.value);
+                                             // console.log(`item.key:`, nestedContent.key);
+                                             // console.log(`item.value:`, nestedContent.value);
                                              const nestedRow = document.createElement('div');
                                              nestedRow.className = 'result-row';
                                              nestedRow.innerHTML = `
