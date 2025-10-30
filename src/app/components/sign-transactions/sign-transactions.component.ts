@@ -164,29 +164,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.cdr.markForCheck();
      }
 
-     async toggleMultiSign() {
-          try {
-               if (!this.useMultiSign) {
-                    this.utilsService.clearSignerList(this.signers);
-               } else {
-                    const wallet = await this.getWallet();
-                    this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-               }
-          } catch (error: any) {
-               console.log(`ERROR getting wallet in toggleMultiSign' ${error.message}`);
-               this.setError('ERROR getting wallet in toggleMultiSign', null);
-          } finally {
-               this.cdr.markForCheck();
-          }
-     }
-
-     async toggleUseMultiSign() {
-          if (this.multiSignAddress === 'No Multi-Sign address configured for account') {
-               this.multiSignSeeds = '';
-          }
-          this.cdr.markForCheck();
-     }
-
      onTicketChange(newValue: any) {
           // Check if user changed from default
           if (Array.isArray(newValue)) {
@@ -1003,6 +980,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.isSimulateEnabled = false;
           this.selectedSingleTicket = '';
           this.isTicket = false;
+          this.useMultiSign = false;
           this.resetSigners();
           this.cdr.markForCheck();
      }
