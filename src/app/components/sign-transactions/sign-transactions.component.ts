@@ -21,26 +21,8 @@ import { ClickToCopyService } from '../../services/click-to-copy/click-to-copy.s
 import { AppConstants } from '../../core/app.constants';
 
 interface ValidationInputs {
-     selectedAccount?: string;
-     senderAddress?: string;
      account_info?: any;
      seed?: string;
-     amount?: string;
-     destination?: string;
-     destinationTag?: string;
-     sourceTag?: string;
-     invoiceId?: string;
-     isRegularKeyAddress?: boolean;
-     regularKeyAddress?: string;
-     regularKeySeed?: string;
-     useMultiSign?: boolean;
-     multiSignSeeds?: string;
-     multiSignAddresses?: string;
-     isTicket?: boolean;
-     selectedSingleTicket?: string;
-     selectedTicket?: string;
-     signerQuorum?: number;
-     signers?: { account: string; weight: number }[];
 }
 
 @Component({
@@ -289,7 +271,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
                console.debug(`accountObjects:`, accountObjects.result);
 
                const inputs: ValidationInputs = {
-                    selectedAccount: this.selectedAccount,
                     seed: this.currentWallet.seed,
                     account_info: accountInfo,
                };
@@ -816,86 +797,12 @@ export class SignTransactionsComponent implements AfterViewChecked {
                return null;
           };
 
-          const isValidXrpAddress = (value: string | undefined, fieldName: string): string | null => {
-               if (value && !xrpl.isValidAddress(value)) {
-                    return `${fieldName} is invalid`;
-               }
-               return null;
-          };
-
-          const isValidSecret = (value: string | undefined, fieldName: string): string | null => {
-               if (value && !xrpl.isValidSecret(value)) {
-                    return `${fieldName} is invalid`;
-               }
-               return null;
-          };
-
-          const isValidNumber = (value: string | undefined, fieldName: string, minValue?: number, allowEmpty: boolean = false): string | null => {
-               if (value === undefined || (allowEmpty && value === '')) return null;
-               const num = parseFloat(value);
-               if (isNaN(num) || !isFinite(num)) {
-                    return `${fieldName} must be a valid number`;
-               }
-               if (minValue !== undefined && num <= minValue) {
-                    return `${fieldName} must be greater than ${minValue}`;
-               }
-               return null;
-          };
-
           const isValidSeed = (value: string | undefined): string | null => {
                if (value) {
                     const { value: detectedValue } = this.utilsService.detectXrpInputType(value);
                     if (detectedValue === 'unknown') {
                          return 'Account seed is invalid';
                     }
-               }
-               return null;
-          };
-
-          const isNotSelfPayment = (sender: string | undefined, receiver: string | undefined): string | null => {
-               if (sender && receiver && sender === receiver) {
-                    return `Sender and receiver cannot be the same`;
-               }
-               return null;
-          };
-
-          const isValidInvoiceId = (value: string | undefined): string | null => {
-               if (value && !this.utilsService.validateInput(value)) {
-                    return 'Invoice ID is invalid';
-               }
-               return null;
-          };
-
-          const validateMultiSign = (addressesStr: string | undefined, seedsStr: string | undefined): string | null => {
-               if (!addressesStr || !seedsStr) return null;
-               const addresses = this.utilsService.getMultiSignAddress(addressesStr);
-               const seeds = this.utilsService.getMultiSignSeeds(seedsStr);
-               if (addresses.length === 0) {
-                    return 'At least one signer address is required for multi-signing';
-               }
-               if (addresses.length !== seeds.length) {
-                    return 'Number of signer addresses must match number of signer seeds';
-               }
-               const invalidAddr = addresses.find((addr: string) => !xrpl.isValidAddress(addr));
-               if (invalidAddr) {
-                    return `Invalid signer address: ${invalidAddr}`;
-               }
-               return null;
-          };
-
-          // --- Async validator: check if destination account requires a destination tag ---
-          const checkDestinationTagRequirement = async (): Promise<string | null> => {
-               if (!inputs.destination) return null; // Skip if no destination provided
-               try {
-                    const client = await this.xrplService.getClient();
-                    const accountInfo = await this.xrplService.getAccountInfo(client, inputs.destination, 'validated', '');
-
-                    if (accountInfo.result.account_flags.requireDestinationTag && (!inputs.destinationTag || inputs.destinationTag.trim() === '')) {
-                         return `ERROR: Receiver requires a Destination Tag for payment`;
-                    }
-               } catch (err) {
-                    console.error('Failed to check destination tag requirement:', err);
-                    return `Could not validate destination account`;
                }
                return null;
           };
@@ -913,28 +820,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     required: ['seed'],
                     customValidators: [() => isValidSeed(inputs.seed), () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null)],
                     asyncValidators: [],
-               },
-               sendXrp: {
-                    required: ['seed', 'amount', 'destination'],
-                    customValidators: [
-                         () => isValidSeed(inputs.seed),
-                         () => isValidNumber(inputs.amount, 'XRP Amount', 0),
-                         () => isValidXrpAddress(inputs.destination, 'Destination'),
-                         () => isValidNumber(inputs.sourceTag, 'Source Tag', 0, true),
-                         () => isValidNumber(inputs.destinationTag, 'Destination Tag', 0, true),
-                         () => isValidInvoiceId(inputs.invoiceId),
-                         () => isNotSelfPayment(inputs.senderAddress, inputs.destination),
-                         () => (inputs.account_info === undefined || inputs.account_info === null ? `No account data found` : null),
-                         () => (inputs.account_info.result.account_flags.disableMasterKey && !inputs.useMultiSign && !inputs.isRegularKeyAddress ? 'Master key is disabled. Must sign with Regular Key or Multi-sign.' : null),
-                         () => (inputs.isTicket ? isRequired(inputs.selectedSingleTicket, 'Ticket Sequence') : null),
-                         () => (inputs.isTicket ? isValidNumber(inputs.selectedSingleTicket, 'Ticket Sequence', 0) : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isRequired(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address') : null),
-                         () => (inputs.isRegularKeyAddress && !inputs.useMultiSign ? isValidSecret(inputs.regularKeySeed, 'Regular Key Seed') : null),
-                         () => validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds),
-                    ],
-                    asyncValidators: [checkDestinationTagRequirement],
                },
                default: { required: [], customValidators: [], asyncValidators: [] },
           };
@@ -960,22 +845,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     if (err) errors.push(err);
                }
           }
-
-          // --- Always validate optional fields ---
-          const multiErr = validateMultiSign(inputs.multiSignAddresses, inputs.multiSignSeeds);
-          if (multiErr) errors.push(multiErr);
-
-          if (errors.length == 0 && inputs.useMultiSign && (inputs.multiSignAddresses === 'No Multi-Sign address configured for account' || inputs.multiSignSeeds === '')) {
-               errors.push('At least one signer address is required for multi-signing');
-          }
-
-          const regAddrErr = isValidXrpAddress(inputs.regularKeyAddress, 'Regular Key Address');
-          if (regAddrErr && inputs.regularKeyAddress !== 'No RegularKey configured for account') {
-               errors.push(regAddrErr);
-          }
-
-          const regSeedErr = isValidSecret(inputs.regularKeySeed, 'Regular Key Seed');
-          if (regSeedErr) errors.push(regSeedErr);
 
           return errors;
      }
