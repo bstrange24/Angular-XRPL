@@ -184,8 +184,7 @@
                                         <button type="button" (click)="signedTransaction()">Signed Transaction</button>
                                         <button type="button" (click)="submitTransaction()">Submit Transaction</button>
                                         <button type="button" (click)="signedTransaction()">Sign for Multi-Sign</button>
-                                        <!-- <button type="button" (click)="combineMultiSignatures()">Combine Signatures</button> -->
-                                        <button type="button" (click)="clearFields(true)">Clear Fields</button>
+                                        <button type="button" (click)="clearFields()">Clear Fields</button>
                                    </td>
                               </tr>
 
@@ -379,12 +378,14 @@
 
                                    <div *ngIf="requiredQuorum" class="quorum-progress">Required quorum: {{ requiredQuorum }}</div>
 
-                                   <div *ngIf="requiredQuorum">
-                                        <div style="margin-top: 10px; padding-top: 5px; padding-left: 8px">
-                                             Quorum Progress:
-                                             <div [ngStyle]="{background: selectedQuorum >= requiredQuorum ? '#28a745' : '#ccc', height: '16px',width: (selectedQuorum / requiredQuorum) * 100 + '%', maxWidth: '100%', borderRadius: '8px', transition: 'width 0.3s ease'}"></div>
-                                             <!-- <div [ngStyle]="{background: 'linear-gradient(to right, #ffc107, #28a745 ' + (selectedQuorum / requiredQuorum) * 100 + '%)', height: '16px', width: (selectedQuorum / requiredQuorum) * 100 + '%', borderRadius: '8px', transition: 'all 0.3s ease'}"></div> -->
-                                             <div style="margin-top: 4px">{{ selectedQuorum }} / {{ requiredQuorum }}</div>
+                                   <div *ngIf="currentWallet && availableSigners.length !== 0" class="quorum-container">
+                                        <div class="quorum-header">
+                                             <span>Quorum Progress:</span>
+                                             <span class="quorum-value">{{ selectedQuorum }} / {{ requiredQuorum }}</span>
+                                        </div>
+
+                                        <div class="progress-bar-container">
+                                             <div class="progress-bar" [style.width.%]="(selectedQuorum / requiredQuorum) * 100" [style.background-color]="selectedQuorum >= requiredQuorum ? 'green' : 'gray'"></div>
                                         </div>
                                    </div>
 

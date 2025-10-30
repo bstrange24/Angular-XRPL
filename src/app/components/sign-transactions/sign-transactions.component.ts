@@ -52,25 +52,12 @@ export class SignTransactionsComponent implements AfterViewChecked {
      defaultTicketSequence: string | null = null; // store defaulted ticket
      multiSelectMode: boolean = false;
      selectedTicket: string = '';
-     selectedAccount: string = '';
      ownerCount: string = '';
      totalXrpReserves: string = '';
      executionTime: string = '';
-     amountField: string = '';
-     destinationTagField: string = '';
-     sourceTagField: string = '';
-     invoiceIdField: string = '';
-     memoField: string = '';
-     isMemoEnabled: boolean = false;
-     isInvoiceIdEnabled: boolean = false;
-     isMultiSignTransaction: boolean = false;
      multiSignAddress: string = '';
      multiSignSeeds: string = '';
      signerQuorum: number = 0;
-     isOnlySignTransactionEnabled: boolean = false;
-     isSubmitSignedTransactionEnabled: boolean = false;
-     signedTransactionField: string = '';
-     submittedTxField: string = '';
      spinner: boolean = false;
      useMultiSign: boolean = false;
      multiSigningEnabled: boolean = false;
@@ -81,19 +68,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
      spinnerMessage: string = '';
      masterKeyDisabled: boolean = false;
      isSimulateEnabled: boolean = false;
-     destinationFields: string = '';
-     destinations: string[] = [];
      signers: { account: string; seed: string; weight: number }[] = [{ account: '', seed: '', weight: 1 }];
      errorMessage: string | null = null;
      selectedTransaction: string | null = null;
      editedTxJson: any = {};
-     isSendXrpEnabled: boolean = false;
-     isSetTrustlineEnabled: boolean = false;
-     isRemoveTrustlineEnabled: boolean = false;
-     isAccountFlagEnabled: boolean = false;
-     multiSignedBlobs: string[] = []; // store partial multi-signed blobs
-     combinedTxBlob: string = ''; // store combined tx blob for submission
-     multiSignedHtml: string = '';
      wallets: any[] = [];
      selectedWalletIndex: number = 0;
      currentWallet = { name: '', address: '', seed: '', balance: '' };
@@ -173,7 +151,6 @@ export class SignTransactionsComponent implements AfterViewChecked {
                this.setError('Invalid XRP address', null);
           }
 
-          // this.availableSigners = this.wallets.filter(w => w.address !== this.currentWallet.address && this.signerAddresses.includes(w.address));
           this.resetSigners();
 
           this.cdr.detectChanges();
@@ -303,7 +280,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                          this.refreshUIData(wallet, accountInfo, accountObjects);
                          this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
                          this.updateTickets(accountObjects);
-                         this.clearFields(false);
+                         this.clearFields();
                          await this.updateXrpBalance(client, accountInfo, wallet);
                     } catch (err) {
                          console.error('Error in deferred UI updates:', err);
@@ -560,7 +537,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                               // Reset selected checkboxes
                               this.resetSigners();
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                              this.clearFields(false);
+                              this.clearFields();
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
@@ -636,7 +613,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
                     setTimeout(async () => {
                          try {
                               this.utilsService.loadSignerList(wallet.classicAddress, this.signers);
-                              this.clearFields(false);
+                              this.clearFields();
                               this.updateTickets(updatedAccountObjects);
                               await this.updateXrpBalance(client, updatedAccountInfo, wallet);
                          } catch (err) {
@@ -920,7 +897,7 @@ export class SignTransactionsComponent implements AfterViewChecked {
           this.useMultiSign = false;
           this.masterKeyDisabled = Boolean(accountInfo?.result?.account_flags?.disableMasterKey);
 
-          this.clearFields(false);
+          this.clearFields();
      }
 
      public refreshUiAccountInfo(accountInfo: xrpl.AccountInfoResponse): void {
@@ -1022,18 +999,10 @@ export class SignTransactionsComponent implements AfterViewChecked {
           return errors;
      }
 
-     clearFields(clearAllFields: boolean) {
-          if (clearAllFields) {
-               this.amountField = '';
-               this.invoiceIdField = '';
-               this.destinationTagField = '';
-               this.sourceTagField = '';
-          }
-
+     clearFields() {
+          this.isSimulateEnabled = false;
           this.selectedSingleTicket = '';
           this.isTicket = false;
-          this.memoField = '';
-          this.isMemoEnabled = false;
           this.resetSigners();
           this.cdr.markForCheck();
      }

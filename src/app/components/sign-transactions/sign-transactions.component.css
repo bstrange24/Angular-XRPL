@@ -491,3 +491,40 @@ table textarea {
      padding-top: 5px;
      padding-left: 8px;
 }
+
+.quorum-container {
+     margin-top: 15px;
+     width: 100%;
+}
+
+.quorum-header {
+     display: flex;
+     align-items: center;
+     gap: 198px;
+     /* space between label and value */
+     font-weight: 500;
+     margin-bottom: 4px;
+     padding-left: 8px;
+     margin-top: 10px;
+}
+
+/* .quorum-header {
+     justify-content: space-between;
+} */
+
+.progress-bar-container {
+     height: 10px;
+     width: 95%;
+     background-color: #e0e0e0;
+     border-radius: 4px;
+     overflow: hidden;
+     margin-left: 8px;
+     margin-top: 8px;
+     margin-bottom: 8px;
+}
+
+.progress-bar {
+     height: 100%;
+     transition: width 0.4s ease, background-color 0.4s ease;
+     border-radius: 4px;
+}
